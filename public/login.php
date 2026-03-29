@@ -23,7 +23,6 @@ if (is_logged_in()) {
 
 $error = '';
 $success = '';
-$timeout_expired = isset($_GET['timeout']) && $_GET['timeout'] === '1';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $is_ajax = (
@@ -262,12 +261,6 @@ $base_url = get_base_url();
     <p class="auth-subtitle">Welcome back! Please sign in to continue</p>
     
     <!-- DEBUG: If you see this, the page is updated! -->
-
-    <?php if ($timeout_expired && empty($error)): ?>
-        <div class="alert-error" style="background:#fef3c7;border-color:#fbbf24;color:#92400e;">
-            Your session expired due to inactivity. Please sign in again.
-        </div>
-    <?php endif; ?>
 
     <?php if ($error): ?>
         <div class="alert-error"><?php echo htmlspecialchars($error); ?></div>

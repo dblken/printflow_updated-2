@@ -362,6 +362,10 @@ if (isset($_GET['ajax'])) {
             },
 
             showRestoreConfirmModal(id, name) { this.restoreConfirmModal = { id, name, isOpen: true }; },
+            async confirmRestoreBranch() {
+                await this.restoreBranch(this.restoreConfirmModal.id);
+                this.restoreConfirmModal.isOpen = false;
+            },
             async restoreBranch(id) {
                 try {
                     const r = await fetch('/printflow/admin/api_branch.php', {
@@ -373,6 +377,10 @@ if (isset($_GET['ajax'])) {
             },
 
             showArchiveConfirmModal(id, name) { this.archiveConfirmModal = { id, name, isOpen: true }; },
+            async confirmArchiveBranch() {
+                await this.archiveBranch(this.archiveConfirmModal.id);
+                this.archiveConfirmModal.isOpen = false;
+            },
             async archiveBranch(id) {
                 try {
                     const r = await fetch('/printflow/admin/api_branch.php', {
@@ -491,17 +499,17 @@ if (isset($_GET['ajax'])) {
 
             <!-- Branch Table -->
             <div class="card">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;" x-data="branchFilterPanel()">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;">
                     <h3 style="font-size:16px;font-weight:700;color:#1f2937;margin:0;">Branches List</h3>
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <button type="button" @click="$root.openModal('create')" class="toolbar-btn" style="height:38px;border-color:#3b82f6;color:#3b82f6;">Add Item</button>
-                        <button type="button" @click="$root.openArchiveModal()" class="toolbar-btn" style="height:38px;border-color:#6b7280;color:#6b7280;display:flex;align-items:center;gap:6px;">
+                        <button type="button" @click="openModal('create')" class="toolbar-btn" style="height:38px;border-color:#3b82f6;color:#3b82f6;">Add Item</button>
+                        <button type="button" @click="openArchiveModal()" class="toolbar-btn" style="height:38px;border-color:#6b7280;color:#6b7280;display:flex;align-items:center;gap:6px;">
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
                             </svg>
                             Archived Items
                         </button>
-                        <div style="position:relative;">
+                        <div style="position:relative;" x-data="branchFilterPanel()">
                             <button type="button" class="toolbar-btn" :class="{active: sortOpen}" @click="sortOpen = !sortOpen; filterOpen = false" style="height:38px;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/>
@@ -553,6 +561,7 @@ if (isset($_GET['ajax'])) {
                                     <button type="button" class="filter-btn-reset" style="width:100%;" @click="applyBranchFilters(true)">Reset all filters</button>
                                 </div>
                             </div>
+                        </div>
                         </div>
                     </div>
                 </div>

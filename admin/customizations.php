@@ -39,7 +39,8 @@ $sql = "SELECT jo.*, CONCAT(c.first_name, ' ', c.last_name) AS customer_name, c.
         LEFT JOIN customers c ON jo.customer_id = c.customer_id
         LEFT JOIN orders jo_ord ON jo_ord.order_id = jo.order_id
         LEFT JOIN branches b ON b.id = COALESCE(jo.branch_id, jo_ord.branch_id)
-        WHERE 1=1";
+        WHERE 1=1
+        AND NOT (jo.status IN ('IN_PRODUCTION', 'TO_RECEIVE', 'COMPLETED') AND jo.payment_status != 'PAID')";
 $params = []; $types = '';
 
 // ── Branch filter ──────────────────────────────────
@@ -60,10 +61,6 @@ if (!empty($status_filter)) {
     $sql .= " AND jo.status = ?";
     $params[] = $status_filter;
     $types .= 's';
-    // COMPLETED status only when payment is PAID (prevent showing inconsistent records)
-    if ($status_filter === 'COMPLETED') {
-        $sql .= " AND jo.payment_status = 'PAID'";
-    }
 }
 
 if (!empty($payment_filter)) {
@@ -224,10 +221,10 @@ if ($branch_filter !== '') {
     $kpiTypes = 'i';
     $kpiParams = [(int)$branch_filter];
 }
-$kpi_total   = db_query("SELECT COUNT(*) as c FROM job_orders jo WHERE 1=1" . $kpiBranchSql, $kpiTypes ?: null, $kpiParams ?: null)[0]['c'] ?? 0;
-$kpi_pending = db_query("SELECT COUNT(*) as c FROM job_orders jo WHERE jo.status IN ('PENDING','APPROVED')" . $kpiBranchSql, $kpiTypes ?: null, $kpiParams ?: null)[0]['c'] ?? 0;
-$kpi_active  = db_query("SELECT COUNT(*) as c FROM job_orders jo WHERE jo.status = 'IN_PRODUCTION'" . $kpiBranchSql, $kpiTypes ?: null, $kpiParams ?: null)[0]['c'] ?? 0;
-$kpi_done    = db_query("SELECT COUNT(*) as c FROM job_orders jo WHERE jo.status = 'COMPLETED'" . $kpiBranchSql, $kpiTypes ?: null, $kpiParams ?: null)[0]['c'] ?? 0;
+$kpi_total   = db_query("SELECT COUNT(*) as c FROM job_orders jo WHERE NOT (jo.status IN ('IN_PRODUCTION', 'TO_RECEIVE', 'COMPLETED') AND jo.payment_status != 'PAID')" . $kpiBranchSql, $kpiTypes ?: null, $kpiParams ?: null)[0]['c'] ?? 0;
+$kpi_pending = db_query("SELECT COUNT(*) as c FROM job_orders jo WHERE jo.status IN ('PENDING','APPROVED') AND NOT (jo.status IN ('IN_PRODUCTION', 'TO_RECEIVE', 'COMPLETED') AND jo.payment_status != 'PAID')" . $kpiBranchSql, $kpiTypes ?: null, $kpiParams ?: null)[0]['c'] ?? 0;
+$kpi_active  = db_query("SELECT COUNT(*) as c FROM job_orders jo WHERE jo.status = 'IN_PRODUCTION' AND jo.payment_status = 'PAID'" . $kpiBranchSql, $kpiTypes ?: null, $kpiParams ?: null)[0]['c'] ?? 0;
+$kpi_done    = db_query("SELECT COUNT(*) as c FROM job_orders jo WHERE jo.status = 'COMPLETED' AND jo.payment_status = 'PAID'" . $kpiBranchSql, $kpiTypes ?: null, $kpiParams ?: null)[0]['c'] ?? 0;
 
 $page_title = 'Customizations - Admin | PrintFlow';
 
@@ -517,6 +514,10 @@ function custom_payment_badge($status) {
                 historyOrders: [],
                 historyCustoms: [],
 
+                // Image Viewer State
+                showImageViewer: false,
+                currentImage: '',
+
                 openModal(id) {
                     this.showModal = true;
                     this.loading = true;
@@ -602,6 +603,11 @@ function custom_payment_badge($status) {
                     const labels = {UNPAID:'Unpaid',PENDING_VERIFICATION:'Verifying',PARTIAL:'Partial',PAID:'Paid'};
                     const s = map[status] || 'background:#f3f4f6;color:#6b7280';
                     return `<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:600;${s}">${labels[status] || status}</span>`;
+                },
+
+                viewImage(url) {
+                    this.currentImage = url;
+                    this.showImageViewer = true;
                 }
             };
         }
@@ -1069,7 +1075,31 @@ function custom_payment_badge($status) {
                     <!-- Notes -->
                     <div x-show="job?.notes" style="margin-top:4px;">
                         <p style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:6px;">Notes</p>
-                        <div style="background:#f9fafb;border-radius:8px;padding:12px 14px;font-size:13px;color:#374151;white-space:pre-wrap;" x-text="job?.notes"></div>
+                        <div style="background:#f9fafb;border-radius:8px;padding:12px 14px;font-size:13px;color:#374151;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;" x-text="job?.notes"></div>
+                    </div>
+                    <!-- Images -->
+                    <div x-show="(job?.artwork_path || (job?.items && job.items.some(i => i.design_url || i.reference_url)))" style="margin-top:18px;">
+                        <p style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;">Design Files</p>
+                        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                            <template x-if="job?.artwork_path">
+                                <div style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;" @click="viewImage(job.artwork_path)">
+                                    <img :src="job.artwork_path" style="width:100%;height:100%;object-fit:cover;" alt="Artwork">
+                                    <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Artwork</div>
+                                </div>
+                            </template>
+                            <template x-if="job?.items" x-for="(item, idx) in job.items" :key="idx">
+                                <div>
+                                    <div x-show="item.design_url" style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;margin-bottom:8px;" @click="viewImage(item.design_url)">
+                                        <img :src="item.design_url" style="width:100%;height:100%;object-fit:cover;" alt="Design">
+                                        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Design</div>
+                                    </div>
+                                    <div x-show="item.reference_url" style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;" @click="viewImage(item.reference_url)">
+                                        <img :src="item.reference_url" style="width:100%;height:100%;object-fit:cover;" alt="Reference">
+                                        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Reference</div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </div>
                 <!-- Footer -->
@@ -1077,6 +1107,18 @@ function custom_payment_badge($status) {
                     <button @click="showModal = false" class="btn-secondary">Close</button>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Viewer Modal -->
+<div x-show="showImageViewer" x-cloak style="position:fixed;top:0;bottom:0;left:0;right:0;z-index:10000;" @click="showImageViewer = false">
+    <div style="position:absolute;top:0;bottom:0;left:240px;right:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;">
+        <div style="position:relative;max-width:85%;max-height:85%;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 25px 50px rgba(0,0,0,0.5);" @click.stop>
+            <button @click="showImageViewer = false" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.8);border:none;color:white;width:40px;height:40px;border-radius:50%;cursor:pointer;z-index:1;display:flex;align-items:center;justify-content:center;transition:background 0.2s;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <img :src="currentImage" style="max-width:100%;max-height:85vh;display:block;" alt="Full view">
         </div>
     </div>
 </div>
