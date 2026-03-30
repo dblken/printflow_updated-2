@@ -228,7 +228,7 @@ $offset = ($page - 1) * $per_page;
 $users = db_query("SELECT u.*, b.branch_name $sql_base ORDER BY $sort_col_sql LIMIT $per_page OFFSET $offset", $types ?: null, $params ?: null) ?: [];
 
 // Fetch available branches for the creation dropdown
-$branches = db_query("SELECT id, branch_name FROM branches ORDER BY id ASC");
+$branches = db_query("SELECT id, branch_name FROM branches WHERE status != 'Archived' ORDER BY id ASC");
 
 // Summary statistics
 $stat_total    = db_query("SELECT COUNT(*) as c FROM users")[0]['c'];
@@ -255,7 +255,7 @@ if (!empty($_SESSION['um_staff_create_success'])) {
 
 $max_birthday = date('Y-m-d', strtotime('-18 years'));
 
-$page_title = 'User & Staff Management - Admin';
+$page_title = 'Team Management - Admin';
 
 // ── AJAX handler
 if (isset($_GET['ajax'])) {
@@ -315,18 +315,24 @@ if (isset($_GET['ajax'])) {
     <?php include __DIR__ . '/../includes/admin_style.php'; ?>
     <style>
         [x-cloak] { display: none !important; }
+        
+        /* Prevent layout shift on initial load */
+        .kpi-row, .card, .main-content { opacity: 1; }
+        body:not(.alpine-loaded) [x-data] { visibility: hidden; }
+        body.alpine-loaded [x-data] { visibility: visible; }
 
         /* KPI Cards – matching dashboard */
-        .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+        .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; min-width:0; }
         @media(max-width:900px) { .kpi-row { grid-template-columns:repeat(2,1fr); } }
-        .kpi-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px 20px; position:relative; overflow:hidden; }
+        .kpi-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px 20px; position:relative; overflow:hidden; min-width:0; }
         .kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
         .kpi-card.indigo::before { background:linear-gradient(90deg,#6366f1,#818cf8); }
         .kpi-card.emerald::before { background:linear-gradient(90deg,#059669,#34d399); }
         .kpi-card.amber::before { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
         .kpi-card.rose::before { background:linear-gradient(90deg,#e11d48,#fb7185); }
-        .kpi-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:#9ca3af; margin-bottom:6px; }
-        .kpi-sub { font-size:12px; color:#6b7280; margin-top:4px; }
+        .kpi-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:#9ca3af; margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .kpi-value { font-size:28px; font-weight:700; color:#111827; line-height:1.2; }
+        .kpi-sub { font-size:12px; color:#6b7280; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
         /* Action Buttons (match branches page) */
         .btn-action { display:inline-flex; align-items:center; justify-content:center; padding:5px 12px; min-width:70px; border:1px solid transparent; background:transparent; border-radius:6px; font-size:12px; font-weight:500; transition:all 0.2s; cursor:pointer; text-decoration:none; white-space:nowrap; }
@@ -335,15 +341,21 @@ if (isset($_GET['ajax'])) {
         .btn-action.teal { color:#0d9488; border-color:#0d9488; }
         .btn-action.teal:hover { background:#0d9488; color:white; }
 
-        /* ===== MINIMALISTIC VIEW MODAL ===== */
-        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9900; align-items:center; justify-content:center; padding:16px; }
+        /* ===== VIEW MODAL - CUSTOMIZATION STYLE ===== */
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9900; align-items:center; justify-content:center; padding:16px; }
         .modal-overlay.is-open { display:flex; }
-        .modal-box { background:#fff; border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,0.15); width:100%; max-width:680px; max-height:92vh; overflow-y:auto; }
-        .modal-hdr { display:flex; align-items:center; justify-content:space-between; padding:20px 24px 16px; border-bottom:1px solid #f3f4f6; }
-        .modal-hdr h2 { font-size:16px; font-weight:700; color:#111827; margin:0; }
-        .modal-hdr button { background:none; border:none; font-size:20px; color:#9ca3af; cursor:pointer; line-height:1; padding:2px 6px; }
+        .modal-box { background:#fff; border-radius:12px; box-shadow:0 25px 50px rgba(0,0,0,0.25); width:100%; max-width:640px; max-height:calc(100vh - 32px); display:flex; flex-direction:column; position:relative; overflow:hidden; }
+        .modal-hdr { display:flex; align-items:center; justify-content:space-between; padding:18px 24px; border-bottom:1px solid #f3f4f6; flex-shrink:0; }
+        .modal-hdr h2 { font-size:18px; font-weight:700; color:#1f2937; margin:0; }
+        .modal-hdr button { background:transparent; border:none; font-size:20px; color:#6b7280; cursor:pointer; line-height:1; padding:2px 6px; }
         .modal-hdr button:hover { color:#374151; }
-        .modal-bdy { padding:20px 24px; }
+        .modal-bdy { padding:24px; overflow-y:auto; flex:1; max-height: calc(100vh - 200px); }
+        
+        /* Detail Blocks */
+        .detail-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+        .detail-block { flex:1; min-width:140px; background:#f9fafb; border-radius:8px; padding:12px 14px; }
+        .detail-block label { font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:.4px; display:block; margin-bottom:4px; }
+        .detail-block span { font-size:13px; font-weight:400; color:#1f2937; word-wrap:break-word; overflow-wrap:break-word; }
         .mf-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
         .mf-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:14px; }
         .mf-full { grid-column:1/-1; }
@@ -354,7 +366,7 @@ if (isset($_GET['ajax'])) {
         .mf-group input:disabled { background:#f3f4f6; color:#9ca3af; cursor:not-allowed; }
         .mf-group textarea { resize:none; }
         .mf-divider { border:none; border-top:1px solid #f3f4f6; margin:16px 0; }
-        .mf-footer { display:flex; justify-content:flex-end; gap:10px; padding:16px 24px; border-top:1px solid #f3f4f6; flex-wrap:wrap; }
+        .mf-footer { display:flex; justify-content:flex-end; gap:10px; padding:16px 24px; border-top:1px solid #f3f4f6; flex-wrap:wrap; flex-shrink:0; }
         .mf-btn-cancel { padding:7px 14px; min-width:70px; border:1px solid #e5e7eb; background:#fff; border-radius:6px; font-size:12px; font-weight:500; color:#374151; cursor:pointer; transition:all 0.2s; }
         .mf-btn-cancel:hover { background:#f9fafb; }
         .mf-btn-save { padding:7px 14px; min-width:70px; border:none; border-radius:8px; background:#4f46e5; color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
@@ -610,15 +622,15 @@ if (isset($_GET['ajax'])) {
 <body>
 
 <div class="dashboard-container">
-    <?php include __DIR__ . '/../includes/' . ($current_user['role'] === 'Admin' ? 'admin_sidebar.php' : 'manager_sidebar.php'); ?>
+    <?php include __DIR__ . '/../includes/admin_sidebar.php'; ?>
 
     <!-- Main Content -->
     <div class="main-content">
         <header>
-            <h1 class="page-title">User & Staff Management</h1>
+            <h1 class="page-title">Team Management</h1>
         </header>
 
-        <main x-data="userManagement()" x-init="loadProvinces()">
+        <main x-data="userManagement()" x-init="$nextTick(() => { if (typeof loadProvinces === 'function') loadProvinces(); })" style="min-height:400px;">
             <!-- KPI Summary Cards (matching dashboard) -->
             <div class="kpi-row">
                 <div class="kpi-card indigo">
@@ -658,17 +670,17 @@ if (isset($_GET['ajax'])) {
             <!-- Users Table -->
             <div class="card">
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px;" x-data="filterPanel()">
-                    <h3 style="font-size:16px;font-weight:700;color:#1f2937;margin:0;">Users & Staff List</h3>
+                    <h3 style="font-size:16px;font-weight:700;color:#1f2937;margin:0;">Team Members List</h3>
 
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:nowrap;">
                         <!-- Add User Button -->
                         <button type="button" id="btn-open-user-modal" class="toolbar-btn-primary" style="height:38px;">
-                            Add User
+                            Add Team Member
                         </button>
 
                         <!-- Sort Button -->
                         <div style="position:relative;">
-                            <button type="button" class="toolbar-btn" :class="{ active: sortOpen }" @click="sortOpen = !sortOpen; filterOpen = false" id="sortBtn" style="height:38px;">
+                            <button type="button" class="toolbar-btn" :class="{ active: sortOpen || activeSort !== 'newest' }" @click="sortOpen = !sortOpen; filterOpen = false" id="sortBtn" style="height:38px;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/>
                                 </svg>
@@ -854,69 +866,120 @@ if (isset($_GET['ajax'])) {
             <div x-show="viewModal.isOpen" x-cloak class="modal-overlay" :class="{'is-open': viewModal.isOpen}" @click.self="viewModal.isOpen = false">
     <div class="modal-box" @click.stop>
         <div class="modal-hdr">
-            <h2>User Details</h2>
-            <button @click="viewModal.isOpen = false">&times;</button>
+            <div>
+                <h2 x-text="'Team Member #' + (viewModal.user?.user_id || '')"></h2>
+                <div x-show="viewModal.user" style="margin-top:4px;">
+                    <span :style="viewModal.user?.status === 'Activated' ? 'background:#dcfce7;color:#166534;' : (viewModal.user?.status === 'Deactivated' ? 'background:#fee2e2;color:#991b1b;' : 'background:#fef9c3;color:#854d0e;')" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;" x-text="viewModal.user?.status || '—'"></span>
+                </div>
+            </div>
+            <button @click="viewModal.isOpen = false">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
         </div>
-        <div x-show="viewModal.loading" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">Loading...</div>
+        <div x-show="viewModal.loading" style="padding:48px;text-align:center;">
+            <div style="width:40px;height:40px;border:3px solid #e5e7eb;border-top-color:#6366f1;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+            <p style="color:#6b7280;font-size:14px;">Loading details...</p>
+        </div>
         <template x-if="viewModal.user && !viewModal.loading">
             <div class="modal-bdy">
-                <div class="mf-row-3">
-                    <div class="mf-group"><label>First Name</label><div style="padding:9px 0; color:#111827;" x-text="viewModal.user.first_name || '—'"></div></div>
-                    <div class="mf-group"><label>Middle Name</label><div style="padding:9px 0; color:#111827;" x-text="viewModal.user.middle_name || '—'"></div></div>
-                    <div class="mf-group"><label>Last Name</label><div style="padding:9px 0; color:#111827;" x-text="viewModal.user.last_name || '—'"></div></div>
-                </div>
-                <div class="mf-row">
-                    <div class="mf-group"><label>Email Address</label><div style="padding:9px 0; color:#111827;" x-text="viewModal.user.email || '—'"></div></div>
-                    <div class="mf-group"><label>Contact Number</label><div style="padding:9px 0; color:#111827;" x-text="viewModal.user.contact_number || '—'"></div></div>
-                </div>
-                <div class="mf-row">
-                    <div class="mf-group"><label>Date of Birth</label><div style="padding:9px 0; color:#111827;" x-text="viewModal.user.dob ? new Date(viewModal.user.dob).toLocaleDateString('en-PH') : '—'"></div></div>
-                    <div class="mf-group"><label>Gender</label><div style="padding:9px 0; color:#111827;" x-text="viewModal.user.gender || '—'"></div></div>
-                </div>
-                <div class="mf-row">
-                    <div class="mf-group mf-full"><label>Address</label><div style="padding:9px 0; color:#111827; white-space:pre-wrap;" x-text="viewModal.user.address || '—'"></div></div>
-                </div>
-                <hr class="mf-divider">
-                <div class="mf-row">
-                    <div class="mf-group"><label>Role</label><div style="padding:9px 0; color:#111827;" x-text="viewModal.user.role || '—'"></div></div>
-                    <div class="mf-group"><label>Branch</label><div style="padding:9px 0; color:#111827;" x-text="viewModal.user.role === 'Admin' ? 'All Branches' : (viewModal.user.branch_name || 'Unassigned')"></div></div>
-                </div>
-                <div class="mf-row">
-                    <div class="mf-group"><label>Status</label><div style="padding:9px 0;"><span :style="viewModal.user.status === 'Activated' ? 'background:#dcfce7;color:#166534;' : (viewModal.user.status === 'Deactivated' ? 'background:#fee2e2;color:#991b1b;' : 'background:#fef9c3;color:#854d0e;')" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;" x-text="viewModal.user.status || '—'"></span></div></div>
-                    <div class="mf-group"><label>Member Since</label><div style="padding:9px 0; color:#111827;" x-text="viewModal.user.created_at ? new Date(viewModal.user.created_at).toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'}) : '—'"></div></div>
-                </div>
-                <div class="mf-row">
-                    <div class="mf-group mf-full">
-                        <label>ID Validation Reference</label>
-                        <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:12px; margin-bottom:8px;">
-                            <p style="font-size:11px; color:#6b7280; margin:0 0 8px 0;">Use this as reference when reviewing uploaded IDs:</p>
-                            <img src="/printflow/uploads/id_validation.png" alt="Valid vs Invalid ID" style="max-width:100%; height:auto; border-radius:6px;">
+                <!-- Personal Information -->
+                <div style="margin-bottom:18px;">
+                    <p style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;">Personal Information</p>
+                    <div class="detail-row">
+                        <div class="detail-block">
+                            <label>First Name</label>
+                            <span x-text="viewModal.user?.first_name || '—'"></span>
                         </div>
-                        <template x-if="viewModal.user.id_validation_image">
-                        <div>
-                            <label>Uploaded ID</label>
-                            <div style="margin-top:6px;">
-                                <a :href="'/printflow/uploads/ids/' + viewModal.user.id_validation_image" target="_blank" rel="noopener" style="color:#0d9488; font-weight:600; font-size:13px;">View ID Image</a>
+                        <div class="detail-block">
+                            <label>Middle Name</label>
+                            <span x-text="viewModal.user?.middle_name || '—'"></span>
+                        </div>
+                        <div class="detail-block">
+                            <label>Last Name</label>
+                            <span x-text="viewModal.user?.last_name || '—'"></span>
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-block">
+                            <label>Email Address</label>
+                            <span x-text="viewModal.user?.email || '—'" style="word-break:break-all;"></span>
+                        </div>
+                        <div class="detail-block">
+                            <label>Contact Number</label>
+                            <span x-text="viewModal.user?.contact_number || '—'"></span>
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-block">
+                            <label>Date of Birth</label>
+                            <span x-text="viewModal.user?.dob ? new Date(viewModal.user.dob).toLocaleDateString('en-US', {month:'long',day:'numeric',year:'numeric'}) : '—'"></span>
+                        </div>
+                        <div class="detail-block">
+                            <label>Gender</label>
+                            <span x-text="viewModal.user?.gender || '—'"></span>
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-block" style="flex:1 1 100%;">
+                            <label>Address</label>
+                            <span x-text="viewModal.user?.address || '—'" style="display:block;"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Work Information -->
+                <div style="margin-bottom:18px;">
+                    <p style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;">Work Information</p>
+                    <div class="detail-row">
+                        <div class="detail-block">
+                            <label>Role</label>
+                            <span x-text="viewModal.user?.role || '—'"></span>
+                        </div>
+                        <div class="detail-block">
+                            <label>Branch</label>
+                            <span x-text="viewModal.user?.role === 'Admin' ? 'All Branches' : (viewModal.user?.branch_name || 'Unassigned')"></span>
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-block">
+                            <label>Member Since</label>
+                            <span x-text="viewModal.user?.created_at ? new Date(viewModal.user.created_at).toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'}) : '—'"></span>
+                        </div>
+                        <div class="detail-block">
+                            <label>Account Status</label>
+                            <span :style="viewModal.user?.status === 'Activated' ? 'background:#dcfce7;color:#166534;' : (viewModal.user?.status === 'Deactivated' ? 'background:#fee2e2;color:#991b1b;' : 'background:#fef9c3;color:#854d0e;')" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;" x-text="viewModal.user?.status || '—'"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ID Validation -->
+                <div x-show="viewModal.user?.id_validation_image" style="margin-bottom:18px;">
+                    <p style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;">ID Validation</p>
+                    <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:12px;">
+                        <p style="font-size:11px; color:#6b7280; margin:0 0 8px 0;">Reference guide:</p>
+                        <img src="/printflow/uploads/id_validation.png" alt="Valid vs Invalid ID" style="max-width:100%; height:auto; border-radius:6px; margin-bottom:8px;">
+                        <template x-if="viewModal.user?.id_validation_image">
+                            <div>
+                                <img :src="'/printflow/uploads/ids/' + viewModal.user.id_validation_image" alt="Uploaded ID" style="max-width:100%; height:auto; border-radius:6px; border:1px solid #e5e7eb;">
                             </div>
-                        </div>
                         </template>
                     </div>
                 </div>
-                <div class="mf-footer" style="flex-wrap:wrap; gap:8px;">
-                    <button type="button" @click="viewModal.isOpen = false" class="mf-btn-outline blue">Close</button>
-                    <template x-if="viewModal.user.status === 'Pending'">
-                        <button type="button" @click="showActivateConfirm(viewModal.user.user_id)" class="mf-btn-outline teal">Activate Account</button>
-                    </template>
-                    <template x-if="viewModal.user.status === 'Pending'">
-                        <button type="button" @click="openResendModal(viewModal.user.user_id)" class="mf-btn-outline teal">Resend Link</button>
-                    </template>
-                    <template x-if="viewModal.user.status === 'Activated'">
-                        <button type="button" @click="showDeactivateConfirm(viewModal.user.user_id)" class="mf-btn-outline teal">Deactivate Account</button>
-                    </template>
-                    <button type="button" @click="viewModal.isOpen = false; editUser(viewModal.user.user_id)" class="mf-btn-outline teal">Edit</button>
-                </div>
             </div>
         </template>
+        <div x-show="viewModal.user && !viewModal.loading" class="mf-footer">
+            <button type="button" @click="viewModal.isOpen = false" class="mf-btn-outline blue">Close</button>
+            <template x-if="viewModal.user?.status === 'Pending'">
+                <button type="button" @click="showActivateConfirm(viewModal.user.user_id)" class="mf-btn-outline teal">Activate Account</button>
+            </template>
+            <template x-if="viewModal.user?.status === 'Pending'">
+                <button type="button" @click="openResendModal(viewModal.user.user_id)" class="mf-btn-outline teal">Resend Link</button>
+            </template>
+            <template x-if="viewModal.user?.status === 'Activated'">
+                <button type="button" @click="showDeactivateConfirm(viewModal.user.user_id)" class="mf-btn-outline teal">Deactivate Account</button>
+            </template>
+            <button type="button" @click="viewModal.isOpen = false; editUser(viewModal.user?.user_id)" class="mf-btn-outline teal">Edit</button>
+        </div>
     </div>
 </div>
 
@@ -924,11 +987,14 @@ if (isset($_GET['ajax'])) {
 <div x-show="editModal.isOpen" x-cloak class="modal-overlay" :class="{'is-open': editModal.isOpen}" @click.self="editModal.isOpen = false">
     <div class="modal-box" @click.stop>
         <div class="modal-hdr">
-            <h2>Edit User</h2>
+            <h2>Edit Team Member</h2>
             <button @click="editModal.isOpen = false">&times;</button>
         </div>
-        <div x-show="editModal.loading" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">Loading...</div>
-        <template x-if="editModal.user && !editModal.loading">
+        <div x-show="editModal.loading" style="padding:48px;text-align:center;">
+            <div style="width:40px;height:40px;border:3px solid #e5e7eb;border-top-color:#6366f1;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+            <p style="color:#6b7280;font-size:14px;">Loading details...</p>
+        </div>
+        <div x-show="!editModal.loading">
             <div class="modal-bdy">
                 <div x-show="editModal.error" class="mf-alert err" x-text="editModal.error"></div>
                 <div x-show="editModal.success" class="mf-alert ok" x-text="editModal.success"></div>
@@ -936,25 +1002,25 @@ if (isset($_GET['ajax'])) {
                     <div class="mf-row-3">
                         <div class="mf-group" :class="{'is-invalid': errors.first_name, 'is-valid': editModal.user.first_name && !errors.first_name}">
                             <label>First Name *</label>
-                            <input type="text" x-model="editModal.user.first_name" @input="validateField('first_name')" @keypress="if (/\d/.test($event.key) || ($event.key===' ' && (editModal.user.first_name||'').endsWith(' '))) $event.preventDefault()" required>
+                            <input type="text" x-model="editModal.user.first_name" @input="validateField('first_name')" @keydown="if (/\d/.test($event.key)) $event.preventDefault(); if ($event.key.length === 1 && !/[a-zA-Z ]/.test($event.key)) $event.preventDefault(); if ($event.key === ' ' && ($event.target.selectionStart === 0 || $event.target.value.endsWith(' '))) $event.preventDefault(); if ($event.target.value.length >= 50 && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab'].includes($event.key) && $event.key.length === 1) $event.preventDefault();" required>
                             <div class="error-message" x-text="errors.first_name"></div>
                         </div>
                         <div class="mf-group" :class="{'is-invalid': errors.middle_name, 'is-valid': editModal.user.middle_name && !errors.middle_name}">
                             <label>Middle Name</label>
-                            <input type="text" x-model="editModal.user.middle_name" @input="validateField('middle_name')" @keypress="if (/\d/.test($event.key) || ($event.key===' ' && (editModal.user.middle_name||'').endsWith(' '))) $event.preventDefault()">
+                            <input type="text" x-model="editModal.user.middle_name" @input="validateField('middle_name')" @keydown="if (/\d/.test($event.key)) $event.preventDefault(); if ($event.key.length === 1 && !/[a-zA-Z ]/.test($event.key)) $event.preventDefault(); if ($event.key === ' ' && ($event.target.selectionStart === 0 || $event.target.value.endsWith(' '))) $event.preventDefault(); if ($event.target.value.length >= 50 && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab'].includes($event.key) && $event.key.length === 1) $event.preventDefault();">
                             <div class="error-message" x-text="errors.middle_name"></div>
                         </div>
                         <div class="mf-group" :class="{'is-invalid': errors.last_name, 'is-valid': editModal.user.last_name && !errors.last_name}">
                             <label>Last Name *</label>
-                            <input type="text" x-model="editModal.user.last_name" @input="validateField('last_name')" @keypress="if (/\d/.test($event.key) || ($event.key===' ' && (editModal.user.last_name||'').endsWith(' '))) $event.preventDefault()" required>
+                            <input type="text" x-model="editModal.user.last_name" @input="validateField('last_name')" @keydown="if (/\d/.test($event.key)) $event.preventDefault(); if ($event.key.length === 1 && !/[a-zA-Z ]/.test($event.key)) $event.preventDefault(); if ($event.key === ' ' && ($event.target.selectionStart === 0 || $event.target.value.endsWith(' '))) $event.preventDefault(); if ($event.target.value.length >= 50 && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab'].includes($event.key) && $event.key.length === 1) $event.preventDefault();" required>
                             <div class="error-message" x-text="errors.last_name"></div>
                         </div>
                     </div>
                     <div class="mf-row">
-                        <div class="mf-group"><label>Email Address</label><input type="email" :value="editModal.user.email" disabled></div>
+                        <div class="mf-group"><label>Email Address</label><input type="email" :value="editModal.user.email || ''" disabled></div>
                         <div class="mf-group" :class="{'is-invalid': errors.contact_number, 'is-valid': editModal.user.contact_number && !errors.contact_number}">
                             <label>Contact Number *</label>
-                            <input type="text" x-model="editModal.user.contact_number" @input="validateField('contact_number')" placeholder="e.g. 09171234567" required>
+                            <input type="text" x-model="editModal.user.contact_number" @input="validateField('contact_number')" placeholder="e.g. 09171234567" maxlength="11" required>
                             <div class="error-message" x-text="errors.contact_number"></div>
                         </div>
                     </div>
@@ -976,19 +1042,19 @@ if (isset($_GET['ajax'])) {
                     <div class="mf-row">
                         <div class="mf-group">
                             <label>Province *</label>
-                            <select :value="editModal.user.address_province" @change="editModal.user.address_province = $event.target.value; loadCities()" :disabled="!addressProvinces.length">
+                            <select x-model="editModal.user.address_province" @change="loadCities()" :disabled="!addressProvinces || !addressProvinces.length">
                                 <option value="">Select province</option>
-                                <template x-for="p in addressProvinces" :key="p.code">
-                                    <option :value="p.name" x-text="p.name" :selected="p.name === editModal.user.address_province"></option>
+                                <template x-for="p in (addressProvinces || [])" :key="p.code">
+                                    <option :value="p.name" x-text="p.name"></option>
                                 </template>
                             </select>
                         </div>
                         <div class="mf-group">
                             <label>City / Municipality *</label>
-                            <select :value="editModal.user.address_city" @change="editModal.user.address_city = $event.target.value; loadBarangays()" :disabled="!editModal.user.address_province || loadingCities">
+                            <select x-model="editModal.user.address_city" @change="loadBarangays()" :disabled="!editModal.user.address_province || loadingCities">
                                 <option value="" x-text="loadingCities ? 'Loading...' : 'Select city/municipality'"></option>
-                                <template x-for="c in addressCities" :key="c.code">
-                                    <option :value="c.name" x-text="c.name" :selected="c.name === editModal.user.address_city"></option>
+                                <template x-for="c in (addressCities || [])" :key="c.code">
+                                    <option :value="c.name" x-text="c.name"></option>
                                 </template>
                             </select>
                         </div>
@@ -996,16 +1062,16 @@ if (isset($_GET['ajax'])) {
                     <div class="mf-row">
                         <div class="mf-group">
                             <label>Barangay *</label>
-                            <select :value="editModal.user.address_barangay" @change="editModal.user.address_barangay = $event.target.value; buildAddress()" :disabled="!editModal.user.address_city || loadingBarangays">
+                            <select x-model="editModal.user.address_barangay" @change="buildAddress()" :disabled="!editModal.user.address_city || loadingBarangays">
                                 <option value="" x-text="loadingBarangays ? 'Loading...' : 'Select barangay'"></option>
-                                <template x-for="b in addressBarangays" :key="b.code">
-                                    <option :value="b.name" x-text="b.name" :selected="b.name === editModal.user.address_barangay"></option>
+                                <template x-for="b in (addressBarangays || [])" :key="b.code">
+                                    <option :value="b.name" x-text="b.name"></option>
                                 </template>
                             </select>
                         </div>
                         <div class="mf-group">
                             <label>Street / House No. (Optional)</label>
-                            <input type="text" x-model="editModal.user.address_line" @input="buildAddress()" maxlength="120" placeholder="e.g. 123 Rizal St.">
+                            <input type="text" x-model="editModal.user.address_line" @input="buildAddress()" @keydown="if ($event.key === ' ' && ($event.target.selectionStart === 0 || $event.target.value.endsWith(' '))) $event.preventDefault(); if ($event.target.value.length >= 120 && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab'].includes($event.key) && $event.key.length === 1) $event.preventDefault();" maxlength="120" placeholder="e.g. 123 Rizal St.">
                         </div>
                     </div>
                     <div class="mf-row">
@@ -1053,7 +1119,7 @@ if (isset($_GET['ajax'])) {
                     </div>
                 </form>
             </div>
-        </template>
+        </div>
     </div>
 </div>
 
@@ -1116,7 +1182,7 @@ if (isset($_GET['ajax'])) {
                 <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:14px;">
                     <input type="checkbox" x-model="resendModal.notes.other"> Other
                 </label>
-                <div x-show="resendModal.notes.other" style="margin-left:24px;">
+                <div x-show="resendModal.notes.other" x-cloak style="margin-left:24px;">
                     <input type="text" x-model="resendModal.notes.otherText" placeholder="Specify..." style="width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:6px; font-size:13px;">
                 </div>
             </div>
@@ -1128,6 +1194,8 @@ if (isset($_GET['ajax'])) {
     </div>
 </div>
 
+<!-- Image Viewer Modal - REMOVED -->
+
         </main>
     </div>
 </div>
@@ -1136,7 +1204,7 @@ if (isset($_GET['ajax'])) {
 <div id="user-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
     <div id="user-modal-box">
         <div class="modal-header">
-            <h3 class="modal-title" id="user-modal-title">Create New User / Staff</h3>
+            <h3 class="modal-title" id="user-modal-title">Add New Team Member</h3>
             <button type="button" class="modal-close-x" id="btn-close-user-modal-x" aria-label="Close">✕</button>
         </div>
         <form method="POST" action="" id="user-create-form" onsubmit="return validateUserCreateForm(event)">
@@ -1147,17 +1215,17 @@ if (isset($_GET['ajax'])) {
                 <div class="form-row-3">
                 <div class="form-group" id="um-group-first_name">
                     <label>First Name <span style="color:#ef4444">*</span></label>
-                    <input type="text" name="first_name" id="um-first_name" required placeholder="e.g. Juan" autocomplete="given-name">
+                    <input type="text" name="first_name" id="um-first_name" required placeholder="e.g. Juan" autocomplete="given-name" maxlength="50">
                     <div id="um-error-first_name" class="error-message" style="display:none; color:#ef4444; font-size:11px; margin-top:4px;"></div>
                 </div>
                 <div class="form-group" id="um-group-middle_name">
                     <label>Middle Name</label>
-                    <input type="text" name="middle_name" id="um-middle_name" placeholder="e.g. Santos" autocomplete="additional-name">
+                    <input type="text" name="middle_name" id="um-middle_name" placeholder="e.g. Santos" autocomplete="additional-name" maxlength="50">
                     <div id="um-error-middle_name" class="error-message" style="display:none; color:#ef4444; font-size:11px; margin-top:4px;"></div>
                 </div>
                 <div class="form-group" id="um-group-last_name">
                     <label>Last Name <span style="color:#ef4444">*</span></label>
-                    <input type="text" name="last_name" id="um-last_name" required placeholder="e.g. Dela Cruz" autocomplete="family-name">
+                    <input type="text" name="last_name" id="um-last_name" required placeholder="e.g. Dela Cruz" autocomplete="family-name" maxlength="50">
                     <div id="um-error-last_name" class="error-message" style="display:none; color:#ef4444; font-size:11px; margin-top:4px;"></div>
                 </div>
             </div>
@@ -1211,7 +1279,7 @@ if (isset($_GET['ajax'])) {
 
             <div class="modal-actions">
                 <button type="button" class="modal-btn modal-btn-cancel" id="btn-close-user-modal">Cancel</button>
-                <button type="submit" class="modal-btn modal-btn-submit">Create Account</button>
+                <button type="submit" class="modal-btn modal-btn-submit">Add Member</button>
             </div>
         </form>
     </div>
@@ -1328,8 +1396,12 @@ function printflowInitUserStaffModal() {
     function formatNameInput(el) {
         var v = el.value;
         v = v.replace(/\d/g, '');  // block numbers
+        v = v.replace(/[^a-zA-Z ]/g, '');  // block special characters, allow only letters and spaces
         v = v.replace(/\s{2,}/g, ' ');  // collapse 2+ consecutive spaces to 1
+        // Capitalize words but preserve trailing space for typing
+        var hasTrailingSpace = v.endsWith(' ');
         v = v.split(' ').map(function(w) { return w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ''; }).filter(Boolean).join(' ');
+        if (hasTrailingSpace && v.length > 0) v += ' ';
         el.value = v;
     }
     function validateUserCreateField(id) {
@@ -1404,9 +1476,19 @@ function printflowInitUserStaffModal() {
                 formatNameInput(this);
                 validateUserCreateField(id);
             });
-            el.addEventListener('keypress', function(e) {
+            el.addEventListener('keydown', function(e) {
+                // Block numbers
                 if (/\d/.test(e.key)) e.preventDefault();
-                if (e.key === ' ' && (this.value || '').endsWith(' ')) e.preventDefault();
+                // Block special characters (allow only letters and space)
+                if (e.key.length === 1 && !/[a-zA-Z ]/.test(e.key)) e.preventDefault();
+                // Block space only at the start (leading space)
+                if (e.key === ' ' && this.selectionStart === 0) {
+                    e.preventDefault();
+                }
+                // Block input if max length reached (except backspace, delete, arrow keys)
+                if (this.value.length >= 50 && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key) && e.key.length === 1) {
+                    e.preventDefault();
+                }
             });
         }
     });
@@ -1498,6 +1580,12 @@ if (document.readyState === 'loading') {
     printflowInitUserStaffModal();
 }
 document.addEventListener('printflow:page-init', printflowInitUserStaffModal);
+
+// Turbo navigation support
+if (typeof Turbo !== 'undefined') {
+    document.addEventListener('turbo:load', printflowInitUserStaffModal);
+    document.addEventListener('turbo:render', printflowInitUserStaffModal);
+}
 </script>
 
 <script>
@@ -1554,11 +1642,13 @@ async function fetchUpdatedTable(overrides = {}) {
             const container = document.getElementById('usersTableContainer');
             if (container) {
                 container.innerHTML = data.table + '<div id="usersPagination">' + data.pagination + '</div>';
-                if (typeof Alpine !== 'undefined' && typeof Alpine.initTree === 'function') {
+                
+                // Re-initialize Alpine for the updated container
+                if (typeof Alpine !== 'undefined') {
                     try {
                         Alpine.initTree(container);
                     } catch (e) {
-                        console.error(e);
+                        console.error('Alpine initTree error:', e);
                     }
                 }
             }
@@ -1615,25 +1705,47 @@ function resetFilterField(fields) {
 }
 
 function userManagement() {
-    return {
+    const data = {
         viewModal: {
             isOpen: false,
             loading: false,
-            user: null
+            user: {
+                user_id: 0,
+                first_name: '',
+                middle_name: '',
+                last_name: '',
+                email: '',
+                contact_number: '',
+                dob: '',
+                gender: '',
+                address: '',
+                role: '',
+                branch_name: '',
+                status: '',
+                created_at: '',
+                id_validation_image: ''
+            }
         },
         activateConfirm: {
             isOpen: false,
-            userId: null
+            userId: 0
         },
         deactivateConfirm: {
             isOpen: false,
-            userId: null
+            userId: 0
         },
         resendModal: {
             isOpen: false,
-            userId: null,
+            userId: 0,
             sending: false,
-            notes: { name: false, address: false, idImage: false, contact: false, other: false, otherText: '' }
+            notes: {
+                name: false,
+                address: false,
+                idImage: false,
+                contact: false,
+                other: false,
+                otherText: ''
+            }
         },
         editModal: {
             isOpen: false,
@@ -1641,7 +1753,25 @@ function userManagement() {
             saving: false,
             error: '',
             success: '',
-            user: null
+            user: {
+                user_id: 0,
+                first_name: '',
+                middle_name: '',
+                last_name: '',
+                email: '',
+                contact_number: '',
+                dob: '',
+                gender: '',
+                address: '',
+                address_province: '',
+                address_city: '',
+                address_barangay: '',
+                address_line: '',
+                role: '',
+                branch_id: '',
+                status: '',
+                created_at: ''
+            }
         },
         errors: {
             first_name: '',
@@ -1673,8 +1803,13 @@ function userManagement() {
 
         formatName(name) {
             if (!name) return '';
-            return name.replace(/\d/g, '').replace(/\s{2,}/g, ' ')
-                .split(' ').map(w => w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : '').filter(Boolean).join(' ');
+            // Remove numbers and special characters, allow only letters and spaces
+            let formatted = name.replace(/\d/g, '').replace(/[^a-zA-Z ]/g, '');
+            formatted = formatted.replace(/\s{2,}/g, ' ');
+            // Capitalize first letter of each word, preserve spaces
+            const words = formatted.split(' ');
+            const capitalized = words.map(w => w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : '');
+            return capitalized.join(' ');
         },
 
         validateField(id) {
@@ -1794,7 +1929,7 @@ function userManagement() {
         async viewUser(userId) {
             this.viewModal.isOpen = true;
             this.viewModal.loading = true;
-            this.viewModal.user = null;
+            this.viewModal.user = {};
             this.editModal.isOpen = false;
 
             try {
@@ -1815,7 +1950,7 @@ function userManagement() {
             this.editModal.loading = true;
             this.editModal.error = '';
             this.editModal.success = '';
-            this.editModal.user = null;
+            this.editModal.user = {};
             this.viewModal.isOpen = false;
             this.errors = { first_name: '', middle_name: '', last_name: '', contact_number: '', address: '', dob: '' };
 
@@ -1830,6 +1965,8 @@ function userManagement() {
                     u.address_city = parsed.address_city;
                     u.address_barangay = parsed.address_barangay;
                     u.address_line = parsed.address_line;
+                    // Ensure branch_id is properly set (convert to string for select binding)
+                    u.branch_id = u.branch_id ? String(u.branch_id) : '';
                     this.editModal.user = u;
                     if (parsed.address_province) await this.loadCities();
                     if (parsed.address_city) await this.loadBarangays();
@@ -1905,7 +2042,14 @@ function userManagement() {
         },
         openResendModal(userId) {
             this.resendModal.userId = userId;
-            this.resendModal.notes = { name: false, address: false, idImage: false, contact: false, other: false, otherText: '' };
+            this.resendModal.notes = {
+                name: false,
+                address: false,
+                idImage: false,
+                contact: false,
+                other: false,
+                otherText: ''
+            };
             this.resendModal.isOpen = true;
         },
         async sendResendLink() {
@@ -1995,11 +2139,22 @@ function userManagement() {
             }
         }
     };
+    return data;
 }
 window.userManagement = userManagement;
 
 function printflowInitUserStaffPage() {
-    /* #usersTableContainer is inside main[x-data]; turbo-init already walked .main-content. */
+    // Re-initialize Alpine if needed
+    if (typeof Alpine !== 'undefined') {
+        const main = document.querySelector('main[x-data="userManagement()"]');
+        if (main && !main.__x) {
+            try {
+                Alpine.initTree(main);
+            } catch (e) {
+                console.error('Alpine init error:', e);
+            }
+        }
+    }
 
     // Filter listeners (idempotent)
     const inputs = ['fp_role', 'fp_status', 'fp_date_from', 'fp_date_to'];
@@ -2030,15 +2185,46 @@ if (document.readyState === 'loading') {
 }
 document.addEventListener('printflow:page-init', printflowInitUserStaffPage);
 
+// Turbo navigation support
+if (typeof Turbo !== 'undefined') {
+    document.addEventListener('turbo:load', printflowInitUserStaffPage);
+    document.addEventListener('turbo:render', printflowInitUserStaffPage);
+}
+
 // Global expose to bridge AJAX table clicks to userManagement Alpine component
-document.addEventListener('alpine:init', () => {
+function initAlpineGlobalBridge() {
+    if (typeof Alpine === 'undefined') return;
+    
     const getData = () => {
         const el = document.querySelector('[x-data="userManagement()"]');
         return (el && el.__x && el.__x.$data) ? el.__x.$data : (el && el._x_dataStack ? el._x_dataStack[0] : null);
     };
     window._viewUser = (id) => { const d = getData(); if (d) d.viewUser(id); };
     window._editUser = (id) => { const d = getData(); if (d) d.editUser(id); };
-});
+}
+
+if (typeof Alpine !== 'undefined') {
+    document.addEventListener('alpine:init', initAlpineGlobalBridge);
+    // Also init immediately if Alpine is already loaded
+    if (Alpine.version) {
+        initAlpineGlobalBridge();
+    }
+} else {
+    // Fallback if Alpine hasn't loaded yet
+    setTimeout(() => {
+        if (typeof Alpine !== 'undefined') {
+            document.addEventListener('alpine:init', initAlpineGlobalBridge);
+            initAlpineGlobalBridge();
+        }
+    }, 100);
+}
+
+// Re-init on page changes
+document.addEventListener('printflow:page-init', initAlpineGlobalBridge);
+if (typeof Turbo !== 'undefined') {
+    document.addEventListener('turbo:load', initAlpineGlobalBridge);
+    document.addEventListener('turbo:render', initAlpineGlobalBridge);
+}
 
 /** Open user detail modal when arriving from a notification (?open_user=id). */
 function pfConsumeOpenUserFromQuery() {
@@ -2065,11 +2251,43 @@ function pfConsumeOpenUserFromQuery() {
         }
     }, 50);
 }
+
 document.addEventListener('printflow:page-init', pfConsumeOpenUserFromQuery);
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', pfConsumeOpenUserFromQuery);
 } else {
     pfConsumeOpenUserFromQuery();
+}
+if (typeof Turbo !== 'undefined') {
+    document.addEventListener('turbo:load', pfConsumeOpenUserFromQuery);
+    document.addEventListener('turbo:render', pfConsumeOpenUserFromQuery);
+}
+
+// Mark Alpine as loaded to prevent layout shift
+if (typeof Alpine !== 'undefined') {
+    document.addEventListener('alpine:init', function() {
+        document.body.classList.add('alpine-loaded');
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+            document.body.classList.add('alpine-loaded');
+        }, 100);
+    });
+} else {
+    document.body.classList.add('alpine-loaded');
+}
+
+// Trigger page init event after Turbo navigation
+if (typeof Turbo !== 'undefined') {
+    document.addEventListener('turbo:load', function() {
+        document.dispatchEvent(new Event('printflow:page-init'));
+    });
+    document.addEventListener('turbo:render', function() {
+        document.dispatchEvent(new Event('printflow:page-init'));
+    });
 }
 </script>
 </body>

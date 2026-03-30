@@ -178,7 +178,7 @@ try {
         $sent = send_email($identifier, 'PrintFlow - Reset Your Password', $html, true);
         if (!$sent) {
             db_execute("DELETE FROM password_resets WHERE user_id = ? AND user_type = ?", 'is', [$user_found['user_id'], $user_type]);
-            echo json_encode(['success' => false, 'message' => 'Could not send the email. Check includes/smtp_config.php (Gmail App Password) or try again later.']);
+            echo json_encode(['success' => false, 'message' => 'Could not send the email. Please configure SMTP in includes/smtp_config.php with your Gmail App Password. See SMTP_SETUP_GUIDE.md for instructions.']);
             exit;
         }
     } else {

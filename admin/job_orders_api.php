@@ -259,10 +259,25 @@ try {
                 ? (db_query($sql, 'i', [$joStaffBranch]) ?: [])
                 : (db_query($sql) ?: []);
             
-            // Format to match job_orders structure
             foreach ($pending_orders as &$order) {
                 $order['readiness'] = 'READY'; // Regular orders don't have material tracking
                 $order['estimated_cost'] = 0;
+                
+                // Fetch dynamic correct names based on ordered items customizations
+                $payload = JobOrderService::getStoreOrderItemsPayload($order['order_id']);
+                if (!empty($payload['service_type']) && $payload['service_type'] !== 'Custom Order') {
+                    $order['service_type'] = $payload['service_type'];
+                }
+                $order['width_ft'] = $payload['width_ft'];
+                $order['height_ft'] = $payload['height_ft'];
+                
+                $title_parts = [];
+                foreach ($payload['items'] as $it) {
+                    $title_parts[] = $it['product_name'] . ' - ' . $it['quantity'] . 'pcs';
+                }
+                if (!empty($title_parts)) {
+                    $order['job_title'] = implode(', ', array_unique($title_parts));
+                }
             }
             unset($order);
 
@@ -426,11 +441,11 @@ try {
                 if (!empty($o) && !empty($o[0]['order_id'])) {
                     require_once __DIR__ . '/../includes/functions.php';
                     add_order_system_message($o[0]['order_id'], "Revision required: " . $reason);
-                    db_execute("UPDATE orders SET revision_reason = ? WHERE order_id = ?", 'si', [$reason, $o[0]['order_id']]);
+                    db_execute("UPDATE orders SET status = 'For Revision', design_status = 'Revision Requested', revision_reason = ? WHERE order_id = ?", 'si', [$reason, $o[0]['order_id']]);
                 }
             }
             
-            $res = JobOrderService::updateStatus($id, $status, $machineId);
+            $res = JobOrderService::updateStatus($id, $status, $machineId, $reason);
             echo json_encode(['success' => $res]);
             break;
 

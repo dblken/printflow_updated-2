@@ -26,15 +26,15 @@ $asset_base = '/printflow/public';
 
 // Timestamp for cache busting
 $ver = time();
-$url_index    = $base_url . '/';
-$url_products = $base_url . '/products/';
+$url_index    = $base_url . '/public/';
+$url_products = $base_url . '/public/products.php';
 
-$url_login    = $base_url . '/?auth_modal=login';
-$url_register = $base_url . '/?auth_modal=register';
-$url_logout   = $base_url . '/logout/';
-$url_forgot_password = $base_url . '/forgot-password/';
-$url_reset_password  = $base_url . '/reset-password/';
-$url_google_auth    = $base_url . '/google-auth/';
+$url_login    = $base_url . '/public/?auth_modal=login';
+$url_register = $base_url . '/public/?auth_modal=register';
+$url_logout   = $base_url . '/public/logout.php';
+$url_forgot_password = $base_url . '/public/forgot-password.php';
+$url_reset_password  = $base_url . '/public/reset-password.php';
+$url_google_auth    = $base_url . '/public/google-auth.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -149,6 +149,8 @@ $url_google_auth    = $base_url . '/google-auth/';
         /* Landing-page nav needs flex layout too */
         #main-header nav > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
         #main-header nav > div > div:last-child { display: flex; align-items: center; gap: 1rem; }
+        /* Suppress browser-native :invalid styling globally — validation is JS-driven */
+        input:invalid, select:invalid, textarea:invalid { box-shadow: none !important; outline-color: initial !important; }
     </style>
 </head>
 <body class="bg-gray-50<?php echo !empty($use_landing_css) ? ' lp-page' : ''; ?><?php echo !empty($use_customer_css) ? ' customer-theme' : ''; ?><?php echo !empty($is_chat_page) ? ' chat-page' : ''; ?>">

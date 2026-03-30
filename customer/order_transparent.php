@@ -89,10 +89,8 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
 
 <div class="min-h-screen py-8">
     <div class="container mx-auto px-4 trans-order-container">
-        <h1 class="text-2xl font-bold text-gray-900 mb-6">Transparent Sticker Printing</h1>
-        <?php if ($error): ?>
-        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4"><?php echo htmlspecialchars($error); ?></div>
-        <?php endif; ?>
+        <h1 class="text-2xl font-bold mb-6 trans-page-title">Transparent Sticker Printing</h1>
+        <?php if ($error): ?><div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
 
         <div class="card order-container">
             <form method="POST" enctype="multipart/form-data" id="transForm" novalidate>
@@ -101,6 +99,7 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
                     <select name="branch_id" class="input-field" required>
+                        <option value="" selected disabled>Select Branch</option>
                         <?php foreach ($branches as $b): ?>
                         <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['branch_name']); ?></option>
                         <?php endforeach; ?>
@@ -110,19 +109,19 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Where will the sticker be applied? *</label>
                     <div class="option-grid option-grid-3x2">
-                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="surface_application" value="Glass (Window/Door/Storefront)"> <span>Glass</span></label>
-                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="surface_application" value="Plastic / Acrylic"> <span>Plastic/Acrylic</span></label>
-                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="surface_application" value="Metal"> <span>Metal</span></label>
-                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="surface_application" value="Smooth Painted Wall"> <span>Painted Wall</span></label>
-                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="surface_application" value="Mirror"> <span>Mirror</span></label>
-                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="surface_application" value="Others"> <span>Others</span></label>
+                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="surface_application" value="Glass (Window/Door/Storefront)" required> <span>Glass</span></label>
+                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="surface_application" value="Plastic / Acrylic" required> <span>Plastic/Acrylic</span></label>
+                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="surface_application" value="Metal" required> <span>Metal</span></label>
+                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="surface_application" value="Smooth Painted Wall" required> <span>Painted Wall</span></label>
+                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="surface_application" value="Mirror" required> <span>Mirror</span></label>
+                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="surface_application" value="Others" required> <span>Others</span></label>
                     </div>
                     <div id="surface-other-wrap" style="display: none; margin-top: 0.75rem;">
                         <input type="text" name="surface_other" id="surface_other" class="input-field" placeholder="Specify surface type">
                     </div>
                 </div>
 
-                <div class="mb-4">
+                <div class="mb-4" id="card-dimensions">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Dimensions *</label>
                     <p class="dim-feet-note">Common sizes (in feet)</p>
                     <div class="option-grid option-grid-dim">
@@ -152,7 +151,7 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
                     <label class="block text-sm font-medium text-gray-700 mb-1">Layout *</label>
                     <div class="opt-btn-group opt-btn-compact-row">
                         <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="layout" value="With Layout" required> <span>With Layout</span></label>
-                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="layout" value="Without Layout"> <span>Without Layout</span></label>
+                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="layout" value="Without Layout" required> <span>Without Layout</span></label>
                     </div>
                 </div>
 
@@ -160,37 +159,35 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
                     <label class="block text-sm font-medium text-gray-700 mb-1">Lamination *</label>
                     <div class="opt-btn-group opt-btn-compact-row">
                         <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="lamination" value="With Laminate" required> <span>With Laminate</span></label>
-                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="lamination" value="Without Laminate"> <span>Without Laminate</span></label>
+                        <label class="opt-btn-wrap opt-btn-compact"><input type="radio" name="lamination" value="Without Laminate" required> <span>Without Laminate</span></label>
                     </div>
                 </div>
 
                 <div class="mb-4" id="card-upload">
-                    <label class="block text-sm font-medium text-gray-700 mb-1 trans-upload-label">Upload Design * (JPG, PNG, PDF - max 5MB)</label>
-                    <div class="file-input-wrap">
-                        <input type="file" id="design_file" name="design_file" accept=".jpg,.jpeg,.png,.pdf" class="input-field input-file" required>
-                    </div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Upload Design * (JPG, PNG, PDF - max 5MB)</label>
+                    <input type="file" id="design_file" name="design_file" accept=".jpg,.jpeg,.png,.pdf" class="input-field" required>
                 </div>
 
                 <div class="mb-4 need-qty-card" id="card-date-qty">
                     <div class="need-qty-row">
-                        <div class="need-qty-date" id="card-date">
+                        <div class="need-qty-date" style="flex:1;">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Needed Date *</label>
-                            <input type="date" name="needed_date" id="needed_date" class="input-field input-same-height" value="<?php echo htmlspecialchars($_POST['needed_date'] ?? ''); ?>" required min="<?php echo date('Y-m-d'); ?>">
+                            <input type="date" name="needed_date" id="needed_date" class="input-field" value="<?php echo htmlspecialchars($_POST['needed_date'] ?? ''); ?>" required min="<?php echo date('Y-m-d'); ?>">
                         </div>
-                        <div class="need-qty-qty" id="card-qty">
+                        <div class="need-qty-qty" style="flex:1;">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-                            <div class="qty-control qty-control-shopee">
+                            <div class="qty-control">
                                 <button type="button" onclick="transDecreaseQty()" class="qty-btn">−</button>
                                 <input type="number" id="quantity-input" name="quantity" min="1" value="<?php echo (int)($_POST['quantity'] ?? ($_GET['qty'] ?? 1)); ?>">
-                                <button type="button" onclick="transIncreaseQty()" class="qty-btn">+</button>
+                                <button type="button" onclick="transIncreaseQty()" class="qty-btn">&plus;</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="mb-4 notes-section">
+                <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                    <textarea name="additional_notes" rows="3" class="input-field notes-textarea" placeholder="Any special instructions..." maxlength="500"><?php echo htmlspecialchars($_POST['additional_notes'] ?? ''); ?></textarea>
+                    <textarea name="additional_notes" rows="3" class="input-field" placeholder="Any special instructions..." maxlength="500"><?php echo htmlspecialchars($_POST['additional_notes'] ?? ''); ?></textarea>
                 </div>
 
                 <div class="tshirt-actions-row">
@@ -205,309 +202,75 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
 
 <style>
 .trans-order-container { max-width: 640px; }
-.order-container { padding: 1.5rem; min-width: 0; }
-.dim-feet-note { font-size: 0.75rem; color: #6b7280; margin-bottom: 0.5rem; }
-.dim-label { font-size: 0.75rem; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.25rem; }
-.dim-sep { color: #9ca3af; font-weight: 600; align-self: center; }
-.dim-others-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 0.7ch minmax(0, 1fr);
-    align-items: end;
-    column-gap: 0.05rem;
-    row-gap: 0;
-    width: 100%;
-}
-.dim-others-row > div {
-    width: 100%;
-    max-width: none;
-}
-.dim-sep {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    align-self: end;
-    width: 0.7ch;
-    min-width: 0;
-    height: 44px;
-    font-size: 1.15rem;
-    font-weight: 700;
-    margin-bottom: 0;
-    margin-left: 0;
-    margin-right: 0;
-    padding: 0;
-}
-.option-grid { display: grid; gap: 0.4rem; }
-.option-grid-3x2 { grid-template-columns: repeat(3, 1fr); }
-.option-grid-dim { grid-template-columns: repeat(3, 1fr); }
-.option-grid-dim .dim-others-btn { grid-column: 2; }
-.opt-btn, .opt-btn-wrap { padding: 0.4rem 0.75rem; border: 2px solid #d1d5db; background: #fff; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.8rem; color: #374151; transition: all 0.25s ease; text-align: center; }
-.opt-btn:hover, .opt-btn-wrap:hover { border-color: #0a2530; background: #f9fafb; }
-.opt-btn.active, .opt-btn-wrap:has(input:checked) { border-color: #0a2530; box-shadow: 0 0 0 2px rgba(10,37,48,0.2); background: rgba(10,37,48,0.03); }
-.opt-btn-wrap { display: inline-flex; align-items: center; justify-content: center; }
-.opt-btn-wrap input { margin-right: 0.35rem; }
-.opt-btn-compact { padding: 0.4rem 0.6rem; font-size: 0.8rem; }
-.opt-btn-group { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.opt-btn-compact-row { display: flex; gap: 0.4rem; flex-wrap: nowrap; }
-.opt-btn-compact-row .opt-btn-wrap { flex: 1 1 0; min-width: 0; }
-.trans-option-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: flex-end; }
-.trans-option-col { min-width: 0; }
-.trans-qty-item { min-width: 0; }
-.need-qty-card .need-qty-row {
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-    flex-wrap: wrap;
-}
-.need-qty-card .need-qty-date { flex: 1; min-width: 0; }
-.need-qty-card .need-qty-qty { flex: 1; min-width: 0; }
-.need-qty-card .need-qty-qty .qty-control-shopee { width: 100%; }
-.qty-control-shopee { width: 110px; flex-shrink: 0; }
-.trans-upload-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.file-input-wrap { height: 42px; display: flex; align-items: center; }
-.input-file { height: 42px; padding: 0.4rem 0.5rem; font-size: 0.8rem; }
-.qty-control { display: flex; align-items: center; height: 42px; border: 2px solid #d1d5db; border-radius: 8px; background: #fff; overflow: hidden; transition: border-color 0.2s ease; }
-.qty-control:focus-within { border-color: #0a2530; box-shadow: 0 0 0 2px rgba(10,37,48,0.2); }
-.qty-btn { flex: 0 0 38px; height: 42px; border: none; background: #f3f4f6; color: #374151; font-weight: 800; font-size: 1.1rem; cursor: pointer; transition: background 0.2s; }
-.qty-btn:hover { background: #e5e7eb; }
-.qty-control input { flex: 1; min-width: 36px; border: none; text-align: center; font-weight: 700; font-size: 1rem; outline: none; background: transparent; }
-.input-same-height { height: 42px; padding: 0 0.6rem; box-sizing: border-box; font-size: 0.9rem; }
-.notes-section { min-width: 0; overflow: visible; }
-.notes-textarea { width: 100%; max-width: 100%; box-sizing: border-box; resize: vertical; }
+.trans-page-title { color: #eaf6fb !important; }
+.dim-feet-note { font-size: 0.75rem; color: #9fc6d9; margin-bottom: 0.5rem; }
+.dim-label { font-size: 0.75rem; color: #9fc6d9; font-weight: 600; text-transform: uppercase; }
+.dim-sep { color: #9fc6d9; font-weight: 700; align-self: end; height: 44px; display: flex; align-items: center; }
+.dim-others-row { display: grid; grid-template-columns: minmax(0, 1fr) 1.2ch minmax(0, 1fr); align-items: end; column-gap: 0.3rem; }
 
-/* T-shirt page visual parity (UI only) */
-#transForm {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-#transForm .mb-4 {
-    margin-bottom: 0 !important;
-    padding: 1rem;
-    background: rgba(10, 37, 48, 0.48);
-    border: 1px solid rgba(83, 197, 224, 0.22);
-    border-radius: 12px;
-    backdrop-filter: blur(4px);
-}
-#transForm label.block {
-    font-size: .95rem !important;
-    font-weight: 700 !important;
-    color: #d9e6ef !important;
-    margin-bottom: .55rem !important;
-}
-#transForm input[type="radio"] {
-    accent-color: #53c5e0;
-}
-#transForm .input-field {
-    min-height: 44px;
-    padding: .72rem .9rem;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(83, 197, 224, 0.24) !important;
-    color: #eef7fb !important;
-}
-#transForm .input-field::placeholder { color: #a3bdca !important; }
-#transForm .input-field:focus {
-    background: rgba(255, 255, 255, 0.08) !important;
-    border-color: #53c5e0 !important;
-    box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.16) !important;
-}
-#transForm select.input-field option {
-    background: #0a2530 !important;
-    color: #f8fafc !important;
-}
-#transForm select.input-field option:hover,
-#transForm select.input-field option:focus {
-    background: #53c5e0 !important;
-    color: #06232c !important;
-}
-#transForm select.input-field option:checked {
-    background: #53c5e0 !important;
-    color: #06232c !important;
-}
-#transForm .input-field[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(1) brightness(1.35);
-    opacity: .95;
-    cursor: pointer;
-}
-.dim-feet-note,
-.dim-label { color: #9fc6d9 !important; }
-.opt-btn, .opt-btn-wrap {
-    min-height: 44px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1px solid rgba(83, 197, 224, 0.2) !important;
-    color: #d2e7f1 !important;
-}
-.opt-btn:hover, .opt-btn-wrap:hover {
-    background: rgba(83, 197, 224, 0.12) !important;
-    border-color: rgba(83, 197, 224, 0.5) !important;
-    box-shadow: 0 0 0 2px rgba(83, 197, 224, 0.12);
-}
-.opt-btn.active, .opt-btn-wrap:has(input:checked) {
-    background: linear-gradient(135deg, rgba(83, 197, 224, 0.28), rgba(50, 161, 196, 0.24)) !important;
-    border-color: #53c5e0 !important;
-    color: #f8fcff !important;
-    box-shadow: 0 0 0 2px rgba(83, 197, 224, 0.22), 0 8px 18px rgba(11, 42, 56, 0.35);
-}
-.qty-control {
-    height: 44px;
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1px solid rgba(83, 197, 224, 0.24) !important;
-    border-radius: 10px;
-}
-.qty-btn {
-    height: 44px;
-    background: rgba(83, 197, 224, 0.12) !important;
-    color: #d8edf5 !important;
-}
-.qty-btn:hover { background: rgba(83, 197, 224, 0.2) !important; }
-.qty-control input { color: #f8fafc !important; }
-#quantity-input::-webkit-outer-spin-button,
-#quantity-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-#quantity-input { -moz-appearance: textfield; appearance: textfield; }
+#transForm .mb-4, #transForm .need-qty-card { padding: 1rem; background: rgba(10, 37, 48, 0.48); border: 1px solid rgba(83, 197, 224, 0.22); border-radius: 12px; backdrop-filter: blur(4px); }
+#transForm label { font-size: .95rem !important; font-weight: 700 !important; color: #d9e6ef !important; margin-bottom: .55rem !important; }
+#transForm .input-field { min-height: 44px; padding: .72rem .9rem; border-radius: 10px; background: rgba(13, 43, 56, 0.92) !important; border: 1px solid rgba(83, 197, 224, 0.26) !important; color: #e9f6fb !important; }
 
-.notes-textarea {
-    overflow-y: auto;
-    resize: vertical;
-    min-height: 110px;
-    max-height: 220px;
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(83, 197, 224, 0.65) rgba(255, 255, 255, 0.08);
-}
-.notes-textarea::-webkit-scrollbar { width: 10px; }
-.notes-textarea::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 999px;
-}
-.notes-textarea::-webkit-scrollbar-thumb {
-    background: rgba(83, 197, 224, 0.65);
-    border-radius: 999px;
-    border: 2px solid rgba(10, 37, 48, 0.55);
-}
-.notes-textarea::-webkit-scrollbar-thumb:hover { background: rgba(83, 197, 224, 0.85); }
-.field-error {
-    margin-top: .4rem;
-    font-size: .75rem;
-    color: #fca5a5;
-    line-height: 1.3;
-    display: block;
-    width: 100%;
-}
-#transForm .mb-4.is-invalid {
-    border-color: rgba(239, 68, 68, 0.35) !important;
-    box-shadow: none !important;
-}
-#transForm .mb-4.is-invalid .input-field,
-#transForm .mb-4.is-invalid .qty-control {
-    border-color: rgba(239, 68, 68, 0.55) !important;
-}
+#transForm .option-grid { display: grid; gap: 0.4rem; }
+#transForm .option-grid-3x2 { grid-template-columns: repeat(3, 1fr); }
+#transForm .option-grid-dim { grid-template-columns: repeat(3, 1fr); }
+#transForm .opt-btn, #transForm .opt-btn-wrap { background: rgba(13, 43, 56, 0.92) !important; border: 1px solid rgba(83, 197, 224, 0.26) !important; color: #d6eaf3 !important; padding: 0.4rem; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.8rem; }
+#transForm .opt-btn-group { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 0.5rem; }
+#transForm .opt-btn-group .opt-btn-wrap { min-width: 120px; }
+#transForm .opt-btn.active, #transForm .opt-btn-wrap:has(input:checked) { background: linear-gradient(135deg, rgba(83, 197, 224, 0.28), rgba(50, 161, 196, 0.24)) !important; border-color: #53c5e0 !important; color: #f8fcff !important; }
 
-.tshirt-actions-row {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: .75rem;
-    margin-top: 1.1rem;
-    flex-wrap: wrap;
-}
-.tshirt-btn {
-    height: 46px;
-    min-width: 150px;
-    padding: 0 1.15rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    text-decoration: none;
-    font-size: .9rem;
-    font-weight: 700;
-    transition: all .2s;
-}
-.tshirt-btn-secondary {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(83, 197, 224, 0.28) !important;
-    color: #d9e6ef !important;
-}
-.tshirt-btn-secondary:hover {
-    background: rgba(83, 197, 224, 0.14) !important;
-    border-color: rgba(83, 197, 224, 0.52) !important;
-}
-.tshirt-btn-primary {
-    border: none;
-    background: linear-gradient(135deg, #53C5E0, #32a1c4);
-    color: #fff;
-    text-transform: uppercase;
-    letter-spacing: .02em;
-    cursor: pointer;
-    box-shadow: 0 10px 22px rgba(50,161,196,0.3);
-}
-.tshirt-btn:active { transform: translateY(1px) scale(0.99); }
+.qty-control { display: flex; align-items: center; height: 44px; border: 1px solid rgba(83, 197, 224, 0.24); border-radius: 10px; overflow: hidden; background: rgba(13, 43, 56, 0.92); transition: border-color 0.2s, box-shadow 0.2s; }
+.qty-control:focus-within { border-color: #53c5e0; box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.16); }
+.qty-btn { flex: 0 0 44px; height: 100%; border: none; background: rgba(83, 197, 224, 0.12); color: #d8edf5; font-weight: 800; font-size: 1.25rem; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; outline: none; }
+.qty-btn:hover { background: rgba(83, 197, 224, 0.25); color: #fff; }
+.qty-btn:active { background: rgba(83, 197, 224, 0.35); }
+.qty-control input { flex: 1; min-width: 0; width: 50px; border: none; text-align: center; background: transparent; color: #fff; font-weight: 700; font-size: 1rem; outline: none; -moz-appearance: textfield; }
+.qty-control input::-webkit-inner-spin-button, .qty-control input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
-@media (max-width: 768px) {
+.need-qty-row { display: flex; gap: 1rem; align-items: flex-start; }
+.need-qty-date, .need-qty-qty { flex: 1; min-width: 0; }
+
+.tshirt-actions-row { display: flex; justify-content: flex-end; align-items: center; gap: .75rem; margin-top: 1.1rem; }
+.tshirt-btn { height: 46px; min-width: 150px; padding: 0 1.15rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; font-weight: 700; text-decoration: none; }
+.tshirt-btn-secondary { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(83, 197, 224, 0.28) !important; color: #d9e6ef !important; }
+.tshirt-btn-primary { background: linear-gradient(135deg, #53C5E0, #32a1c4); color: #fff; cursor: pointer; border: none; }
+
+@media (max-width: 640px) {
     .option-grid-3x2 { grid-template-columns: repeat(2, 1fr); }
-    .option-grid-dim { grid-template-columns: repeat(3, 1fr); }
-    .trans-option-row { grid-template-columns: 1fr; }
-    .opt-btn-compact-row { flex-wrap: wrap; }
-    .need-qty-card .need-qty-row { flex-direction: column; align-items: stretch; }
-    .need-qty-card .need-qty-qty .qty-control-shopee { width: 100%; }
+    .need-qty-row { flex-direction: column; align-items: stretch; }
     .tshirt-actions-row { flex-direction: column; align-items: stretch; }
-    .tshirt-btn { width: 100%; }
-    .dim-others-row { flex-wrap: nowrap; }
-}
-@media (max-width: 480px) {
-    .option-grid-3x2, .option-grid-dim { grid-template-columns: repeat(2, 1fr); }
-    .trans-upload-label { white-space: normal; }
-    .dim-others-row {
-        grid-template-columns: 1fr;
-        gap: 0.6rem;
-    }
-    .dim-sep {
-        height: auto;
-        justify-self: center;
-    }
 }
 </style>
 
 <script>
 let dimensionMode = 'preset';
 
-function transIncreaseQty() {
-    const i = document.getElementById('quantity-input');
-    i.value = Math.min(999, (parseInt(i.value) || 1) + 1);
-}
-function transDecreaseQty() {
-    const i = document.getElementById('quantity-input');
-    const v = parseInt(i.value) || 1;
-    if (v > 1) i.value = v - 1;
-}
+function transIncreaseQty() { const i = document.getElementById('quantity-input'); i.value = Math.min(999, (parseInt(i.value) || 1) + 1); }
+function transDecreaseQty() { const i = document.getElementById('quantity-input'); if (parseInt(i.value) > 1) i.value = parseInt(i.value) - 1; }
 
 function syncDimensions() {
     const h = document.getElementById('dimensions_hidden');
     if (dimensionMode === 'preset') {
         const btn = document.querySelector('.opt-btn.active');
-        h.value = btn ? btn.dataset.dim.replace('x', '×') : '';
+        h.value = btn ? btn.dataset.dim : '';
     } else {
         const w = document.getElementById('custom_width').value.trim();
         const g = document.getElementById('custom_height').value.trim();
-        h.value = (w && g) ? w + '×' + g : '';
+        h.value = (w && g) ? w + 'x' + g + ' ft' : '';
     }
 }
 
 function selectDimPreset(dim, e) {
-    e.preventDefault();
-    dimensionMode = 'preset';
+    e.preventDefault(); dimensionMode = 'preset';
     document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
     e.target.closest('.opt-btn').classList.add('active');
     document.getElementById('dim-others-inputs').style.display = 'none';
-    document.getElementById('custom_width').value = '';
-    document.getElementById('custom_height').value = '';
     syncDimensions();
 }
 
 function selectDimOthers(e) {
-    e.preventDefault();
-    dimensionMode = 'others';
+    e.preventDefault(); dimensionMode = 'others';
     document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('dim-others-btn').classList.add('active');
     document.getElementById('dim-others-inputs').style.display = 'flex';
@@ -517,113 +280,15 @@ function selectDimOthers(e) {
 document.querySelectorAll('input[name="surface_application"]').forEach(r => {
     r.addEventListener('change', function() {
         document.getElementById('surface-other-wrap').style.display = this.value === 'Others' ? 'block' : 'none';
-        document.getElementById('surface_other').required = this.value === 'Others';
     });
 });
 
-['custom_width','custom_height'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-        el.addEventListener('input', function() {
-            this.value = this.value.replace(/[^0-9.]/g, '').slice(0, 6);
-            syncDimensions();
-        });
-    }
-});
-
 document.getElementById('transForm').addEventListener('submit', function(e) {
-    window.__transValidationTriggered = true;
-    if (!checkTransFormValid()) {
-        e.preventDefault();
-        return false;
+    syncDimensions();
+    if (!document.getElementById('dimensions_hidden').value) {
+        alert('Please fill in Dimensions.'); e.preventDefault(); return false;
     }
 });
-
-function clearFieldError(container) {
-    if (!container) return;
-    const err = container.querySelector('.field-error');
-    container.classList.remove('is-invalid');
-    if (err) {
-        err.textContent = '';
-        err.style.display = 'none';
-    }
-}
-
-function setFieldError(container, message) {
-    if (!container) return;
-    let err = container.querySelector('.field-error');
-    if (!err) {
-        err = document.createElement('div');
-        err.className = 'field-error';
-        container.appendChild(err);
-    }
-    if (message) {
-        container.classList.add('is-invalid');
-        err.textContent = message;
-        err.style.display = 'block';
-    } else {
-        container.classList.remove('is-invalid');
-        err.textContent = '';
-        err.style.display = 'none';
-    }
-}
-
-function checkTransFormValid() {
-    syncDimensions();
-    const showErrors = window.__transValidationTriggered === true;
-
-    const branch = document.querySelector('select[name="branch_id"]');
-    const surface = document.querySelector('input[name="surface_application"]:checked');
-    const surfaceOther = document.getElementById('surface_other');
-    const dimensions = document.getElementById('dimensions_hidden');
-    const layout = document.querySelector('input[name="layout"]:checked');
-    const lamination = document.querySelector('input[name="lamination"]:checked');
-    const qty = parseInt(document.getElementById('quantity-input').value, 10) || 0;
-    const neededDate = document.getElementById('needed_date');
-    const file = document.getElementById('design_file');
-
-    const cBranch = branch?.closest('.mb-4');
-    const cSurface = document.querySelector('input[name="surface_application"]')?.closest('.mb-4');
-    const cDimensions = document.getElementById('dimensions_hidden')?.closest('.mb-4');
-    const cLayout = document.getElementById('card-layout');
-    const cLamination = document.getElementById('card-lamination');
-    const cUpload = document.getElementById('card-upload');
-    const cDateQty = document.getElementById('card-date-qty');
-
-    let ok = !!branch && !!branch.value && !!surface && !!dimensions.value.trim() && !!layout && !!lamination && qty >= 1 && !!neededDate.value.trim() && !!(file && file.files.length > 0);
-    if (surface && surface.value === 'Others') {
-        ok = ok && !!surfaceOther.value.trim();
-    }
-    if (dimensionMode === 'others') {
-        const w = document.getElementById('custom_width').value.trim();
-        const h = document.getElementById('custom_height').value.trim();
-        ok = ok && !!w && !!h;
-    }
-
-    if (showErrors) {
-        setFieldError(cBranch, branch && !branch.value ? 'This field is required' : '');
-        setFieldError(cSurface, !surface ? 'This field is required' : (surface && surface.value === 'Others' && !surfaceOther.value.trim() ? 'This field is required' : ''));
-        setFieldError(cDimensions, !dimensions.value.trim() ? 'This field is required' : (dimensionMode === 'others' && (!document.getElementById('custom_width').value.trim() || !document.getElementById('custom_height').value.trim()) ? 'This field is required' : ''));
-        setFieldError(cLayout, !layout ? 'This field is required' : '');
-        setFieldError(cLamination, !lamination ? 'This field is required' : '');
-        setFieldError(cUpload, !(file && file.files.length > 0) ? 'This field is required' : '');
-        setFieldError(cDateQty, (!neededDate.value.trim() || qty < 1) ? 'This field is required' : '');
-    } else {
-        [cBranch, cSurface, cDimensions, cLayout, cLamination, cUpload, cDateQty].forEach(clearFieldError);
-    }
-
-    return ok;
-}
-
-document.getElementById('transForm').addEventListener('change', checkTransFormValid);
-document.getElementById('transForm').addEventListener('input', checkTransFormValid);
-document.getElementById('design_file').addEventListener('change', checkTransFormValid);
-document.getElementById('quantity-input').addEventListener('input', checkTransFormValid);
-document.getElementById('needed_date').addEventListener('change', checkTransFormValid);
-document.getElementById('transForm').addEventListener('invalid', function(e) {
-    e.preventDefault();
-}, true);
-checkTransFormValid();
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

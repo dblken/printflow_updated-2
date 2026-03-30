@@ -15,7 +15,7 @@ require_role(['Admin', 'Manager']);
 $current_user = get_logged_in_user();
 
 // ── Branch Context (operational page) ─────────────────
-$branchCtx = init_branch_context(false); // Admin: may use All; Manager/Staff locked in branch_context.php
+$branchCtx = init_branch_context(false); // analytics-style — allow All
 $branchId  = $branchCtx['selected_branch_id'];
 
 // Get filter parameters
@@ -146,25 +146,27 @@ if (isset($_GET['ajax'])) {
     <table class="orders-table">
         <thead>
             <tr style="border-bottom: 1px solid #e5e7eb;">
-                <th style="width:12%;white-space:nowrap;">Order #</th>
-                <th style="text-align:left;width:18%;">Customer</th>
-                <th style="width:15%;">Date</th>
-                <th style="width:12%;">Branch</th>
-                <th style="width:12%;">Amount</th>
-                <th style="width:12%;">Status</th>
-                <th style="width:1%; text-align:right;">Actions</th>
+                <th style="width:12%;white-space:nowrap;">Order Code</th>
+                <th style="text-align:left;width:<?php echo $branchId === 'all' ? '24%' : '20%'; ?>;">Customer</th>
+                <th style="width:<?php echo $branchId === 'all' ? '16%' : '14%'; ?>;">Date</th>
+                <?php if ($branchId !== 'all'): ?>
+                <th style="width:14%;">Branch</th>
+                <?php endif; ?>
+                <th style="width:<?php echo $branchId === 'all' ? '16%' : '14%'; ?>;">Amount</th>
+                <th style="width:<?php echo $branchId === 'all' ? '16%' : '14%'; ?>;">Status</th>
+                <th style="width:12%; text-align:right;">Actions</th>
             </tr>
         </thead>
         <tbody id="ordersTableBody">
             <?php if (empty($orders)): ?>
                 <tr id="emptyOrdersRow">
-                    <td colspan="7" style="padding:40px; text-align:center; color:#9ca3af; font-size:14px; cursor:default;">
+                    <td colspan="<?php echo $branchId === 'all' ? '6' : '7'; ?>" style="padding:40px; text-align:center; color:#9ca3af; font-size:14px; cursor:default;">
                         <?php echo $search ? 'No orders found matching "' . htmlspecialchars($search) . '"' : 'No orders found'; ?>
                     </td>
                 </tr>
             <?php else: ?>
                 <tr id="emptyOrdersRow" style="display:none;">
-                    <td colspan="7" style="padding:40px; text-align:center; color:#9ca3af; font-size:14px; cursor:default;">No orders found</td>
+                    <td colspan="<?php echo $branchId === 'all' ? '6' : '7'; ?>" style="padding:40px; text-align:center; color:#9ca3af; font-size:14px; cursor:default;">No orders found</td>
                 </tr>
                 <?php foreach ($orders as $order): ?>
                     <tr onclick="openOrderModal(<?php echo $order['order_id']; ?>)" title="Click to view Order #<?php echo $order['order_id']; ?>" style="border-bottom: 1px solid #f3f4f6;">
@@ -174,12 +176,14 @@ if (isset($_GET['ajax'])) {
                             <div class="cell-ellipsis" style="font-size:11px; color:#9ca3af; max-width:160px;" title="<?php echo htmlspecialchars($order['customer_email']); ?>"><?php echo htmlspecialchars($order['customer_email']); ?></div>
                         </td>
                         <td style="color:#6b7280; font-size: 12px;"><?php echo format_date($order['order_date']); ?></td>
+                        <?php if ($branchId !== 'all'): ?>
                         <td><?php
                             echo get_branch_badge_html(
                                 (int)($order['branch_id'] ?? 0),
                                 $order['branch_name'] ?? 'Main'
                             );
                         ?></td>
+                        <?php endif; ?>
                         <td style="color:#1f2937;">₱<?php echo number_format($order['total_amount'], 2); ?></td>
                         <td>
                             <?php
@@ -247,8 +251,9 @@ if (isset($_GET['ajax'])) {
         /* Modal */
         [x-cloak] { display: none !important; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
-        .modal-panel { background:#fff; border-radius:12px; box-shadow:0 25px 50px rgba(0,0,0,0.25); width:100%; max-width:720px; max-height:85vh; overflow-y:auto; margin:16px; position:relative; }
+        .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; padding:16px; }
+        .modal-panel { background:#fff; border-radius:12px; box-shadow:0 25px 50px rgba(0,0,0,0.25); width:100%; max-width:720px; max-height:calc(100vh - 32px); display:flex; flex-direction:column; position:relative; overflow:hidden; }
+        .modal-content { overflow-y:auto; flex:1; }
         
         /* Action Button Style */
         .btn-action {
@@ -608,7 +613,8 @@ if (isset($_GET['ajax'])) {
             function applyFilters(resetAll = false) {
                 if (resetAll) {
                     const base = window.location.pathname;
-                    const branch = new URLSearchParams(window.location.search).get('branch_id');
+                    const params = new URLSearchParams(window.location.search);
+                    const branch = params.get('branch_id');
                     const target = base + (branch ? '?branch_id=' + encodeURIComponent(branch) : '');
                     window.location.href = target;
                 } else { fetchUpdatedTable(); }
@@ -632,7 +638,7 @@ if (isset($_GET['ajax'])) {
                     filterOpen: false,
                     sortOpen:   false,
                     activeSort: '<?php echo $sort_by; ?>',
-                    hasActiveFilters: <?php echo count(array_filter([$status_filter, $search, $date_from, $date_to])) > 0 ? 'true' : 'false'; ?>,
+                    hasActiveFilters: <?php echo count(array_filter([$status_filter, $search, $date_from, $date_to])) > 0 ? 'true' : 'false'; ?>
                 };
             }
 
@@ -647,43 +653,6 @@ if (isset($_GET['ajax'])) {
                     updatingStatus: false,
                     statusUpdateMsg: '',
                     statusUpdateError: false,
-
-                    init() {
-                        window.addEventListener('open-order-modal', e => this.openModal(e.detail.orderId));
-                        window.addEventListener('filter-badge-update', e => { this.hasActiveFilters = (e.detail.badge > 0); });
-                        window.addEventListener('sort-changed', e => { this.activeSort = e.detail.sortKey; this.sortOpen = false; });
-                    },
-
-                    openModal(orderId) {
-                        this.showModal = true;
-                        this.loading = true;
-                        this.errorMsg = '';
-                        this.statusUpdateMsg = '';
-                        this.order = null;
-                        this.items = [];
-                        fetch('/printflow/admin/api_order_details.php?id=' + orderId)
-                            .then(r => r.json())
-                            .then(data => {
-                                this.loading = false;
-                                if (data.success) {
-                                    this.order = data.order;
-                                    this.items = data.items.map(i => ({
-                                        ...i,
-                                        editingTarp: false,
-                                        savingTarp: false,
-                                        tempWidth: i.tarp_details?.width_ft || 0,
-                                        tempHeight: i.tarp_details?.height_ft || 0,
-                                        tempRollId: i.tarp_details?.roll_id || '',
-                                        availableRolls: []
-                                    }));
-                                    this.selectedStatus = data.order.status;
-                                } else { this.errorMsg = data.error || 'Failed to load order details.'; }
-                            })
-                            .catch(err => {
-                                this.loading = false;
-                                this.errorMsg = 'Network error.';
-                            });
-                    },
 
                     startTarpEdit(item) {
                         item.editingTarp = true;
@@ -770,12 +739,61 @@ if (isset($_GET['ajax'])) {
                         };
                         const style = (colors[type] && colors[type][status]) || 'background:#f3f4f6;color:#374151;';
                         return `<span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;${style}">${status || 'N/A'}</span>`;
+                    },
+
+                    openModal(orderId) {
+                        this.showModal = true;
+                        this.loading = true;
+                        this.errorMsg = '';
+                        this.statusUpdateMsg = '';
+                        this.order = null;
+                        this.items = [];
+                        fetch('/printflow/admin/api_order_details.php?id=' + orderId)
+                            .then(r => r.json())
+                            .then(data => {
+                                this.loading = false;
+                                if (data.success) {
+                                    this.order = data.order;
+                                    this.items = data.items.map(i => ({
+                                        ...i,
+                                        editingTarp: false,
+                                        savingTarp: false,
+                                        tempWidth: i.tarp_details?.width_ft || 0,
+                                        tempHeight: i.tarp_details?.height_ft || 0,
+                                        tempRollId: i.tarp_details?.roll_id || '',
+                                        availableRolls: []
+                                    }));
+                                    this.selectedStatus = data.order.status;
+                                } else { this.errorMsg = data.error || 'Failed to load order details.'; }
+                            })
+                            .catch(err => {
+                                this.loading = false;
+                                this.errorMsg = 'Network error.';
+                            });
                     }
                 };
             }
 
-            function ordersPage() { return { ...orderModal(), ...filterPanel() }; }
-            window.ordersPage = ordersPage;
+            function ordersPage() { 
+                const filterData = filterPanel();
+                const modalData = orderModal();
+                
+                return {
+                    ...filterData,
+                    ...modalData,
+                    
+                    init() {
+                        window.addEventListener('open-order-modal', e => this.openModal(e.detail.orderId));
+                        window.addEventListener('sort-changed', e => { 
+                            this.activeSort = e.detail.sortKey; 
+                            this.sortOpen = false; 
+                        });
+                        window.addEventListener('filter-badge-update', e => { 
+                            this.hasActiveFilters = (e.detail.badge > 0); 
+                        });
+                    }
+                };
+            }
 
             function printflowInitOrdersPage() {
                 if (typeof Alpine === 'undefined' || typeof Alpine.initTree !== 'function') return;
@@ -820,28 +838,28 @@ if (isset($_GET['ajax'])) {
             <?php render_branch_selector($branchCtx); ?>
         </header>
 
-        <main x-data="ordersPage()" x-init="init()">
+        <main x-data="ordersPage()">
             <?php render_branch_context_banner($branchCtx['branch_name']); ?>
             <!-- KPI Summary Row (matches reports page style) -->
             <div class="kpi-row">
                 <div class="kpi-card indigo">
                     <div class="kpi-label">Total Orders</div>
-                    <div class="kpi-value"><?php echo $total_count; ?></div>
-                    <div class="kpi-sub"><?php echo $completed_count; ?> completed</div>
+                    <div class="kpi-value"><?php echo number_format($total_count); ?></div>
+                    <div class="kpi-sub"><?php echo number_format($completed_count); ?> completed</div>
                 </div>
                 <div class="kpi-card amber">
                     <div class="kpi-label">Pending Orders</div>
-                    <div class="kpi-value"><?php echo $pending_count; ?></div>
+                    <div class="kpi-value"><?php echo number_format($pending_count); ?></div>
                     <div class="kpi-sub">Awaiting action</div>
                 </div>
                 <div class="kpi-card blue">
                     <div class="kpi-label">Processing</div>
-                    <div class="kpi-value"><?php echo $processing_count; ?></div>
+                    <div class="kpi-value"><?php echo number_format($processing_count); ?></div>
                     <div class="kpi-sub">In progress</div>
                 </div>
                 <div class="kpi-card emerald">
                     <div class="kpi-label">Ready for Pickup</div>
-                    <div class="kpi-value"><?php echo $ready_count; ?></div>
+                    <div class="kpi-value"><?php echo number_format($ready_count); ?></div>
                     <div class="kpi-sub">Awaiting customer</div>
                 </div>
             </div>
@@ -853,11 +871,9 @@ if (isset($_GET['ajax'])) {
                         Orders List
                     </h3>
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <!-- Branch Selector (re-using the existing logic but fitting the layout) -->
-
                         <!-- Sort Button -->
                         <div style="position:relative;">
-                            <button class="toolbar-btn" :class="{ active: sortOpen }" @click="sortOpen = !sortOpen; filterOpen = false" id="sortBtn" style="height:38px;">
+                            <button class="toolbar-btn" :class="{ active: sortOpen || (activeSort !== 'newest') }" @click="sortOpen = !sortOpen; filterOpen = false" id="sortBtn" style="height:38px;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/>
                                 </svg>
@@ -960,59 +976,63 @@ if (isset($_GET['ajax'])) {
                     <table class="orders-table">
                         <thead>
                             <tr style="border-bottom: 1px solid #e5e7eb;">
-                                <th style="width:12%;white-space:nowrap;">Order #</th>
-                                <th style="text-align:left;width:18%;">Customer</th>
-                                <th style="width:15%;">Date</th>
-                                <th style="width:12%;">Branch</th>
-                                <th style="width:12%;">Amount</th>
-                                <th style="width:12%;">Status</th>
-                                <th style="width:1%; text-align:right;">Actions</th>
+                                <th style="width:12%;white-space:nowrap;">Order Code</th>
+                                <th style="text-align:left;width:<?php echo $branchId !== 'all' ? '20%' : '24%'; ?>;">Customer</th>
+                                <th style="width:<?php echo $branchId !== 'all' ? '14%' : '16%'; ?>;">Date</th>
+                                <?php if ($branchId !== 'all'): ?>
+                                <th style="width:14%;">Branch</th>
+                                <?php endif; ?>
+                                <th style="width:<?php echo $branchId !== 'all' ? '14%' : '16%'; ?>;">Amount</th>
+                                <th style="width:<?php echo $branchId !== 'all' ? '14%' : '16%'; ?>;">Status</th>
+                                <th style="width:12%; text-align:right;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="ordersTableBody">
                             <?php if (empty($orders)): ?>
                                 <tr id="emptyOrdersRow">
-                                    <td colspan="7" style="padding:40px; text-align:center; color:#9ca3af; font-size:14px; cursor:default;">
+                                    <td colspan="<?php echo $branchId !== 'all' ? '7' : '6'; ?>" style="padding:40px; text-align:center; color:#9ca3af; font-size:14px; cursor:default;">
                                         <?php echo $search ? 'No orders found matching "' . htmlspecialchars($search) . '"' : 'No orders found'; ?>
                                     </td>
                                 </tr>
                             <?php else: ?>
-                <?php foreach ($orders as $order): ?>
-                    <tr data-order-id="<?php echo $order['order_id']; ?>" @click="openModal(<?php echo $order['order_id']; ?>)" title="Click to view Order #<?php echo $order['order_id']; ?>" style="border-bottom: 1px solid #f3f4f6; cursor:pointer;">
-                        <td style="color:#1f2937;white-space:nowrap;"><?php echo $order['order_sku'] ? htmlspecialchars($order['order_sku']) . '-' . $order['order_id'] : 'ORD-' . $order['order_id']; ?></td>
-                        <td>
-                            <div class="cell-ellipsis" style="color:#1f2937; max-width:160px;" title="<?php echo htmlspecialchars($order['customer_name']); ?>"><?php echo htmlspecialchars($order['customer_name']); ?></div>
-                            <div class="cell-ellipsis" style="font-size:11px; color:#9ca3af; max-width:160px;" title="<?php echo htmlspecialchars($order['customer_email']); ?>"><?php echo htmlspecialchars($order['customer_email']); ?></div>
-                        </td>
-                        <td style="color:#6b7280; font-size: 12px;"><?php echo format_date($order['order_date']); ?></td>
-                        <td><?php
-                            echo get_branch_badge_html(
-                                (int)($order['branch_id'] ?? 0),
-                                $order['branch_name'] ?? 'Main'
-                            );
-                        ?></td>
-                        <td style="color:#1f2937;">₱<?php echo number_format($order['total_amount'], 2); ?></td>
-                        <td>
-                            <?php
-                                $sc = match($order['status']) {
-                                    'Pending'           => 'background:#fef3c7;color:#92400e;',
-                                    'Processing'        => 'background:#dbeafe;color:#1e40af;',
-                                    'Ready for Pickup'  => 'background:#ede9fe;color:#5b21b6;',
-                                    'Completed'         => 'background:#dcfce7;color:#166534;',
-                                    'Cancelled'         => 'background:#fecaca;color:#b91c1c;',
-                                    default             => 'background:#f3f4f6;color:#374151;'
-                                };
-                            ?>
-                            <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;<?php echo $sc; ?>" class="cell-ellipsis" title="<?php echo htmlspecialchars($order['status']); ?>"><?php echo $order['status']; ?></span>
-                        </td>
-                        <td style="text-align:right;" @click.stop>
-                            <button 
-                                @click="openModal(<?php echo $order['order_id']; ?>)"
-                                class="btn-action blue"
-                            >View</button>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
+                                <?php foreach ($orders as $order): ?>
+                                    <tr data-order-id="<?php echo $order['order_id']; ?>" @click="openModal(<?php echo $order['order_id']; ?>)" title="Click to view Order #<?php echo $order['order_id']; ?>" style="border-bottom: 1px solid #f3f4f6; cursor:pointer;">
+                                        <td style="color:#1f2937;white-space:nowrap;"><?php echo $order['order_sku'] ? htmlspecialchars($order['order_sku']) . '-' . $order['order_id'] : 'ORD-' . $order['order_id']; ?></td>
+                                        <td>
+                                            <div class="cell-ellipsis" style="color:#1f2937; max-width:160px;" title="<?php echo htmlspecialchars($order['customer_name']); ?>"><?php echo htmlspecialchars($order['customer_name']); ?></div>
+                                            <div class="cell-ellipsis" style="font-size:11px; color:#9ca3af; max-width:160px;" title="<?php echo htmlspecialchars($order['customer_email']); ?>"><?php echo htmlspecialchars($order['customer_email']); ?></div>
+                                        </td>
+                                        <td style="color:#6b7280; font-size: 12px;"><?php echo format_date($order['order_date']); ?></td>
+                                        <?php if ($branchId !== 'all'): ?>
+                                        <td><?php
+                                            echo get_branch_badge_html(
+                                                (int)($order['branch_id'] ?? 0),
+                                                $order['branch_name'] ?? 'Main'
+                                            );
+                                        ?></td>
+                                        <?php endif; ?>
+                                        <td style="color:#1f2937;">₱<?php echo number_format($order['total_amount'], 2); ?></td>
+                                        <td>
+                                            <?php
+                                                $sc = match($order['status']) {
+                                                    'Pending'           => 'background:#fef3c7;color:#92400e;',
+                                                    'Processing'        => 'background:#dbeafe;color:#1e40af;',
+                                                    'Ready for Pickup'  => 'background:#ede9fe;color:#5b21b6;',
+                                                    'Completed'         => 'background:#dcfce7;color:#166534;',
+                                                    'Cancelled'         => 'background:#fecaca;color:#b91c1c;',
+                                                    default             => 'background:#f3f4f6;color:#374151;'
+                                                };
+                                            ?>
+                                            <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;<?php echo $sc; ?>" class="cell-ellipsis" title="<?php echo htmlspecialchars($order['status']); ?>"><?php echo $order['status']; ?></span>
+                                        </td>
+                                        <td style="text-align:right;" @click.stop>
+                                            <button 
+                                                @click="openModal(<?php echo $order['order_id']; ?>)"
+                                                class="btn-action blue"
+                                            >View</button>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -1047,11 +1067,11 @@ if (isset($_GET['ajax'])) {
             </div>
 
             <!-- Order Details Content -->
-            <div x-show="order && !loading">
+            <div x-show="order && !loading" class="modal-content">
                 <!-- Header -->
-                <div style="padding:20px 24px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;">
+                <div style="padding:20px 24px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
                     <div>
-                        <h3 style="font-size:18px;font-weight:700;color:#1f2937;margin:0;">Order #PF-<span x-text="order?.order_id"></span></h3>
+                        <h3 style="font-size:18px;font-weight:700;color:#1f2937;margin:0;">Order Code: <span x-text="order?.order_code"></span></h3>
                         <p style="font-size:13px;color:#6b7280;margin:2px 0 0;" x-text="order?.order_date"></p>
                         <p style="font-size:12px;color:#4F46E5;margin:3px 0 0;font-weight:600;"><span x-text="order?.branch_name"></span></p>
                     </div>
@@ -1061,34 +1081,43 @@ if (isset($_GET['ajax'])) {
                 </div>
 
                 <!-- Customer & Order Info Grid -->
-                <div style="padding:24px;">
-                    <div class="detail-row">
-                        <div class="detail-block">
-                            <label>Customer Name</label>
-                            <span x-text="order?.customer_name"></span>
+                <div style="padding:20px 24px;display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                    <!-- Customer Info -->
+                    <div style="background:#f9fafb;border-radius:10px;padding:16px;border:1px solid #f3f4f6;">
+                        <h4 style="font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 12px;">Customer</h4>
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                            <template x-if="order?.customer_picture">
+                                <img :src="order.customer_picture" alt="Customer" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                            </template>
+                            <template x-if="!order?.customer_picture">
+                                <div x-text="order?.customer_initial" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;flex-shrink:0;"></div>
+                            </template>
+                            <div>
+                                <div x-text="order?.customer_name" style="font-weight:600;font-size:14px;color:#1f2937;"></div>
+                                <div x-text="order?.customer_email" style="font-size:12px;color:#6b7280;"></div>
+                            </div>
                         </div>
-                        <div class="detail-block">
-                            <label>Customer Email</label>
-                            <span x-text="order?.customer_email"></span>
-                        </div>
-                        <div class="detail-block">
-                            <label>Customer Phone</label>
-                            <span x-text="order?.customer_phone"></span>
+                        <div style="font-size:13px;color:#6b7280;">
+                            <span>Phone: </span><span x-text="order?.customer_phone" style="color:#1f2937;font-weight:500;"></span>
                         </div>
                     </div>
 
-                    <div class="detail-row">
-                        <div class="detail-block">
-                            <label>Order Status</label>
-                            <span x-html="statusBadge(order?.status, 'order')"></span>
-                        </div>
-                        <div class="detail-block">
-                            <label>Payment Status</label>
-                            <span x-html="statusBadge(order?.payment_status, 'payment')"></span>
-                        </div>
-                        <div class="detail-block">
-                            <label>Total Amount</label>
-                            <span x-text="order?.total_amount" style="font-size: 15px; font-weight: 700; color: #10b981;"></span>
+                    <!-- Order Status -->
+                    <div style="background:#f9fafb;border-radius:10px;padding:16px;border:1px solid #f3f4f6;">
+                        <h4 style="font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 12px;">Order Status</h4>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span style="font-size:13px;color:#6b7280;">Status</span>
+                                <span x-html="statusBadge(order?.status, 'order')"></span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span style="font-size:13px;color:#6b7280;">Payment</span>
+                                <span x-html="statusBadge(order?.payment_status, 'payment')"></span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span style="font-size:13px;color:#6b7280;">Total</span>
+                                <span x-text="order?.total_amount" style="font-weight:700;font-size:16px;color:#1f2937;"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1110,7 +1139,7 @@ if (isset($_GET['ajax'])) {
                                 <template x-if="items.length === 0">
                                     <tr><td colspan="4" style="text-align:center;padding:20px;color:#9ca3af;">No items found</td></tr>
                                 </template>
-                                <template x-for="item in items" :key="item.sku">
+                                <template x-for="item in (items || [])" :key="item.sku">
                                     <tr style="border-top:1px solid #f3f4f6;">
                                         <td style="padding:10px 14px;">
                                             <div x-text="item.product_name" style="font-weight:500;color:#1f2937;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" :title="item.product_name"></div>
@@ -1190,12 +1219,12 @@ if (isset($_GET['ajax'])) {
                 <template x-if="order?.notes">
                     <div style="padding:0 24px 20px;">
                         <h4 style="font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px;">Notes</h4>
-                        <p x-text="order.notes" style="font-size:13px;color:#6b7280;background:#f9fafb;padding:12px;border-radius:8px;border:1px solid #f3f4f6;margin:0;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;"></p>
+                        <p x-text="order.notes" style="font-size:13px;color:#6b7280;background:#f9fafb;padding:12px;border-radius:8px;border:1px solid #f3f4f6;margin:0;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;"></p>
                     </div>
                 </template>
 
                 <!-- Footer -->
-                <div style="padding:16px 24px;border-top:1px solid #f3f4f6;display:flex;justify-content:flex-end;">
+                <div style="padding:16px 24px;border-top:1px solid #f3f4f6;display:flex;justify-content:flex-end;flex-shrink:0;">
                     <button @click="showModal = false" class="btn-secondary">Close</button>
                 </div>
             </div>
@@ -1203,10 +1232,17 @@ if (isset($_GET['ajax'])) {
     </div>
 </div>
 
+<style>
+    /* Force-hide the "Showing X of Y" text element */
+    .flex.items-center.justify-between.pb-4 > span.text-sm.text-gray-700 {
+        display: none !important;
+    }
+</style>
+
         </main>
     </div>
 </div>
 
+<?php include __DIR__ . '/../includes/footer.php'; ?>
 </body>
-
 </html>

@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sent = send_email($email, 'Password Reset Request - PrintFlow', $message);
             if (!$sent) {
                 error_log('PrintFlow forgot-password: send_email failed for ' . $email);
-                $error = 'We could not send the email right now. Please try again later or contact support.';
+                $error = 'Could not send the email. Please configure SMTP settings in includes/smtp_config.php (see SMTP_SETUP_GUIDE.md) or contact support.';
             } else {
                 $success = 'If that email exists in our system, you will receive a password reset link shortly.';
             }
@@ -67,6 +67,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 show_page:
+
+// Check if SMTP is configured
+$smtp_config_path = __DIR__ . '/../includes/smtp_config.php';
+$smtp_config = file_exists($smtp_config_path) ? require $smtp_config_path : null;
+$smtp_configured = false;
+if (is_array($smtp_config)) {
+    $smtp_configured = 
+        !empty($smtp_config['smtp_user']) && 
+        $smtp_config['smtp_user'] !== 'your-email@gmail.com' &&
+        !empty($smtp_config['smtp_pass']) && 
+        $smtp_config['smtp_pass'] !== 'your-app-password';
+}
+
 $page_title = 'Forgot Password - PrintFlow';
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -78,6 +91,13 @@ require_once __DIR__ . '/../includes/header.php';
                 <h1 class="text-3xl font-bold text-gray-900 mb-2">Forgot Password?</h1>
                 <p class="text-gray-600">Enter your email and we'll send you a reset link</p>
             </div>
+
+            <?php if (!$smtp_configured && !$success): ?>
+                <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-4">
+                    <strong>⚠️ SMTP Not Configured</strong><br>
+                    <span class="text-sm">Email sending may not work. Please configure SMTP in <code>includes/smtp_config.php</code>. See <code>SMTP_SETUP_GUIDE.md</code> for instructions.</span>
+                </div>
+            <?php endif; ?>
 
             <?php if ($error): ?>
                 <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">

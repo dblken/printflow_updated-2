@@ -120,6 +120,11 @@ if (isset($_GET['ajax'])) {
 
 $page_title = 'Activity Logs - Admin';
 
+// Define variables needed by footer
+$base_url = '/printflow';
+$url_products = '/printflow/public/products.php';
+$is_logged_in = true;
+
 $print_date_range = 'All dates';
 if ($date_from && $date_to) {
     $print_date_range = date('F j, Y', strtotime($date_from)) . ' – ' . date('F j, Y', strtotime($date_to));
@@ -747,6 +752,6 @@ $print_generated = date('F j, Y, g:i A');
     </div>
 </div>
 
-
+<?php include __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>

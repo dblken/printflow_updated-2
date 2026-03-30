@@ -11,6 +11,7 @@ require_role('Customer');
 ensure_ratings_table_exists();
 
 $customer_id = get_user_id();
+if (!defined('BASE_URL')) define('BASE_URL', '/printflow');
 // Mark notification as read if parameter present
 if (isset($_GET['mark_read'])) {
     $notification_id = (int)$_GET['mark_read'];
@@ -267,7 +268,8 @@ body.customer-theme.orders-page footer.ft-footer {
     font-size: 0.9rem; color: #9fc6d9; font-weight: 500;
 }
 
-.orders-theme-page .ct-order-card:hover { background: rgba(83, 197, 224, 0.09) !important; }
+.orders-theme-page .ct-order-card { transition: background 0.2s, border-color 0.2s, box-shadow 0.2s !important; cursor: default; }
+.orders-theme-page .ct-order-card:hover { background: rgba(0, 15, 20, 0.75) !important; border-color: rgba(83, 197, 224, 0.42) !important; box-shadow: 0 16px 48px rgba(2, 12, 18, 0.5) !important; }
 .orders-theme-page .ct-order-card [style*="border-bottom:1px solid #f1f5f9"] { border-bottom: 1px solid rgba(83, 197, 224, 0.2) !important; }
 .orders-theme-page .ct-order-card [style*="color:#1e293b"],
 .orders-theme-page .ct-order-card [style*="color:#111827"] { color: #eaf6fb !important; }
@@ -275,9 +277,12 @@ body.customer-theme.orders-page footer.ft-footer {
 .orders-theme-page .ct-order-card [style*="color:#94a3b8"],
 .orders-theme-page .ct-order-card [style*="color:#9ca3af"] { color: #9fc6d9 !important; }
 .orders-theme-page .ct-order-card [style*="background:#f8fafc"],
+.orders-theme-page .ct-order-card [style*="background: #f8fafc"],
 .orders-theme-page .ct-order-card [style*="background:#fff"],
-.orders-theme-page .ct-order-card [style*="background:#f0f7f9"] {
-    background: rgba(255,255,255,.05) !important;
+.orders-theme-page .ct-order-card [style*="background: #fff"],
+.orders-theme-page .ct-order-card [style*="background:#f0f7f9"],
+.orders-theme-page .ct-order-card [style*="background: #f0f7f9"] {
+    background: rgba(255,255,255,.06) !important;
 }
 .orders-theme-page .ct-order-card a[href*="chat.php"] {
     background: linear-gradient(135deg, #53C5E0, #32a1c4) !important;
@@ -352,16 +357,33 @@ body.customer-theme.orders-page footer.ft-footer {
                             <?php 
                             // Prefer actual service name from customization over product name (e.g. Transparent Sticker not "Sticker Pack")
                             $c_json = !empty($order['first_item_customization']) ? json_decode($order['first_item_customization'], true) : [];
-                            $service_category = $c_json['service_type'] ?? '';
-                            $display_name = $service_category ?: ($order['first_product_name'] ?? 'Order Items');
-                            if (empty($display_name) || in_array(strtolower(trim($display_name)), ['custom order', 'customer order', 'service order', 'order item'])) {
-                                $display_name = get_service_name_from_customization($c_json, $order['first_product_name'] ?? 'Order Item');
-                            } else {
-                                $display_name = normalize_service_name($display_name, 'Order Item');
-                                if (!empty($c_json['product_type'])) {
-                                    $display_name .= " (" . $c_json['product_type'] . ")";
+                            
+                            // Dynamic Logic (MATCH get_order_items.php)
+                            $display_name = '';
+                            if (!empty($c_json['sintra_type'])) {
+                                $display_name = 'Sintra Board - ' . $c_json['sintra_type'];
+                            } elseif (!empty($c_json['tarp_size']) || (!empty($c_json['width']) && !empty($c_json['height']))) {
+                                $size = $c_json['tarp_size'] ?? ($c_json['width'] . 'x' . $c_json['height'] . 'ft');
+                                $display_name = 'Tarpaulin Printing - ' . $size;
+                            } elseif (!empty($c_json['vinyl_type'])) {
+                                $display_name = 'T-Shirt Printing (Vinyl)';
+                            } elseif (!empty($c_json['sticker_type'])) {
+                                $display_name = 'Decals/Stickers';
+                            }
+
+                            if (!$display_name) {
+                                $raw_name = $order['first_product_name'] ?? 'Order Item';
+                                $genericNames = ['custom order', 'customer order', 'service order', 'order item', 'sticker pack', 'merchandise'];
+                                if (empty($raw_name) || in_array(strtolower(trim($raw_name)), $genericNames)) {
+                                    $display_name = get_service_name_from_customization($c_json, 'Order Item');
+                                } else {
+                                    $display_name = normalize_service_name($raw_name, 'Order Item');
+                                    if (!empty($c_json['product_type'])) {
+                                        $display_name .= " (" . $c_json['product_type'] . ")";
+                                    }
                                 }
                             }
+                            $service_category = $c_json['service_type'] ?? '';
                             $service_category = $service_category ?: $display_name;
 
                             // Determine image or design (80x80, object-fit: cover, border-radius: 8px)
@@ -483,8 +505,34 @@ body.customer-theme.orders-page footer.ft-footer {
 <script>
 document.body.classList.add('orders-page');
 
-// Trigger success modal if success message exists
+// ── Highlight + scroll to a specific order card from notification ──
 window.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    const highlightId = params.get('highlight');
+    if (highlightId) {
+        // Open the details modal immediately for maximum responsiveness
+        if (typeof openItemsModal === 'function') {
+            openItemsModal(highlightId);
+        }
+
+        const card = document.querySelector(`[data-order-id="${highlightId}"]`);
+        if (card) {
+            // Scroll into view with a slight delay so the page fully renders
+            setTimeout(() => {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Apply a teal highlight pulse
+                card.style.transition = 'box-shadow 0.3s, border-color 0.3s';
+                card.style.borderColor = 'rgba(83, 197, 224, 0.85)';
+                card.style.boxShadow = '0 0 0 3px rgba(83, 197, 224, 0.35), 0 16px 48px rgba(2, 12, 18, 0.5)';
+                // Fade back after 2.5s
+                setTimeout(() => {
+                    card.style.borderColor = '';
+                    card.style.boxShadow = '';
+                }, 2500);
+            }, 300);
+        }
+    }
+
     <?php if (isset($_SESSION['success'])): 
         $msg = $_SESSION['success'];
         unset($_SESSION['success']);
@@ -825,9 +873,9 @@ function openItemsModal(orderId) {
                     if (k.toLowerCase() === 'notes' && v === data.notes) return;
                     if (k.toLowerCase() === 'notes' || k.toLowerCase().includes('description')) {
                         itemNotes += `
-                            <div style="margin-top:8px; padding:10px; background:#fffbeb; border:1px solid #fef3c7; border-radius:8px;">
-                                <div style="font-size:10px; font-weight:800; color:#92400e; text-transform:uppercase; margin-bottom:4px;">📝 ${escIM(label)}</div>
-                                <div style="font-size:12px; color:#b45309; line-height:1.4; max-height:100px; overflow-y:auto; overflow-wrap:anywhere; word-break:break-word;">
+                            <div style="margin-top:8px; padding:10px; background:rgba(83,197,224,0.1); border:1px solid rgba(83,197,224,0.3); border-radius:8px;">
+                                <div style="font-size:10px; font-weight:800; color:#9fc6d9; text-transform:uppercase; margin-bottom:4px;">📝 ${escIM(label)}</div>
+                                <div style="font-size:12px; color:#d9e6ef; line-height:1.4; max-height:100px; overflow-y:auto; overflow-wrap:anywhere; word-break:break-word;">
                                     ${escIM(String(v)).replace(/\n/g,'<br>')}
                                 </div>
                             </div>`;
@@ -861,8 +909,8 @@ function openItemsModal(orderId) {
 
             return `<tr>
                 <td>
-                    <div style="font-weight:700;color:#1e293b;">${escIM(item.product_name)}</div>
-                    ${item.category ? `<div style="font-size:11px;color:#9ca3af;">${escIM(item.category)}</div>` : ''}
+                    <div style="font-weight:700;color:#eaf6fb;">${escIM(item.product_name)}</div>
+                    ${item.category ? `<div style="font-size:11px;color:#9fc6d9;">${escIM(item.category)}</div>` : ''}
                     ${chips}
                     ${itemNotes}
                     <div style="display:flex;gap:12px;flex-wrap:wrap;">
@@ -870,9 +918,9 @@ function openItemsModal(orderId) {
                         ${reference}
                     </div>
                 </td>
-                <td style="text-align:center;">${item.quantity}</td>
-                <td>${escIM(item.unit_price)}</td>
-                <td style="font-weight:700;color:#4f46e5;">${escIM(item.subtotal)}</td>
+                <td style="text-align:center;color:#d9e6ef;">${item.quantity}</td>
+                <td style="color:#d9e6ef;">${escIM(item.unit_price)}</td>
+                <td style="font-weight:700;color:#53c5e0;">${escIM(item.subtotal)}</td>
             </tr>`;
         }).join('');
 
@@ -887,7 +935,7 @@ function openItemsModal(orderId) {
 
         let cancelHTML = '';
         if (data.status === 'Cancelled' && (data.cancelled_by || data.cancel_reason)) {
-            cancelHTML = `<div style="margin-top:12px;padding:12px;background:#fef2f2;border:1px solid #fee2e2;border-radius:10px;font-size:12px;color:#b91c1c;">
+            cancelHTML = `<div style="margin-top:12px;padding:12px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:10px;font-size:12px;color:#fca5a5;">
                 <b>Cancelled by:</b> ${escIM(data.cancelled_by)}<br>
                 <b>Reason:</b> ${escIM(data.cancel_reason)}
                 ${data.cancelled_at ? `<br><b>Date:</b> ${escIM(data.cancelled_at)}` : ''}
@@ -896,12 +944,39 @@ function openItemsModal(orderId) {
 
         let revisionHTML = '';
         if (data.status === 'For Revision' && data.revision_reason) {
-            revisionHTML = `<div style="margin-top:12px;padding:12px;background:#eff6ff;border:1px solid #dbeafe;border-radius:10px;font-size:12px;color:#1e40af;">
+            revisionHTML = `<div style="margin-top:12px;padding:12px;background:rgba(83,197,224,0.1);border:1px solid rgba(83,197,224,0.3);border-radius:10px;font-size:12px;color:#7dd3fc;">
                 <b>Revision needed:</b> ${escIM(data.revision_reason)}
             </div>`;
         }
 
         document.getElementById('imBody').innerHTML = `
+            <!-- Design Review Status for Customer (Top Priority) -->
+            <div style="margin-bottom:20px; padding:15px; border-radius:12px; background:rgba(83,197,224,0.08); border:1px solid rgba(83,197,224,0.22); box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+                <div style="font-size:11px; font-weight:800; color:#9fc6d9; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>Design Review Status</span>
+                    ${imBadge(data.design_status || 'Pending')}
+                </div>
+                
+                ${data.design_status === 'Revision Requested' ? `
+                    <div style="margin-top:10px; padding:12px; background:rgba(83,197,224,0.1); border:1px solid rgba(83,197,224,0.3); border-radius:10px;">
+                        <div style="font-weight:700; color:#7dd3fc; font-size:12px; margin-bottom:4px;">Revision Reason:</div>
+                        <div style="font-size:12px; color:#bae6fd; line-height:1.4;">${escIM(data.revision_reason)}</div>
+                    </div>
+                    <div style="margin-top:14px;">
+                        <button onclick="triggerDesignReupload(${data.order_id})" style="width:100%; padding:12px; background:#06A1A1; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                            <span>📤 Re-upload New Design</span>
+                        </button>
+                        <input type="file" id="designReuploadInput-${data.order_id}" style="display:none;" onchange="handleDesignReupload(this, ${data.order_id}, '${data.csrf_token}')" accept="image/*,application/pdf">
+                    </div>
+                ` : ''}
+
+                ${data.design_status === 'Approved' ? `
+                    <div style="margin-top:10px; text-align:center; color:#4ade80; font-size:12px; font-weight:600;">
+                        Your design has been approved for production.
+                    </div>
+                ` : ''}
+            </div>
+
             <table class="im-table">
                 <thead><tr>
                     <th>Product</th>
@@ -911,8 +986,8 @@ function openItemsModal(orderId) {
                 </tr></thead>
                 <tbody>${rows}</tbody>
                 <tfoot><tr>
-                    <td colspan="3" style="text-align:right;padding:12px 10px;" class="im-total-row">Total</td>
-                    <td style="padding:12px 10px;color:#4f46e5;font-size:15px;" class="im-total-row">${escIM(data.total_amount)}</td>
+                    <td colspan="3" style="text-align:right;padding:12px 10px;color:#d9e6ef;" class="im-total-row">Total</td>
+                    <td style="padding:12px 10px;color:#53c5e0;font-size:15px;" class="im-total-row">${escIM(data.total_amount)}</td>
                 </tr></tfoot>
             </table>
             <div class="im-full-details-inner">
@@ -936,56 +1011,27 @@ function openItemsModal(orderId) {
                         </div>
                     </div>
                     ${cancelHTML}
-                    
-                    <!-- Design Review Status for Customer -->
-                    <div style="margin-top:16px; padding:15px; border-radius:12px; background:#fff; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-                        <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px;">Design Review Status</div>
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:13.5px; font-weight:600; color:#334155;">Status:</span>
-                            ${imBadge(data.design_status || 'Pending')}
-                        </div>
-                        
-                        ${data.design_status === 'Revision Requested' ? `
-                            <div style="margin-top:12px; padding:12px; background:#eff6ff; border:1px solid #dbeafe; border-radius:10px;">
-                                <div style="font-weight:700; color:#2563eb; font-size:12px; margin-bottom:4px;">Revision Reason:</div>
-                                <div style="font-size:12px; color:#1e40af; line-height:1.4;">${escIM(data.revision_reason)}</div>
-                            </div>
-                            <div style="margin-top:14px;">
-                                <button onclick="triggerDesignReupload(${data.order_id})" style="width:100%; padding:12px; background:#4f46e5; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
-                                    <span>📤 Re-upload New Design</span>
-                                </button>
-                                <input type="file" id="designReuploadInput-${data.order_id}" style="display:none;" onchange="handleDesignReupload(this, ${data.order_id}, '${data.csrf_token}')" accept="image/*,application/pdf">
-                            </div>
-                        ` : ''}
-
-                        ${data.design_status === 'Approved' ? `
-                            <div style="margin-top:10px; text-align:center; color:#16a34a; font-size:12px; font-weight:600;">
-                                ✅ Your design has been approved for production.
-                            </div>
-                        ` : ''}
-                    </div>
-
                     ${revisionHTML}
 
                     <!-- Customer Rating Section -->
                     ${data.rating_data ? `
-                        <div style="margin-top:20px; padding:15px; border-radius:12px; background:linear-gradient(135deg, #fffbeb, #fff7ed); border:1px solid #fde68a; box-shadow:0 2px 8px rgba(251,191,36,0.05);">
-                            <div style="font-size:11px; font-weight:800; color:#92400e; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="margin-top:20px; padding:15px; border-radius:12px; background:rgba(83,197,224,0.08); border:1px solid rgba(83,197,224,0.28); box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+                            <div style="font-size:11px; font-weight:800; color:#9fc6d9; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
                                 <span>⭐ Customer Rating</span>
                                 <span style="font-weight:600; opacity:0.8;">${escIM(data.rating_data.created_at)}</span>
                             </div>
-                            <div style="color:#b45309; font-size:18px; line-height:1; margin-bottom:8px;">
+                            <div style="color:#fbbf24; font-size:18px; line-height:1; margin-bottom:8px;">
                                 ${'★'.repeat(data.rating_data.rating)}${'☆'.repeat(5 - data.rating_data.rating)}
                             </div>
                             ${data.rating_data.comment ? `
-                                <div style="font-size:13.5px; color:#92400e; font-weight:500; line-height:1.5; margin-bottom:12px; background:rgba(255,255,255,0.5); padding:10px; border-radius:8px; border:1px solid rgba(251,191,36,0.2);">
+                                <div style="font-size:13.5px; color:#d9e6ef; font-weight:500; line-height:1.5; margin-bottom:12px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; border:1px solid rgba(83,197,224,0.18);">
                                     "${escIM(data.rating_data.comment)}"
                                 </div>
                             ` : ''}
                             ${data.rating_data.image_url ? `
                                 <div style="margin-top:10px;">
-                                    <div style="font-size:9px; color:#92400e; font-weight:700; margin-bottom:4px; text-transform:uppercase;">Photo Shared:</div>
-                                    <a href="${escIM(data.rating_data.image_url)}" target="_blank" style="display:inline-block; border-radius:10px; overflow:hidden; border:2px solid #fff; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                                    <div style="font-size:9px; color:#9fc6d9; font-weight:700; margin-bottom:4px; text-transform:uppercase;">Photo Shared:</div>
+                                    <a href="${escIM(data.rating_data.image_url)}" target="_blank" style="display:inline-block; border-radius:10px; overflow:hidden; border:2px solid rgba(83,197,224,0.4); box-shadow:0 4px 6px rgba(0,0,0,0.3);">
                                         <img src="${escIM(data.rating_data.image_url)}" style="max-width:120px; display:block; cursor:zoom-in;" alt="Rating Image">
                                     </a>
                                 </div>
@@ -993,14 +1039,14 @@ function openItemsModal(orderId) {
                         </div>
                     ` : ''}
 
-                    <div id="imCancelSection" style="margin-top:20px; padding-top:20px; border-top:1px solid #f1f5f9;">
+                    <div id="imCancelSection" style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(83,197,224,0.2);">
                         ${data.can_cancel 
                             ? `<button class="im-cancel-trigger-btn" onclick="openCancelModal(${data.order_id}, '${data.csrf_token}')" 
-                                       style="width:100%; padding:14px; background:#fff; border:2px solid #fee2e2; border-radius:12px; color:#ef4444; font-weight:800; font-size:14px; cursor:pointer; transition:all 0.2s;">
+                                       style="width:100%; padding:14px; background:rgba(239,68,68,0.1); border:2px solid rgba(239,68,68,0.4); border-radius:12px; color:#fca5a5; font-weight:800; font-size:14px; cursor:pointer; transition:all 0.2s;">
                                    Cancel Order
                                </button>`
                             : (data.cancel_restriction_msg 
-                                ? `<div style="padding:14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; color:#94a3b8; font-size:13px; text-align:center; font-weight:600;">
+                                ? `<div style="padding:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(83,197,224,0.2); border-radius:12px; color:#9fc6d9; font-size:13px; text-align:center; font-weight:600;">
                                        ${escIM(data.cancel_restriction_msg)}
                                    </div>`
                                 : '')
@@ -1142,8 +1188,14 @@ function handleDesignReupload(input, orderId, csrfToken) {
     .then(r => r.json())
     .then(res => {
         if (res.success) {
-            alert('Design successfully re-uploaded! The staff will review it shortly.');
-            window.location.reload();
+            btn.style.background = '#059669';
+            btn.style.borderColor = '#059669';
+            btn.innerHTML = '<span style="display:flex;align-items:center;gap:6px;"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Success!</span>';
+            
+            // Optional alert if user is not looking at the button
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
         } else {
             alert(res.error || 'Failed to upload design');
             btn.disabled = false;

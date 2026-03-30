@@ -425,10 +425,14 @@ $page_title = 'Notifications - Staff';
                                 ?>
                             <div class="notif-item <?php echo $is_unread ? '' : 'read'; ?>" data-id="<?php echo (int)$notif['notification_id']; ?>">
                                 <div class="notif-dot <?php echo $is_unread ? '' : 'read'; ?>"></div>
-                                <div class="notif-icon-wrap <?php echo htmlspecialchars($type_slug); ?>"><?php echo $iconSvg; ?></div>
-                                <div class="notif-body">
+                                <div class="notif-body" style="padding-left: 12px; border-left: 2px solid #eef2f3;">
                                     <a href="<?php echo htmlspecialchars($target_url); ?>" class="notif-msg" style="text-decoration:none;display:block;" data-turbo="false" onclick="handleNotifClick(event, <?php echo (int)$notif['notification_id']; ?>, <?php echo json_encode($target_url, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE); ?>, <?php echo $is_unread ? 'true' : 'false'; ?>)">
-                                        <?php echo htmlspecialchars($notif['message']); ?>
+                                        <?php 
+                                        // Remove common emojis to keep look professional
+                                        $clean_msg = (string)$notif['message'];
+                                        $clean_msg = preg_replace('/[\x{1F300}-\x{1F64F}\x{1F680}-\x{1F6FF}\x{2600}-\x{26FF}\x{2700}-\x{27BF}]/u', '', $clean_msg);
+                                        echo htmlspecialchars(trim($clean_msg)); 
+                                        ?>
                                     </a>
                                     <div class="notif-time">
                                         <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -438,13 +442,13 @@ $page_title = 'Notifications - Staff';
                                 </div>
                                 <div class="notif-actions-wrap">
                                     <?php if ($is_unread): ?>
-                                    <button type="button" onclick="markAsRead(<?php echo (int)$notif['notification_id']; ?>)" class="notif-action-btn">
-                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    <button type="button" onclick="markAsRead(<?php echo (int)$notif['notification_id']; ?>)" class="btn-action btn-action-primary">
+                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                         Read
                                     </button>
                                     <?php endif; ?>
-                                    <button type="button" onclick="deleteNotification(<?php echo (int)$notif['notification_id']; ?>)" class="notif-action-btn danger">
-                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    <button type="button" onclick="deleteNotification(<?php echo (int)$notif['notification_id']; ?>)" class="btn-action btn-action-danger">
+                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                         Delete
                                     </button>
                                 </div>

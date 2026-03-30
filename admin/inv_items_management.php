@@ -10,8 +10,8 @@ $page_title = 'Inventory Items - Admin';
 // Get parameters
 $cat_id   = (int)($_GET['category_id'] ?? 0);
 $search   = trim($_GET['search'] ?? '');
-$sort     = $_GET['sort'] ?? 'name';
-$dir      = strtoupper($_GET['dir'] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
+$sort     = $_GET['sort'] ?? 'id';
+$dir      = strtoupper($_GET['dir'] ?? 'DESC') === 'DESC' ? 'DESC' : 'ASC';
 $page     = max(1, (int)($_GET['page'] ?? 1));
 $track_by = isset($_GET['track_by_roll']) && $_GET['track_by_roll'] !== '' ? (int)$_GET['track_by_roll'] : null;
 $per_page = 15;
@@ -277,8 +277,9 @@ if (isset($_GET['ajax'])) {
         
         /* Modals */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 110000; align-items: center; justify-content: center; padding: 16px; overflow: hidden; pointer-events: auto !important; }
-        .modal-content { background: white; border-radius: 20px; width: 90%; max-width: 800px; padding: 24px; position: relative; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border-color); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); z-index: 110001; animation: fadeIn 0.3s ease forwards; pointer-events: auto !important; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .modal-content { background: white; border-radius: 20px; width: 90%; max-width: 800px; position: relative; max-height: 90vh; border: 1px solid var(--border-color); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); z-index: 110001; animation: fadeIn 0.3s ease forwards; pointer-events: auto !important; display: flex; flex-direction: column; overflow: hidden; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 24px; flex-shrink: 0; border-bottom: 1px solid #e5e7eb; }
+        .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
         .modal-title { font-size: 18px; font-weight: 700; color: #111827; padding-right: 40px; overflow-wrap: break-word; word-break: break-word; -webkit-hyphens: auto; -ms-hyphens: auto; hyphens: auto; line-height: 1.4; }
         .close-btn { background: none; border: none; font-size: 20px; color: #9ca3af; cursor: pointer; padding: 4px; line-height: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .close-btn:hover { color: #374151; }
@@ -513,7 +514,7 @@ if (isset($_GET['ajax'])) {
 
     <div class="main-content">
         <header>
-            <h1 class="page-title">Inventory Master V2</h1>
+            <h1 class="page-title">Inventory Master</h1>
             <div style="display: flex; gap: 12px;">
                 <a href="inv_transactions_ledger" class="btn-secondary" style="display:inline-flex; align-items:center; gap:8px; padding: 12px 20px; border-radius: 12px;">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
@@ -542,7 +543,7 @@ if (isset($_GET['ajax'])) {
                         
                         <!-- Sort Button -->
                         <div style="position:relative;">
-                            <button type="button" class="toolbar-btn" :class="{active: sortOpen}" @click="sortOpen = !sortOpen; filterOpen = false" style="height:38px;">
+                            <button type="button" class="toolbar-btn" :class="{active: sortOpen || (activeSort !== 'newest')}" @click="sortOpen = !sortOpen; filterOpen = false" style="height:38px;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
                                 Sort by
                             </button>
@@ -955,8 +956,7 @@ if (isset($_GET['ajax'])) {
             <h3 class="modal-title" id="modalTitle" style="padding-right:30px;">Material Settings</h3>
             <button class="close-btn" onclick="closeModal()">&times;</button>
         </div>
-        <!-- Top Info (Edit mode only) -->
-        <!-- Top Info Removed -->
+        <div class="modal-body">
         <form id="itemForm" onsubmit="saveItem(event)">
             <input type="hidden" id="itemId" name="id">
             <input type="hidden" id="actionType" name="action" value="create_item">
@@ -1127,6 +1127,7 @@ if (isset($_GET['ajax'])) {
                 <button type="submit" class="btn-primary" id="saveBtn" style="border-radius: 10px; height: 44px; padding: 0 24px; background: #10b981; border:none; transition: background 0.2s;">Save Changes</button>
             </div>
         </form>
+        </div>
     </div>
 </div>
 
@@ -1151,7 +1152,7 @@ if (isset($_GET['ajax'])) {
         return {
             sortOpen: false,
             filterOpen: false,
-            activeSort: '<?php echo $sort === 'name' ? ($dir === 'ASC' ? 'az' : 'za') : ($sort === 'id' ? ($dir === 'DESC' ? 'newest' : 'oldest') : 'az'); ?>',
+            activeSort: '<?php echo $sort === 'name' ? ($dir === 'ASC' ? 'az' : 'za') : ($sort === 'id' ? ($dir === 'DESC' ? 'newest' : 'oldest') : 'newest'); ?>',
             get hasActiveFilters() {
                 return document.getElementById('fp_category')?.value ||
                        document.getElementById('fp_track_by_roll')?.value !== '' ||
@@ -1527,8 +1528,8 @@ if (isset($_GET['ajax'])) {
     }
 
     function applySortFilter(sortKey) {
-        let sort = 'name';
-        let dir = 'ASC';
+        let sort = 'id';
+        let dir = 'DESC';
 
         if (sortKey === 'newest') { sort = 'id'; dir = 'DESC'; }
         else if (sortKey === 'oldest') { sort = 'id'; dir = 'ASC'; }
@@ -2920,5 +2921,6 @@ if (isset($_GET['ajax'])) {
     });
 </script>
 
+<?php include __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>

@@ -107,9 +107,11 @@ if (isset($_GET['ajax'])) {
             <tr style="border-bottom: 1px solid #e5e7eb;">
                 <th class="text-left py-3" style="width:1%;">ID</th>
                 <th class="text-left py-3">Customer</th>
-                <th class="text-left py-3">Branch</th>
                 <th class="text-left py-3">Service</th>
                 <th class="text-center py-3">Date Submitted</th>
+                <?php if ($branchId !== 'all'): ?>
+                <th class="text-left py-3">Branch</th>
+                <?php endif; ?>
                 <th class="text-right py-3">Amount</th>
                 <th class="text-center py-3">Payment</th>
                 <th class="text-center py-3">Status</th>
@@ -118,7 +120,7 @@ if (isset($_GET['ajax'])) {
         </thead>
         <tbody>
             <?php if (empty($jobs)): ?>
-                <tr><td colspan="9" class="py-12 text-center text-gray-400">No customizations found</td></tr>
+                <tr><td colspan="<?php echo $branchId === 'all' ? '8' : '9'; ?>" class="py-12 text-center text-gray-400">No customizations found</td></tr>
             <?php else: ?>
                 <?php foreach ($jobs as $jo): ?>
                                     <tr class="hover:bg-gray-50" style="border-bottom: 1px solid #f3f4f6; cursor:pointer;" @click="openModal(<?php echo $jo['id']; ?>)">
@@ -129,6 +131,16 @@ if (isset($_GET['ajax'])) {
                             </div>
                             <div class="text-xs text-gray-400"><?php echo htmlspecialchars($jo['customer_email'] ?: ''); ?></div>
                         </td>
+                        <td class="py-3">
+                            <div style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="<?php echo htmlspecialchars($jo['service_type']); ?>">
+                                <?php echo htmlspecialchars($jo['service_type']); ?>
+                            </div>
+                            <?php if ($jo['quantity'] > 1): ?>
+                                <div class="text-xs text-gray-400">Qty: <?php echo $jo['quantity']; ?></div>
+                            <?php endif; ?>
+                        </td>
+                        <td class="py-3 text-center text-gray-500 text-xs"><?php echo date('M j, Y', strtotime($jo['created_at'])); ?></td>
+                        <?php if ($branchId !== 'all'): ?>
                         <td class="py-3" style="max-width:140px;">
                             <?php
                             $joBid = (int)($jo['branch_display_id'] ?? 0);
@@ -142,15 +154,7 @@ if (isset($_GET['ajax'])) {
                             }
                             ?>
                         </td>
-                        <td class="py-3">
-                            <div style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="<?php echo htmlspecialchars($jo['service_type']); ?>">
-                                <?php echo htmlspecialchars($jo['service_type']); ?>
-                            </div>
-                            <?php if ($jo['quantity'] > 1): ?>
-                                <div class="text-xs text-gray-400">Qty: <?php echo $jo['quantity']; ?></div>
-                            <?php endif; ?>
-                        </td>
-                        <td class="py-3 text-center text-gray-500 text-xs"><?php echo date('M j, Y', strtotime($jo['created_at'])); ?></td>
+                        <?php endif; ?>
                         <td class="py-3 text-right">
                             <?php echo $jo['estimated_total'] ? '₱' . number_format($jo['estimated_total'], 2) : '<span class="text-gray-400 text-xs">Pending</span>'; ?>
                         </td>
@@ -275,8 +279,9 @@ function custom_payment_badge($status) {
         .btn-action.teal  { color:#14b8a6; border-color:#14b8a6; }
         .btn-action.teal:hover  { background:#14b8a6; color:white; }
 
-        .modal-overlay { position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999; }
-        .modal-panel { background:#fff;border-radius:12px;box-shadow:0 25px 50px rgba(0,0,0,0.25);width:100%;max-width:640px;max-height:88vh;overflow-y:auto;margin:16px; }
+        .modal-overlay { position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px; }
+        .modal-panel { background:#fff;border-radius:12px;box-shadow:0 25px 50px rgba(0,0,0,0.25);width:100%;max-width:640px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;position:relative;overflow:hidden; }
+        .modal-content { overflow-y:auto;flex:1; }
         [x-cloak] { display:none !important; }
         @keyframes spin { to { transform:rotate(360deg); } }
 
@@ -705,6 +710,21 @@ function custom_payment_badge($status) {
             document.addEventListener('DOMContentLoaded', printflowInitCustomizationsPage);
         } else { printflowInitCustomizationsPage(); }
         document.addEventListener('printflow:page-init', printflowInitCustomizationsPage);
+
+        function printflowOpenJobFromQuery() {
+            var oj = new URLSearchParams(window.location.search).get('open_job');
+            if (!oj) return;
+            var jid = parseInt(oj, 10);
+            if (!(jid > 0)) return;
+            requestAnimationFrame(function () {
+                var main = document.querySelector('main[x-data="custModal()"]');
+                if (main && main._x_dataStack && main._x_dataStack[0]) {
+                    main._x_dataStack[0].openModal(jid);
+                }
+            });
+        }
+        printflowOpenJobFromQuery();
+        document.addEventListener('printflow:page-init', printflowOpenJobFromQuery);
         </script>
         <header>
             <h1 class="page-title">Customizations</h1>
@@ -717,22 +737,22 @@ function custom_payment_badge($status) {
             <div class="kpi-row">
                 <div class="kpi-card indigo">
                     <div class="kpi-label">Total</div>
-                    <div class="kpi-value"><?php echo $kpi_total; ?></div>
+                    <div class="kpi-value"><?php echo number_format($kpi_total); ?></div>
                     <div class="kpi-sub">All customizations</div>
                 </div>
                 <div class="kpi-card amber">
                     <div class="kpi-label">Pending / Approved</div>
-                    <div class="kpi-value"><?php echo $kpi_pending; ?></div>
+                    <div class="kpi-value"><?php echo number_format($kpi_pending); ?></div>
                     <div class="kpi-sub">Awaiting production</div>
                 </div>
                 <div class="kpi-card blue">
                     <div class="kpi-label">In Production</div>
-                    <div class="kpi-value"><?php echo $kpi_active; ?></div>
+                    <div class="kpi-value"><?php echo number_format($kpi_active); ?></div>
                     <div class="kpi-sub">Currently printing</div>
                 </div>
                 <div class="kpi-card emerald">
                     <div class="kpi-label">Completed</div>
-                    <div class="kpi-value"><?php echo $kpi_done; ?></div>
+                    <div class="kpi-value"><?php echo number_format($kpi_done); ?></div>
                     <div class="kpi-sub">Finished orders</div>
                 </div>
             </div>
@@ -747,7 +767,7 @@ function custom_payment_badge($status) {
 
                         <!-- Sort Button -->
                         <div style="position:relative;">
-                            <button type="button" class="toolbar-btn" :class="{ active: sortOpen }" @click="sortOpen = !sortOpen; filterOpen = false" id="sortBtn" style="height:38px;">
+                            <button type="button" class="toolbar-btn" :class="{ active: sortOpen || (activeSort !== 'newest') }" @click="sortOpen = !sortOpen; filterOpen = false" id="sortBtn" style="height:38px;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/>
                                 </svg>
@@ -867,9 +887,11 @@ function custom_payment_badge($status) {
                             <tr style="border-bottom: 1px solid #e5e7eb;">
                                 <th class="text-left py-3" style="width:1%;">ID</th>
                                 <th class="text-left py-3">Customer</th>
-                                <th class="text-left py-3">Branch</th>
                                 <th class="text-left py-3">Service</th>
                                 <th class="text-center py-3">Date Submitted</th>
+                                <?php if ($branchId !== 'all'): ?>
+                                <th class="text-left py-3">Branch</th>
+                                <?php endif; ?>
                                 <th class="text-right py-3">Amount</th>
                                 <th class="text-center py-3">Payment</th>
                                 <th class="text-center py-3">Status</th>
@@ -878,11 +900,11 @@ function custom_payment_badge($status) {
                         </thead>
                         <tbody id="customizationsTableBody">
                             <?php if (empty($jobs)): ?>
-                                <tr id="emptyCustomizationsRow"><td colspan="9" class="py-12 text-center text-gray-400" style="border-bottom: 1px solid #f3f4f6;">
+                                <tr id="emptyCustomizationsRow"><td colspan="<?php echo $branchId === 'all' ? '8' : '9'; ?>" class="py-12 text-center text-gray-400" style="border-bottom: 1px solid #f3f4f6;">
                                     <?php echo $search ? 'No customizations found matching "' . htmlspecialchars($search) . '"' : 'No customizations found'; ?>
                                 </td></tr>
                             <?php else: ?>
-                                <tr id="emptyCustomizationsRow" style="display:none;"><td colspan="9" class="py-12 text-center text-gray-400" style="border-bottom: 1px solid #f3f4f6;">
+                                <tr id="emptyCustomizationsRow" style="display:none;"><td colspan="<?php echo $branchId === 'all' ? '8' : '9'; ?>" class="py-12 text-center text-gray-400" style="border-bottom: 1px solid #f3f4f6;">
                                     No customizations found
                                 </td></tr>
                                 <?php foreach ($jobs as $jo): 
@@ -902,6 +924,16 @@ function custom_payment_badge($status) {
                                                 <?php echo htmlspecialchars($jo['customer_email'] ?? ''); ?>
                                             </div>
                                         </td>
+                                        <td class="py-3">
+                                            <div style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="<?php echo htmlspecialchars($jo['service_type']); ?>">
+                                                <?php echo htmlspecialchars($jo['service_type']); ?>
+                                            </div>
+                                            <?php if ($jo['quantity'] > 1): ?>
+                                                <div class="text-xs text-gray-400">Qty: <?php echo $jo['quantity']; ?></div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="py-3 text-center text-gray-500 text-xs"><?php echo date('M j, Y', strtotime($jo['created_at'])); ?></td>
+                                        <?php if ($branchId !== 'all'): ?>
                                         <td class="py-3" style="max-width:140px;">
                                             <?php
                                             $joBid = (int)($jo['branch_display_id'] ?? 0);
@@ -915,15 +947,7 @@ function custom_payment_badge($status) {
                                             }
                                             ?>
                                         </td>
-                                        <td class="py-3">
-                                            <div style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="<?php echo htmlspecialchars($jo['service_type']); ?>">
-                                                <?php echo htmlspecialchars($jo['service_type']); ?>
-                                            </div>
-                                            <?php if ($jo['quantity'] > 1): ?>
-                                                <div class="text-xs text-gray-400">Qty: <?php echo $jo['quantity']; ?></div>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="py-3 text-center text-gray-500 text-xs"><?php echo date('M j, Y', strtotime($jo['created_at'])); ?></td>
+                                        <?php endif; ?>
                                         <td class="py-3 text-right">
                                             <?php echo $jo['estimated_total'] ? '₱' . number_format($jo['estimated_total'], 2) : '<span class="text-gray-400 text-xs">Pending</span>'; ?>
                                         </td>
@@ -996,9 +1020,9 @@ function custom_payment_badge($status) {
                 <button @click="showModal = false" class="btn-secondary">Close</button>
             </div>
             <!-- Content -->
-            <div x-show="job && !loading">
+            <div x-show="job && !loading" class="modal-content">
                 <!-- Header -->
-                <div style="padding:18px 24px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;">
+                <div style="padding:18px 24px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
                     <div>
                         <h3 style="font-size:18px;font-weight:700;color:#1f2937;margin:0 0 2px;" x-text="'Customization #' + job?.id"></h3>
                         <div x-html="statusBadge(job?.status)" style="display:inline-block;"></div>
@@ -1013,10 +1037,15 @@ function custom_payment_badge($status) {
                     <div style="margin-bottom:18px;">
                         <p style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;">Customer</p>
                         <div style="display:flex;align-items:center;gap:12px;">
-                            <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px;" x-text="job?.customer_name?.charAt(0)?.toUpperCase() || 'W'"></div>
-                            <div>
-                                <div style="font-weight:700;color:#1f2937;max-width:250px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="job?.customer_name || 'Walk-in Customer'" :title="job?.customer_name || 'Walk-in Customer'"></div>
-                                <div style="font-size:12px;color:#6b7280;max-width:250px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="job?.customer_email || ''" :title="job?.customer_email || ''"></div>
+                            <template x-if="job?.customer_picture">
+                                <img :src="job.customer_picture" alt="Customer" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                            </template>
+                            <template x-if="!job?.customer_picture">
+                                <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px;" x-text="job?.customer_name?.charAt(0)?.toUpperCase() || 'W'"></div>
+                            </template>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-weight:700;color:#1f2937;word-wrap:break-word;overflow-wrap:break-word;" x-text="job?.customer_name || 'Walk-in Customer'"></div>
+                                <div style="font-size:12px;color:#6b7280;word-wrap:break-word;overflow-wrap:break-word;" x-text="job?.customer_email || ''"></div>
                             </div>
                         </div>
                     </div>
@@ -1028,7 +1057,7 @@ function custom_payment_badge($status) {
                         </div>
                         <div class="detail-block">
                             <label>Service Type</label>
-                            <span style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;" x-text="job?.service_type" :title="job?.service_type"></span>
+                            <span style="word-wrap:break-word;overflow-wrap:break-word;display:block;" x-text="job?.service_type"></span>
                         </div>
                     </div>
                     <div class="detail-row">
@@ -1078,7 +1107,7 @@ function custom_payment_badge($status) {
                         <div style="background:#f9fafb;border-radius:8px;padding:12px 14px;font-size:13px;color:#374151;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;" x-text="job?.notes"></div>
                     </div>
                     <!-- Images -->
-                    <div x-show="(job?.artwork_path || (job?.items && job.items.some(i => i.design_url || i.reference_url)))" style="margin-top:18px;">
+                    <div x-show="(job?.artwork_path || (job?.items && job.items.length > 0 && job.items.some(i => i.design_url || i.reference_url)))" style="margin-top:18px;">
                         <p style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;">Design Files</p>
                         <div style="display:flex;gap:12px;flex-wrap:wrap;">
                             <template x-if="job?.artwork_path">
@@ -1087,23 +1116,31 @@ function custom_payment_badge($status) {
                                     <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Artwork</div>
                                 </div>
                             </template>
-                            <template x-if="job?.items" x-for="(item, idx) in job.items" :key="idx">
-                                <div>
-                                    <div x-show="item.design_url" style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;margin-bottom:8px;" @click="viewImage(item.design_url)">
-                                        <img :src="item.design_url" style="width:100%;height:100%;object-fit:cover;" alt="Design">
-                                        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Design</div>
-                                    </div>
-                                    <div x-show="item.reference_url" style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;" @click="viewImage(item.reference_url)">
-                                        <img :src="item.reference_url" style="width:100%;height:100%;object-fit:cover;" alt="Reference">
-                                        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Reference</div>
-                                    </div>
+                            <template x-if="job?.items && job.items.length > 0">
+                                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                                    <template x-for="(item, idx) in job.items" :key="idx">
+                                        <div>
+                                            <template x-if="item.design_url">
+                                                <div style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;margin-bottom:8px;" @click="viewImage(item.design_url)">
+                                                    <img :src="item.design_url" style="width:100%;height:100%;object-fit:cover;" alt="Design">
+                                                    <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Design</div>
+                                                </div>
+                                            </template>
+                                            <template x-if="item.reference_url">
+                                                <div style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;" @click="viewImage(item.reference_url)">
+                                                    <img :src="item.reference_url" style="width:100%;height:100%;object-fit:cover;" alt="Reference">
+                                                    <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Reference</div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </div>
                     </div>
                 </div>
                 <!-- Footer -->
-                <div style="padding:16px 24px;border-top:1px solid #f3f4f6;display:flex;justify-content:flex-end;gap:8px;">
+                <div style="padding:16px 24px;border-top:1px solid #f3f4f6;display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;">
                     <button @click="showModal = false" class="btn-secondary">Close</button>
                 </div>
             </div>
@@ -1150,7 +1187,7 @@ function custom_payment_badge($status) {
                         <template x-if="historyOrders.length === 0">
                             <p style="text-align:center; padding: 20px; color:#9ca3af; font-size:13px;">No store orders found.</p>
                         </template>
-                        <template x-for="ord in historyOrders" :key="ord.order_id">
+                        <template x-for="ord in (historyOrders || [])" :key="ord.order_id">
                             <div class="history-item">
                                 <div>
                                     <div style="font-size: 13px; font-weight: 700; color: #1f2937;" x-text="'Order #' + ord.order_id"></div>
@@ -1169,7 +1206,7 @@ function custom_payment_badge($status) {
                         <template x-if="historyCustoms.length === 0">
                             <p style="text-align:center; padding: 20px; color:#9ca3af; font-size:13px;">No customizations found.</p>
                         </template>
-                        <template x-for="cst in historyCustoms" :key="cst.id">
+                        <template x-for="cst in (historyCustoms || [])" :key="cst.id">
                             <div class="history-item">
                                 <div>
                                     <div style="font-size: 13px; font-weight: 700; color: #1f2937;" x-text="cst.service_type"></div>
@@ -1195,5 +1232,6 @@ function custom_payment_badge($status) {
     </div>
 </div>
 
+<?php include __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>

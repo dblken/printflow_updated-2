@@ -12,11 +12,6 @@ require_once __DIR__ . '/../includes/reports_dashboard_queries.php';
 
 require_role(['Admin', 'Manager']);
 
-// Accept branch_id from query string for AJAX requests
-if (isset($_GET['branch_id'])) {
-    $_GET['branch_id'] = $_GET['branch_id'];
-}
-
 $branchCtx = init_branch_context(false);
 $branchId = $branchCtx['selected_branch_id'];
 

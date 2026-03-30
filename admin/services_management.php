@@ -8,8 +8,6 @@ require_once __DIR__ . '/../includes/customer_service_catalog.php';
 
 require_role(['Admin', 'Manager']);
 
-$services_manager_readonly = defined('MANAGER_PANEL') && MANAGER_PANEL;
-
 $current_user = get_logged_in_user();
 $error = '';
 $success = '';
@@ -25,22 +23,8 @@ function service_name_exists(string $name, int $excludeId = 0): bool {
     return !empty($rows);
 }
 
-/** Collapse whitespace and truncate for table cells; appends ... when truncated. */
-function printflow_ellipsis_text(string $text, int $maxChars): string {
-    $text = preg_replace('/\s+/u', ' ', trim($text));
-    if ($text === '') {
-        return '';
-    }
-    if (mb_strlen($text) <= $maxChars) {
-        return $text;
-    }
-    return mb_substr($text, 0, $maxChars) . '...';
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_token'] ?? '')) {
-    if ($services_manager_readonly) {
-        $error = 'You do not have permission to modify services.';
-    } elseif (isset($_POST['create_service'])) {
+    if (isset($_POST['create_service'])) {
         $name = preg_replace('/\s+/', ' ', trim($_POST['name'] ?? ''));
         $category = sanitize($_POST['category'] ?? '');
         $description = sanitize($_POST['description'] ?? '');
@@ -115,26 +99,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
                 $error = 'Failed to update service. ' . ($conn->error ?? '');
             }
         }
-    } elseif (isset($_POST['activate_service'])) {
-        $service_id = (int)($_POST['service_id'] ?? 0);
-        $cur = db_query("SELECT status FROM services WHERE service_id = ?", 'i', [$service_id]);
-        $curSt = $cur[0]['status'] ?? '';
-        if ($curSt !== 'Deactivated') {
-            $error = 'Activate is only available for deactivated services.';
-        } else {
-            db_execute("UPDATE services SET status = 'Activated', updated_at = NOW() WHERE service_id = ?", 'i', [$service_id]);
-            $success = 'Service activated successfully!';
-        }
     } elseif (isset($_POST['archive_service'])) {
         $service_id = (int)$_POST['service_id'];
-        $cur = db_query("SELECT status FROM services WHERE service_id = ?", 'i', [$service_id]);
-        $curSt = $cur[0]['status'] ?? '';
-        if ($curSt !== 'Deactivated') {
-            $error = 'Only deactivated services can be archived. Deactivate the service first.';
-        } else {
-            db_execute("UPDATE services SET status = 'Archived', updated_at = NOW() WHERE service_id = ?", 'i', [$service_id]);
-            $success = 'Service archived successfully!';
-        }
+        db_execute("UPDATE services SET status = 'Archived', updated_at = NOW() WHERE service_id = ?", 'i', [$service_id]);
+        $success = 'Service archived successfully!';
     } elseif (isset($_POST['restore_service'])) {
         $service_id = (int)$_POST['service_id'];
         db_execute("UPDATE services SET status = 'Activated', updated_at = NOW() WHERE service_id = ?", 'i', [$service_id]);
@@ -147,11 +115,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
         if ($status === 'Archived') {
             db_execute("DELETE FROM services WHERE service_id = ?", 'i', [$service_id]);
             $success = 'Service deleted permanently!';
-        } elseif ($status === 'Activated') {
-            db_execute("UPDATE services SET status = 'Deactivated', updated_at = NOW() WHERE service_id = ?", 'i', [$service_id]);
-            $success = 'Service deactivated successfully!';
         } else {
-            $error = 'This action is only available for active services. Use Edit to change status or Archive to move inactive services.';
+            $new_status = ($status === 'Activated') ? 'Deactivated' : 'Activated';
+            db_execute("UPDATE services SET status = ?, updated_at = NOW() WHERE service_id = ?", 'si', [$new_status, $service_id]);
+            $success = 'Service ' . strtolower($new_status) . ' successfully!';
         }
     }
 }
@@ -162,37 +129,25 @@ if (isset($_GET['get_archived'])) {
     $archived = db_query("SELECT * FROM services WHERE status = 'Archived' ORDER BY updated_at DESC") ?: [];
 
     $html = '<table class="orders-table" style="width:100%;">';
-    $html .= '<thead><tr><th>Name</th><th>Category</th><th>Description</th><th style="text-align:right;">Actions</th></tr></thead>';
+    $html .= '<thead><tr><th>Name</th><th>Category</th><th style="text-align:right;">Actions</th></tr></thead>';
     $html .= '<tbody>';
 
     if (empty($archived)) {
-        $html .= '<tr><td colspan="4" style="padding:40px;text-align:center;color:#9ca3af;">No archived services found.</td></tr>';
+        $html .= '<tr><td colspan="3" style="padding:40px;text-align:center;color:#9ca3af;">No archived services found.</td></tr>';
     } else {
         foreach ($archived as $s) {
-            $nameFull = trim((string)($s['name'] ?? ''));
-            $nameDisp = printflow_ellipsis_text($nameFull, 55);
-            $catFull = trim((string)($s['category'] ?? ''));
-            $catDisp = $catFull === '' ? '—' : printflow_ellipsis_text($catFull, 35);
-            $descFull = trim((string)($s['description'] ?? ''));
-            $descDisp = $descFull === '' ? '' : printflow_ellipsis_text($descFull, 100);
-            $descHtml = $descDisp !== '' ? htmlspecialchars($descDisp) : '<span style="color:#9ca3af;">—</span>';
             $html .= '<tr>';
-            $html .= '<td style="font-weight:500;max-width:200px;" title="' . htmlspecialchars($nameFull, ENT_QUOTES) . '">' . htmlspecialchars($nameDisp !== '' ? $nameDisp : $nameFull) . '</td>';
-            $html .= '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' . htmlspecialchars($catFull, ENT_QUOTES) . '">' . htmlspecialchars($catDisp) . '</td>';
-            $html .= '<td style="max-width:260px;font-size:12px;color:#4b5563;vertical-align:top;overflow:hidden;" title="' . htmlspecialchars($descFull, ENT_QUOTES) . '">' . $descHtml . '</td>';
+            $html .= '<td style="font-weight:500; max-width:300px; word-break: break-word;">' . htmlspecialchars($s['name']) . '</td>';
+            $html .= '<td>' . htmlspecialchars($s['category'] ?? '—') . '</td>';
             $html .= '<td style="text-align:right;white-space:nowrap;">';
-            if (!$services_manager_readonly) {
-                $html .= '<form method="POST" class="inline service-status-form" data-pf-skip-guard data-confirm-submit-name="restore_service" style="display:inline-block;margin-right:4px;" data-action="Restore" data-service-name="' . htmlspecialchars($s['name'], ENT_QUOTES) . '" onsubmit="return false;">';
-                $html .= csrf_field();
-                $html .= '<input type="hidden" name="service_id" value="' . (int)$s['service_id'] . '">';
-                $html .= '<button type="button" class="btn-action teal" onclick="showServiceStatusModal(event, this.closest(\'form\'))">Restore</button></form>';
-                $html .= '<form method="POST" class="inline service-status-form" data-pf-skip-guard data-confirm-submit-name="delete_service" style="display:inline-block;" data-action="Delete Permanently" data-service-name="' . htmlspecialchars($s['name'], ENT_QUOTES) . '" onsubmit="return false;">';
-                $html .= csrf_field();
-                $html .= '<input type="hidden" name="service_id" value="' . (int)$s['service_id'] . '">';
-                $html .= '<button type="button" class="btn-action red" onclick="showServiceStatusModal(event, this.closest(\'form\'))">Delete</button></form>';
-            } else {
-                $html .= '<span style="color:#9ca3af;font-size:12px;">—</span>';
-            }
+            $html .= '<form method="POST" class="inline service-status-form" data-pf-skip-guard style="display:inline-block;margin-right:4px;" data-action="Restore" data-service-name="' . htmlspecialchars($s['name'], ENT_QUOTES) . '" onsubmit="showServiceStatusModal(event, this);return false;">';
+            $html .= csrf_field();
+            $html .= '<input type="hidden" name="service_id" value="' . (int)$s['service_id'] . '">';
+            $html .= '<button type="submit" name="restore_service" class="btn-action teal">Restore</button></form>';
+            $html .= '<form method="POST" class="inline service-status-form" data-pf-skip-guard style="display:inline-block;" data-action="Delete Permanently" data-service-name="' . htmlspecialchars($s['name'], ENT_QUOTES) . '" onsubmit="showServiceStatusModal(event, this);return false;">';
+            $html .= csrf_field();
+            $html .= '<input type="hidden" name="service_id" value="' . (int)$s['service_id'] . '">';
+            $html .= '<button type="submit" name="delete_service" class="btn-action red">Delete</button></form>';
             $html .= '</td></tr>';
         }
     }
@@ -207,7 +162,7 @@ $per_page = 10;
 $search = trim($_GET['search'] ?? '');
 $cat_filter = $_GET['category'] ?? '';
 $status_filter = $_GET['status'] ?? '';
-$sort_by = $_GET['sort'] ?? 'az';
+$sort_by = $_GET['sort'] ?? 'newest';
 $date_from = $_GET['date_from'] ?? '';
 $date_to = $_GET['date_to'] ?? '';
 
@@ -217,9 +172,9 @@ $types = '';
 
 if ($search !== '') {
     $like = '%' . $search . '%';
-    $sql .= " AND (name LIKE ? OR category LIKE ? OR description LIKE ?)";
-    $params = array_merge($params, [$like, $like, $like]);
-    $types .= 'sss';
+    $sql .= " AND (name LIKE ? OR category LIKE ?)";
+    $params = array_merge($params, [$like, $like]);
+    $types .= 'ss';
 }
 if ($cat_filter !== '') {
     $sql .= " AND category = ?";
@@ -258,7 +213,7 @@ $order_clause = match ($sort_by) {
 $sql .= " ORDER BY $order_clause LIMIT $per_page OFFSET $offset";
 $services = db_query($sql, $types ?: null, $params ?: null) ?: [];
 
-$page_title = $services_manager_readonly ? 'Services - Manager' : 'Services Management - Admin';
+$page_title = 'Services Management - Admin';
 
 $stat_total = db_query("SELECT COUNT(*) as c FROM services WHERE status != 'Archived'")[0]['c'] ?? 0;
 $stat_active = db_query("SELECT COUNT(*) as c FROM services WHERE status='Activated'")[0]['c'] ?? 0;
@@ -267,7 +222,7 @@ $stat_archived = db_query("SELECT COUNT(*) as c FROM services WHERE status='Arch
 
 $categories = db_query("SELECT DISTINCT category FROM services WHERE category IS NOT NULL AND category != '' AND status != 'Archived' ORDER BY category ASC") ?: [];
 
-function render_services_table_rows(array $services, bool $readonly = false): void {
+function render_services_table_rows(array $services): void {
     ?>
     <table class="orders-table">
         <thead>
@@ -275,37 +230,19 @@ function render_services_table_rows(array $services, bool $readonly = false): vo
                 <th>ID</th>
                 <th>Service Name</th>
                 <th>Category</th>
-                <th>Description</th>
                 <th>Status</th>
                 <th style="text-align:right;">Actions</th>
             </tr>
         </thead>
         <tbody id="servicesTableBody">
             <?php if (empty($services)): ?>
-                <tr><td colspan="6" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No services found.</td></tr>
+                <tr><td colspan="5" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No services found.</td></tr>
             <?php else: ?>
                 <?php foreach ($services as $svc): ?>
                     <tr onclick="openViewModal(<?php echo htmlspecialchars(json_encode($svc), ENT_QUOTES); ?>)">
                         <td style="color:#1f2937;"><?php echo (int)$svc['service_id']; ?></td>
-                        <?php
-                        $nameFull = trim((string)($svc['name'] ?? ''));
-                        $nameDisp = printflow_ellipsis_text($nameFull, 55);
-                        $catFull = trim((string)($svc['category'] ?? ''));
-                        $catDisp = $catFull === '' ? '—' : printflow_ellipsis_text($catFull, 35);
-                        $descFull = trim((string)($svc['description'] ?? ''));
-                        $descDisp = $descFull === '' ? '' : printflow_ellipsis_text($descFull, 100);
-                        ?>
-                        <td style="font-weight:500;color:#1f2937;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?php echo htmlspecialchars($nameFull, ENT_QUOTES); ?>"><?php echo htmlspecialchars($nameDisp !== '' ? $nameDisp : $nameFull); ?></td>
-                        <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?php echo htmlspecialchars($catFull, ENT_QUOTES); ?>"><?php echo htmlspecialchars($catDisp); ?></td>
-                        <td style="max-width:260px;font-size:12px;color:#4b5563;vertical-align:middle;word-break:break-word;" title="<?php echo htmlspecialchars($descFull, ENT_QUOTES); ?>">
-                            <?php
-                            if ($descDisp === '') {
-                                echo '<span style="color:#9ca3af;">—</span>';
-                            } else {
-                                echo htmlspecialchars($descDisp);
-                            }
-                            ?>
-                        </td>
+                        <td style="font-weight:500;color:#1f2937;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo htmlspecialchars($svc['name']); ?></td>
+                        <td><?php echo htmlspecialchars($svc['category'] ?? '—'); ?></td>
                         <td>
                             <?php
                             $sc = match ($svc['status']) {
@@ -318,45 +255,33 @@ function render_services_table_rows(array $services, bool $readonly = false): vo
                             <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;<?php echo $sc; ?>"><?php echo htmlspecialchars($svc['status']); ?></span>
                         </td>
                         <td style="text-align:right;white-space:nowrap;" onclick="event.stopPropagation();">
-                            <?php if ($readonly): ?>
-                                <button type="button" class="btn-action gray" onclick='openViewModal(<?php echo htmlspecialchars(json_encode($svc), ENT_QUOTES); ?>)'>View</button>
-                            <?php else: ?>
-                                <button type="button" class="btn-action blue" onclick='openModal("edit", <?php echo htmlspecialchars(json_encode($svc), ENT_QUOTES); ?>)'>Edit</button>
-                                <?php if ($svc['status'] !== 'Archived'): ?>
-                                    <?php if ($svc['status'] === 'Activated'): ?>
-                                        <button type="button" class="btn-action teal" disabled style="opacity:0.5;cursor:not-allowed;" aria-disabled="true" title="Already active">Activate</button>
-                                    <?php else: ?>
-                                        <form method="POST" class="inline service-status-form" data-pf-skip-guard data-confirm-submit-name="activate_service" data-action="Activate" data-service-name="<?php echo htmlspecialchars($svc['name'], ENT_QUOTES); ?>" onsubmit="return false;">
-                                            <?php echo csrf_field(); ?>
-                                            <input type="hidden" name="service_id" value="<?php echo (int)$svc['service_id']; ?>">
-                                            <button type="button" class="btn-action teal" onclick="showServiceStatusModal(event, this.closest('form'))">Activate</button>
-                                        </form>
-                                    <?php endif; ?>
-                                    <?php if ($svc['status'] === 'Activated'): ?>
-                                        <form method="POST" class="inline service-status-form" data-pf-skip-guard data-confirm-submit-name="delete_service" data-action="Deactivate" data-service-name="<?php echo htmlspecialchars($svc['name'], ENT_QUOTES); ?>" onsubmit="return false;">
-                                            <?php echo csrf_field(); ?>
-                                            <input type="hidden" name="service_id" value="<?php echo (int)$svc['service_id']; ?>">
-                                            <button type="button" class="btn-action red service-deactivate-archive-slot" onclick="showServiceStatusModal(event, this.closest('form'))">Deactivate</button>
-                                        </form>
-                                    <?php elseif ($svc['status'] === 'Deactivated'): ?>
-                                        <form method="POST" class="inline service-status-form" data-pf-skip-guard data-confirm-submit-name="archive_service" data-action="Archive" data-service-name="<?php echo htmlspecialchars($svc['name'], ENT_QUOTES); ?>" onsubmit="return false;">
-                                            <?php echo csrf_field(); ?>
-                                            <input type="hidden" name="service_id" value="<?php echo (int)$svc['service_id']; ?>">
-                                            <button type="button" class="btn-action red service-deactivate-archive-slot" onclick="showServiceStatusModal(event, this.closest('form'))">Archive</button>
-                                        </form>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <form method="POST" class="inline service-status-form" data-pf-skip-guard data-confirm-submit-name="restore_service" data-action="Restore" data-service-name="<?php echo htmlspecialchars($svc['name'], ENT_QUOTES); ?>" onsubmit="return false;">
+                            <button type="button" class="btn-action blue" onclick='openModal("edit", <?php echo htmlspecialchars(json_encode($svc), ENT_QUOTES); ?>)'>Edit</button>
+                            <?php if ($svc['status'] !== 'Archived'): ?>
+                                <form method="POST" class="inline service-status-form" data-pf-skip-guard data-action="<?php echo $svc['status'] === 'Activated' ? 'Deactivate' : 'Activate'; ?>" data-service-name="<?php echo htmlspecialchars($svc['name'], ENT_QUOTES); ?>" onsubmit="showServiceStatusModal(event, this);return false;">
+                                    <?php echo csrf_field(); ?>
+                                    <input type="hidden" name="service_id" value="<?php echo (int)$svc['service_id']; ?>">
+                                    <button type="submit" name="delete_service" class="btn-action <?php echo $svc['status'] === 'Activated' ? 'red' : 'teal'; ?>">
+                                        <?php echo $svc['status'] === 'Activated' ? 'Deactivate' : 'Activate'; ?>
+                                    </button>
+                                </form>
+                                <?php if ($svc['status'] === 'Deactivated'): ?>
+                                    <form method="POST" class="inline service-status-form" data-pf-skip-guard data-action="Archive" data-service-name="<?php echo htmlspecialchars($svc['name'], ENT_QUOTES); ?>" onsubmit="showServiceStatusModal(event, this);return false;">
                                         <?php echo csrf_field(); ?>
                                         <input type="hidden" name="service_id" value="<?php echo (int)$svc['service_id']; ?>">
-                                        <button type="button" class="btn-action teal" onclick="showServiceStatusModal(event, this.closest('form'))">Restore</button>
-                                    </form>
-                                    <form method="POST" class="inline service-status-form" data-pf-skip-guard data-confirm-submit-name="delete_service" data-action="Delete Permanently" data-service-name="<?php echo htmlspecialchars($svc['name'], ENT_QUOTES); ?>" onsubmit="return false;">
-                                        <?php echo csrf_field(); ?>
-                                        <input type="hidden" name="service_id" value="<?php echo (int)$svc['service_id']; ?>">
-                                        <button type="button" class="btn-action red" onclick="showServiceStatusModal(event, this.closest('form'))">Delete</button>
+                                        <button type="submit" name="archive_service" class="btn-action gray">Archive</button>
                                     </form>
                                 <?php endif; ?>
+                            <?php else: ?>
+                                <form method="POST" class="inline service-status-form" data-pf-skip-guard data-action="Restore" data-service-name="<?php echo htmlspecialchars($svc['name'], ENT_QUOTES); ?>" onsubmit="showServiceStatusModal(event, this);return false;">
+                                    <?php echo csrf_field(); ?>
+                                    <input type="hidden" name="service_id" value="<?php echo (int)$svc['service_id']; ?>">
+                                    <button type="submit" name="restore_service" class="btn-action teal">Restore</button>
+                                </form>
+                                <form method="POST" class="inline service-status-form" data-pf-skip-guard data-action="Delete Permanently" data-service-name="<?php echo htmlspecialchars($svc['name'], ENT_QUOTES); ?>" onsubmit="showServiceStatusModal(event, this);return false;">
+                                    <?php echo csrf_field(); ?>
+                                    <input type="hidden" name="service_id" value="<?php echo (int)$svc['service_id']; ?>">
+                                    <button type="submit" name="delete_service" class="btn-action red">Delete</button>
+                                </form>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -369,7 +294,7 @@ function render_services_table_rows(array $services, bool $readonly = false): vo
 
 if (isset($_GET['ajax'])) {
     ob_start();
-    render_services_table_rows($services, $services_manager_readonly);
+    render_services_table_rows($services);
     $table_html = ob_get_clean();
     ob_start();
     $pp = array_filter(['search' => $search, 'category' => $cat_filter, 'status' => $status_filter, 'sort' => $sort_by, 'date_from' => $date_from, 'date_to' => $date_to], function ($v) {
@@ -389,7 +314,7 @@ if (isset($_GET['ajax'])) {
     exit;
 }
 
-$category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel', 'Signage', 'Merchandise', 'Print', 'Service', 'Consulting', 'Design'];
+$category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard Standees', 'Apparel', 'Signage', 'Merchandise', 'Print', 'Service', 'Consulting', 'Design'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -404,8 +329,6 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel
         .btn-action.teal { color:#14b8a6; border-color:#14b8a6; } .btn-action.teal:hover { background:#14b8a6; color:#fff; }
         .btn-action.blue { color:#3b82f6; border-color:#3b82f6; } .btn-action.blue:hover { background:#3b82f6; color:#fff; }
         .btn-action.red { color:#ef4444; border-color:#ef4444; } .btn-action.red:hover { background:#ef4444; color:#fff; }
-        /* Fixed slot so Deactivate ↔ Archive does not shift layout (same width as longer label). */
-        .btn-action.red.service-deactivate-archive-slot { width: 6.875rem; min-width: 6.875rem; max-width: 6.875rem; box-sizing: border-box; flex-shrink: 0; }
         .btn-action.gray { color:#6b7280; border-color:#d1d5db; } .btn-action.gray:hover { background:#6b7280; color:#fff; }
         .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
         @media(max-width:900px) { .kpi-row { grid-template-columns:repeat(2,1fr); } }
@@ -441,22 +364,22 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel
         #service-modal-overlay.active, #view-service-modal-overlay.active { display:flex; }
         #service-modal { max-width:560px; }
         #view-service-modal { max-width:640px; }
-        #service-modal, #view-service-modal { background:#fff; border-radius:12px; box-shadow:0 25px 50px rgba(0,0,0,0.25); width:100%; max-height:90vh; overflow-y:auto; }
-        #service-modal .modal-header, #view-service-modal .modal-header { padding:18px 20px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; }
-        #service-modal .modal-body, #view-service-modal .modal-body { padding:18px 20px 20px; }
+        #service-modal, #view-service-modal { background:#fff; border-radius:12px; box-shadow:0 25px 50px rgba(0,0,0,0.25); width:100%; max-height:90vh; overflow-y:auto; display:flex; flex-direction:column; }
+        #service-modal .modal-header, #view-service-modal .modal-header { padding:18px 20px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
+        #service-modal .modal-body, #view-service-modal .modal-body { padding:18px 20px 20px; overflow-y:auto; flex:1; }
         #service-modal .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:12px; }
         #service-modal .form-group { margin-bottom:12px; }
-        #service-modal .form-group label { display:block; font-size:13px; font-weight:600; margin-bottom:4px; color:#374151; }
-        #service-modal .form-group input, #service-modal .form-group select, #service-modal .form-group textarea { width:100%; padding:8px 11px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; box-sizing:border-box; }
-        #service-modal .modal-footer, #view-service-modal .modal-footer { display:flex; gap:10px; margin-top:18px; padding-top:18px; border-top:1px solid #e5e7eb; }
-        #service-modal .modal-footer button, #view-service-modal .modal-footer button { flex:1; padding:10px 16px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; border:none; transition:all 0.2s; }
-        .btn-cancel { background:#f3f4f6; color:#374151; }
-        .btn-cancel:hover { background:#e5e7eb; color:#111827; }
-        .btn-save { background:#0d9488; color:#fff; }
-        .btn-save:hover { background:#0f766e; }
-
-        #close-modal-btn, #close-view-modal-btn { background:none; border:none; cursor:pointer; color:#9ca3af; padding:4px; line-height:1; transition:color 0.2s; }
-        #close-modal-btn:hover, #close-view-modal-btn:hover { color:#374151; }
+        #service-modal .form-group label { display:block; font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px; }
+        #service-modal .form-group input, #service-modal .form-group select, #service-modal .form-group textarea { width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; font-family:inherit; color:#1f2937; box-sizing:border-box; background:#f9fafb; resize:vertical; max-width:100%; transition:border-color 0.2s; }
+        #service-modal .form-group input:focus, #service-modal .form-group select:focus, #service-modal .form-group textarea:focus { outline:none; border-color:#0d9488; box-shadow:0 0 0 2px rgba(13,148,136,0.15); }
+        #service-modal .form-group.has-error input, #service-modal .form-group.has-error select, #service-modal .form-group.has-error textarea { border-color:#ef4444 !important; box-shadow:0 0 0 2px rgba(239,68,68,0.15); }
+        #service-modal .form-group.has-success input, #service-modal .form-group.has-success select, #service-modal .form-group.has-success textarea { border-color:#22c55e !important; }
+        #service-modal .field-error { display:block; color:#dc2626; font-size:12px; margin-top:4px; }
+        #service-modal .btn-save:disabled { opacity:0.6; cursor:not-allowed; }
+        #service-modal .modal-footer { display:flex; gap:10px; margin-top:18px; padding-top:18px; border-top:1px solid #e5e7eb; }
+        #service-modal .btn-cancel { flex:1; padding:10px 16px; border-radius:8px; background:#f3f4f6; border:none; font-weight:600; cursor:pointer; }
+        #service-modal .btn-save { flex:1; padding:10px 16px; border-radius:8px; background:#0d9488; color:#fff; border:none; font-weight:600; cursor:pointer; }
+        #service-modal .btn-save:disabled { opacity:0.65; cursor:not-allowed; }
         .view-label { display:block; font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px; }
         .view-value-box { background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px; word-break:break-word; }
         .orders-table { width:100%; border-collapse:collapse; font-size:13px; }
@@ -469,18 +392,15 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel
 </head>
 <body>
 <div class="dashboard-container">
-    <?php include defined('MANAGER_PANEL') ? __DIR__ . '/../includes/manager_sidebar.php' : __DIR__ . '/../includes/admin_sidebar.php'; ?>
+    <?php include __DIR__ . '/../includes/admin_sidebar.php'; ?>
     <div class="main-content">
-        <header><h1 class="page-title"><?php echo $services_manager_readonly ? 'Services' : 'Services Management'; ?></h1></header>
+        <header><h1 class="page-title">Services Management</h1></header>
         <main>
-            <?php if ($success && !$services_manager_readonly): ?>
+            <?php if ($success): ?>
                 <div style="background:#f0fdf4;border:1px solid #86efac;color:#166534;padding:12px 16px;border-radius:8px;margin-bottom:16px;">✓ <?php echo htmlspecialchars($success); ?></div>
             <?php endif; ?>
             <?php if ($error): ?>
                 <div style="background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;padding:12px 16px;border-radius:8px;margin-bottom:16px;">✗ <?php echo htmlspecialchars($error); ?></div>
-            <?php endif; ?>
-            <?php if ($services_manager_readonly): ?>
-                <div style="background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:14px;">You can view the service catalog. Add, edit, archive, and delete are available to administrators only.</div>
             <?php endif; ?>
 
             <div class="kpi-row">
@@ -510,20 +430,18 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;" x-data="filterPanel()">
                     <h3 style="font-size:16px;font-weight:700;color:#1f2937;margin:0;" id="servicesListHeader">Service List</h3>
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <?php if (!$services_manager_readonly): ?>
                         <button class="toolbar-btn" type="button" onclick="openModal('create')" style="height:38px;border-color:#3b82f6;color:#3b82f6;">Add Service</button>
                         <button class="toolbar-btn" type="button" onclick="window.openArchiveModal()" style="height:38px;border-color:#6b7280;color:#6b7280;display:flex;align-items:center;gap:6px;">
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
                             Archived
                         </button>
-                        <?php endif; ?>
                         <div style="position:relative;">
-                            <button type="button" class="toolbar-btn" :class="{active: sortOpen}" @click="sortOpen = !sortOpen; filterOpen = false" style="height:38px;">
+                            <button type="button" class="toolbar-btn" :class="{active: sortOpen || (activeSort !== 'newest')}" @click="sortOpen = !sortOpen; filterOpen = false" style="height:38px;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
                                 Sort by
                             </button>
                             <div class="sort-dropdown" x-show="sortOpen" x-cloak @click.outside="sortOpen = false">
-                                <?php $sorts = ['az' => 'A → Z', 'za' => 'Z → A', 'newest' => 'Newest to Oldest', 'oldest' => 'Oldest to Newest'];
+                                <?php $sorts = ['newest' => 'Newest to Oldest', 'oldest' => 'Oldest to Newest', 'az' => 'A → Z', 'za' => 'Z → A'];
                                 foreach ($sorts as $key => $label): ?>
                                 <div class="sort-option" :class="{ 'selected': activeSort === '<?php echo $key; ?>' }" onclick="applySortFilter('<?php echo $key; ?>')">
                                     <?php echo htmlspecialchars($label); ?>
@@ -581,7 +499,7 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel
                                         <span class="filter-section-label">Search</span>
                                         <button class="filter-reset-link" type="button" onclick="resetFilterField(['search'])">Reset</button>
                                     </div>
-                                    <input type="text" id="fp_search" class="filter-search-input" placeholder="Name, category, or description..." value="<?php echo htmlspecialchars($search); ?>">
+                                    <input type="text" id="fp_search" class="filter-search-input" placeholder="Service name or category..." value="<?php echo htmlspecialchars($search); ?>">
                                 </div>
                                 <div class="filter-actions">
                                     <button type="button" class="filter-btn-reset" onclick="applyFilters(true)">Reset all filters</button>
@@ -593,7 +511,7 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel
 
                 <div id="servicesTableContainer">
                     <div class="overflow-x-auto">
-                        <?php render_services_table_rows($services, $services_manager_readonly); ?>
+                        <?php render_services_table_rows($services); ?>
                     </div>
                     <div id="servicesPagination">
                         <?php
@@ -609,40 +527,32 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel
     </div>
 </div>
 
-<?php if (!$services_manager_readonly): ?>
-<!-- Confirm modal — same shell pattern as Archived Services (header, body, footer) -->
-<div id="serviceStatusConfirmModal" role="dialog" aria-modal="true" aria-labelledby="serviceStatusConfirmTitle" onclick="if (event.target === this) closeServiceStatusModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10100;align-items:center;justify-content:center;padding:16px;pointer-events:auto;">
-    <div onclick="event.stopPropagation()" style="background:white;border-radius:16px;width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 50px rgba(0,0,0,0.25);overflow:hidden;pointer-events:auto;">
-        <div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
-            <h3 id="serviceStatusConfirmTitle" style="font-size:18px;font-weight:700;margin:0;">Confirm</h3>
-            <button type="button" onclick="closeServiceStatusModal()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;line-height:1;padding:0 4px;" aria-label="Close">✕</button>
+<!-- Confirm modal (z-index above printflow_form_guard overlays at 10030+) -->
+<div id="serviceStatusConfirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10100;align-items:center;justify-content:center;padding:16px;flex-wrap:wrap;">
+    <div style="background:white;border-radius:16px;padding:26px;max-width:420px;width:100%;box-shadow:0 25px 50px rgba(0,0,0,0.25);text-align:center;position:relative;z-index:1;" role="dialog" aria-modal="true" aria-labelledby="serviceStatusConfirmTitle" onclick="event.stopPropagation();">
+        <h3 id="serviceStatusConfirmTitle" style="font-size:18px;font-weight:700;margin:0 0 8px;">Confirm</h3>
+        <p id="serviceStatusConfirmText" style="font-size:14px;color:#4b5563;margin:0 0 16px;line-height:1.5;"></p>
+        <div id="serviceStatusInfoBox" style="font-size:12px;color:#6b7280;background:#f9fafb;padding:12px;border-radius:10px;margin-bottom:20px;text-align:left;border:1px solid #e5e7eb;">
+            <div id="serviceStatusInfoText"></div>
         </div>
-        <div style="padding:20px 24px;overflow-y:auto;flex:1;">
-            <p id="serviceStatusConfirmText" style="font-size:14px;color:#4b5563;margin:0 0 16px;line-height:1.5;"></p>
-            <div id="serviceStatusInfoBox" style="font-size:12px;color:#6b7280;background:#f9fafb;padding:12px;border-radius:10px;text-align:left;border:1px solid #e5e7eb;">
-                <div id="serviceStatusInfoText"></div>
-            </div>
-        </div>
-        <div style="padding:16px 24px;border-top:1px solid #e5e7eb;display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
-            <button type="button" id="serviceStatusConfirmCancel" style="padding:10px 20px;border:1px solid #e5e7eb;background:white;border-radius:10px;font-weight:600;cursor:pointer;">Cancel</button>
-            <button type="button" id="serviceStatusConfirmOk" style="padding:10px 20px;border:none;background:#3b82f6;border-radius:10px;font-weight:600;color:white;cursor:pointer;">Confirm</button>
+        <div style="display:flex;gap:12px;">
+            <button type="button" id="serviceStatusConfirmCancel" style="flex:1;padding:12px;border:1px solid #e5e7eb;background:white;border-radius:10px;font-weight:600;cursor:pointer;">Cancel</button>
+            <button type="button" id="serviceStatusConfirmOk" style="flex:1;padding:12px;border:none;background:#3b82f6;border-radius:10px;font-weight:600;color:white;cursor:pointer;">Confirm</button>
         </div>
     </div>
 </div>
-<?php endif; ?>
 
 <!-- Add/Edit -->
-<?php if (!$services_manager_readonly): ?>
 <div id="service-modal-overlay" onclick="handleOverlayClick(event)">
     <div id="service-modal" onclick="event.stopPropagation();">
         <div class="modal-header">
             <h3 id="modal-title" style="font-size:18px;font-weight:700;margin:0;">Add Service</h3>
-            <button type="button" id="close-modal-btn" onclick="closeServiceModal()">
+            <button type="button" id="close-modal-btn" onclick="closeServiceModal()" style="background:none;border:none;cursor:pointer;color:#9ca3af;">
                 <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
         <div class="modal-body">
-            <form method="POST" id="service-form" novalidate>
+            <form method="POST" id="service-form" data-pf-skip-guard novalidate>
                 <?php echo csrf_field(); ?>
                 <input type="hidden" id="modal-mode-input" name="create_service" value="1">
                 <input type="hidden" id="modal-service-id" name="service_id" value="">
@@ -650,6 +560,7 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel
                 <div class="form-group">
                     <label for="modal-name">Service Name <span style="color:red">*</span></label>
                     <input type="text" id="modal-name" name="name" maxlength="150" required placeholder="e.g. Large format printing">
+                    <span id="err-name" class="field-error"></span>
                 </div>
 
                 <div class="form-group">
@@ -660,35 +571,29 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel
                             <option value="<?php echo htmlspecialchars($opt); ?>"><?php echo htmlspecialchars($opt); ?></option>
                         <?php endforeach; ?>
                     </select>
+                    <span id="err-category" class="field-error"></span>
                 </div>
 
                 <div class="form-group">
-                    <label for="modal-description">Description</label>
-                    <textarea id="modal-description" name="description" rows="3" maxlength="2000" placeholder="What this service includes..."></textarea>
+                    <label for="modal-description">Description <span style="color:red">*</span></label>
+                    <textarea id="modal-description" name="description" rows="3" maxlength="2000" required placeholder="What this service includes..."></textarea>
+                    <span id="err-description" class="field-error"></span>
                 </div>
 
                 <div class="form-group">
-                    <label for="modal-customer-modal-text">Customer modal message</label>
+                    <label for="modal-customer-modal-text">Customer modal message <span style="color:#9ca3af;font-weight:400;">(optional)</span></label>
                     <small style="display:block;color:#6b7280;font-size:12px;margin:-2px 0 6px;">Text shown on the customer Services page when they open a service (below the title). Leave blank to use the default wording.</small>
                     <textarea id="modal-customer-modal-text" name="customer_modal_text" rows="4" maxlength="2000" placeholder="<?php echo htmlspecialchars(printflow_default_customer_service_modal_text()); ?>"></textarea>
+                    <span id="err-customer-modal-text" class="field-error"></span>
                 </div>
 
                 <div class="form-group">
-                    <label for="modal-customer-link">Customer order link <span style="color:#9ca3af;font-weight:400;">(optional)</span></label>
-                    <input type="text" id="modal-customer-link" name="customer_link" maxlength="255" placeholder="e.g. order_tarpaulin.php">
-                </div>
-
-                <div class="form-group">
-                    <label for="modal-hero-image">Card image path <span style="color:#9ca3af;font-weight:400;">(optional)</span></label>
-                    <input type="text" id="modal-hero-image" name="hero_image" maxlength="512" placeholder="/printflow/public/images/...">
-                </div>
-
-                <div class="form-group">
-                    <label for="modal-status">Status</label>
-                    <select id="modal-status" name="status">
+                    <label for="modal-status">Status <span style="color:red">*</span></label>
+                    <select id="modal-status" name="status" required>
                         <option value="Activated">Active</option>
                         <option value="Deactivated">Inactive</option>
                     </select>
+                    <span id="err-status" class="field-error"></span>
                 </div>
 
                 <div class="modal-footer">
@@ -699,14 +604,13 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel
         </div>
     </div>
 </div>
-<?php endif; ?>
 
 <!-- View -->
 <div id="view-service-modal-overlay" onclick="handleViewOverlayClick(event)">
     <div id="view-service-modal" onclick="event.stopPropagation();">
         <div class="modal-header">
             <h3 style="font-size:18px;font-weight:700;margin:0;">Service Details</h3>
-            <button type="button" id="close-view-modal-btn" onclick="closeViewModal()">
+            <button type="button" onclick="closeViewModal()" style="background:none;border:none;cursor:pointer;color:#9ca3af;">
                 <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
@@ -720,14 +624,13 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel
                 <div><span class="view-label">Description</span><div id="view-description" class="view-value-box" style="white-space:pre-wrap;min-height:60px;">—</div></div>
                 <div><span class="view-label">Customer modal message</span><div id="view-customer-modal-text" class="view-value-box" style="white-space:pre-wrap;min-height:48px;">—</div></div>
             </div>
-            <div class="modal-footer" style="justify-content:flex-end;margin-top:20px;">
-                <button type="button" class="btn-cancel" onclick="closeViewModal()" style="max-width:120px;">Close</button>
+            <div style="padding:16px 0 0;margin-top:24px;border-top:1px solid #f3f4f6;display:flex;justify-content:flex-end;">
+                <button type="button" class="btn-secondary" onclick="closeViewModal()">Close</button>
             </div>
         </div>
     </div>
 </div>
 
-<?php if (!$services_manager_readonly): ?>
 <!-- Archive modal (z-index above form-guard / sidebar layers) -->
 <div id="archive-storage-overlay" role="dialog" aria-modal="true" aria-labelledby="archive-services-title" onclick="if (event.target === this) window.closeArchiveModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10090;align-items:center;justify-content:center;padding:16px;pointer-events:auto;">
     <div onclick="event.stopPropagation()" style="background:white;border-radius:16px;width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 50px rgba(0,0,0,0.25);pointer-events:auto;">
@@ -741,14 +644,12 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard', 'Apparel
             </div>
         </div>
         <div style="padding:16px 24px;border-top:1px solid #e5e7eb;text-align:right;">
-            <button type="button" class="btn-cancel" onclick="window.closeArchiveModal()">Close</button>
+            <button type="button" class="btn-secondary" onclick="window.closeArchiveModal()">Close</button>
         </div>
     </div>
 </div>
-<?php endif; ?>
 
 <script>
-window.PF_SERVICES_READONLY = <?php echo $services_manager_readonly ? 'true' : 'false'; ?>;
 window.PF_DEFAULT_SERVICE_MODAL_TEXT = <?php echo json_encode(printflow_default_customer_service_modal_text(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 /* var: Turbo re-runs inline scripts; let/const would throw "already been declared". */
 var activeSort = '<?php echo htmlspecialchars($sort_by); ?>';
@@ -779,7 +680,7 @@ function buildFilterURL(page = 1) {
     const cat = document.getElementById('fp_category')?.value; if (cat) params.set('category', cat);
     const st = document.getElementById('fp_status')?.value; if (st) params.set('status', st);
     const s = document.getElementById('fp_search')?.value; if (s) params.set('search', s);
-    if (activeSort !== 'az') params.set('sort', activeSort);
+    if (activeSort !== 'newest') params.set('sort', activeSort);
     return '?' + params.toString();
 }
 
@@ -812,7 +713,7 @@ function applyFilters(reset = false) {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
-        activeSort = 'az';
+        activeSort = 'newest';
     }
     fetchUpdatedTable(1);
 }
@@ -869,7 +770,6 @@ if (document.readyState === 'loading') {
 document.addEventListener('printflow:page-init', printflowInitServicesPage);
 
 function openModal(mode, svc) {
-    if (window.PF_SERVICES_READONLY) return;
     const overlay = document.getElementById('service-modal-overlay');
     const title = document.getElementById('modal-title');
     const modeInput = document.getElementById('modal-mode-input');
@@ -892,8 +792,6 @@ function openModal(mode, svc) {
         const cm = svc.customer_modal_text;
         document.getElementById('modal-customer-modal-text').value = (cm !== undefined && cm !== null && String(cm).trim() !== '') ? String(cm) : (window.PF_DEFAULT_SERVICE_MODAL_TEXT || '');
         document.getElementById('modal-status').value = (svc.status === 'Deactivated') ? 'Deactivated' : 'Activated';
-        document.getElementById('modal-customer-link').value = svc.customer_link || '';
-        document.getElementById('modal-hero-image').value = svc.hero_image || '';
     } else {
         title.textContent = 'Add Service';
         modeInput.name = 'create_service';
@@ -901,22 +799,24 @@ function openModal(mode, svc) {
         document.getElementById('modal-service-id').value = '';
         document.getElementById('modal-status').value = 'Activated';
         document.getElementById('modal-customer-modal-text').value = window.PF_DEFAULT_SERVICE_MODAL_TEXT || '';
-        document.getElementById('modal-customer-link').value = '';
-        document.getElementById('modal-hero-image').value = '';
     }
     submitBtn.disabled = false;
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
     document.getElementById('modal-name').focus();
+    if (typeof window.printflowServiceFormValidationRun === 'function') {
+        window.printflowServiceFormValidationRun();
+    }
+    try {
+        document.dispatchEvent(new CustomEvent('pf-service-modal-shown'));
+    } catch (e) { /* ignore */ }
 }
 
 function closeServiceModal() {
-    const overlay = document.getElementById('service-modal-overlay');
-    if (overlay) overlay.classList.remove('active');
+    document.getElementById('service-modal-overlay').classList.remove('active');
     document.body.style.overflow = '';
     const btn = document.getElementById('modal-submit-btn');
-    const modeInput = document.getElementById('modal-mode-input');
-    if (btn && modeInput) { btn.disabled = false; btn.textContent = modeInput.name === 'update_service' ? 'Save Changes' : 'Save Service'; }
+    if (btn) { btn.disabled = false; btn.textContent = document.getElementById('modal-mode-input').name === 'update_service' ? 'Save Changes' : 'Save Service'; }
 }
 
 function handleOverlayClick(e) {
@@ -946,20 +846,18 @@ function handleViewOverlayClick(e) {
 }
 
 function showServiceStatusModal(event, form) {
-    if (window.PF_SERVICES_READONLY) return;
     if (event) event.preventDefault();
-    if (!form) return;
     const action = form.getAttribute('data-action') || 'proceed';
     const svcName = form.getAttribute('data-service-name') || 'this service';
     _serviceStatusForm = form;
-    const submitBtn = form.querySelector('button[type="submit"]');
-    _serviceStatusButtonName = form.getAttribute('data-confirm-submit-name') || (submitBtn && submitBtn.getAttribute('name')) || null;
+    const btn = form.querySelector('button[type="submit"]');
+    _serviceStatusButtonName = btn ? btn.getAttribute('name') : null;
 
     if (typeof window.closeArchiveModal === 'function') window.closeArchiveModal();
     closeServiceModal();
     closeViewModal();
 
-    document.getElementById('serviceStatusConfirmTitle').textContent = action === 'Delete Permanently' ? 'Confirm delete' : ('Confirm ' + action);
+    document.getElementById('serviceStatusConfirmTitle').textContent = 'Confirm ' + action;
     document.getElementById('serviceStatusConfirmText').innerHTML = 'Are you sure you want to <strong>' + action.toLowerCase() + '</strong> <strong style="color:#111827;">' + svcName.replace(/</g, '&lt;') + '</strong>?';
 
     let msg = '';
@@ -971,18 +869,20 @@ function showServiceStatusModal(event, form) {
     document.getElementById('serviceStatusInfoText').textContent = msg;
 
     const m = document.getElementById('serviceStatusConfirmModal');
-    if (!m) return;
     m.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 }
 
 function closeServiceStatusModal() {
-    var cm = document.getElementById('serviceStatusConfirmModal');
-    if (cm) cm.style.display = 'none';
+    document.getElementById('serviceStatusConfirmModal').style.display = 'none';
     document.body.style.overflow = '';
     _serviceStatusForm = null;
     _serviceStatusButtonName = null;
 }
+
+document.getElementById('serviceStatusConfirmModal')?.addEventListener('click', function (e) {
+    if (e.target === this) closeServiceStatusModal();
+});
 
 document.getElementById('serviceStatusConfirmCancel')?.addEventListener('click', closeServiceStatusModal);
 document.getElementById('serviceStatusConfirmOk')?.addEventListener('click', function () {
@@ -1006,14 +906,12 @@ document.addEventListener('keydown', function (e) {
             if (typeof window.closeArchiveModal === 'function') window.closeArchiveModal();
             return;
         }
-        var statusM = document.getElementById('serviceStatusConfirmModal');
-        if (statusM && statusM.style.display === 'flex') closeServiceStatusModal();
+        if (document.getElementById('serviceStatusConfirmModal').style.display === 'flex') closeServiceStatusModal();
         else { closeServiceModal(); closeViewModal(); }
     }
 });
 
 window.openArchiveModal = function openArchiveModal() {
-    if (window.PF_SERVICES_READONLY) return;
     var el = document.getElementById('archive-storage-overlay');
     if (!el) return;
     el.style.display = 'flex';
@@ -1034,5 +932,7 @@ window.closeArchiveModal = function closeArchiveModal() {
 
 // Page-specific initialization is now handled above via printflowInitServicesPage.
 </script>
+<script src="/printflow/public/assets/js/service-form-validation.js"></script>
+<?php include __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>

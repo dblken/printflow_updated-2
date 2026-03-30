@@ -6,9 +6,13 @@
 require_once __DIR__ . '/../../../includes/auth.php';
 require_once __DIR__ . '/../../../includes/functions.php';
 
+// Prevent accidental output (notices, etc.) from breaking JSON
+ob_start();
+
 header('Content-Type: application/json');
 
 if (!is_logged_in()) {
+    ob_end_clean();
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit;
 }
@@ -123,6 +127,8 @@ foreach ($items ?: [] as $item) {
     ];
 }
 
+// Clear accidental output before sending JSON
+ob_end_clean();
 echo json_encode([
     'success'  => true,
     'customer' => $customer,

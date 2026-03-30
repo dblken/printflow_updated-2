@@ -8,7 +8,8 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/customer_service_catalog.php';
 
-require_role('Customer');
+// require_role('Customer'); // Make services visible to non-logged in users as well if they land here
+ensure_ratings_table_exists();
 
 $legacy_catalog = printflow_default_customer_service_catalog();
 $legacy_by_name = [];
@@ -67,6 +68,70 @@ $page_title = 'Services - PrintFlow';
 $use_customer_css = true;
 require_once __DIR__ . '/../includes/header.php';
 
+// Fetch actual ratings from the database grouped by service
+// Mapping common variations of service names saved during order to current core service names
+$service_aliases = [
+    'glass & wall sticker printing' => 'glass/wall',
+    'decals / stickers' => 'stickers',
+    'stickers / decals' => 'stickers',
+    't-shirt printing' => 't-shirt',
+    'tarpaulin printing' => 'tarpaulin',
+    'reflectorized signage' => 'reflectorized',
+    'sintraboard standees' => 'sintraboard standees',
+    'transparent sticker printing' => 'transparent'
+];
+
+$rating_rows = db_query("SELECT service_type, COUNT(*) as rcount, AVG(rating) as ravg FROM reviews WHERE service_type IS NOT NULL AND service_type != '' GROUP BY service_type") ?: [];
+$ratings_map = [];
+foreach ($core_services as $srv) {
+    if (isset($srv['name'])) {
+        $ratings_map[strtolower(trim($srv['name']))] = ['count' => 0, 'avg' => 0];
+    }
+}
+
+foreach ($rating_rows as $rr) {
+    $db_stype = strtolower(trim((string)$rr['service_type']));
+    $rcount = (int)$rr['rcount'];
+    $ravg = (float)$rr['ravg'];
+    
+    // Normalize using predefined aliases
+    if (isset($service_aliases[$db_stype])) {
+        $db_stype = $service_aliases[$db_stype];
+    }
+    
+    $best_match = null;
+    // 1. Exact match against core services array
+    foreach ($core_services as $srv) {
+        $name_key = strtolower(trim($srv['name']));
+        if ($name_key === $db_stype) {
+            $best_match = $name_key;
+            break;
+        }
+    }
+    // 2. Fallback prefix/contains match
+    if (!$best_match) {
+        foreach ($core_services as $srv) {
+            $name_key = strtolower(trim($srv['name']));
+            if (strpos($db_stype, $name_key) !== false || strpos($name_key, $db_stype) !== false) {
+                $best_match = $name_key;
+                break;
+            }
+        }
+    }
+    
+    if ($best_match && isset($ratings_map[$best_match])) {
+        // Aggregate if multiple variations map to the same core service
+        $prev_count = $ratings_map[$best_match]['count'];
+        $prev_avg = $ratings_map[$best_match]['avg'];
+        $new_count = $prev_count + $rcount;
+        $new_avg = (($prev_avg * $prev_count) + ($ravg * $rcount)) / $new_count;
+        
+        $ratings_map[$best_match]['count'] = $new_count;
+        $ratings_map[$best_match]['avg'] = round($new_avg, 1);
+    }
+}
+$GLOBALS['pf_services_ratings'] = $ratings_map;
+
 // Reusable card template function
 function render_service_card($name, $category, $img, $link, $is_service = true, $price = null, $stock = null, $modal_text = null) {
     if (!file_exists($_SERVER['DOCUMENT_ROOT'] . $img)) {
@@ -84,6 +149,13 @@ function render_service_card($name, $category, $img, $link, $is_service = true, 
     $json_stock = htmlspecialchars(json_encode($stock !== null ? (string)$stock : ''), ENT_QUOTES, 'UTF-8');
     $json_modal_text = htmlspecialchars(json_encode($modal_text), ENT_QUOTES, 'UTF-8');
     $is_service_str = $is_service ? 'true' : 'false';
+
+    global $pf_services_ratings;
+    $r_key = strtolower(trim((string)$name));
+    $r_data = $pf_services_ratings[$r_key] ?? ['count' => 0, 'avg' => 0];
+    $rcount = $r_data['count'];
+    $ravg = $r_data['avg'];
+    $yellow_stars = floor($ravg);
     ?>
     <div class="ct-product-card cursor-pointer group" onclick="openServiceModal(<?php echo $json_name; ?>, <?php echo $json_category; ?>, <?php echo $json_img; ?>, <?php echo $json_link; ?>, <?php echo $is_service_str; ?>, <?php echo $json_price; ?>, <?php echo $json_stock; ?>, <?php echo $json_modal_text; ?>)">
         <div class="ct-product-img overflow-hidden">
@@ -91,19 +163,36 @@ function render_service_card($name, $category, $img, $link, $is_service = true, 
                 <img src="<?php echo htmlspecialchars($img); ?>" alt="<?php echo htmlspecialchars($name); ?>" style="width:100%; height:100%; object-fit:cover; border-radius:0.5rem;">
             </div>
         </div>
-        <div class="ct-product-body" style="text-align: center;">
-            <span class="ct-product-category"><?php echo htmlspecialchars($category); ?></span>
-            <h3 class="ct-product-name" style="<?php echo $is_service ? 'margin-bottom: 1.5rem;' : 'margin-bottom: 0.5rem;'; ?> height: auto; font-weight: 700; font-size: 1.1rem;">
+        <div class="ct-product-body" style="text-align: left; padding: 1.25rem 1rem;">
+            <span class="ct-product-category" style="margin-bottom: 0.5rem; display: inline-block;"><?php echo htmlspecialchars($category); ?></span>
+            <h3 class="ct-product-name" style="margin-bottom: 0.4rem; font-weight: 700; font-size: 1.1rem; line-height: 1.3;">
                 <?php echo htmlspecialchars($name); ?>
             </h3>
             
+            <!-- Visible Rating Stars mimicking standard e-commerce -->
+            <div style="display: flex; align-items: center; gap: 2px; margin-bottom: <?php echo $is_service ? '1rem;' : '0.5rem;'; ?>">
+                <?php for($i=1; $i<=5; $i++): ?>
+                    <?php if ($i <= $yellow_stars): ?>
+                        <svg width="15" height="15" fill="#FBBF24" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                    <?php else: ?>
+                        <svg width="15" height="15" fill="#374151" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                    <?php endif; ?>
+                <?php endfor; ?>
+                
+                <?php if ($rcount > 0): ?>
+                    <a href="/printflow/customer/reviews.php?service=<?php echo urlencode($name); ?>" onclick="event.stopPropagation();" style="font-size: 0.75rem; color: #9ca3af; margin-left: 6px; font-weight: 500; text-decoration: none;" onmouseover="this.style.textDecoration='underline'; this.style.color='#53C5E0'" onmouseout="this.style.textDecoration='none'; this.style.color='#9ca3af'"><?php echo number_format($ravg, 1); ?> &bull; <?php echo $rcount; ?> review<?php echo $rcount > 1 ? 's' : ''; ?></a>
+                <?php else: ?>
+                    <span style="font-size: 0.75rem; color: #4b5563; margin-left: 6px; font-weight: 500;">No ratings yet</span>
+                <?php endif; ?>
+            </div>
+            
             <?php if (!$is_service && $price !== null): ?>
-                <p class="ct-product-price" style="margin-bottom: 1rem;"><?php echo format_currency($price); ?></p>
+                <p class="ct-product-price" style="margin-bottom: 1rem; font-size: 1.15rem;"><?php echo format_currency($price); ?></p>
             <?php endif; ?>
 
-            <div class="ct-product-actions" style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <div class="ct-product-actions" style="margin-top: auto; display: flex; flex-direction: column; gap: 0.5rem; border-top: none; padding-top: 0;">
                 <?php if (!$is_service && $stock !== null): ?>
-                    <div style="font-size: 0.85rem; font-weight: 600;">
+                    <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">
                         <?php if ($stock > 0): ?>
                             <span style="color: #10B981;">✓ In Stock</span>
                         <?php else: ?>

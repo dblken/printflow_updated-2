@@ -92,92 +92,77 @@ require_once __DIR__ . '/../includes/header.php';
 
 <style>
     .notif-wrapper {
-        background: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        padding: 24px;
-        min-height: 500px;
-        margin-bottom: 2rem;
+        background: rgba(10, 37, 48, 0.48);
+        backdrop-filter: blur(12px);
+        border-radius: 24px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+        padding: 0;
+        min-height: 400px;
+        margin-bottom: 3rem;
+        overflow: hidden;
+        border: 1px solid rgba(83, 197, 224, 0.2);
     }
     .notif-header {
+        padding: 24px 32px;
+        border-bottom: 1px solid rgba(83, 197, 224, 0.15);
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 24px;
-    }
-    .notif-title-group {
-        display: flex;
-        align-items: center;
-        gap: 12px;
     }
     .notif-title {
         font-size: 1.25rem;
         font-weight: 800;
-        color: #1a202c;
+        color: #eaf6fb;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
-    .notif-count-badge {
-        background: #0a2530;
-        color: white;
-        font-size: 0.8rem;
-        font-weight: 700;
-        padding: 2px 10px;
-        border-radius: 6px;
-    }
-    .mark-all-btn {
-        font-size: 0.875rem;
-        color: #64748b;
-        font-weight: 500;
-        transition: color 0.2s;
-    }
-    .mark-all-btn:hover {
-        color: #0a2530;
+    .notif-group-title {
+        background: rgba(83, 197, 224, 0.06);
+        padding: 12px 24px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #53c5e0;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        border-bottom: 1px solid rgba(83, 197, 224, 0.1);
     }
     .notif-item {
         display: flex;
         align-items: center;
-        gap: 16px;
-        padding: 20px 24px;
-        transition: all 0.2s;
+        gap: 20px;
+        padding: 20px 32px;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
         position: relative;
-        border-bottom: 1px solid #f1f5f9;
+        background: transparent;
+        border-bottom: 1px solid rgba(83, 197, 224, 0.08);
         text-decoration: none;
         border-left: 4px solid transparent;
     }
     .notif-item:hover {
-        background: #f8fafc;
-    }
-    .notif-item:last-child {
-        border-bottom: none;
+        background: rgba(83, 197, 224, 0.08);
+        transform: translateX(6px);
     }
     .notif-item.unread {
-        background: #f3f4f6;
-        border-left-color: #cbd5e1;
+        background: rgba(83, 197, 224, 0.04);
+        border-left-color: #53c5e0;
     }
-    .notif-item.unread::after {
-        content: '';
-        position: absolute;
-        right: 20px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 8px;
-        height: 8px;
-        background: #ef4444;
-        border-radius: 50%;
+    .notif-item.unread .notif-text {
+        color: #eaf6fb;
+        font-weight: 600;
     }
     .notif-avatar {
-        width: 80px;
-        height: 80px;
-        min-width: 80px;
-        border-radius: 8px;
+        width: 68px;
+        height: 68px;
+        min-width: 68px;
+        border-radius: 16px;
         overflow: hidden;
-        background: #e2e8f0;
+        background: rgba(0, 0, 0, 0.2);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.25rem;
         flex-shrink: 0;
-        overflow: hidden;
+        border: 1px solid rgba(83, 197, 224, 0.2);
     }
     .notif-image {
         width: 100%;
@@ -189,56 +174,46 @@ require_once __DIR__ . '/../includes/header.php';
         min-width: 0;
     }
     .notif-text {
-        font-size: 0.875rem;
-        line-height: 1.5;
-        color: #64748b;
-        margin-bottom: 4px;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-        white-space: normal;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        color: #9fc4d4;
+        margin-bottom: 6px;
     }
-    .notif-text b {
-        color: #1e293b;
-        font-weight: 700;
+    .notif-text b, .notif-text strong {
+        color: #eaf6fb;
+        font-weight: 800;
     }
     .notif-time {
-        font-size: 0.8125rem;
-        color: #94a3b8;
-    }
-    .notif-msg-box {
-        margin-top: 12px;
-        padding: 16px;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        font-size: 0.8125rem;
-        color: #64748b;
-        line-height: 1.6;
-    }
-    .notif-msg-box:hover {
-        background: #f1f5f9;
-        border-color: #cbd5e1;
+        font-size: 0.8rem;
+        color: #53c5e0;
+        font-weight: 700;
+        opacity: 0.8;
     }
     .notif-actions {
         margin-left: auto;
-        display: flex;
-        gap: 8px;
         flex-shrink: 0;
     }
     .notif-btn {
-        padding: 4px 12px;
-        border-radius: 6px;
+        padding: 8px 18px;
+        border-radius: 12px;
         font-size: 0.75rem;
-        font-weight: 600;
-        text-decoration: none;
-        transition: all 0.2s;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        transition: all 0.25s;
+        border: 1px solid rgba(83, 197, 224, 0.3);
+        background: rgba(255, 255, 255, 0.05);
+        color: #eaf6fb;
     }
-    .notif-btn-primary {
-        background: #0a2530;
-        color: white;
+    .notif-item:hover .notif-btn {
+        border-color: #53c5e0;
+        background: #53c5e0;
+        color: #030d11;
+        box-shadow: 0 4px 12px rgba(83, 197, 224, 0.3);
     }
-    .notif-btn-secondary {
-        background: #f1f5f9;
-        color: #475569;
+    .notif-item.unread .notif-text span[style*="color: #ef4444"] {
+        color: #53c5e0 !important;
+        text-shadow: 0 0 8px rgba(83, 197, 224, 0.5);
     }
 </style>
 
@@ -248,10 +223,10 @@ require_once __DIR__ . '/../includes/header.php';
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <h1 class="ct-page-title" style="margin-bottom: 0;">Notifications</h1>
                 <?php if ($unread_total > 0): ?>
-                    <span class="count-badge" style="background: #0a2530; color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;"><?php echo $unread_total; ?></span>
+                    <span class="count-badge" style="background: #53c5e0; color: #030d11; padding: 2px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 900; box-shadow: 0 0 15px rgba(83, 197, 224, 0.4);"><?php echo $unread_total; ?></span>
                 <?php endif; ?>
             </div>
-            <a href="?mark_all_read=1" class="btn-secondary" style="font-size: 0.875rem; border-radius: 8px; padding: 0.5rem 1rem; text-decoration: none;">Mark all as read</a>
+            <a href="?mark_all_read=1" class="btn-secondary" style="font-size: 0.75rem; border-radius: 12px; padding: 0.65rem 1.25rem; text-decoration: none; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; background: rgba(83, 197, 224, 0.1); border: 1px solid rgba(83, 197, 224, 0.2); color: #53c5e0; transition: all 0.25s;">Mark all as read</a>
         </div>
 
         <div class="notif-wrapper">
@@ -261,11 +236,11 @@ require_once __DIR__ . '/../includes/header.php';
                     <p class="text-gray-400">No notifications yet.</p>
                 </div>
             <?php else: ?>
-                <div class="space-y-6">
+                <div class="space-y-0">
                     <?php foreach ($grouped_notifications as $group => $notifs): ?>
-                        <div>
-                            <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 px-2"><?php echo htmlspecialchars($group); ?></h3>
-                            <div class="space-y-1">
+                        <div class="notif-group">
+                            <div class="notif-group-title"><?php echo htmlspecialchars($group); ?></div>
+                            <div>
                                 <?php foreach ($notifs as $notif): 
                             // Determine "Avatar" or Icon based on message
                             $avatar_text = "PF"; // Default
@@ -309,26 +284,42 @@ require_once __DIR__ . '/../includes/header.php';
                             // Detect "Payment Required" or "TO_PAY" status
                             $is_payment_notif = (
                                 (string)$notif['type'] === 'Payment' ||
+                                (string)$notif['type'] === 'Payment Issue' ||
                                 stripos((string)$notif['message'], 'Payment Required') !== false ||
                                 stripos((string)$notif['message'], 'TO_PAY') !== false ||
                                 stripos((string)$notif['message'], 'To Pay') !== false ||
+                                stripos((string)$notif['message'], 'rejected') !== false ||
                                 stripos((string)$notif['message'], 'proceed to payment') !== false ||
                                 stripos((string)$notif['message'], 'ready for payment') !== false ||
                                 stripos((string)$notif['message'], 'submit payment') !== false
                             );
 
-                            // Extra fallback: Check current DB status if data_id exists
-                            if (!$is_payment_notif && !empty($notif['data_id']) && ($notif['type'] === 'Order' || $notif['type'] === 'Status' || $notif['type'] === 'Job Order')) {
-                                // Check regular orders
-                                $curr_ord = db_query("SELECT status FROM orders WHERE order_id = ? LIMIT 1", 'i', [$notif['data_id']]);
-                                if (!empty($curr_ord) && (stripos($curr_ord[0]['status'], 'To Pay') !== false || stripos($curr_ord[0]['status'], 'TO_PAY') !== false)) {
-                                    $is_payment_notif = true;
-                                } else {
-                                    // Check job orders
-                                    $curr_job = db_query("SELECT status FROM job_orders WHERE id = ? LIMIT 1", 'i', [$notif['data_id']]);
-                                    if (!empty($curr_job) && (stripos($curr_job[0]['status'], 'To Pay') !== false || stripos($curr_job[0]['status'], 'TO_PAY') !== false)) {
+                            // Resolve current order status from DB for smart tab routing
+                            $current_order_status = null;
+                            if (!empty($notif['data_id']) && in_array($notif['type'], ['Order', 'Status', 'Payment'])) {
+                                $ord_row = db_query("SELECT status FROM orders WHERE order_id = ? AND customer_id = ? LIMIT 1", 'ii', [$notif['data_id'], $customer_id]);
+                                if (!empty($ord_row)) {
+                                    $current_order_status = $ord_row[0]['status'];
+                                    // Override payment detection based on live status
+                                    if (stripos($current_order_status, 'To Pay') !== false || stripos($current_order_status, 'TO_PAY') !== false) {
                                         $is_payment_notif = true;
                                     }
+                                }
+                            }
+
+                            // Map status → tab key (mirrors $tab_status_map in orders.php)
+                            if (!function_exists('map_status_to_tab')) {
+                                function map_status_to_tab(string $status): string {
+                                    $s = strtolower(trim($status));
+                                    if (in_array($s, ['pending', 'pending approval', 'pending review', 'for revision'])) return 'pending';
+                                    if ($s === 'approved') return 'approved';
+                                    if (in_array($s, ['to verify', 'downpayment submitted', 'pending verification'])) return 'toverify';
+                                    if ($s === 'to pay') return 'topay';
+                                    if (in_array($s, ['in production', 'processing', 'printing', 'paid – in process'])) return 'production';
+                                    if ($s === 'ready for pickup') return 'pickup';
+                                    if (in_array($s, ['completed', 'to rate', 'rated'])) return 'completed';
+                                    if ($s === 'cancelled') return 'cancelled';
+                                    return 'all';
                                 }
                             }
 
@@ -336,9 +327,12 @@ require_once __DIR__ . '/../includes/header.php';
                                 if ($is_rating_notif) {
                                     $link = "/printflow/customer/rate_order.php?order_id=" . $notif['data_id'] . "&mark_read=" . $notif['notification_id'];
                                 } elseif ($is_payment_notif) {
-                                    // For payment related notifications, redirect to payment.php
                                     $link = "/printflow/customer/payment.php?order_id=" . $notif['data_id'] . "&mark_read=" . $notif['notification_id'];
-                                } elseif ($notif['type'] === 'Order' || $notif['type'] === 'Status' || $notif['type'] === 'Job Order') {
+                                } elseif ($notif['type'] === 'Order' || $notif['type'] === 'Status') {
+                                    // Redirect to orders.php with the correct tab + highlight the order
+                                    $tab = $current_order_status ? map_status_to_tab($current_order_status) : 'all';
+                                    $link = "/printflow/customer/orders.php?tab=" . $tab . "&highlight=" . $notif['data_id'] . "&mark_read=" . $notif['notification_id'];
+                                } elseif ($notif['type'] === 'Job Order') {
                                     $link = "/printflow/customer/order_details.php?id=" . $notif['data_id'] . "&mark_read=" . $notif['notification_id'];
                                 } elseif ($notif['type'] === 'Message') {
                                     $link = "/printflow/customer/chat.php?order_id=" . $notif['data_id'] . "&mark_read=" . $notif['notification_id'];
@@ -352,7 +346,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 </div>
 
                                 <div class="notif-content">
-                                    <div class="notif-text" style="<?php echo $notif['is_read'] ? '' : 'font-weight: 600; color: #1e293b;'; ?>">
+                                    <div class="notif-text" style="<?php echo $notif['is_read'] ? '' : 'font-weight: 600; color: #eaf6fb;'; ?>">
                                         <strong><?php echo htmlspecialchars($display_name); ?></strong> – 
                                         <?php 
                                             $msg = htmlspecialchars($notif['message']);

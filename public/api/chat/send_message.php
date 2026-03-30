@@ -3,9 +3,13 @@ require_once __DIR__ . '/../../../includes/auth.php';
 require_once __DIR__ . '/../../../includes/functions.php';
 require_once __DIR__ . '/../../../includes/ensure_order_messages.php';
 
+// Prevent accidental output (notices, etc.) from breaking JSON
+ob_start();
+
 header('Content-Type: application/json');
 
 if (!is_logged_in()) {
+    ob_end_clean();
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit();
 }
@@ -72,24 +76,11 @@ if ($messages_sent === 0) {
     exit();
 }
 
-// 3. Create notification for partner
-$notif_msg = ($db_sender === 'Customer')
-    ? "New message from Customer for Order #{$order_id}"
-    : "New message from Staff for Order #{$order_id}";
+// 3. Automated notifications for messages are disabled per user request
+// (Reduces notification clutter as users prefer checking the chat sidebar directly)
 
-if ($db_sender === 'Customer') {
-    // Notify active Staff, Admin, Manager
-    $staff_users = db_query("SELECT user_id, role FROM users WHERE role IN ('Staff','Admin','Manager') AND status = 'Activated'");
-    foreach ($staff_users as $staff) {
-        $role = $staff['role'] ?? 'Staff';
-        create_notification((int)$staff['user_id'], $role, $notif_msg, 'Message', false, false, $order_id);
-    }
-} else {
-    $order = db_query("SELECT customer_id FROM orders WHERE order_id = ?", 'i', [$order_id]);
-    if (!empty($order)) {
-        create_notification((int)$order[0]['customer_id'], 'Customer', $notif_msg, 'Message', false, false, $order_id);
-    }
-}
 
+// Clear accidental output before sending JSON
+ob_end_clean();
 echo json_encode(['success' => true, 'messages_sent' => $messages_sent]);
 ?>

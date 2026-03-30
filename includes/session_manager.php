@@ -155,11 +155,22 @@ class SessionManager
     private static function validateFingerprint(): bool
     {
         if (!isset($_SESSION['_fingerprint'])) {
-            // No fingerprint stored yet (e.g. session created before this update)
-            // Allow it through; regenerate() will bind a fingerprint on next login.
             return true;
         }
-        return hash_equals($_SESSION['_fingerprint'], self::buildFingerprint());
+        
+        $current = self::buildFingerprint();
+        if (hash_equals($_SESSION['_fingerprint'], $current)) {
+            return true;
+        }
+
+        // Local development often switches between ::1 and 127.0.0.1
+        // We log it but allow it locally to prevent constant session death
+        if (($_SERVER['REMOTE_ADDR'] ?? '') === '::1' || ($_SERVER['REMOTE_ADDR'] ?? '') === '127.0.0.1') {
+             error_log("[PrintFlow] Local Fingerprint Mismatch (Allowed): " . $_SESSION['_fingerprint'] . " vs " . $current);
+             return true;
+        }
+        
+        return false;
     }
 
     private static function buildFingerprint(): string

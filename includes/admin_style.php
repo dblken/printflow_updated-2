@@ -12,6 +12,7 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
     $__pf_asset_js = '/printflow/public/assets/js';
     $__pf_skip_turbo = !empty($GLOBALS['PRINTFLOW_DISABLE_TURBO']);
     ?>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <?php if (!$__pf_skip_turbo): ?>
 <script src="https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.13/dist/turbo.es2017-umd.js" defer></script>
 <?php endif; ?>
@@ -244,10 +245,41 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
     /* Tables */
     table { width: 100%; border-collapse: separate; border-spacing: 0; }
     th { text-align: left; padding: 12px 16px; font-size: 13px; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border-color); }
-    td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
+    td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border-color); color: var(--text-main); text-transform: capitalize; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background-color: #fcfcfc; }
     
+    /* Autocapslock for common labels */
+    .stat-label, .kpi-label, .service-info, .chart-title, .tp-name, .om-value, .om-label { text-transform: capitalize; }
+
+    .status-badge-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 120px;
+        padding: 4px 12px;
+        border-radius: 99px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        transition: all 0.2s ease;
+        border: none;
+    }
+
+    /* Global Status Colors (Pale Backgrounds) */
+    .badge-fulfilled  { background: #dcfce7; color: #166534 !important; }
+    .badge-pending    { background: #fef3c7; color: #92400e !important; }
+    .badge-approved   { background: #dbeafe; color: #1e40af !important; }
+    .badge-topay      { background: #dbeafe; color: #1e40af !important; }
+    .badge-verify     { background: #fef9c3; color: #854d0e !important; }
+    .badge-production { background: #e0e7ff; color: #4338ca !important; }
+    .badge-pickup     { background: #dcfce7; color: #15803d !important; }
+    .badge-cancelled  { background: #fee2e2; color: #991b1b !important; }
+    .badge-revision   { background: #ffe4e6; color: #b91c1c !important; }
+
     /* Utilities */
     .badge { display: inline-flex; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
     .text-sm { font-size: 13px; }
@@ -695,28 +727,36 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
      * stable on first paint and across navigations.
      */
     .kpi-value {
-        font-size: 26px;
+        font-size: clamp(20px, 3.5vw, 26px);
         font-weight: 800 !important;
         color: #1f2937;
         font-variant-numeric: tabular-nums;
+        white-space: nowrap !important;
+        display: block !important;
     }
     .stats-grid .stat-value,
     .stat-card > .stat-value {
-        font-size: 32px;
+        font-size: clamp(22px, 4vw, 32px);
         font-weight: 800 !important;
         color: #1f2937;
         font-variant-numeric: tabular-nums;
         margin-bottom: 4px;
+        white-space: nowrap !important;
+        display: block !important;
     }
     .report-summary .summary-box .value {
-        font-size: 24px;
+        font-size: clamp(18px, 3vw, 24px);
         font-weight: 800 !important;
         color: #1f2937;
         font-variant-numeric: tabular-nums;
+        white-space: nowrap !important;
+        display: block !important;
     }
     .inv-summary-card .value {
         font-weight: 800 !important;
         font-variant-numeric: tabular-nums;
+        white-space: nowrap !important;
+        display: block !important;
     }
 
     .stat-label {
@@ -949,9 +989,60 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
         opacity: 1;
         transform: translateY(0);
     }
+    .btn-staff-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 11px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none !important;
+        line-height: 1.2;
+        background: transparent;
+        border: 1.5px solid transparent;
+    }
+    .btn-staff-action-emerald {
+        border-color: #059669;
+        color: #059669 !important;
+    }
+    .btn-staff-action-emerald:hover {
+        background: #059669;
+        color: white !important;
+        transform: translateY(-1px);
+    }
+    .btn-staff-action-indigo {
+        border-color: #4f46e5;
+        color: #4f46e5 !important;
+    }
+    .btn-staff-action-indigo:hover {
+        background: #4f46e5;
+        color: white !important;
+        transform: translateY(-1px);
+    }
+    .btn-staff-action-blue {
+        border-color: #06A1A1;
+        color: #06A1A1 !important;
+    }
+    .btn-staff-action-blue:hover {
+        background: #06A1A1;
+        color: white !important;
+        transform: translateY(-1px);
+    }
+    .btn-staff-action-red {
+        border-color: #ef4444;
+        color: #ef4444 !important;
+    }
+    .btn-staff-action-red:hover {
+        background: #ef4444;
+        color: white !important;
+        transform: translateY(-1px);
+    }
 </style>
-
-<script src="/printflow/public/assets/js/printflow_form_guard.js" defer></script>
 <?php if (!empty($GLOBALS['PRINTFLOW_DISABLE_TURBO'])): ?>
 <script>
 (function () {

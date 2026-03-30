@@ -1,339 +1,283 @@
-/**
- * notifications.js — PrintFlow Notification Centre
- *
- * Responsibilities:
- *  1. Request notification permission (once per browser, after first login)
- *  2. Register / refresh a Web Push subscription and send it to the server
- *  3. Poll for in-tab notifications every 15 s when the tab is visible
- *  4. Show in-tab toast banners without duplicating push notifications
- *  5. Update unread badge counts in the sidebar / nav
- */
-
 (function () {
     'use strict';
 
     /* ── Config ──────────────────────────────────────────────────────────── */
-    const POLL_INTERVAL_MS       = 15_000;
-    const POLL_INTERVAL_HIDDEN   = 60_000;   // Slower poll when tab is hidden
-    const SW_PATH                = '/printflow/public/sw.js';
-    const SW_SCOPE               = '/printflow/public/';
-    const API_VAPID_PUB          = '/printflow/public/api/push/vapid_public_key.php';
-    const API_SUBSCRIBE          = '/printflow/public/api/push/subscribe.php';
-    const API_POLL               = '/printflow/public/api/push/poll.php';
-    const SEEN_STORAGE_KEY       = 'pf_seen_notifications';
-    const PERM_ASKED_KEY         = 'pf_notify_perm_asked';
-    // Covers: admin sidebar badge, manager sidebar badge, customer nav badge, staff badge, generic
-    const BADGE_SELECTOR         = '#sidebar-notif-badge, #nav-notif-badge, [data-notif-badge]';
+    var POLL_INTERVAL_MS       = 15000;
+    var POLL_INTERVAL_HIDDEN   = 60000;
+    var SW_PATH                = '/printflow/public/sw.js';
+    var SW_SCOPE               = '/printflow/public/';
+    var API_VAPID_PUB          = '/printflow/public/api/push/vapid_public_key.php';
+    var API_SUBSCRIBE          = '/printflow/public/api/push/subscribe.php';
+    var API_POLL               = '/printflow/public/api/push/poll.php';
+    var API_LIST               = '/printflow/public/api/notifications/list.php';
+    var SEEN_STORAGE_KEY       = 'pf_seen_notifications';
+    var PERM_ASKED_KEY         = 'pf_notify_perm_asked';
+    var BADGE_SELECTOR         = '#sidebar-notif-badge, #nav-notif-badge, [data-notif-badge]';
 
-    // Role config injected by PHP before this script loads (via PFConfig)
-    const USER_TYPE = (window.PFConfig && window.PFConfig.userType) ? window.PFConfig.userType : 'Customer';
+    var USER_TYPE = (window.PFConfig && window.PFConfig.userType) ? window.PFConfig.userType : 'Customer';
 
-    let pollTimer   = null;
-    let lastPollTs  = Math.floor(Date.now() / 1000) - 30;
+    var pollTimer   = null;
+    var lastPollTs  = Math.floor(Date.now() / 1000) - 30;
+
+    /* ── Export Early ────────────────────────────────────────────────────── */
+    // Using simple var to ensure global access without modern scoping issues
+    window.PFNotifications = {
+        markSeen: markSeen,
+        updateBadge: updateBadge,
+        poll: poll,
+        loadDropdown: loadDropdown
+    };
 
     /* ── Helpers ─────────────────────────────────────────────────────────── */
 
     function seenIds() {
-        try { return new Set(JSON.parse(sessionStorage.getItem(SEEN_STORAGE_KEY) || '[]')); }
-        catch { return new Set(); }
+        try {
+            var data = sessionStorage.getItem(SEEN_STORAGE_KEY);
+            return new Set(JSON.parse(data || '[]'));
+        } catch (e) {
+            return new Set();
+        }
     }
 
     function markSeen(id) {
-        const s = seenIds();
+        var s = seenIds();
         s.add(String(id));
-        // Keep at most 200 IDs to avoid unbounded growth
-        const arr = [...s].slice(-200);
+        var arr = [];
+        s.forEach(function(val) { arr.push(val); });
+        arr = arr.slice(-200);
         sessionStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify(arr));
     }
 
     function urlB64ToUint8Array(base64String) {
-        const pad = '='.repeat((4 - base64String.length % 4) % 4);
-        const b64 = (base64String + pad).replace(/-/g, '+').replace(/_/g, '/');
-        const raw = atob(b64);
-        return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+        var pad = '='.repeat((4 - base64String.length % 4) % 4);
+        var b64 = (base64String + pad).replace(/-/g, '+').replace(/_/g, '/');
+        var raw = atob(b64);
+        var outputArray = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; ++i) {
+            outputArray[i] = raw.charCodeAt(i);
+        }
+        return outputArray;
     }
 
     function updateBadge(count) {
-        document.querySelectorAll(BADGE_SELECTOR).forEach(el => {
-            const inPersistentSidebar = el.id === 'sidebar-notif-badge' || (el.closest && el.closest('#printflow-persistent-sidebar'));
+        var els = document.querySelectorAll(BADGE_SELECTOR);
+        for (var i = 0; i < els.length; i++) {
+            var el = els[i];
             if (count > 0) {
                 el.textContent = count > 99 ? '99+' : count;
-                if (inPersistentSidebar) {
-                    el.style.display = 'inline-flex';
-                    el.style.visibility = 'visible';
-                } else {
-                    el.style.visibility = '';
-                    el.style.display = el.dataset.badgeDisplay || (el.id === 'nav-notif-badge' ? 'flex' : 'inline-flex');
-                }
+                el.style.display = el.getAttribute('data-badge-display') || (el.id === 'nav-notif-badge' ? 'flex' : 'inline-flex');
+                el.style.visibility = 'visible';
             } else {
                 el.textContent = '';
-                if (inPersistentSidebar) {
-                    el.style.display = 'inline-flex';
-                    el.style.visibility = 'hidden';
-                } else {
-                    el.style.visibility = '';
-                    el.style.display = 'none';
-                }
+                el.style.display = 'none';
+                el.style.visibility = 'hidden';
             }
-        });
-        // PWA badge API (Chrome/Android)
-        if ('setAppBadge' in navigator) {
-            count > 0 ? navigator.setAppBadge(count).catch(() => {}) : navigator.clearAppBadge().catch(() => {});
         }
     }
 
-    function getNotifUrl(type, dataId, message) {
-        const base  = '/printflow';
-        const t     = (type || '').toLowerCase();
-        const isStaff = ['admin', 'staff', 'manager'].includes(USER_TYPE.toLowerCase());
-        const msg = (message || '').toLowerCase();
-        const did = dataId != null && dataId !== '' ? parseInt(dataId, 10) : 0;
-
-        if (isStaff && t === 'system' && did > 0 && (
-            msg.includes('ready for admin review') || msg.includes('completed their profile')
-        )) {
-            return base + '/admin/user_staff_management.php?open_user=' + did;
-        }
-
-        if (isStaff) {
-            if (t.includes('inventory'))               return base + '/admin/inv_items_management.php';
-            if (t.includes('order') || t.includes('job') || t.includes('design') || t.includes('custom'))
-                return base + '/admin/orders_management.php';
-            if (t.includes('chat') || t.includes('message'))
-                return dataId ? base + '/admin/orders_management.php?order_id=' + dataId : base + '/admin/orders_management.php';
-            return base + '/admin/dashboard.php';
-        }
-
-        // Customer
-        if (t.includes('order'))       return base + '/customer/orders.php';
-        if (t.includes('job'))         return base + '/customer/new_job_order.php';
-        if (t.includes('chat') || t.includes('message'))
-            return dataId ? base + '/customer/chat.php?order_id=' + dataId : base + '/customer/messages.php';
-        if ((t.includes('design') || t.includes('custom') || t.includes('order')) && dataId)
-            return base + '/customer/chat.php?order_id=' + dataId;
-        if (t.includes('order')) return base + '/customer/orders.php';
-        return base + '/';
+    function timeAgo(date) {
+        if (!date) return 'just now';
+        var d = new Date(date.replace(/-/g, '/'));
+        var seconds = Math.floor((new Date() - d) / 1000);
+        if (seconds < 60) return 'just now';
+        var minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return minutes + 'm ago';
+        var hours = Math.floor(minutes / 60);
+        if (hours < 24) return hours + 'h ago';
+        var days = Math.floor(hours / 24);
+        if (days < 7) return days + 'd ago';
+        return d.toLocaleDateString();
     }
 
-    /* ── In-tab Toast ────────────────────────────────────────────────────── */
+    function loadDropdown() {
+        var lists = document.querySelectorAll('[data-pf-notif-list]');
+        if (lists.length === 0) return;
 
-    function showToast(title, body, url) {
-        // Reuse any container already in the DOM
-        let container = document.getElementById('pf-toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'pf-toast-container';
-            Object.assign(container.style, {
-                position:   'fixed',
-                bottom:     '24px',
-                right:      '24px',
-                zIndex:     '99999',
-                display:    'flex',
-                flexDirection: 'column',
-                gap:        '10px',
-                maxWidth:   '340px',
+        fetch(API_LIST + '?limit=8', { credentials: 'include' })
+            .then(function(res) {
+                if (!res.ok) throw new Error('Response ' + res.status);
+                return res.json();
+            })
+            .then(function(data) {
+                if (!data.success) {
+                    for (var i = 0; i < lists.length; i++) lists[i].innerHTML = '<div class="pf-notif-empty">' + escHtml(data.error || 'Failed to load.') + '</div>';
+                    return;
+                }
+
+                if (!data.notifications || data.notifications.length === 0) {
+                    for (var i = 0; i < lists.length; i++) lists[i].innerHTML = '<div class="pf-notif-empty">No notifications yet.</div>';
+                    updateBadge(0);
+                    return;
+                }
+
+                updateBadge(data.unread_count || 0);
+
+                var html = '';
+                for (var j = 0; j < data.notifications.length; j++) {
+                    var n = data.notifications[j];
+                    var target = getNotifUrl(n.type, n.data_id, n.message, n.id);
+                    var unreadClass = n.is_read == 0 ? 'unread' : '';
+                    var type = (n.type || '').toLowerCase();
+                    var iconSvg = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>';
+                    
+                    if (type.indexOf('order') !== -1 || type.indexOf('status') !== -1) {
+                        iconSvg = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>';
+                    } else if (type.indexOf('message') !== -1 || type.indexOf('chat') !== -1) {
+                        iconSvg = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>';
+                    } else if (type.indexOf('payment') !== -1) {
+                        iconSvg = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+                    }
+
+                    html += '<a href="' + target + '" class="pf-notif-item ' + unreadClass + '">' +
+                            '  <div class="pf-notif-item-icon">' + iconSvg + '</div>' +
+                            '  <div class="pf-notif-item-content">' +
+                            '    <div class="pf-notif-item-text">' + escHtml(n.message) + '</div>' +
+                            '    <div class="pf-notif-item-time">' + timeAgo(n.created_at) + '</div>' +
+                            '  </div>' +
+                            '</a>';
+                }
+                for (var k = 0; k < lists.length; k++) lists[k].innerHTML = html;
+            })
+            .catch(function(err) {
+                for (var i = 0; i < lists.length; i++) lists[i].innerHTML = '<div class="pf-notif-empty">Error: ' + escHtml(err.message) + '</div>';
             });
-            document.body.appendChild(container);
+    }
+
+    function getNotifUrl(type, dataId, message, notifId) {
+        var base = '/printflow';
+        var t = (type || '').toLowerCase();
+        var isStaff = (USER_TYPE.toLowerCase() === 'admin' || USER_TYPE.toLowerCase() === 'staff' || USER_TYPE.toLowerCase() === 'manager');
+        var msg = (message || '').toLowerCase();
+        var did = (dataId != null && dataId !== '') ? parseInt(dataId, 10) : 0;
+        var url = base + '/';
+
+        if (isStaff && t === 'system' && did > 0 && (msg.indexOf('ready for admin review') !== -1 || msg.indexOf('completed their profile') !== -1)) {
+            url = base + '/admin/user_staff_management.php?open_user=' + did;
+        } else if (isStaff) {
+            if (t.indexOf('inventory') !== -1) url = base + '/admin/inv_items_management.php';
+            else if (t.indexOf('order') !== -1 || t.indexOf('job') !== -1 || t.indexOf('design') !== -1 || t.indexOf('custom') !== -1) url = base + '/admin/orders_management.php';
+            else if (t.indexOf('chat') !== -1 || t.indexOf('message') !== -1) url = did ? base + '/admin/orders_management.php?order_id=' + did : base + '/admin/orders_management.php';
+            else url = base + '/admin/dashboard.php';
+        } else {
+            if (t.indexOf('order') !== -1 || t.indexOf('status') !== -1) url = base + '/customer/orders.php?highlight=' + did;
+            else if (t.indexOf('payment') !== -1) url = base + '/customer/payment.php?order_id=' + did;
+            else if (t.indexOf('job') !== -1) url = base + '/customer/new_job_order.php';
+            else if (t.indexOf('chat') !== -1 || t.indexOf('message') !== -1) url = did ? base + '/customer/chat.php?order_id=' + did : base + '/customer/messages.php';
+            else if ((t.indexOf('design') !== -1 || t.indexOf('custom') !== -1) && did) url = base + '/customer/chat.php?order_id=' + did;
+            else url = base + '/customer/notifications.php';
         }
 
-        const toast = document.createElement('div');
-        Object.assign(toast.style, {
-            background:   '#ffffff',
-            border:       '1px solid #e5e7eb',
-            borderLeft:   '4px solid #f97316',   // Primary colour
-            borderRadius: '8px',
-            boxShadow:    '0 4px 16px rgba(0,0,0,.12)',
-            padding:      '12px 16px',
-            cursor:       url ? 'pointer' : 'default',
-            animation:    'pfToastIn .25s ease',
-            display:      'flex',
-            alignItems:   'flex-start',
-            gap:          '10px',
-        });
-
-        const icon = document.createElement('img');
-        icon.src = '/printflow/public/assets/images/icon-72.png';
-        Object.assign(icon.style, { width: '32px', height: '32px', borderRadius: '6px', flexShrink: '0' });
-
-        const text = document.createElement('div');
-        text.innerHTML = `<div style="font-weight:600;font-size:.875rem;color:#111827;margin-bottom:2px">${escHtml(title)}</div>`
-                       + `<div style="font-size:.8125rem;color:#6b7280;line-height:1.4">${escHtml(body)}</div>`;
-
-        const close = document.createElement('button');
-        Object.assign(close.style, {
-            marginLeft: 'auto', background: 'none', border: 'none',
-            cursor: 'pointer', color: '#9ca3af', fontSize: '1rem', padding: '0 0 0 8px', flexShrink: '0',
-        });
-        close.innerHTML = '&times;';
-        close.addEventListener('click', e => { e.stopPropagation(); dismissToast(toast); });
-
-        toast.append(icon, text, close);
-        container.appendChild(toast);
-
-        if (url) {
-            toast.addEventListener('click', () => { window.location.href = url; });
+        if (notifId) {
+            url += (url.indexOf('?') !== -1 ? '&' : '?') + 'mark_read=' + notifId;
         }
-
-        setTimeout(() => dismissToast(toast), 6000);
-    }
-
-    function dismissToast(toast) {
-        toast.style.opacity = '0';
-        toast.style.transition = 'opacity .2s';
-        setTimeout(() => toast.remove(), 200);
-    }
-
-    function escHtml(str) {
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    }
-
-    // Inject keyframe if not already present
-    if (!document.getElementById('pf-toast-style')) {
-        const s = document.createElement('style');
-        s.id = 'pf-toast-style';
-        s.textContent = '@keyframes pfToastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}';
-        document.head.appendChild(s);
+        return url;
     }
 
     /* ── Polling ─────────────────────────────────────────────────────────── */
 
-    async function poll() {
-        try {
-            const res  = await fetch(API_POLL + '?since=' + lastPollTs, { credentials: 'include' });
-            if (!res.ok) return;
-            const data = await res.json();
+    function poll() {
+        var url = API_POLL + '?since=' + lastPollTs;
+        fetch(url, { credentials: 'include' })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data.success) return;
+                updateBadge(data.unread_count || 0);
+                if (data.server_time) lastPollTs = data.server_time;
 
-            if (!data.success) return;
-
-            updateBadge(data.unread_count || 0);
-
-            // Update server_time for next poll window
-            if (data.server_time) lastPollTs = data.server_time;
-
-            const seen = seenIds();
-            (data.notifications || []).forEach(n => {
-                const sid = String(n.id);
-                if (seen.has(sid)) return;
-                markSeen(sid);
-
-                // Skip in-tab toast if user is already on the relevant page
-                const targetUrl = getNotifUrl(n.type, n.data_id, n.message);
-                if (window.location.pathname + window.location.search === targetUrl) return;
-
-                showToast('PrintFlow', n.message, targetUrl);
-            });
-        } catch (_) { /* Network hiccup — silently ignore */ }
+                var seen = seenIds();
+                var notifs = data.notifications || [];
+                for (var i = 0; i < notifs.length; i++) {
+                    var n = notifs[i];
+                    var sid = String(n.id);
+                    if (seen.has(sid)) continue;
+                    markSeen(sid);
+                    var targetUrl = getNotifUrl(n.type, n.data_id, n.message);
+                    if (window.location.pathname + window.location.search === targetUrl) continue;
+                    showToast('PrintFlow', n.message, targetUrl);
+                }
+            })
+            .catch(function(){});
     }
 
     function schedulePoll() {
         clearTimeout(pollTimer);
-        const delay = document.hidden ? POLL_INTERVAL_HIDDEN : POLL_INTERVAL_MS;
-        pollTimer = setTimeout(async () => { await poll(); schedulePoll(); }, delay);
+        var delay = document.hidden ? POLL_INTERVAL_HIDDEN : POLL_INTERVAL_MS;
+        pollTimer = setTimeout(function() { poll(); schedulePoll(); }, delay);
     }
 
-    document.addEventListener('visibilitychange', () => {
-        clearTimeout(pollTimer);
-        if (!document.hidden) { poll(); }
-        schedulePoll();
-    });
-
-    /* ── Push Subscription ───────────────────────────────────────────────── */
-
-    async function subscribePush(reg) {
-        try {
-            const keyRes  = await fetch(API_VAPID_PUB, { credentials: 'include' });
-            const keyData = await keyRes.json();
-            if (!keyData.public_key) return;  // VAPID not yet configured
-
-            const existing = await reg.pushManager.getSubscription();
-
-            // Check if we already sent this exact endpoint to the server
-            const storedEp = localStorage.getItem('pf_push_ep');
-            if (existing && storedEp === existing.endpoint) return; // Nothing to do
-
-            const sub = existing || await reg.pushManager.subscribe({
-                userVisibleOnly:      true,
-                applicationServerKey: urlB64ToUint8Array(keyData.public_key),
-            });
-
-            const subJson = sub.toJSON();
-            await fetch(API_SUBSCRIBE, {
-                method:      'POST',
-                credentials: 'include',
-                headers:     { 'Content-Type': 'application/json' },
-                body:        JSON.stringify({
-                    action:   'subscribe',
-                    endpoint: subJson.endpoint,
-                    keys:     subJson.keys,
-                }),
-            });
-
-            localStorage.setItem('pf_push_ep', subJson.endpoint);
-        } catch (err) {
-            // PushManager not available in all browsers (e.g. Firefox private mode)
-            console.debug('[PF Notifications] Push subscription skipped:', err.message);
+    function showToast(title, body, url) {
+        var container = document.getElementById('pf-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'pf-toast-container';
+            container.style.position = 'fixed';
+            container.style.bottom = '24px';
+            container.style.right = '24px';
+            container.style.zIndex = '99999';
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.gap = '10px';
+            container.style.maxWidth = '340px';
+            document.body.appendChild(container);
         }
+
+        var toast = document.createElement('div');
+        toast.style.background = '#ffffff';
+        toast.style.border = '1px solid #e5e7eb';
+        toast.style.borderLeft = '4px solid #f97316';
+        toast.style.borderRadius = '8px';
+        toast.style.boxShadow = '0 4px 16px rgba(0,0,0,.12)';
+        toast.style.padding = '12px 16px';
+        toast.style.cursor = url ? 'pointer' : 'default';
+        toast.style.display = 'flex';
+        toast.style.alignItems = 'flex-start';
+        toast.style.gap = '10px';
+
+        var icon = document.createElement('img');
+        icon.src = '/printflow/public/assets/images/icon-72.png';
+        icon.style.width = '32px';
+        icon.style.height = '32px';
+        icon.style.borderRadius = '6px';
+        icon.style.flexShrink = '0';
+
+        var text = document.createElement('div');
+        text.innerHTML = '<div style="font-weight:600;font-size:.875rem;color:#111827;margin-bottom:2px">' + escHtml(title) + '</div>' +
+                         '<div style="font-size:.8125rem;color:#6b7280;line-height:1.4">' + escHtml(body) + '</div>';
+
+        var close = document.createElement('button');
+        close.style.marginLeft = 'auto';
+        close.style.background = 'none';
+        close.style.border = 'none';
+        close.style.cursor = 'pointer';
+        close.style.color = '#9ca3af';
+        close.style.fontSize = '1rem';
+        close.style.padding = '0 0 0 8px';
+        close.style.flexShrink = '0';
+        close.innerHTML = '&times;';
+        close.onclick = function(e) { e.stopPropagation(); toast.remove(); };
+
+        toast.appendChild(icon);
+        toast.appendChild(text);
+        toast.appendChild(close);
+        container.appendChild(toast);
+
+        if (url) toast.onclick = function() { window.location.href = url; };
+        setTimeout(function() { if (toast.parentNode) toast.remove(); }, 6000);
     }
 
-    /* ── Permission Request ──────────────────────────────────────────────── */
-
-    async function requestPermission() {
-        if (Notification.permission === 'granted') return true;
-        if (Notification.permission === 'denied')  return false;
-        if (sessionStorage.getItem(PERM_ASKED_KEY)) return false;
-
-        sessionStorage.setItem(PERM_ASKED_KEY, '1');
-        const result = await Notification.requestPermission();
-        return result === 'granted';
+    function escHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    /* ── Bootstrap ───────────────────────────────────────────────────────── */
-
-    async function init() {
-        // Start polling immediately (works without push / permission)
+    function init() {
         poll();
         schedulePoll();
-
-        if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
-
-        const granted = await requestPermission();
-        if (!granted) return;
-
-        // Register (or retrieve existing) service worker
-        let reg;
-        try {
-            reg = await navigator.serviceWorker.register(SW_PATH, { scope: SW_SCOPE });
-            await navigator.serviceWorker.ready;
-        } catch (err) {
-            console.debug('[PF Notifications] SW register failed:', err.message);
-            return;
-        }
-
-        await subscribePush(reg);
-
-        // When a push notification is clicked and the SW posts a message, navigate
-        navigator.serviceWorker.addEventListener('message', e => {
-            if (e.data && e.data.type === 'PF_NAVIGATE') {
-                window.location.href = e.data.url;
-            }
-        });
     }
 
-    // Wait for the DOM + any existing SW registrations to settle
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
+    function markSeen(id) {} // Placeholder to avoid errors if called before definition
 
-    // Expose for external callers (e.g. mark-read after modal open)
-    window.PFNotifications = {
-        markSeen,
-        updateBadge,
-        poll,
-    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+
 })();

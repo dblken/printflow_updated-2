@@ -187,4 +187,47 @@
     html.printflow-staff .pf-fg-nav-modal__list li::before {
         background: #06A1A1;
     }
+
+    /* Unified Table Action Buttons */
+    html.printflow-staff .btn-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 12px;
+        min-height: 28px;
+        font-size: 12px;
+        font-weight: 700;
+        border-radius: 6px;
+        transition: all 0.2s;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+    }
+    html.printflow-staff .btn-action-primary {
+        background: rgba(6, 161, 161, 0.12);
+        color: #058f8f;
+    }
+    html.printflow-staff .btn-action-primary:hover {
+        background: #06A1A1;
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
+    html.printflow-staff .btn-action-secondary {
+        background: rgba(124, 58, 237, 0.1);
+        color: #7c3aed;
+    }
+    html.printflow-staff .btn-action-secondary:hover {
+        background: #7c3aed;
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
+    html.printflow-staff .btn-action-danger {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+    html.printflow-staff .btn-action-danger:hover {
+        background: #ef4444;
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
 </style>

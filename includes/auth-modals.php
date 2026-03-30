@@ -95,17 +95,18 @@ $auth_success = isset($_GET['success']) ? $_GET['success'] : '';
         width: 100%;
         padding: 0.55rem 0.85rem;
         background: rgba(255,255,255,.05);
-        border: 1px solid rgba(255,255,255,.1);
+        border: 1px solid rgba(83,197,224,.2) !important;
         border-radius: 0.5rem;
         font-size: 1rem;
         color: #e0f2fe;
         box-sizing: border-box;
+        outline: none !important;
         transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
     }
     .auth-modal .input-field::placeholder { color: #475569; }
     .auth-modal .input-field:focus {
-        outline: none;
-        border-color: #32a1c4;
+        outline: none !important;
+        border-color: #32a1c4 !important;
         box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.2);
         background: rgba(255,255,255,.09);
     }
@@ -113,10 +114,12 @@ $auth_success = isset($_GET['success']) ? $_GET['success'] : '';
     .auth-modal .input-field.is-invalid {
         border-color: #f87171 !important;
         box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2) !important;
+        outline: none !important;
     }
     .auth-modal .input-field.is-valid {
         border-color: #34d399 !important;
         box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15) !important;
+        outline: none !important;
     }
     .auth-modal label { display: block; font-size: 0.875rem; font-weight: 500; color: #94a3b8; margin-bottom: 0.375rem; }
     .auth-modal .auth-alert-error { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.35); color: #fca5a5; padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; margin-bottom: 1rem; }
@@ -669,7 +672,8 @@ $auth_success = isset($_GET['success']) ? $_GET['success'] : '';
     function forgotValidEmail(val) {
         if (!val) return 'Email is required.';
         if (val.length > 150) return 'Email must not exceed 150 characters.';
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return 'Invalid email address.';
+        // Require at least 2 characters after the last dot in domain
+        if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(val)) return 'Invalid email address.';
         return null;
     }
     function forgotSetFieldError(inputEl, errEl, msg) {
@@ -881,7 +885,8 @@ $auth_success = isset($_GET['success']) ? $_GET['success'] : '';
     function regValidEmail(val) {
         if (!val) return 'Email is required.';
         if (val.length > 150) return 'Email must not exceed 150 characters.';
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return 'Invalid email address.';
+        // Require at least 2 characters after the last dot in domain
+        if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(val)) return 'Invalid email address.';
         return null;
     }
     function regValidPassword(val) {
@@ -1576,7 +1581,8 @@ $auth_success = isset($_GET['success']) ? $_GET['success'] : '';
             setLoginFieldError(loginEmailEl, loginEmailErr, 'Email is required.');
             return false;
         }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+        // Require at least 2 characters after the last dot in domain
+        if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(val)) {
             setLoginFieldError(loginEmailEl, loginEmailErr, 'Please enter a valid email address.');
             return false;
         }
@@ -1597,12 +1603,17 @@ $auth_success = isset($_GET['success']) ? $_GET['success'] : '';
 
     if (loginEmailEl) {
         loginEmailEl.addEventListener('input', function() {
+            this.value = this.value.replace(/\s/g, '');
             if (loginEmailErr && loginEmailErr.textContent) validateLoginEmail();
         });
         loginEmailEl.addEventListener('blur', validateLoginEmail);
     }
     if (loginPwEl) {
+        loginPwEl.addEventListener('keydown', function(e) {
+            if (e.key === ' ') e.preventDefault();
+        });
         loginPwEl.addEventListener('input', function() {
+            this.value = this.value.replace(/\s/g, '');
             if (loginPwErr && loginPwErr.textContent) validateLoginPassword();
         });
         loginPwEl.addEventListener('blur', validateLoginPassword);

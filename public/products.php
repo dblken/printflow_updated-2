@@ -78,40 +78,6 @@ require_once __DIR__ . '/../includes/header.php';
 </section>
 
 <!-- ============================================================
-     FILTER BAR
-     ============================================================ -->
-<section id="products-grid" style="background:#fff;padding:2rem 0;border-bottom:1px solid #e2e8f0;">
-    <div class="lp-wrap">
-        <form method="GET" action="" id="filter-form">
-            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:1rem;padding:1.125rem 1.5rem;">
-                <div style="position:relative;flex:1 1 220px;min-width:160px;">
-                    <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:#9ca3af;pointer-events:none;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    <input type="text" id="search-input" name="search" placeholder="Search products…"
-                           value="<?php echo htmlspecialchars($search); ?>"
-                           style="width:100%;padding:.65rem .875rem .65rem 2.4rem;border:1px solid #e5e7eb;border-radius:.625rem;font-size:.9375rem;background:#fff;color:#1f2937;outline:none;box-sizing:border-box;transition:border-color .2s,box-shadow .2s;"
-                           onfocus="this.style.borderColor='#32a1c4';this.style.boxShadow='0 0 0 3px rgba(50,161,196,0.12)'"
-                           onblur="this.style.borderColor='#e5e7eb';this.style.boxShadow='none'">
-                </div>
-                <select name="category" id="category-select"
-                        style="padding:.65rem 2rem .65rem .875rem;border:1px solid #e5e7eb;border-radius:.625rem;font-size:.9375rem;background:#fff url(&quot;data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e&quot;) no-repeat right .75rem center/14px;color:#1f2937;outline:none;cursor:pointer;appearance:none;flex:0 1 180px;transition:border-color .2s;"
-                        onfocus="this.style.borderColor='#32a1c4'" onblur="this.style.borderColor='#e5e7eb'">
-                    <option value="">All Categories</option>
-                    <?php foreach (($categories ?: []) as $cat): ?>
-                        <option value="<?php echo htmlspecialchars($cat['category']); ?>" <?php echo $category === $cat['category'] ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($cat['category']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <button type="submit" style="background:#32a1c4;color:#fff;border:none;padding:.65rem 1.5rem;border-radius:.625rem;font-weight:700;font-size:.9375rem;cursor:pointer;transition:background .2s;white-space:nowrap;" onmouseover="this.style.background='#2a82a3'" onmouseout="this.style.background='#32a1c4'">Filter</button>
-                <?php if (!empty($search) || !empty($category)): ?>
-                    <a href="products.php" style="font-size:.875rem;color:#64748b;font-weight:500;white-space:nowrap;text-decoration:underline;">Clear</a>
-                <?php endif; ?>
-            </div>
-        </form>
-    </div>
-</section>
-
-<!-- ============================================================
      PRODUCTS BY CATEGORY (alternating sections)
      ============================================================ -->
 <?php if (empty($products_by_category)): ?>

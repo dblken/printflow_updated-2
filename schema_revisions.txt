@@ -1,0 +1,6 @@
+revision_id - int
+order_id - int
+order_item_id - int
+staff_id - int
+revision_reason - text
+created_at - timestamp

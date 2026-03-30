@@ -1,9 +1,13 @@
 <?php
 require_once __DIR__ . '/../../../includes/auth.php';
 
+// Prevent accidental output (warnings/notices) from breaking JSON
+ob_start();
+
 header('Content-Type: application/json');
 
 if (!is_logged_in()) {
+    ob_end_clean();
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit();
 }
@@ -27,5 +31,20 @@ $sql = "INSERT INTO user_status (user_type, user_id, order_id, is_typing, last_a
 
 $result = db_execute($sql, 'siii', [$db_user_type, $user_id, $order_id, $is_typing]);
 
+// Also update the global user/customer last_activity for the "Online" indicator (defensive check)
+if ($user_type === 'Customer') {
+    $has_col = !empty(db_query("SHOW COLUMNS FROM customers LIKE 'last_activity'"));
+    if ($has_col) {
+        db_execute("UPDATE customers SET last_activity = CURRENT_TIMESTAMP WHERE customer_id = ?", 'i', [$user_id]);
+    }
+} else {
+    $has_col = !empty(db_query("SHOW COLUMNS FROM users LIKE 'last_activity'"));
+    if ($has_col) {
+        db_execute("UPDATE users SET last_activity = CURRENT_TIMESTAMP WHERE user_id = ?", 'i', [$user_id]);
+    }
+}
+
+// Clear any accidental output before sending JSON
+ob_end_clean();
 echo json_encode(['success' => (bool)$result]);
 ?>

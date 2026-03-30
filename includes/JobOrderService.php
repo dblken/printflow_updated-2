@@ -161,7 +161,7 @@ class JobOrderService {
                 $height_ft = (float)(trim($d_parts[1] ?? 0));
             }
 
-            $job_title = $pname !== '' ? $pname : $service_type;
+            $job_title = get_service_name_from_customization($custom, $pname !== '' ? $pname : $service_type);
             $job_qty = (int)($item['quantity'] ?? 1);
             $unit_price = (float)($item['unit_price'] ?? 0);
 
@@ -354,7 +354,7 @@ class JobOrderService {
     /**
      * Set job order status and trigger logic.
      */
-    public static function updateStatus($orderId, $newStatus, $machineId = null) {
+    public static function updateStatus($orderId, $newStatus, $machineId = null, $reason = '') {
         global $conn;
         
         $order = db_query("SELECT * FROM job_orders WHERE id = ?", 'i', [$orderId]);
@@ -396,7 +396,20 @@ class JobOrderService {
                     'CANCELLED'     => 'Cancelled'
                 ];
                 $storeStatus = $order_status_map[strtoupper($newStatus)] ?? $newStatus;
-                db_execute("UPDATE orders SET status = ?, updated_at = NOW() WHERE order_id = ?", 'si', [$storeStatus, $order['order_id']]);
+                
+                $sql_parts = ["status = ?", "updated_at = NOW()"];
+                $params = [$storeStatus];
+                $types = "s";
+                
+                if (strtoupper($newStatus) === 'APPROVED') {
+                    $sql_parts[] = "design_status = 'Approved'";
+                    $sql_parts[] = "revision_reason = ''";
+                }
+                
+                $params[] = $order['order_id'];
+                $types .= "i";
+                
+                db_execute("UPDATE orders SET " . implode(', ', $sql_parts) . " WHERE order_id = ?", $types, $params);
             }
 
             // Send real-time notification to customer on every status change
@@ -404,7 +417,9 @@ class JobOrderService {
                 NotificationService::sendJobOrderNotification(
                     (int)$order['customer_id'],
                     $orderId,
-                    $newStatus
+                    $newStatus,
+                    null,
+                    $reason
                 );
             }
 
@@ -557,7 +572,24 @@ class JobOrderService {
                     $height_ft = '';
                 }
             }
-            $name = $item['product_name'] ?: get_service_name_from_customization($custom, 'Custom Order');
+            $name = $item['product_name'] ?: 'Custom Order';
+            if (!empty($custom['sintra_type'])) {
+                $name = 'Sintra Board - ' . $custom['sintra_type'];
+            } elseif (!empty($custom['Sintra Type'])) {
+                $name = 'Sintra Board - ' . $custom['Sintra Type'];
+            } elseif (!empty($custom['tarp_size'])) {
+                $name = 'Tarpaulin Printing - ' . $custom['tarp_size'];
+            } elseif (!empty($custom['Tarp Size'])) {
+                $name = 'Tarpaulin Printing - ' . $custom['Tarp Size'];
+            } elseif (isset($custom['width']) && isset($custom['height']) && (isset($custom['finish']) || isset($custom['with_eyelets']))) {
+                $name = 'Tarpaulin Printing (' . $custom['width'] . 'x' . $custom['height'] . ' ft)';
+            } elseif (isset($custom['vinyl_type']) || isset($custom['print_placement'])) {
+                $name = 'T-Shirt Printing';
+            } elseif (isset($custom['sticker_type']) || isset($custom['Sticker Type'])) {
+                $name = 'Decals/Stickers (Print/Cut)';
+            } else if (empty($item['product_name']) || in_array(strtolower(trim((string)$name)), ['custom order', 'customer order', 'service order', 'order item', 'sticker pack'])) {
+                $name = get_service_name_from_customization($custom, $item['product_name'] ?: 'Custom Order');
+            }
             $items_out[] = [
                 'order_item_id'   => $item['order_item_id'],
                 'product_name'    => $name,
@@ -585,6 +617,7 @@ class JobOrderService {
                        CONCAT(c.first_name, ' ', c.last_name) as customer_full_name,
                        CONCAT(c.first_name, ' ', c.last_name) as customer_name,
                        c.email as customer_email,
+                       c.profile_picture,
                        COALESCE(NULLIF(TRIM(c.contact_number), ''), NULLIF(TRIM(c.email), '')) AS customer_contact,
                        TRIM(CONCAT_WS(', ', NULLIF(TRIM(c.street_address), ''), NULLIF(TRIM(c.barangay), ''), NULLIF(TRIM(c.city), ''))) AS customer_address,
                        COALESCE(jo.branch_id, ord.branch_id) AS branch_display_id,
@@ -598,6 +631,13 @@ class JobOrderService {
         $order = db_query($sql, 'i', [$id]);
         if (!$order) return null;
         $order = $order[0];
+        
+        // Format customer picture with full path
+        if (!empty($order['profile_picture'])) {
+            $order['customer_picture'] = '/printflow/public/assets/uploads/profiles/' . $order['profile_picture'];
+        } else {
+            $order['customer_picture'] = '';
+        }
 
         $storeOid = (int)($order['order_id'] ?? 0);
         if ($storeOid > 0) {
@@ -623,6 +663,7 @@ class JobOrderService {
                 $order['payment_proof_uploaded_at'] = $row['payment_submitted_at'] ?? null;
                 $order['store_order_notes'] = (string)($row['notes'] ?? '');
                 $order['revision_reason'] = (string)($row['revision_reason'] ?? '');
+                $order['design_status'] = (string)($row['design_status'] ?? '');
                 if (empty($order['estimated_total']) || (float)$order['estimated_total'] <= 0) {
                     $order['estimated_total'] = (float)($row['total_amount'] ?? 0);
                 }

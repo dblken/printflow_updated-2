@@ -23,6 +23,12 @@ try {
     
     $c = $customer[0];
     
+    // Format profile picture path
+    $profile_picture = null;
+    if (!empty($c['profile_picture'])) {
+        $profile_picture = '/printflow/public/assets/uploads/profiles/' . $c['profile_picture'];
+    }
+    
     // Format Data
     $data = [
         'customer_id' => $c['customer_id'],
@@ -31,9 +37,11 @@ try {
         'last_name' => $c['last_name'],
         'email' => $c['email'],
         'contact_number' => $c['contact_number'] ?? '',
+        'address' => $c['address'] ?? '',
         'dob' => $c['dob'] ? date('m/d/Y', strtotime($c['dob'])) : '',
         'gender' => $c['gender'] ?? '',
         'created_at' => date('M j, Y', strtotime($c['created_at'])),
+        'profile_picture' => $profile_picture,
         'initial' => strtoupper(substr($c['first_name'], 0, 1))
     ];
 

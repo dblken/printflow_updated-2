@@ -43,7 +43,7 @@ function get_all_branches(): array {
     static $cache = null;
     if ($cache !== null) return $cache;
     try {
-        $cache = db_query("SELECT id, branch_name FROM branches ORDER BY id ASC") ?: [];
+        $cache = db_query("SELECT id, branch_name FROM branches WHERE status != 'Archived' ORDER BY id ASC") ?: [];
     } catch (Exception $e) {
         $cache = [];
     }

@@ -179,7 +179,7 @@
             };
         }
         Object.keys(errors).forEach(function(k) { showError(k, errors[k]); });
-        const valid = Object.values(errors).every(function(e) { return !e; });
+        const valid = (errors && typeof errors === 'object') ? Object.values(errors).every(function(e) { return !e; }) : false;
         const btn = el('modal-submit-products-mgr') || el('modal-submit-btn');
         /* Managers must always be able to click Save; invalid POST is blocked in submit handler. */
         if (btn) btn.disabled = isBranchStockModalOpen() ? false : !valid;

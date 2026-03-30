@@ -5,12 +5,6 @@
 (function () {
     'use strict';
 
-    // Hard-disable the legacy "Unsaved Changes" nav modal if it exists (e.g., from cached JS or previous page state).
-    try {
-        var _pfFgNavModal = document.getElementById('pf-fg-nav-modal');
-        if (_pfFgNavModal && _pfFgNavModal.parentNode) _pfFgNavModal.parentNode.removeChild(_pfFgNavModal);
-    } catch (e) { /* ignore */ }
-
     function skipGlobal() {
         return document.body && document.body.hasAttribute('data-pf-skip-global-guard');
     }
@@ -236,17 +230,32 @@
 
         var root = portalRoot();
 
-        // Also remove any existing nav modal if present (safety).
-        try {
-            var nav = document.getElementById('pf-fg-nav-modal');
-            if (nav && nav.parentNode) nav.parentNode.removeChild(nav);
-        } catch (e) { /* ignore */ }
-
         var overlay = document.createElement('div');
         overlay.id = 'pf-fg-save-overlay';
         overlay.className = 'pf-fg-save-overlay';
         overlay.setAttribute('aria-hidden', 'true');
         root.appendChild(overlay);
+
+        var wrap = document.createElement('div');
+        wrap.innerHTML =
+            '<div id="pf-fg-nav-modal" class="pf-fg-nav-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="pf-fg-nav-modal-title">' +
+                '<div class="pf-fg-nav-modal__backdrop"></div>' +
+                '<div class="pf-fg-nav-modal__panel">' +
+                    '<h3 id="pf-fg-nav-modal-title" class="pf-fg-nav-modal__title">Unsaved Changes</h3>' +
+                    '<p class="pf-fg-nav-modal__msg">You have unsaved changes. What would you like to do?</p>' +
+                    '<p id="pf-fg-nav-modal-sub" class="pf-fg-nav-modal__sub" hidden>These areas are not saved yet:</p>' +
+                    '<ul id="pf-fg-nav-modal-list" class="pf-fg-nav-modal__list" hidden></ul>' +
+                    '<p id="pf-fg-nav-modal-err" class="pf-fg-nav-modal__err" hidden></p>' +
+                    '<div class="pf-fg-nav-modal__actions">' +
+                        '<button type="button" class="pf-fg-btn pf-fg-btn--neutral" id="pf-fg-nav-cancel">Cancel</button>' +
+                        '<button type="button" class="pf-fg-btn pf-fg-btn--discard" id="pf-fg-nav-discard">Discard Changes</button>' +
+                        '<button type="button" class="pf-fg-btn pf-fg-btn--accent" id="pf-fg-nav-save">Save Changes</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        while (wrap.firstChild) {
+            root.appendChild(wrap.firstChild);
+        }
 
         var toast = document.createElement('div');
         toast.id = 'pf-fg-toast';
@@ -254,6 +263,8 @@
         toast.setAttribute('role', 'status');
         toast.hidden = true;
         root.appendChild(toast);
+
+        bindNavModal();
         syncPortalAriaHidden();
     }
 
@@ -276,14 +287,40 @@
     }
 
     function openNavModal() {
-        // Nav guard disabled (removed "Unsaved Changes" modal).
-        return;
+        ensureShell();
+        var modal = document.getElementById('pf-fg-nav-modal');
+        var err = document.getElementById('pf-fg-nav-modal-err');
+        var list = document.getElementById('pf-fg-nav-modal-list');
+        var sub = document.getElementById('pf-fg-nav-modal-sub');
+        err.hidden = true;
+        err.textContent = '';
+
+        var dirtyForms = getDirtyForms();
+        var labels = uniqueLabels(dirtyForms.map(deriveFormLabel));
+        list.innerHTML = '';
+        for (var i = 0; i < labels.length; i++) {
+            var li = document.createElement('li');
+            li.textContent = labels[i];
+            list.appendChild(li);
+        }
+        var showList = labels.length > 0;
+        list.hidden = !showList;
+        sub.hidden = !showList;
+
+        modal.classList.add('pf-fg-nav-modal--open');
+        modal.setAttribute('aria-hidden', 'false');
+        navModalOpen = true;
+        syncPortalAriaHidden();
     }
 
     function closeNavModal() {
-        // Nav guard disabled (removed "Unsaved Changes" modal).
+        var modal = document.getElementById('pf-fg-nav-modal');
+        if (!modal) return;
+        modal.classList.remove('pf-fg-nav-modal--open');
+        modal.setAttribute('aria-hidden', 'true');
         navModalOpen = false;
         pendingNavigationUrl = null;
+        syncPortalAriaHidden();
     }
 
     function pickSubmitButton(form) {
@@ -524,15 +561,15 @@
             if (window.__pfSavingAll) return;
             if (!hasAnyDirty()) return;
             if (navModalOpen) return;
-            // Nav guard disabled: allow navigation without showing a modal.
+            e.preventDefault();
+            pendingNavigationUrl = e.detail.url;
+            openNavModal();
         });
 
         document.addEventListener(
             'click',
             function (ev) {
                 if (skipGlobal()) return;
-                // Nav guard disabled: don't intercept navigation clicks.
-                return;
                 if (window.__pfSavingAll) return;
                 if (!hasAnyDirty()) return;
                 if (navModalOpen) return;

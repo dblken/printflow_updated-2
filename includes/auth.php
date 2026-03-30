@@ -83,6 +83,24 @@ function is_customer() {
 }
 
 /**
+ * Check if the current user has one of the specified roles
+ * @param string|array $roles The role(s) to check
+ * @return bool
+ */
+function has_role($roles) {
+    if (!is_logged_in()) {
+        return false;
+    }
+    
+    if (!is_array($roles)) {
+        $roles = [$roles];
+    }
+    
+    $user_type = get_user_type();
+    return in_array($user_type, $roles);
+}
+
+/**
  * Get current user ID
  * @return int|null
  */

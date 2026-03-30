@@ -32,44 +32,57 @@ $fields['product_type'] = $type;
 $fields['branch_id'] = trim($raw_fields['branch_id'] ?? '1');
 $fields['needed_date'] = trim($raw_fields['needed_date'] ?? '');
 
-$fields['laminate_option'] = trim($raw_fields['laminate_option'] ?? 'Without Laminate');
+$fields['quantity'] = 1;
+if (!empty($raw_fields['quantity_gatepass'])) {
+    $fields['quantity'] = (int)$raw_fields['quantity_gatepass'];
+} elseif (!empty($raw_fields['quantity_signage'])) {
+    $fields['quantity'] = (int)$raw_fields['quantity_signage'];
+} elseif (!empty($raw_fields['quantity'])) {
+    $fields['quantity'] = (int)$raw_fields['quantity'];
+}
 
 if ($isTempPlate) {
-    foreach(['temp_plate_material', 'temp_plate_number', 'temp_plate_text', 'mv_file_number', 'dealer_name'] as $f) {
+    foreach(['temp_plate_material', 'temp_plate_number', 'temp_plate_text', 'mv_file_number', 'dealer_name', 'other_instructions'] as $f) {
         if(isset($raw_fields[$f]) && trim($raw_fields[$f]) !== '') $fields[$f] = $raw_fields[$f];
     }
-    $fields['quantity'] = $raw_fields['quantity'] ?? 1;
+    $fields['dimensions'] = 'Standard';
 } elseif ($isGatePass) {
-    foreach(['gate_pass_subdivision', 'gate_pass_number', 'gate_pass_plate', 'gate_pass_year', 'gate_pass_vehicle_type', 'dimensions', 'unit'] as $f) {
+    foreach(['gate_pass_subdivision', 'gate_pass_number', 'gate_pass_plate', 'gate_pass_year', 'gate_pass_vehicle_type', 'dimensions', 'unit', 'other_instructions'] as $f) {
         if(isset($raw_fields[$f]) && trim($raw_fields[$f]) !== '') $fields[$f] = $raw_fields[$f];
     }
-    $fields['quantity'] = $raw_fields['quantity_gatepass'] ?? ($raw_fields['quantity'] ?? 1);
 } elseif ($isSignage) {
-    foreach(['dimensions', 'unit', 'material_type', 'text_content', 'arrow_direction', 'font_preference', 'reflective_color', 'mounting_option', 'other_instructions'] as $f) {
-        if(isset($raw_fields[$f]) && trim($raw_fields[$f]) !== '') $fields[$f] = trim($raw_fields[$f]);
-    }
-    if (isset($raw_fields['with_border'])) $fields['with_border'] = 'Yes';
-    if (isset($raw_fields['rounded_corners'])) $fields['rounded_corners'] = 'Yes';
-    
-    $fields['quantity'] = $raw_fields['quantity_signage'] ?? ($raw_fields['quantity'] ?? 1);
-} else {
     // Custom Reflectorized Sign
-    foreach(['dimensions', 'unit', 'material_type', 'layout', 'laminate_option', 'subdivision_name', 'year_valid', 'serial_number', 'plate_number_alt', 'homeowner_name', 'block_lot', 'reflective_color', 'starting_number', 'other_instructions'] as $f) {
+    foreach(['dimensions', 'unit', 'material_type', 'layout', 'laminate_option', 'reflective_color', 'other_instructions'] as $f) {
         if(isset($raw_fields[$f]) && trim($raw_fields[$f]) !== '') $fields[$f] = trim($raw_fields[$f]);
     }
-    if (isset($raw_fields['with_numbering'])) $fields['with_numbering'] = 'Yes';
-    $fields['quantity'] = $raw_fields['quantity'] ?? 1;
+} else {
+    // Fallback or Other types
+    foreach(['dimensions', 'unit', 'material_type', 'layout', 'laminate_option', 'other_instructions'] as $f) {
+        if(isset($raw_fields[$f]) && trim($raw_fields[$f]) !== '') $fields[$f] = trim($raw_fields[$f]);
+    }
 }
 
-// Basic Validation
-if (empty($fields['product_type']) || empty($fields['needed_date']) || (empty($fields['dimensions']) && !$isTempPlate) || $fields['quantity'] < 1) {
-    echo json_encode(['success' => false, 'message' => 'Please fill in all required fields.']);
+// Validation based only on selected category
+if (empty($fields['product_type']) || empty($fields['needed_date']) || $fields['quantity'] < 1) {
+    echo json_encode(['success' => false, 'message' => 'Please fill in product type, quantity and needed date.']);
     exit;
 }
 
-if ($isTempPlate && empty($fields['temp_plate_material'])) {
-    echo json_encode(['success' => false, 'message' => 'Please select a material option for your temporary plate.']);
-    exit;
+if ($isTempPlate) {
+    if (empty($fields['temp_plate_material']) || empty($fields['temp_plate_number'])) {
+        echo json_encode(['success' => false, 'message' => 'Please select material and enter plate number for temporary plate.']);
+        exit;
+    }
+} elseif ($isGatePass) {
+    if (empty($fields['gate_pass_subdivision']) || empty($fields['gate_pass_number']) || empty($fields['gate_pass_plate']) || empty($fields['gate_pass_year']) || empty($fields['dimensions'])) {
+        echo json_encode(['success' => false, 'message' => 'Please complete all required fields for gate pass sticker.']);
+        exit;
+    }
+} elseif ($isSignage) {
+    if (empty($fields['dimensions']) || empty($fields['material_type']) || empty($fields['layout'])) {
+        echo json_encode(['success' => false, 'message' => 'Please complete all required fields for custom reflectorized sign.']);
+        exit;
+    }
 }
 
 // Handle Logo/Design File

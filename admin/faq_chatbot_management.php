@@ -122,6 +122,22 @@ $stat_total      = count($faqs);
 $stat_active     = count(array_filter($faqs, fn($f) => $f['status'] === 'Activated'));
 $stat_inactive   = $stat_total - $stat_active;
 
+// Pagination for Responses tab
+$faq_page = 1;
+$faq_per_page = 5;
+$faq_total_pages = 1;
+$faq_paginated = $faqs;
+$active_tab = $_GET['tab'] ?? 'responses';
+if ($active_tab === 'responses') {
+    $faq_page = max(1, (int)($_GET['page'] ?? 1));
+    $faq_per_page = 5;
+    $faq_total_count = count($faqs);
+    $faq_total_pages = (int)ceil(max(1, $faq_total_count) / $faq_per_page);
+    $faq_page = min($faq_page, $faq_total_pages);
+    $faq_offset = ($faq_page - 1) * $faq_per_page;
+    $faq_paginated = array_slice($faqs, $faq_offset, $faq_per_page);
+}
+
 // Fetch conversation counts (active inbox only, excludes archived)
 $conv_counts = db_query("SELECT status, COUNT(*) as cnt FROM chatbot_conversations WHERE (is_archived = 0 OR is_archived IS NULL) GROUP BY status") ?: [];
 $inq_pending  = 0;
@@ -132,8 +148,6 @@ foreach ($conv_counts as $r) {
 }
 $conv_total = db_query("SELECT COUNT(*) as cnt FROM chatbot_conversations") ?: [];
 $inq_total  = (int)($conv_total[0]['cnt'] ?? 0);
-
-$active_tab = $_GET['tab'] ?? 'responses';
 
 // Server-side: fetch conversations when on inquiries tab (shows data immediately, no JS fetch needed for initial load)
 $inq_conversations = [];
@@ -146,7 +160,7 @@ $inq_search = '';
 if ($active_tab === 'inquiries') {
 $inq_filter = $_GET['filter'] ?? 'all';
 $inq_page = max(1, (int)($_GET['page'] ?? 1));
-$inq_per_page = 15;
+$inq_per_page = 5;
 $inq_offset = ($inq_page - 1) * $inq_per_page;
 $inq_search = trim($_GET['search'] ?? '');
 $inq_where = ["1=1"];
@@ -789,14 +803,14 @@ $inq_api_url = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on') ? 'https'
                 </div>
 
                 <!-- FAQ List -->
-                <?php if (empty($faqs)): ?>
+                <?php if (empty($faq_paginated)): ?>
                     <div class="card" style="text-align:center;padding:48px 24px;color:#9ca3af;">
                         <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin:0 auto 12px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <p style="font-size:15px;font-weight:600;margin-bottom:4px;">No responses yet</p>
                         <p style="font-size:13px;">Add your first quick response to help customers get answers quickly.</p>
                     </div>
                 <?php else: ?>
-                    <?php foreach ($faqs as $faq): ?>
+                    <?php foreach ($faq_paginated as $faq): ?>
                         <div class="faq-item">
                             <div style="flex:1;">
                                 <div class="faq-question"><?php echo htmlspecialchars($faq['question']); ?></div>
@@ -818,6 +832,9 @@ $inq_api_url = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']==='on') ? 'https'
                             </div>
                         </div>
                     <?php endforeach; ?>
+                    <div id="faq-pagination" style="margin-top:20px;">
+                        <?php echo render_pagination($faq_page, $faq_total_pages, ['tab' => 'responses']); ?>
+                    </div>
                 <?php endif; ?>
             </div>
 

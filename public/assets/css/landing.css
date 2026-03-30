@@ -337,6 +337,7 @@ body.lp-page {
 .lp-section {
     padding: 6rem 0;
     background: var(--lp-bg);
+    overflow-x: hidden;
 }
 
 .lp-section-white {

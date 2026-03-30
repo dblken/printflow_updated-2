@@ -173,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
                     $height_ft = (float)(trim($d_parts[1] ?? 0));
                 }
                 
-                $job_title = $item['name'] ?? $service_type;
+                $job_title = get_service_name_from_customization($custom, $item['name'] ?? $service_type);
                 $job_qty   = (int)($item['quantity'] ?? 1);
                 $oi_id     = $inserted_order_item_ids[$pid] ?? null;
 
@@ -205,10 +205,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             unset($_SESSION['cart']);
             
             // 5. Notification
-            create_notification($customer_id, 'Customer', "Order #{$order_id} placed successfully!", 'Order', true, false, $order_id);
+            $first_item_custom = !empty($inserted_order_item_ids) ? db_query("SELECT customization_data FROM order_items WHERE order_id = ? LIMIT 1", 'i', [$order_id]) : [];
+            $srv_name = 'Service Order';
+            if (!empty($first_item_custom)) {
+                $custom_data = json_decode($first_item_custom[0]['customization_data'] ?? '[]', true);
+                $srv_name = get_service_name_from_customization($custom_data, 'Service Order');
+            }
+            create_notification($customer_id, 'Customer', "Order for {$srv_name} placed successfully!", 'Order', true, false, $order_id);
             notify_staff_new_order((int)$order_id, (string)($customer['first_name'] ?? 'Customer'));
             
-            $_SESSION['success'] = "Your order #{$order_id} has been placed successfully! Our team will review it shortly. You can track the status here.";
+            $_SESSION['success'] = "Your order for {$srv_name} has been placed successfully! Our team will review it shortly. You can track the status here.";
             
             // Redirect to the new order's details page
             redirect("order_details.php?id=$order_id");

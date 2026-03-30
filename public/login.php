@@ -23,6 +23,7 @@ if (is_logged_in()) {
 
 $error = '';
 $success = '';
+$timeout_expired = isset($_GET['timeout']) && $_GET['timeout'] === '1';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $is_ajax = (
@@ -161,10 +162,11 @@ $base_url = get_base_url();
         }
         .form-group { margin-bottom: 16px; position: relative; }
         .form-input {
-            width: 100%; padding: 12px 14px; font-size: 14px;
-            border: 1.5px solid #e5e7eb; border-radius: 10px;
+            width: 100%; padding: 0.75rem; font-size: 14px;
+            border: 1px solid #d1d5db; border-radius: 0.5rem;
             outline: none; transition: border-color 0.2s, box-shadow 0.2s;
             font-family: inherit; color: #111827; background: #fff;
+            box-sizing: border-box;
         }
         .form-input:focus {
             border-color: #6366f1;
@@ -261,6 +263,12 @@ $base_url = get_base_url();
     <p class="auth-subtitle">Welcome back! Please sign in to continue</p>
     
     <!-- DEBUG: If you see this, the page is updated! -->
+
+    <?php if ($timeout_expired && empty($error)): ?>
+        <div class="alert-error" style="background:#fef3c7;border-color:#fbbf24;color:#92400e;">
+            Your session expired due to inactivity. Please sign in again.
+        </div>
+    <?php endif; ?>
 
     <?php if ($error): ?>
         <div class="alert-error"><?php echo htmlspecialchars($error); ?></div>
@@ -774,10 +782,14 @@ function signInWithGoogle() {
     if (emailEl) {
         emailEl.addEventListener('blur', validateEmail);
         emailEl.addEventListener('input', function () {
+            this.value = this.value.replace(/\s/g, '');
             if (emailErrEl.textContent) validateEmail();
         });
     }
     if (pwEl) {
+        pwEl.addEventListener('keydown', function (e) {
+            if (e.key === ' ') e.preventDefault();
+        });
         pwEl.addEventListener('input', function () {
             if (pwErrEl.textContent) validatePassword();
         });

@@ -11,7 +11,7 @@ class NotificationService {
 
     /** Values allowed by `notifications.type` ENUM (avoid "Data truncated for column 'type'"). */
     private static function normalizeNotificationType(string $type): string {
-        $allowed = ['Order', 'Stock', 'System', 'Message', 'Job Order', 'Payment Issue', 'Design', 'Payment', 'Status'];
+        $allowed = ['Order', 'Stock', 'System', 'Message', 'Job Order', 'Payment Issue', 'Design', 'Payment', 'Status', 'Rating', 'Review'];
         return in_array($type, $allowed, true) ? $type : 'System';
     }
 
@@ -26,14 +26,16 @@ class NotificationService {
         'TO_RECEIVE'   => 'Great news! Your order is ready for pickup.',
         'COMPLETED'    => 'Thank you! Your order has been marked as completed.',
         'CANCELLED'    => 'Your order has been cancelled. Please contact us for assistance.',
+        'FOR REVISION' => 'Revision requested for your order. Reason: {reason}',
     ];
 
     /**
      * Send a notification to a customer about a job order status change.
      */
-    public static function sendJobOrderNotification(int $customerId, int $jobOrderId, string $newStatus, ?string $overrideMessage = null): bool {
+    public static function sendJobOrderNotification(int $customerId, int $jobOrderId, string $newStatus, ?string $overrideMessage = null, string $reason = ''): bool {
         if (!$customerId) return false;
 
+        $newStatus = strtoupper($newStatus);
         $message = $overrideMessage ?? (self::$statusMessages[$newStatus] ?? null);
         if (!$message) return false;
 
@@ -43,19 +45,29 @@ class NotificationService {
             $o = $order[0];
             $amount = Number_Format((float)($o['estimated_total'] ?? 0), 2);
             $orderNo = "#JO-" . str_pad((int)$o['id'], 5, '0', STR_PAD_LEFT);
+            
+            $rev_reason = 'No reason provided';
+            if (!empty($o['order_id'])) {
+                $st = db_query("SELECT revision_reason FROM orders WHERE order_id = ?", 'i', [$o['order_id']]);
+                if (!empty($st)) $rev_reason = $st[0]['revision_reason'] ?: 'No reason provided';
+            }
+            if (!empty($reason)) $rev_reason = $reason;
 
             // Use standard order ID for linking if it exists, otherwise use job order ID
             $linkId = $o['order_id'] ?: $o['id'];
-            // If it's a standard order ID, we can use type 'Order' for better join in customer/notifications.php
             $type = $o['order_id'] ? 'Order' : 'Job Order';
 
             if (!empty($o['order_id'])) {
                 $orderNo .= " (#ORD-" . str_pad((int)$o['order_id'], 5, '0', STR_PAD_LEFT) . ")";
             }
 
-            $message = str_replace(['{amount}', '{order_no}'], [$amount, $orderNo], $message);
+            $message = str_replace(
+                ['{amount}', '{order_no}', '{reason}'], 
+                [$amount, $orderNo, $rev_reason], 
+                $message
+            );
         } else {
-            $message = str_replace(['{amount}', '{order_no}'], ['0.00', ''], $message);
+            $message = str_replace(['{amount}', '{order_no}', '{reason}'], ['0.00', '', 'No reason provided'], $message);
             $linkId = $jobOrderId;
             $type = 'Job Order';
         }

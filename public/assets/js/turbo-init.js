@@ -3,6 +3,36 @@
  * Handles re-initializing components after Turbo body swaps.
  */
 (function () {
+    /* ═══════════════════════════════════════════════════════════════════════
+     * CRITICAL FIX: Patch Alpine.js to handle null/undefined gracefully
+     * This prevents "Cannot convert undefined or null to object" errors
+     * ═══════════════════════════════════════════════════════════════════════ */
+    
+    // Wait for Alpine to load, then patch it
+    function patchAlpineForNullSafety() {
+        if (typeof window.Alpine === 'undefined') {
+            setTimeout(patchAlpineForNullSafety, 50);
+            return;
+        }
+        
+        // Store original Object.values
+        const originalObjectValues = Object.values;
+        
+        // Override Object.values globally to handle null/undefined
+        Object.values = function(obj) {
+            if (obj == null) {
+                console.debug('[Alpine Safety] Object.values called with null/undefined, returning empty array');
+                return [];
+            }
+            return originalObjectValues.call(this, obj);
+        };
+        
+        console.debug('[Alpine Safety] Patched Object.values for null safety');
+    }
+    
+    // Start patching immediately
+    patchAlpineForNullSafety();
+    
     /* Turbo 8 intercepts POST and requires a redirecting response. This app mostly returns 200 + HTML after POST.
        Opt-in: only forms under an ancestor with data-turbo="true" use Turbo (those endpoints must redirect). */
     try {
@@ -42,17 +72,61 @@
     /* ─── Alpine: tear down only the swapped main column (not the whole body) ─
      * destroyTree(document.body) broke persistent sidebar + raced inline <script>
      * that define x-data factories (customerModal, ordersPage, …) before initTree. */
+    function pfDestroyAlpineTree(el) {
+        if (!el || typeof window.Alpine === 'undefined' || typeof Alpine.destroyTree !== 'function') return;
+        
+        // Skip if no Alpine components exist in the element
+        const hasAlpineComponents = el.querySelector('[x-data], [x-for], [x-if], [x-show], [x-bind], [x-on], [x-model], [x-text], [x-html], [x-cloak]');
+        if (!hasAlpineComponents && !el.hasAttribute('x-data')) {
+            console.debug('[turbo] No Alpine components found, skipping destroyTree');
+            return;
+        }
+        
+        try {
+            /* Comprehensive fix: Initialize all Alpine internal properties that might be null/undefined
+               to prevent "Cannot convert undefined or null to object" errors during destroyTree */
+            
+            // Fix templates first
+            const templates = el.matches && el.matches('template[x-for]') ? [el] : [];
+            const allTemplates = templates.concat(Array.from(el.querySelectorAll('template[x-for]')));
+            
+            allTemplates.forEach(function (tmpl) {
+                if (tmpl) {
+                    if (tmpl._x_lookup == null) tmpl._x_lookup = {};
+                    if (tmpl._x_prevKeys == null) tmpl._x_prevKeys = [];
+                    if (tmpl._x_keyExpression == null) tmpl._x_keyExpression = 'index';
+                }
+            });
+            
+            /* Fix all Alpine elements - ensure critical internal properties exist */
+            const alpineEls = el.querySelectorAll('[x-data], [x-for], [x-if], [x-show], [x-bind], [x-on], [x-model], [x-text], [x-html]');
+            alpineEls.forEach(function(alpineEl) {
+                if (alpineEl) {
+                    if (alpineEl._x_lookup == null) alpineEl._x_lookup = {};
+                    if (alpineEl._x_dataStack == null) alpineEl._x_dataStack = [];
+                    if (alpineEl._x_bindings == null) alpineEl._x_bindings = {};
+                    if (alpineEl._x_refs == null) alpineEl._x_refs = {};
+                    if (alpineEl._x_prevKeys == null) alpineEl._x_prevKeys = [];
+                }
+            });
+            
+            Alpine.destroyTree(el);
+        } catch (e) { 
+            /* Alpine may throw while tearing partial trees; safe to ignore if it refers to the Object.values crash */ 
+            if (e instanceof TypeError && (e.message.includes('undefined or null to object') || e.message.includes('Cannot convert'))) {
+                console.debug('[turbo] Alpine.destroyTree caught expected error:', e.message);
+                return;
+            }
+            console.debug('[turbo] Alpine.destroyTree safe-catch:', e);
+        }
+    }
+
     document.addEventListener('turbo:before-render', function () {
         printflowAlpineNeedsReinit = true;
-        try {
-            if (typeof window.Alpine === 'undefined' || typeof Alpine.destroyTree !== 'function') return;
-            var mc = document.querySelector('.main-content');
-            if (mc) {
-                Alpine.destroyTree(mc);
-            } else {
-                Alpine.destroyTree(document.body);
-            }
-        } catch (e) { /* Alpine may throw while tearing partial trees; safe to ignore */ }
+        var mc = document.querySelector('.main-content');
+        if (mc) {
+            pfDestroyAlpineTree(mc);
+        }
     });
 
     /* ─── Charts: tear down before swap/cache ────────────────────────────── */
@@ -63,13 +137,7 @@
     document.addEventListener('turbo:before-render', function () { printflowTeardownAllCharts(); });
     document.addEventListener('turbo:before-cache', function () {
         printflowTeardownAllCharts();
-        /* Drop Alpine clones (e.g. x-for tabs) before snapshot; restore + initTree was duplicating DOM. */
-        try {
-            if (typeof window.Alpine !== 'undefined' && typeof Alpine.destroyTree === 'function') {
-                var mc = document.querySelector('.main-content');
-                if (mc) Alpine.destroyTree(mc);
-            }
-        } catch (e) { /* ignore */ }
+        /* No longer calling pfDestroyAlpineTree here; consolidated to before-render to avoid double-cleanup crashes. */
     });
 
     /* ─── Charts: re-init after paint ────────────────────────────────────── */
@@ -114,15 +182,40 @@
                 try {
                     var root = document.querySelector('.main-content') || document.body;
                     if (root) {
-                        try { Alpine.destroyTree(root); } catch (e0) { /* ignore */ }
+                        // Check if there are any Alpine components to initialize
+                        const hasAlpineComponents = root.querySelector('[x-data], [x-for], [x-if], [x-show], [x-bind], [x-on], [x-model], [x-text], [x-html], [x-cloak]');
+                        if (!hasAlpineComponents && !root.hasAttribute('x-data')) {
+                            console.debug('[turbo] No Alpine components found in', root, ', skipping initTree');
+                            finishPageBoot();
+                            return;
+                        }
+                        
+                        console.debug('[turbo] Found Alpine components, re-initializing for:', root);
+                        
+                        // Ensure cleanup before re-init
+                        pfDestroyAlpineTree(root);
+                        
+                        // Pre-initialize Alpine properties on new elements to prevent errors
+                        const newAlpineEls = root.querySelectorAll('[x-data], [x-for], [x-if], [x-show]');
+                        console.debug('[turbo] Found', newAlpineEls.length, 'Alpine elements to initialize');
+                        newAlpineEls.forEach(function(el) {
+                            if (el && el._x_dataStack == null) {
+                                el._x_dataStack = [];
+                            }
+                        });
+                        
                         Alpine.initTree(root);
+                        console.debug('[turbo] Alpine.initTree completed successfully for', newAlpineEls.length, 'elements');
                     }
-                } catch (e) { console.error('[turbo] Alpine.initTree:', e); }
+                } catch (e) { 
+                    console.error('[turbo] Alpine.initTree error:', e); 
+                }
                 finishPageBoot();
-            }, 0);
+            }, 100);
             return;
         }
 
+        console.debug('[turbo] Skipping Alpine re-init, printflowAlpineNeedsReinit:', printflowAlpineNeedsReinit);
         finishPageBoot();
     }
 
@@ -131,22 +224,30 @@
             requestAnimationFrame(function () {
                 document.documentElement.classList.remove('pf-turbo-nav');
                 
-                if (typeof window.Alpine !== 'undefined') {
-                    printflowInitAll();
-                } else {
-                    var retryCount = 0;
-                    var retryTimer = setInterval(function() {
-                        retryCount++;
-                        if (typeof window.Alpine !== 'undefined') {
-                            clearInterval(retryTimer);
-                            printflowInitAll();
-                        } else if (retryCount > 50) {
-                            clearInterval(retryTimer);
-                            console.warn('[turbo] Alpine.js failed to load within timeout');
-                            printflowInitAll();
-                        }
-                    }, 40);
+                // Wait for Alpine to be fully loaded and ready
+                function waitForAlpineAndInit() {
+                    if (typeof window.Alpine !== 'undefined' && Alpine.version) {
+                        console.debug('[turbo] Alpine detected, version:', Alpine.version);
+                        printflowInitAll();
+                    } else {
+                        var retryCount = 0;
+                        var retryTimer = setInterval(function() {
+                            retryCount++;
+                            if (typeof window.Alpine !== 'undefined' && Alpine.version) {
+                                clearInterval(retryTimer);
+                                console.debug('[turbo] Alpine loaded after', retryCount * 40, 'ms');
+                                printflowInitAll();
+                            } else if (retryCount > 100) {
+                                clearInterval(retryTimer);
+                                console.error('[turbo] Alpine.js failed to load within 4 seconds');
+                                // Try to init anyway in case Alpine is partially loaded
+                                printflowInitAll();
+                            }
+                        }, 40);
+                    }
                 }
+                
+                waitForAlpineAndInit();
             });
         });
     });

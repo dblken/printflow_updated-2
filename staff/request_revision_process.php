@@ -26,9 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Snapshot current designs into revision history
-    $insert_sql = "INSERT INTO order_item_revisions (order_id, order_item_id, staff_id, revision_reason, design_image, design_image_name, design_image_mime)
-                   SELECT order_id, order_item_id, ?, ?, design_image, design_image_name, design_image_mime
-                   FROM order_items WHERE order_id = ? AND design_image IS NOT NULL";
+    $insert_sql = "INSERT INTO order_item_revisions (order_id, order_item_id, staff_id, revision_reason, design_image, design_image_name, design_image_mime, design_file)
+                   SELECT order_id, order_item_id, ?, ?, design_image, design_image_name, design_image_mime, design_file
+                   FROM order_items WHERE order_id = ?";
     db_execute($insert_sql, 'isi', [get_user_id(), $revision_reason, $order_id]);
 
     // Update order status to 'Revision Requested' and 'For Revision'

@@ -509,7 +509,7 @@ require_once __DIR__ . '/../includes/header.php';
                                         <td style="padding:1rem; text-align:center;">
                                             <?php 
                                             if ($is_unpriced_row): ?>
-                                                <span style="font-size:0.75rem; color:#9fc6d9; font-style:italic;">TBD</span>
+                                                <span style="font-size:0.75rem; color:#9fc6d9; font-style:italic;">To be confirmed</span>
                                             <?php else: ?>
                                                 <?php echo str_replace('PHP', '₱', format_currency($item['price'])); ?>
                                             <?php endif; ?>
@@ -523,7 +523,7 @@ require_once __DIR__ . '/../includes/header.php';
                                         </td>
                                         <td style="padding:1rem; text-align:right; font-weight:600;" id="total-<?php echo $pid; ?>">
                                             <?php if ($is_unpriced_row): ?>
-                                                <span style="font-size:0.75rem; color:#9fc6d9; font-style:italic;">TBD</span>
+                                                <span style="font-size:0.75rem; color:#9fc6d9; font-style:italic;">To be confirmed</span>
                                             <?php else: ?>
                                                 <?php echo str_replace('PHP', '₱', format_currency($item['price'] * $item['quantity'])); ?>
                                             <?php endif; ?>

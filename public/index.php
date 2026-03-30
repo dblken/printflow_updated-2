@@ -33,7 +33,7 @@ $featured_products = db_query(
                     <?php else: ?>
                         <?php $dash_link = ($user_type === 'Customer') ? 'services.php' : 'dashboard.php'; ?>
                         <?php $dash_text = ($user_type === 'Customer') ? 'Go to Services' : 'Go to Dashboard'; ?>
-                        <a href="<?php echo strtolower($user_type); ?>/<?php echo $dash_link; ?>" class="lp-btn lp-btn-primary"><?php echo $dash_text; ?></a>
+                        <a href="/printflow/<?php echo strtolower($user_type); ?>/<?php echo $dash_link; ?>" class="lp-btn lp-btn-primary"><?php echo $dash_text; ?></a>
                     <?php endif; ?>
                 </div>
                 <div class="lp-stats">
@@ -43,7 +43,131 @@ $featured_products = db_query(
                 </div>
             </div>
             <div class="lp-hero-visual">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                <style>
+                @keyframes lp-floatA { 0%,100%{transform:rotate(-6deg) translateY(0)} 50%{transform:rotate(-6deg) translateY(-10px)} }
+                @keyframes lp-floatB { 0%,100%{transform:rotate(4deg) translateY(0)} 50%{transform:rotate(4deg) translateY(-14px)} }
+                @keyframes lp-floatC { 0%,100%{transform:rotate(-2deg) translateY(0)} 50%{transform:rotate(-2deg) translateY(-8px)} }
+                @keyframes lp-fadeUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+                .lp-showcase {
+                    position: relative;
+                    width: 100%;
+                    max-width: 460px;
+                    height: 420px;
+                    margin: 0 auto;
+                }
+                .lp-showcase-glow {
+                    position: absolute;
+                    inset: -40px;
+                    background: radial-gradient(ellipse 75% 65% at 55% 50%, rgba(83,197,224,.28) 0%, rgba(50,161,196,.1) 45%, transparent 70%);
+                    pointer-events: none;
+                    filter: blur(18px);
+                }
+                .lp-sc-card {
+                    position: absolute;
+                    border-radius: 1.1rem;
+                    overflow: hidden;
+                    box-shadow:
+                        0 20px 50px rgba(0,0,0,.65),
+                        0 0 0 1px rgba(83,197,224,.12),
+                        inset 0 1px 0 rgba(255,255,255,.08);
+                    transition: transform .4s cubic-bezier(.34,1.56,.64,1), box-shadow .4s ease;
+                    cursor: pointer;
+                    opacity: 0;
+                    backdrop-filter: blur(2px);
+                }
+                /* teal color blend overlay on every card */
+                .lp-sc-card::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    background: linear-gradient(135deg, rgba(0,35,43,.45) 0%, rgba(50,161,196,.18) 100%);
+                    mix-blend-mode: multiply;
+                    z-index: 1;
+                    pointer-events: none;
+                    border-radius: inherit;
+                }
+                /* glass shimmer top edge */
+                .lp-sc-card::after {
+                    content: '';
+                    position: absolute;
+                    top: 0; left: 0; right: 0;
+                    height: 1px;
+                    background: linear-gradient(90deg, transparent, rgba(83,197,224,.4), transparent);
+                    z-index: 2;
+                    pointer-events: none;
+                }
+                .lp-sc-card:hover {
+                    box-shadow:
+                        0 30px 65px rgba(0,0,0,.75),
+                        0 0 35px rgba(83,197,224,.25),
+                        0 0 0 1px rgba(83,197,224,.3),
+                        inset 0 1px 0 rgba(255,255,255,.12);
+                    z-index: 20 !important;
+                }
+                .lp-sc-card img {
+                    width: 100%; height: 100%;
+                    object-fit: cover;
+                    display: block;
+                    filter: brightness(.78) saturate(.7) hue-rotate(165deg) sepia(.15);
+                    transition: filter .4s ease, transform .4s ease;
+                }
+                .lp-sc-card:hover img {
+                    filter: brightness(.88) saturate(.85) hue-rotate(165deg) sepia(.1);
+                    transform: scale(1.04);
+                }
+                .lp-sc-label {
+                    position: absolute;
+                    bottom: 0; left: 0; right: 0;
+                    padding: .6rem .85rem;
+                    background: linear-gradient(to top, rgba(0,21,27,.92) 0%, rgba(0,35,43,.6) 60%, transparent 100%);
+                    font-size: .7rem;
+                    font-weight: 700;
+                    color: #7fd3ea;
+                    letter-spacing: .08em;
+                    text-transform: uppercase;
+                    z-index: 3;
+                }
+                .lp-sc-a {
+                    width: 200px; height: 240px;
+                    top: 60px; left: 0;
+                    z-index: 1;
+                    animation: lp-fadeUp .7s .1s forwards, lp-floatA 6s 1s ease-in-out infinite;
+                }
+                .lp-sc-a:hover { transform: rotate(-6deg) scale(1.06) !important; }
+                .lp-sc-b {
+                    width: 210px; height: 255px;
+                    top: 20px; left: 120px;
+                    z-index: 3;
+                    animation: lp-fadeUp .7s .25s forwards, lp-floatB 7s 1s ease-in-out infinite;
+                }
+                .lp-sc-b:hover { transform: rotate(4deg) scale(1.06) !important; }
+                .lp-sc-c {
+                    width: 185px; height: 185px;
+                    top: 200px; left: 230px;
+                    z-index: 2;
+                    animation: lp-fadeUp .7s .4s forwards, lp-floatC 5.5s 1s ease-in-out infinite;
+                }
+                .lp-sc-c:hover { transform: rotate(-2deg) scale(1.06) !important; }
+                </style>
+
+                <div class="lp-showcase">
+                    <div class="lp-showcase-glow"></div>
+
+                    <div class="lp-sc-card lp-sc-a">
+                        <img src="/printflow/public/images/products/signage1.jpg" alt="Tarpaulin & Signage">
+                        <div class="lp-sc-label">Tarpaulin & Signage</div>
+                    </div>
+
+                    <div class="lp-sc-card lp-sc-b">
+                        <img src="/printflow/public/images/tshirt_replacement/Front Center Print.webp" alt="T-shirt Printing">
+                        <div class="lp-sc-label">T-shirt Printing</div>
+                    </div>
+
+                    <div class="lp-sc-card lp-sc-c">
+                        <img src="/printflow/public/images/products/Glass Stickers  Wall  Frosted Stickers.png" alt="Stickers & Decals">
+                        <div class="lp-sc-label">Stickers & Decals</div>
+                    </div>
+                </div>
             </div>
         </div>
         <a href="#lp-services" class="lp-scroll-hint" id="lp-scroll-hint" aria-label="Scroll to content">
@@ -97,25 +221,27 @@ $featured_products = db_query(
             0%   { transform: translateX(0); }
             100% { transform: translateX(-50%); }
         }
-        .lp-carousel-outer {
+        .lp-carousel-clip {
             overflow: hidden;
-            position: relative;
             margin-top: 2rem;
-            -webkit-mask: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
-            mask: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+        }
+        .lp-carousel-outer {
+            position: relative;
+            padding: 2rem 0;
         }
         .lp-carousel-track {
             display: flex;
-            gap: 1.5rem;
             width: max-content;
             animation: lp-marquee 38s linear infinite;
+            will-change: transform;
         }
-        .lp-carousel-outer:hover .lp-carousel-track {
+        .lp-carousel-clip:hover .lp-carousel-track {
             animation-play-state: paused;
         }
         .lp-carousel-item {
             width: 280px;
             flex-shrink: 0;
+            margin-right: 1.5rem;
             background: var(--lp-surface);
             border: 1px solid var(--lp-border);
             border-radius: 1rem;
@@ -127,14 +253,14 @@ $featured_products = db_query(
             cursor: pointer;
         }
         .lp-carousel-item:hover {
-            transform: scale(1.08) translateY(-10px);
-            box-shadow: 0 28px 55px rgba(0,0,0,.55), 0 0 35px rgba(83,197,224,.18);
+            transform: scale(1.05) translateY(-8px);
+            box-shadow: 0 20px 45px rgba(0,0,0,.5), 0 0 25px rgba(83,197,224,.18);
             border-color: rgba(83,197,224,.45);
             z-index: 10;
         }
         </style>
 
-        <div class="lp-carousel-outer">
+        <div class="lp-carousel-clip"><div class="lp-carousel-outer">
             <div class="lp-carousel-track">
                 <?php foreach (array_merge($featured_products, $featured_products) as $fp): ?>
                 <div class="lp-carousel-item">
@@ -174,7 +300,7 @@ $featured_products = db_query(
                 </div>
                 <?php endforeach; ?>
             </div>
-        </div>
+        </div></div>
 
         <div style="text-align:center; margin-top:2.5rem;">
             <a href="<?php echo $url_products; ?>" class="lp-btn lp-btn-outline">View All Products →</a>
@@ -188,7 +314,7 @@ $featured_products = db_query(
         <div class="lp-two-col">
             <div class="lp-order-2">
                 <div class="lp-feature-box">
-                    <img src="/printflow/uploads/designs/store_pict.jpg" alt="PrintFlow store" class="lp-feature-box-image">
+                    <img src="/printflow/public/assets/uploads/shop_logo_1774059623.jpg" alt="PrintFlow store" class="lp-feature-box-image">
                 </div>
             </div>
             <div class="lp-order-1">

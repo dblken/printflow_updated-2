@@ -19,18 +19,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $size = ($w_in !== '' && $h_in !== '') ? ($w_in . 'x' . $h_in) : '';
     $finish = trim($_POST['finish'] ?? '');
     $laminate_option = trim($_POST['laminate_option'] ?? '');
+    $layout = trim($_POST['layout'] ?? '');
     if (!in_array($finish, ['Glossy', 'Matte'], true)) {
         $finish = 'Glossy';
     }
     if (!in_array($laminate_option, ['With Laminate', 'Without Laminate'], true)) {
         $laminate_option = 'Without Laminate';
     }
+    if (!in_array($layout, ['With Layout', 'Without Layout'], true)) {
+        $layout = '';
+    }
     $needed_date = trim($_POST['needed_date'] ?? '');
     $quantity = max(1, min(999, (int)($_POST['quantity'] ?? 1)));
     $notes = trim($_POST['notes'] ?? '');
 
-    if ($w_in === '' || $h_in === '' || empty($needed_date) || $quantity < 1) {
-        $error = 'Please fill in width, height, quantity, and needed date.';
+    if ($w_in === '' || $h_in === '' || empty($needed_date) || $quantity < 1 || empty($layout)) {
+        $error = 'Please fill in all required fields including layout.';
     } elseif ((function_exists('mb_strlen') ? mb_strlen($notes) : strlen($notes)) > 500) {
         $error = 'Notes must not exceed 500 characters.';
     } elseif (!isset($_FILES['design_file']) || $_FILES['design_file']['error'] !== UPLOAD_ERR_OK) {
@@ -65,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'size' => $size,
                         'finish' => $finish,
                         'laminate_option' => $laminate_option,
+                        'layout' => $layout,
                         'needed_date' => $needed_date,
                         'notes' => $notes
                     ]
@@ -87,12 +92,12 @@ $use_customer_css = true;
 require_once __DIR__ . '/../includes/header.php';
 
 $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Active'");
-$stickers_finish_val = $_POST['finish'] ?? 'Glossy';
-if (!in_array($stickers_finish_val, ['Glossy', 'Matte'], true)) {
+$stickers_finish_val = $_POST['finish'] ?? '';
+if ($stickers_finish_val !== '' && !in_array($stickers_finish_val, ['Glossy', 'Matte'], true)) {
     $stickers_finish_val = 'Glossy';
 }
-$stickers_lam_val = $_POST['laminate_option'] ?? 'Without Laminate';
-if (!in_array($stickers_lam_val, ['With Laminate', 'Without Laminate'], true)) {
+$stickers_lam_val = $_POST['laminate_option'] ?? '';
+if ($stickers_lam_val !== '' && !in_array($stickers_lam_val, ['With Laminate', 'Without Laminate'], true)) {
     $stickers_lam_val = 'Without Laminate';
 }
 ?>
@@ -105,14 +110,17 @@ if (!in_array($stickers_lam_val, ['With Laminate', 'Without Laminate'], true)) {
             <form action="" method="POST" enctype="multipart/form-data" id="stickersForm" novalidate>
                 <?php echo csrf_field(); ?>
                 <input type="hidden" name="shape" value="Custom">
+                
                 <div class="mb-4" id="card-branch-stickers">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
                     <select name="branch_id" id="stickers_branch_id" class="input-field stickers-input-h" required>
+                        <option value="" selected disabled>Select Branch</option>
                         <?php foreach($branches as $b): ?>
                             <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['branch_name']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
+
                 <div class="mb-4" id="card-dim-stickers">
                     <label class="block text-sm font-medium text-gray-700 mb-1 stickers-dim-label-oneline">Dimensions * <span class="stickers-dim-note">All values are in inches</span></label>
                     <div class="stickers-dim-row">
@@ -127,6 +135,7 @@ if (!in_array($stickers_lam_val, ['With Laminate', 'Without Laminate'], true)) {
                         </div>
                     </div>
                 </div>
+
                 <div class="mb-4" id="card-finish-stickers">
                     <label class="block text-sm font-medium text-gray-700 mb-1 stickers-finish-label"><span>Finish * <button type="button" class="stickers-info-btn" onclick="openFinishInfo()" aria-label="Finish info">i</button></span></label>
                     <div class="opt-btn-group opt-btn-inline opt-btn-expand">
@@ -134,6 +143,7 @@ if (!in_array($stickers_lam_val, ['With Laminate', 'Without Laminate'], true)) {
                         <label class="opt-btn-wrap"><input type="radio" name="finish" value="Matte" <?php echo $stickers_finish_val === 'Matte' ? 'checked' : ''; ?>> <span>Matte</span></label>
                     </div>
                 </div>
+
                 <div class="mb-4" id="card-laminate-stickers">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Laminate *</label>
                     <div class="opt-btn-group opt-btn-inline opt-btn-expand">
@@ -141,6 +151,15 @@ if (!in_array($stickers_lam_val, ['With Laminate', 'Without Laminate'], true)) {
                         <label class="opt-btn-wrap"><input type="radio" name="laminate_option" value="Without Laminate" <?php echo $stickers_lam_val === 'Without Laminate' ? 'checked' : ''; ?>> <span>Without Laminate</span></label>
                     </div>
                 </div>
+
+                <div class="mb-4" id="card-layout-stickers">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Layout *</label>
+                    <div class="opt-btn-group opt-btn-inline opt-btn-expand">
+                        <label class="opt-btn-wrap"><input type="radio" name="layout" value="With Layout" required> <span>With Layout</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="layout" value="Without Layout"> <span>Without Layout</span></label>
+                    </div>
+                </div>
+
                 <div class="mb-4 need-qty-card stickers-need-qty-card" id="card-date-qty-stickers">
                     <div class="need-qty-row">
                         <div class="need-qty-date" style="min-width:0;">
@@ -157,14 +176,17 @@ if (!in_array($stickers_lam_val, ['With Laminate', 'Without Laminate'], true)) {
                         </div>
                     </div>
                 </div>
+
                 <div class="mb-4" id="card-upload-stickers">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Upload Your File (Design, Image, or PDF) – Max 5MB *</label>
                     <input type="file" name="design_file" id="stickers_design_file" accept=".jpg,.jpeg,.png,.pdf" class="input-field stickers-input-h stickers-file-input" required>
                 </div>
+
                 <div class="mb-4 stickers-notes-wrap" id="card-notes-stickers">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                     <textarea name="notes" rows="3" class="input-field stickers-notes" placeholder="Any special instructions..." maxlength="500"><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
                 </div>
+
                 <div class="tshirt-actions-row">
                     <a href="<?php echo BASE_URL; ?>/customer/services.php" class="tshirt-btn tshirt-btn-secondary">Back to Services</a>
                     <button type="submit" name="action" value="add_to_cart" class="tshirt-btn tshirt-btn-secondary">Add to Cart</button>
@@ -467,22 +489,26 @@ function checkStickersFormValid() {
     var okDim = w && h && w.value.trim() !== '' && h.value.trim() !== '';
     var okFinish = !!finish;
     var okLam = !!lam;
+    var okLayout = !!document.querySelector('input[name="layout"]:checked');
     var okDateQty = nd && nd.value.trim() !== '' && qty >= 1;
     var okFile = file && file.files && file.files.length > 0;
     var okNotes = notesLen <= 500;
+
+    var cLayout = document.getElementById('card-layout-stickers');
 
     if (show) {
         setStickersFieldError(cBranch, !okBranch ? 'This field is required' : '');
         setStickersFieldError(cDim, !okDim ? 'This field is required' : '');
         setStickersFieldError(cFinish, !okFinish ? 'This field is required' : '');
         setStickersFieldError(cLam, !okLam ? 'This field is required' : '');
+        setStickersFieldError(cLayout, !okLayout ? 'This field is required' : '');
         setStickersFieldError(cDateQty, !okDateQty ? 'This field is required' : '');
         setStickersFieldError(cUpload, !okFile ? 'This field is required' : '');
         setStickersFieldError(cNotes, !okNotes ? 'Notes must not exceed 500 characters' : '');
     } else {
-        [cBranch, cDim, cFinish, cLam, cDateQty, cUpload, cNotes].forEach(clearStickersFieldError);
+        [cBranch, cDim, cFinish, cLam, cLayout, cDateQty, cUpload, cNotes].forEach(clearStickersFieldError);
     }
-    return okBranch && okDim && okFinish && okLam && okDateQty && okFile && okNotes;
+    return okBranch && okDim && okFinish && okLam && okLayout && okDateQty && okFile && okNotes;
 }
 
 var stickersFormEl = document.getElementById('stickersForm');

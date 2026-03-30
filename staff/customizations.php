@@ -91,71 +91,145 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
     <link rel="stylesheet" href="/printflow/public/assets/css/output.css">
     <?php include __DIR__ . '/../includes/admin_style.php'; ?>
     <style>
-        .kpi-row { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:24px; }
-        @media (max-width:768px) { .kpi-row { grid-template-columns:repeat(2, 1fr); } }
-        .kpi-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px 20px; position:relative; overflow:hidden; }
-        .kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
-        .kpi-card.amber::before { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
-        .kpi-card.blue::before { background:linear-gradient(90deg,#06A1A1,#9ED7C4); }
-        .kpi-card.emerald::before { background:linear-gradient(90deg,#059669,#34d399); }
-        .kpi-card.indigo::before { background:linear-gradient(90deg,#06A1A1,#9ED7C4); }
-        .kpi-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:#9ca3af; margin-bottom:6px; }
-        .kpi-sub { font-size:12px; color:#6b7280; margin-top:4px; }
-
-        /* Action Button Style — matches customers_management.php */
-        .btn-action {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 6px 12px;
-            border: 1px solid transparent;
-            background: transparent;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.2s;
-            cursor: pointer;
-            text-decoration: none;
+        /* PREMIUM KPI SECTION (Fluid Layout) */
+        .kpi-premium-container {
+            background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 1px solid rgba(6, 161, 161, 0.1);
         }
-        .btn-action.teal { color: #14b8a6; border-color: #14b8a6; }
-        .btn-action.teal:hover { background: #14b8a6; color: white; }
-        .btn-action.blue { color: #06A1A1; border-color: #06A1A1; }
-        .btn-action.blue:hover { background: #06A1A1; color: white; }
-        .btn-action.red { color: #ef4444; border-color: #ef4444; }
-        .btn-action.red:hover { background: #ef4444; color: white; }
-        .btn-action.amber { color: #f59e0b; border-color: #f59e0b; }
-        .btn-action.amber:hover { background: #f59e0b; color: white; }
-        .btn-action.emerald { color: #059669; border-color: #059669; }
-        .btn-action.emerald:hover { background: #059669; color: white; }
-        .btn-action.indigo { color: #4f46e5; border-color: #4f46e5; }
-        .btn-action.indigo:hover { background: #4f46e5; color: white; }
+        .kpi-bg-shape {
+            position: absolute;
+            background: linear-gradient(135deg, rgba(6, 161, 161, 0.1), rgba(6, 161, 161, 0.05));
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(50px);
+            z-index: 1;
+        }
+        .shape-1 { width: 400px; height: 400px; top: -150px; right: -50px; animation: float 18s infinite alternate; }
+        .shape-2 { width: 300px; height: 300px; bottom: -80px; left: -80px; animation: float 15s infinite alternate-reverse; }
 
-        /* Refined Enterprise Table Styles (Uniform with Orders Page) */
-        /* Toolbar: tabs wrap + search stays on its own row on narrow screens (no overlap with table) */
+        .kpi-card-v2 {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 2;
+        }
+        .kpi-card-v2:hover { 
+            transform: translateY(-4px); 
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 15px 30px -10px rgba(6, 161, 161, 0.12); 
+            border-color: #06A1A1;
+        }
+        .kpi-v2-value { 
+            font-size: 28px; 
+            font-weight: 950; 
+            color: #013a3a; 
+            line-height: 1; 
+            margin-bottom: 8px; 
+            letter-spacing: -0.04em;
+        }
+        .kpi-v2-label { 
+            font-size: 10px; 
+            font-weight: 800; 
+            color: #0d9488; 
+            text-transform: uppercase; 
+            letter-spacing: 0.1em;
+            opacity: 0.9;
+        }
+        .kpi-v2-sub { 
+            font-size: 11px; 
+            color: #475569; 
+            margin-top: 4px; 
+            font-weight: 600;
+            opacity: 0.6;
+        }
+        .kpi-card-indicator { position: absolute; top: 12px; right: 18px; width: 28px; height: 4px; border-radius: 2px; opacity: 0.4; }
+
+        @keyframes float {
+            from { transform: translate(0, 0) rotate(0deg); }
+            to { transform: translate(20px, 20px) rotate(10deg); }
+        }
+
+        .kpi-v2-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            position: relative;
+            z-index: 2;
+        }
+        @media (max-width: 1200px) { .kpi-v2-row { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 640px) { .kpi-v2-row { grid-template-columns: 1fr; } }
+
+
+
+        /* Multi-Row Toolbar: Separating Stages from Filters */
         .pf-custom-toolbar {
             display: flex;
             flex-direction: column;
-            align-items: stretch;
-            gap: 16px;
-            margin-bottom: 20px;
+            gap: 20px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 20px;
         }
-        @media (min-width: 1100px) {
-            .pf-custom-toolbar {
-                flex-direction: row;
-                align-items: flex-start;
-                justify-content: space-between;
-                gap: 20px;
-            }
+        
+        .pf-custom-tabs-row {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            border-bottom: 1px solid #f8fafc;
+            padding-bottom: 12px;
         }
+
         .pf-custom-tabs {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping so all categories are visible */
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .pf-custom-filters-row {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 8px;
-            flex: 1;
-            min-width: 0;
+            justify-content: flex-start;
+            gap: 12px;
+            width: 100%;
         }
-        .pf-custom-search { flex-shrink: 0; }
+
+        .pf-custom-search {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-select {
+            height: 36px;
+            padding: 0 32px 0 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 13px;
+            background-color: white;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 16px;
+            appearance: none;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .filter-select:focus { border-color: #06A1A1; ring: 2px; ring-color: #06A1A1; }
 
         .pill-tab { 
             position: relative;
@@ -189,21 +263,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
         }
         .pill-tab:not(.active) .tab-count { background: #e5e7eb; color: #6b7280; }
 
-        .status-pill {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: capitalize;
-        }
 
-        /* Status Colors to match system standard */
-        .badge-fulfilled { background: #dcfce7; color: #15803d; }
-        .badge-confirmed { background: #e0f2fe; color: #0369a1; }
-        .badge-partial { background: #fef3c7; color: #a16207; }
-        .badge-cancelled { background: #fee2e2; color: #b91c1c; }
 
         /* Unified Table Typography */
         .table-text-main { font-size: 13px; color: #111827; font-weight: 500; }
@@ -237,8 +297,26 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pf-tab-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
         [x-cloak] { display: none !important; }
-        /* Real box (not display:contents) so Alpine binds one subtree; min-width avoids flex overflow quirks. */
-        .pf-staff-customizations-root { min-width: 0; }
+        /* High-Density Layout Overrides for Full-Screen Utility */
+        .dashboard-container { min-height: 100vh; background: #f8fafc; }
+        .main-content {
+            padding: 12px 14px 0 !important;
+            max-width: none !important;
+            width: 100%;
+        }
+        main { padding: 0 !important; }
+        header { padding: 12px 0 12px 0 !important; background: transparent !important; margin-bottom: 0 !important; }
+        .page-title { margin-bottom: 0 !important; }
+        
+        /* High-Density Card Styling */
+        .card { 
+            padding: 16px !important; 
+            border-radius: 12px !important; 
+            margin-bottom: 12px !important;
+            border: 1px solid #e2e8f0; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
+        }
+        .kpi-premium-container { margin-bottom: 12px !important; padding: 18px 24px !important; }
     </style>
 </head>
 <body data-base-url="<?php echo htmlspecialchars(BASE_URL); ?>" data-csrf="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
@@ -252,82 +330,134 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
     ?>
     <div class="main-content">
         <div id="staffJoCustomizationsPage" x-data="joManager('ALL')" x-init="init()" class="pf-staff-customizations-root" @keydown.escape.window="onSvcEscape()">
-        <header>
-            <h1 class="page-title">Customizations</h1>
+        <header style="display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 20px;">
+            <h1 class="page-title" style="margin:0;">Customizations</h1>
+            <div style="flex: 1; max-width: 480px; position: relative;">
+                <input type="text" x-model="search" placeholder="Search Order # or Customer..." 
+                       style="width: 100%; padding: 12px 16px 12px 42px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s;"
+                       onfocus="this.style.borderColor='#06A1A1'; this.style.boxShadow='0 0 0 4px rgba(6,161,161,0.1)';"
+                       onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.02)';"
+                       @keyup.debounce.300ms="currentPage = 1">
+                <div style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+            </div>
         </header>
 
         <main>
-            <!-- KPI Summary Row -->
-            <div class="kpi-row">
-                <div class="kpi-card indigo">
-                    <div class="kpi-label">Total Customizations</div>
-                    <div class="kpi-value"><?php echo $total_jobs; ?></div>
-                    <div class="kpi-sub"><?php echo $completed_jobs; ?> completed</div>
-                </div>
-                <div class="kpi-card amber">
-                    <div class="kpi-label">Pending Approval</div>
-                    <div class="kpi-value"><?php echo $pending_jobs; ?></div>
-                    <div class="kpi-sub">Awaiting review</div>
-                </div>
-                <div class="kpi-card blue">
-                    <div class="kpi-label">Approved</div>
-                    <div class="kpi-value"><?php echo $approval_jobs; ?></div>
-                    <div class="kpi-sub">Ready for print</div>
-                </div>
-                <div class="kpi-card emerald">
-                    <div class="kpi-label">In Production</div>
-                    <div class="kpi-value"><?php echo $in_production; ?></div>
-                    <div class="kpi-sub">Currently printing</div>
+            <!-- New Premium KPI Container -->
+            <div class="kpi-premium-container">
+                <div class="kpi-bg-shape shape-1"></div>
+                <div class="kpi-bg-shape shape-2"></div>
+                
+                <div class="kpi-v2-row">
+                    <div class="kpi-card-v2">
+                        <div class="kpi-card-indicator" style="background: #06A1A1;"></div>
+                        <div class="kpi-v2-label">Total Customizations</div>
+                        <div class="kpi-v2-value"><?php echo $total_jobs; ?></div>
+                        <div class="kpi-v2-sub"><?php echo $completed_jobs; ?> items finished</div>
+                    </div>
+                    <div class="kpi-card-v2">
+                        <div class="kpi-card-indicator" style="background: #d97706;"></div>
+                        <div class="kpi-v2-label">Pending Approval</div>
+                        <div class="kpi-v2-value" style="color: #d97706;"><?php echo $pending_jobs; ?></div>
+                        <div class="kpi-v2-sub">Awaiting review</div>
+                    </div>
+                    <div class="kpi-card-v2">
+                        <div class="kpi-card-indicator" style="background: #0369a1;"></div>
+                        <div class="kpi-v2-label">Approved</div>
+                        <div class="kpi-v2-value" style="color: #0369a1;"><?php echo $approval_jobs; ?></div>
+                        <div class="kpi-v2-sub">Ready for production</div>
+                    </div>
+                    <div class="kpi-card-v2">
+                        <div class="kpi-card-indicator" style="background: #059669;"></div>
+                        <div class="kpi-v2-label">In Production</div>
+                        <div class="kpi-v2-value" style="color: #059669;"><?php echo $in_production; ?></div>
+                        <div class="kpi-v2-sub">Aktive task tracks</div>
+                    </div>
                 </div>
             </div>
 
             <!-- Jobs List & Filters (matching Enterprise reference) -->
             <div class="card overflow-visible">
                 <div class="pf-custom-toolbar">
-                    <div class="pf-custom-tabs">
-                        <!-- Static tabs: avoids Turbo cache + Alpine.initTree re-running x-for and duplicating buttons. -->
-                        <button type="button" @click="activeStatus = 'ALL'" :class="activeStatus === 'ALL' ? 'active' : ''" class="pill-tab" style="position:relative;">
-                            <span>ALL</span>
-                            <span class="tab-count" x-text="getStatusCount('ALL')"></span>
-                        </button>
-                        <button type="button" @click="activeStatus = 'PENDING'" :class="activeStatus === 'PENDING' ? 'active' : ''" class="pill-tab" style="position:relative;">
-                            <span>PENDING</span>
-                            <span class="tab-count" x-text="getStatusCount('PENDING')"></span>
-                        </button>
-                        <button type="button" @click="activeStatus = 'APPROVED'" :class="activeStatus === 'APPROVED' ? 'active' : ''" class="pill-tab" style="position:relative;">
-                            <span>APPROVED</span>
-                            <span class="tab-count" x-text="getStatusCount('APPROVED')"></span>
-                        </button>
-                        <button type="button" @click="activeStatus = 'TO_PAY'" :class="activeStatus === 'TO_PAY' ? 'active' : ''" class="pill-tab" style="position:relative;">
-                            <span>TO_PAY</span>
-                            <span class="tab-count" x-text="getStatusCount('TO_PAY')"></span>
-                        </button>
-                        <button type="button" @click="activeStatus = 'TO_VERIFY'" :class="activeStatus === 'TO_VERIFY' ? 'active' : ''" class="pill-tab" style="position:relative;">
-                            <span>TO VERIFY</span>
-                            <span class="tab-count" x-text="getStatusCount('TO_VERIFY')"></span>
-                            <span x-show="getStatusCount('TO_VERIFY') > 0" style="position:absolute;top:-4px;right:-4px;width:10px;height:10px;background:#ef4444;border-radius:9999px;border:2px solid #fff;animation:pf-tab-pulse 2s ease-in-out infinite;"></span>
-                        </button>
-                        <button type="button" @click="activeStatus = 'IN_PRODUCTION'" :class="activeStatus === 'IN_PRODUCTION' ? 'active' : ''" class="pill-tab" style="position:relative;">
-                            <span>IN_PRODUCTION</span>
-                            <span class="tab-count" x-text="getStatusCount('IN_PRODUCTION')"></span>
-                        </button>
-                        <button type="button" @click="activeStatus = 'TO_RECEIVE'" :class="activeStatus === 'TO_RECEIVE' ? 'active' : ''" class="pill-tab" style="position:relative;">
-                            <span>TO PICKUP</span>
-                            <span class="tab-count" x-text="getStatusCount('TO_RECEIVE')"></span>
-                        </button>
-                        <button type="button" @click="activeStatus = 'COMPLETED'" :class="activeStatus === 'COMPLETED' ? 'active' : ''" class="pill-tab" style="position:relative;">
-                            <span>COMPLETED</span>
-                            <span class="tab-count" x-text="getStatusCount('COMPLETED')"></span>
-                        </button>
-                        <button type="button" @click="activeStatus = 'CANCELLED'" :class="activeStatus === 'CANCELLED' ? 'active' : ''" class="pill-tab" style="position:relative;">
-                            <span>CANCELLED</span>
-                            <span class="tab-count" x-text="getStatusCount('CANCELLED')"></span>
-                        </button>
+                    <!-- Row 1: Status Stages (Full Visibility) -->
+                    <div class="pf-custom-tabs-row">
+                        <div class="pf-custom-tabs">
+                            <button type="button" @click="activeStatus = 'ALL'" :class="activeStatus === 'ALL' ? 'active' : ''" class="pill-tab">
+                                <span>ALL</span>
+                                <span class="tab-count" x-text="getStatusCount('ALL')"></span>
+                            </button>
+                            <button type="button" @click="activeStatus = 'PENDING'" :class="activeStatus === 'PENDING' ? 'active' : ''" class="pill-tab">
+                                <span>PENDING</span>
+                                <span class="tab-count" x-text="getStatusCount('PENDING')"></span>
+                            </button>
+                            <button type="button" @click="activeStatus = 'APPROVED'" :class="activeStatus === 'APPROVED' ? 'active' : ''" class="pill-tab">
+                                <span>APPROVED</span>
+                                <span class="tab-count" x-text="getStatusCount('APPROVED')"></span>
+                            </button>
+                            <button type="button" @click="activeStatus = 'TO_PAY'" :class="activeStatus === 'TO_PAY' ? 'active' : ''" class="pill-tab">
+                                <span>TO PAY</span>
+                                <span class="tab-count" x-text="getStatusCount('TO_PAY')"></span>
+                            </button>
+                            <button type="button" @click="activeStatus = 'TO_VERIFY'" :class="activeStatus === 'TO_VERIFY' ? 'active' : ''" class="pill-tab">
+                                <span>TO VERIFY</span>
+                                <span class="tab-count" x-text="getStatusCount('TO_VERIFY')"></span>
+                                <span x-show="getStatusCount('TO_VERIFY') > 0" style="position:absolute;top:-4px;right:-4px;width:10px;height:10px;background:#ef4444;border-radius:9999px;border:2px solid #fff;animation:pf-tab-pulse 2s ease-in-out infinite;"></span>
+                            </button>
+                            <button type="button" @click="activeStatus = 'IN_PRODUCTION'" :class="activeStatus === 'IN_PRODUCTION' ? 'active' : ''" class="pill-tab">
+                                <span>IN PRODUCTION</span>
+                                <span class="tab-count" x-text="getStatusCount('IN_PRODUCTION')"></span>
+                            </button>
+                            <button type="button" @click="activeStatus = 'TO_RECEIVE'" :class="activeStatus === 'TO_RECEIVE' ? 'active' : ''" class="pill-tab">
+                                <span>TO PICKUP</span>
+                                <span class="tab-count" x-text="getStatusCount('TO_RECEIVE')"></span>
+                            </button>
+                            <button type="button" @click="activeStatus = 'COMPLETED'" :class="activeStatus === 'COMPLETED' ? 'active' : ''" class="pill-tab">
+                                <span>COMPLETED</span>
+                                <span class="tab-count" x-text="getStatusCount('COMPLETED')"></span>
+                            </button>
+                            <button type="button" @click="activeStatus = 'CANCELLED'" :class="activeStatus === 'CANCELLED' ? 'active' : ''" class="pill-tab">
+                                <span>CANCELLED</span>
+                                <span class="tab-count" x-text="getStatusCount('CANCELLED')"></span>
+                            </button>
+                        </div>
                     </div>
-                    <div class="pf-custom-search">
-                        <div style="position:relative;max-width:280px;">
-                            <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                            <input type="text" x-model="search" placeholder="Filter jobs..." style="padding-left:32px;width:100%;min-width:180px;max-width:280px;height:36px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-weight:400;outline:none;transition:border-color 0.2s;box-sizing:border-box;" onfocus="this.style.borderColor='#06A1A1'" onblur="this.style.borderColor='#e5e7eb'">
+
+                    <!-- Row 2: Secondary Selective Filters -->
+                    <div class="pf-custom-filters-row">
+                        <div class="pf-custom-search flex items-center gap-3 flex-wrap">
+                            <select x-model="serviceFilter" class="filter-select" title="Service Type">
+                                <option value="ALL">All Services</option>
+                                <option value="T-SHIRT PRINTING">T-Shirt Printing</option>
+                                <option value="TARPAULIN PRINTING">Tarpaulin</option>
+                                <option value="DECALS/STICKERS (PRINT/CUT)">Stickers/Decals</option>
+                                <option value="TRANSPARENT STICKER PRINTING">Transparent Stickers</option>
+                                <option value="SINTRA BOARD">Sintraboard</option>
+                                <option value="REFLECTORIZED SIGNAGE">Reflectorized</option>
+                                <option value="SOUVENIRS">Souvenirs</option>
+                            </select>
+
+                            <select x-model="dateFilter" class="filter-select" title="Date Range">
+                                <option value="ALL">All Dates</option>
+                                <option value="TODAY">Today</option>
+                                <option value="WEEK">This Week</option>
+                                <option value="MONTH">This Month</option>
+                                <option value="CUSTOM">Custom Range</option>
+                            </select>
+
+                            <div x-show="dateFilter === 'CUSTOM'" class="flex items-center gap-2">
+                                <input type="date" x-model="customDateFrom" class="filter-select" style="padding-right:12px;">
+                                <span class="text-gray-400">至</span>
+                                <input type="date" x-model="customDateTo" class="filter-select" style="padding-right:12px;">
+                            </div>
+
+                            <select x-model="sortOrder" class="filter-select" title="Sort By">
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -345,7 +475,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
-                            <template x-for="jo in filteredOrders" :key="(jo.order_type || 'JOB') + '-' + jo.id">
+                            <template x-for="jo in paginatedOrders" :key="(jo.order_type || 'JOB') + '-' + jo.id">
                                 <tr @click="viewDetails(jo.id, jo.order_type || 'JOB')" class="group transition-all hover:bg-gray-50/50 relative cursor-pointer">
                                     <td class="pl-6 pr-4 py-4 relative">
                                         <div class="row-indicator"></div>
@@ -362,11 +492,15 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                     </td>
                                     <td class="px-4 py-4 text-center">
                                         <div :class="{
-                                        'badge-fulfilled': jo.readiness === 'READY' || jo.status === 'COMPLETED' || jo.status === 'TO_RECEIVE',
-                                            'badge-confirmed': jo.status === 'APPROVED' || jo.status === 'IN_PRODUCTION' || jo.status === 'TO_PAY',
-                                            'badge-partial': jo.readiness === 'LOW' || jo.status === 'PENDING',
-                                            'badge-cancelled': jo.readiness === 'MISSING' || jo.status === 'CANCELLED'
-                                        }" class="status-pill" x-text="jo.status === 'COMPLETED' ? 'Fulfilled' : 
+                                            'badge-fulfilled':  jo.status === 'COMPLETED',
+                                            'badge-approved':   jo.status === 'APPROVED',
+                                            'badge-topay':      jo.status === 'TO_PAY',
+                                            'badge-verify':     jo.status === 'VERIFY_PAY',
+                                            'badge-production': jo.status === 'IN_PRODUCTION',
+                                            'badge-pickup':     jo.status === 'TO_RECEIVE',
+                                            'badge-pending':    jo.status === 'PENDING',
+                                            'badge-cancelled':  jo.status === 'CANCELLED'
+                                        }" class="status-badge-pill" x-text="jo.status === 'COMPLETED' ? 'Fulfilled' : 
                                            (jo.status === 'APPROVED' ? 'Approved' : 
                                            (jo.status === 'TO_PAY' ? 'To Pay' : 
                                            (jo.status === 'VERIFY_PAY' ? 'To Verify' : 
@@ -378,7 +512,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                         <div class="table-text-main" x-text="jo.first_name + ' ' + (jo.last_name || '')"></div>
                                         <div class="table-text-sub" style="margin-top:4px;max-width:220px;word-break:break-word;" x-show="jo.customer_contact" x-text="jo.customer_contact"></div>
                                         <div style="margin-top:4px;">
-                                            <span style="font-size:10px; font-weight:500;" class="status-pill" :class="jo.customer_type === 'NEW' ? 'badge-confirmed' : 'badge-fulfilled'" x-text="jo.customer_type"></span>
+                                            <span style="font-size:10px; font-weight:700; width:100px; padding:2px 0;" class="status-badge-pill" :class="jo.customer_type === 'NEW' ? 'badge-approved' : 'badge-fulfilled'" x-text="jo.customer_type"></span>
                                         </div>
                                     </td>
                                     <td class="px-4 py-4 text-right">
@@ -386,7 +520,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                         <div class="table-text-sub uppercase" x-text="jo.due_date ? 'Due ' + new Date(jo.due_date).toLocaleDateString() : ''"></div>
                                     </td>
                                     <td class="px-4 py-4 text-center space-x-1">
-                                        <button @click.stop="viewDetails(jo.id, jo.order_type || 'JOB')" class="btn-action blue">View</button>
+                                        <button @click.stop="viewDetails(jo.id, jo.order_type || 'JOB')" class="btn-staff-action btn-staff-action-blue">View</button>
                                     </td>
                                 </tr>
                             </template>
@@ -397,6 +531,23 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <div x-show="totalPages > 1" style="display:block; width:100%; text-align:center; margin-top:20px; padding-top:16px; border-top:1px solid #f3f4f6;">
+                    <div style="display:inline-flex; align-items:center; justify-content:center; gap:4px;">
+                        <button x-show="currentPage > 1" @click="currentPage--" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;color:#374151;font-size:13px;font-weight:500;transition:all 0.2s;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background='white'">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <template x-for="(p, i) in pageNumbers" :key="i">
+                        <span style="display:inline-flex;">
+                            <span x-show="p === '...'" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;font-size:13px;color:#9ca3af;letter-spacing:1px;">···</span>
+                            <button x-show="p !== '...'" @click="currentPage = p" :style="currentPage === p ? 'display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:6px;border:1px solid #0d9488;background:#0d9488;color:white;text-decoration:none;font-size:13px;font-weight:600;' : 'display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;color:#374151;text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s;'" x-text="p"></button>
+                        </span>
+                    </template>
+                    <button x-show="currentPage < totalPages" @click="currentPage++" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;color:#374151;font-size:13px;font-weight:500;transition:all 0.2s;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background='white'">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                    </div>
                 </div>
             </div>
         </main>
@@ -435,7 +586,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 <div style="padding:20px 24px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;">
                     <div>
                         <h3 style="font-size:18px;font-weight:700;color:#1f2937;margin:0;" x-text="'Customization #' + currentJo.id"></h3>
-                        <p style="font-size:12px;color:#6b7280;margin:2px 0 0;" x-text="currentJo.service_type"></p>
+                        <p style="font-size:12px;color:#6b7280;margin:2px 0 0;" x-text="getCorrectServiceType(currentJo)"></p>
                     </div>
                     <button @click="showDetailsModal = false" style="background:transparent;border:none;cursor:pointer;color:#6b7280;">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -451,60 +602,13 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         <div>
                             <div style="font-size:16px;font-weight:700;color:#1f2937;" x-text="currentJo.customer_full_name"></div>
                             <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap;">
-                                <span style="font-size:11px; font-weight:500;" class="status-pill" :class="currentJo.customer_type === 'NEW' ? 'badge-confirmed' : 'badge-fulfilled'" x-text="currentJo.customer_type"></span>
+                                <span style="font-size:11px; font-weight:700; min-width:80px; padding:2px 8px;" class="status-badge-pill" :class="currentJo.customer_type === 'NEW' ? 'badge-approved' : 'badge-fulfilled'" x-text="currentJo.customer_type"></span>
                                 <span style="font-size:12px;color:#6b7280;" x-text="currentJo.customer_contact"></span>
                             </div>
                             <div x-show="currentJo.customer_address" style="font-size:12px;color:#6b7280;margin-top:8px;max-width:100%;word-break:break-word;" x-text="currentJo.customer_address"></div>
                         </div>
                     </div>
 
-                    <!-- Two-column Info Grid -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-                        <div>
-                            <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px;">Service</label>
-                            <div style="font-size:13px;color:#1f2937;font-weight:500;" x-text="currentJo.service_type"></div>
-                        </div>
-                        <div>
-                            <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px;">Status</label>
-                            <span class="status-pill" :class="{
-                                'badge-fulfilled': currentJo.status === 'COMPLETED' || currentJo.status === 'TO_RECEIVE',
-                                'badge-confirmed': currentJo.status === 'APPROVED' || currentJo.status === 'IN_PRODUCTION' || currentJo.status === 'TO_PAY',
-                                'badge-partial': currentJo.status === 'PENDING',
-                                'badge-cancelled': currentJo.status === 'CANCELLED'
-                            }" x-text="currentJo.status"></span>
-                        </div>
-                        <div>
-                            <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px;">Dimensions</label>
-                            <div style="font-size:13px;color:#1f2937;" x-text="currentJo.width_ft + '\' × ' + currentJo.height_ft + '\''"></div>
-                        </div>
-                        <div>
-                            <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px;">Quantity</label>
-                            <div style="font-size:13px;color:#1f2937;" x-text="currentJo.quantity + ' pcs'"></div>
-                        </div>
-                        <div>
-                            <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px;">Estimated Total</label>
-                            <div style="font-size:13px;color:#1f2937;font-weight:400;" x-text="'₱' + Number(currentJo.estimated_total || 0).toLocaleString()"></div>
-                        </div>
-                        <div>
-                            <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px;">Amount Paid</label>
-                            <div style="font-size:13px;color:#1f2937;font-weight:400;" x-text="'₱' + Number(currentJo.amount_paid || 0).toLocaleString()"></div>
-                        </div>
-                        <div>
-                            <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px;">Priority</label>
-                            <div style="font-size:13px;font-weight:600;" :style="currentJo.priority === 'HIGH' ? 'color:#ef4444' : 'color:#1f2937'" x-text="currentJo.priority"></div>
-                        </div>
-                        <div>
-                            <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:4px;">Due Date</label>
-                            <div style="font-size:13px;color:#1f2937;" :style="isOverdue(currentJo.due_date) ? 'color:#ef4444;' : ''" x-text="currentJo.due_date || 'Not set'"></div>
-                        </div>
-                    </div>
-
-                    <template x-if="currentJo.revision_reason && String(currentJo.revision_reason).trim()">
-                        <div style="margin-bottom:20px; padding:14px 16px; border-radius:12px; border:1px solid #fecaca; background:#fef2f2;">
-                            <label style="font-size:11px;font-weight:700;color:#b91c1c;text-transform:uppercase;display:block;margin-bottom:8px;">Revision requested (customer)</label>
-                            <div style="font-size:13px;color:#7f1d1d;white-space:pre-wrap;word-break:break-word;" x-text="currentJo.revision_reason"></div>
-                        </div>
-                    </template>
 
                     <!-- Dynamic Order Details (service-specific fields from customization_data) -->
                     <template x-if="currentJo.items && currentJo.items.length > 0">
@@ -512,7 +616,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                             <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:12px;">Order Details (Customer Specifications)</label>
                             <template x-for="(item, idx) in currentJo.items" :key="item.order_item_id || idx">
                                 <div style="margin-bottom:16px; padding:12px; background:#fff; border:1px solid #e5e7eb; border-radius:8px;">
-                                    <div style="font-size:13px; font-weight:700; color:#1f2937; margin-bottom:10px;" x-text="item.product_name + ' × ' + item.quantity"></div>
+                                    <div style="font-size:13px; font-weight:700; color:#1f2937; margin-bottom:10px;" x-text="getDynamicProductName(item) + ' × ' + item.quantity"></div>
                                     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px;">
                                         <template x-for="([k, v]) in getDisplayableCustom(item.customization)" :key="k">
                                             <div style="padding:8px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; min-width:0; overflow-wrap:break-word;">
@@ -555,8 +659,8 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
 
                     <!-- Notes -->
-                    <div style="margin-bottom:20px;">
-                        <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:6px;">Customer &amp; production notes</label>
+                    <div style="margin-bottom:20px;" x-show="combinedCustomerNotes().trim() !== '' && combinedCustomerNotes() !== 'No specific instructions.'">
+                        <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:6px;">Order Notes</label>
                         <div style="font-size:13px;color:#6b7280;background:#fffbeb;border:1px solid #fef3c7;padding:10px 14px;border-radius:8px;word-break:break-word;overflow-wrap:break-word;white-space:pre-wrap;" x-text="combinedCustomerNotes()"></div>
                     </div>
 
@@ -583,8 +687,8 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                         <div style="font-size:22px; font-weight:800; color:#1f2937;" x-text="'₱' + Number(currentJo.payment_submitted_amount || 0).toLocaleString()"></div>
                                     </div>
                                     <div style="display:flex; gap:10px;">
-                                        <button @click="verifyPayment()" class="btn-action emerald" style="flex:1;">✓ Approve Payment</button>
-                                        <button @click="rejectPayment()" class="btn-action red" style="flex:1;">✕ Reject</button>
+                                        <button @click="verifyPayment()" class="btn-staff-action btn-staff-action-emerald" style="flex:1;">✓ Approve Payment</button>
+                                        <button @click="openRejectPaymentModal()" class="btn-staff-action btn-staff-action-red" style="flex:1;">✕ Reject</button>
                                     </div>
                                 </div>
                             </div>
@@ -594,65 +698,133 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     <!-- 2. APPROVED (Set Price & Materials) -->
                     <template x-if="currentJo.status === 'APPROVED'">
                         <div style="margin-bottom:20px; display:flex; flex-direction:column; gap:20px;">
-                            <!-- Pricing Section -->
-                            <div style="padding:18px; border-radius:12px; border:1px solid #dcfce7; background:#f0fdf4;">
-                                <label style="font-size:11px;font-weight:700;color:#15803d;text-transform:uppercase;display:block;margin-bottom:12px;">Step 2: Pricing & Submission</label>
-                                <div style="display:flex; gap:12px; align-items:flex-end;">
-                                    <div style="flex:1;">
-                                        <label style="font-size:10px; font-weight:700; color:#166534; display:block; margin-bottom:4px;">Grand Total (₱)</label>
-                                        <input type="number" x-model.number="jobPriceInput" style="padding:10px; border:1px solid #bbf7d0; border-radius:8px; width:100%; box-sizing:border-box; font-size:14px; font-weight:600;">
-                                    </div>
-                                    <button @click="submitToPay()" class="btn-action emerald" style="padding:11px 20px; height:42px;">💰 Request Payment</button>
+                            
+                            <!-- Production Details Section -->
+                            <div style="padding:20px; border-radius:16px; border:1px solid #e2e8f0; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                                    <h3 style="font-size:14px; font-weight:700; color:#1f2937; text-transform:uppercase; letter-spacing:0.025em; margin:0;">Production Assignment</h3>
+                                    <span style="font-size:11px; background:#f3f4f6; color:#6b7280; padding:4px 10px; border-radius:100px; font-weight:600;" x-text="getCorrectServiceType(currentJo)"></span>
                                 </div>
-                                <p style="font-size:11px; color:#15803d; margin-top:8px;">Setting the price and clicking 'Request Payment' will notify the customer to pay.</p>
-                            </div>
 
-                            <!-- Materials Assignment -->
-                            <div style="padding:18px; border-radius:12px; border:1px solid #ddd6fe; background:#f5f3ff;">
-                                <label style="font-size:11px;font-weight:700;color:#4f46e5;text-transform:uppercase;display:block;margin-bottom:12px;">Production Materials & Inventory</label>
-                                
-                                <div style="display:flex; flex-direction:column; gap:12px;">
-                                    <select x-model="newMaterialId" @change="newMaterialId = $event.target.value; newMaterialRollId = ''; availableRollsList = []; if(isRollTracked(newMaterialId)) loadAvailableRolls(newMaterialId);" style="width:100%; padding:10px; border:1px solid #e0e7ff; border-radius:8px; font-size:13px; background:white;">
-                                        <option value="">-- Select Material to Use --</option>
-                                        <template x-for="item in availableMaterialsForCurrentOrder" :key="item.id">
-                                            <option
-                                                :value="item.id"
-                                                x-text="`${item.name} (${item.current_stock} ${item.unit_of_measure === 'l' ? 'Liter (L)' : item.unit_of_measure} available)`">
-                                            </option>
-                                        </template>
-                                    </select>
+                                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
+                                    
+                                    <!-- A. Materials Selection -->
+                                    <div style="display:flex; flex-direction:column; gap:12px;">
+                                        <label style="font-size:12px; font-weight:700; color:#374151;">[1] Core Materials</label>
+                                        
+                                        <!-- Searchable Selection -->
+                                        <div style="position:relative;">
+                                            <input type="text" x-model="materialSearch" placeholder="Search materials (e.g. tarpaulin, vinyl...)" 
+                                                   style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; margin-bottom:8px;">
+                                            
+                                            <select x-model="newMaterialId" @change="newMaterialId = $event.target.value; newMaterialRollId = ''; availableRollsList = []; if(isRollTracked(newMaterialId)) loadAvailableRolls(newMaterialId);" 
+                                                    style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; background:white; cursor:pointer;">
+                                                <option value="">-- Choose Material --</option>
+                                                <template x-for="item in availableMaterialsForCurrentOrder" :key="item.id">
+                                                    <option :value="item.id" x-text="`${item.name} (${item.current_stock} ${item.unit_of_measure})`"></option>
+                                                </template>
+                                            </select>
+                                        </div>
 
-                                    <template x-if="newMaterialId">
-                                        <div style="display:flex; flex-direction:column; gap:12px; padding:12px; background:white; border-radius:8px; border:1px solid #e0e7ff;">
-                                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                                                <div>
-                                                    <label style="font-size:10px; font-weight:700; color:#6b7280; display:block; margin-bottom:4px;">Quantity / Length</label>
-                                                    <input type="number" x-model.number="newMaterialQty" style="width:100%; padding:8px; border:1px solid #e5e7eb; border-radius:8px; font-size:13px;">
+                                        <template x-if="newMaterialId">
+                                            <div style="padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                                                <div style="grid-column: span 2;">
+                                                    <label style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Qty / Length</label>
+                                                    <input type="number" x-model.number="newMaterialQty" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
                                                 </div>
                                                 <template x-if="isTarpaulin(newMaterialId)">
-                                                    <div>
-                                                        <label style="font-size:10px; font-weight:700; color:#6b7280; display:block; margin-bottom:4px;">Height (ft)</label>
-                                                        <input type="number" x-model.number="newMaterialHeight" style="width:100%; padding:8px; border:1px solid #e5e7eb; border-radius:8px; font-size:13px;">
+                                                    <div style="grid-column: span 2;">
+                                                        <label style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; display:block; margin-bottom:4px;">Height (ft)</label>
+                                                        <input type="number" x-model.number="newMaterialHeight" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
                                                     </div>
                                                 </template>
+                                                <button @click="addMaterialToQueue()" class="btn-staff-action btn-staff-action-indigo" style="grid-column: span 2; padding:8px; font-size:12px; font-weight:600;">Add to Order Content</button>
                                             </div>
-                                            <button @click="addMaterialToQueue()" class="btn-action indigo" style="width:100%; padding:8px; font-size:12px;">+ Add Material</button>
-                                        </div>
-                                    </template>
+                                        </template>
 
-                                    <!-- Pending Queue -->
-                                    <template x-if="pendingMaterials.length > 0">
-                                        <div style="margin-top:8px;">
+                                        <!-- Queue Display -->
+                                        <div x-show="pendingMaterials.length > 0" style="display:flex; flex-direction:column; gap:6px;">
                                             <template x-for="(pm, idx) in pendingMaterials" :key="idx">
-                                                <div style="display:flex; align-items:center; justify-content:space-between; background:white; border:1px solid #e0e7ff; border-radius:8px; padding:8px 12px; margin-bottom:4px; font-size:12px;">
-                                                    <span style="font-weight:600;" x-text="pm.name"></span>
-                                                    <span style="color:#6b7280;" x-text="'× ' + pm.qty + ' ' + (pm.uom === 'l' ? 'Liter (L)' : pm.uom)"></span>
-                                                    <button @click="pendingMaterials.splice(idx,1)" style="color:#ef4444; border:none; background:none; cursor:pointer;">✕</button>
+                                                <div style="display:flex; align-items:center; justify-content:space-between; background:#f1f5f9; border-radius:8px; padding:8px 12px; font-size:12px; border:1px solid #e2e8f0;">
+                                                    <span style="font-weight:600; color:#1e293b;" x-text="pm.name"></span>
+                                                    <div style="display:flex; align-items:center; gap:12px;">
+                                                        <span style="color:#64748b;" x-text="pm.qty + ' ' + pm.uom"></span>
+                                                        <button @click="pendingMaterials.splice(idx,1)" style="color:#ef4444; border:none; background:none; cursor:pointer; font-weight:700;">✕</button>
+                                                    </div>
                                                 </div>
                                             </template>
                                         </div>
-                                    </template>
+                                    </div>
+
+                                    <!-- B. Ink Options -->
+                                    <div style="display:flex; flex-direction:column; gap:12px;">
+                                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                                            <label style="font-size:12px; font-weight:700; color:#374151;">[2] Ink Options</label>
+                                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                                <input type="checkbox" x-model="useInk" style="width:14px; height:14px; cursor:pointer;">
+                                                <span style="font-size:11px; font-weight:600; color:#6b7280; text-transform:uppercase;">Use Ink</span>
+                                            </label>
+                                        </div>
+
+                                        <div x-show="useInk" x-transition style="padding:12px; border:1px dashed #cbd5e1; border-radius:12px; background:#f9fafb;">
+                                            <label style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:8px; display:block;">Select Ink Set</label>
+                                            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+                                                <template x-for="type in availableInkOptionsForService" :key="type">
+                                                    <button @click="inkCategorySelected = type" 
+                                                            :style="inkCategorySelected === type ? 'background:#06A1A1; color:white; border-color:#06A1A1;' : 'background:white; color:#64748b; border-color:#e2e8f0;'"
+                                                            style="padding:6px 12px; border-radius:6px; border:1px solid; font-size:11px; font-weight:700; transition:all 0.2s;"
+                                                            x-text="type"></button>
+                                                </template>
+                                            </div>
+
+                                            <template x-if="inkCategorySelected">
+                                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                                                    <div>
+                                                        <label style="font-size:9px; font-weight:700; color:#ef4444; text-transform:uppercase; display:block;">RED (ml)</label>
+                                                        <input type="number" x-model.number="inkRed" step="0.1" style="width:100%; padding:6px; border:1px solid #e2e8f0; border-radius:6px; font-size:12px;">
+                                                    </div>
+                                                    <div>
+                                                        <label style="font-size:9px; font-weight:700; color:#3b82f6; text-transform:uppercase; display:block;">BLUE (ml)</label>
+                                                        <input type="number" x-model.number="inkBlue" step="0.1" style="width:100%; padding:6px; border:1px solid #e2e8f0; border-radius:6px; font-size:12px;">
+                                                    </div>
+                                                    <div>
+                                                        <label style="font-size:9px; font-weight:700; color:#1f2937; text-transform:uppercase; display:block;">BLACK (ml)</label>
+                                                        <input type="number" x-model.number="inkBlack" step="0.1" style="width:100%; padding:6px; border:1px solid #e2e8f0; border-radius:6px; font-size:12px;">
+                                                    </div>
+                                                    <div>
+                                                        <label style="font-size:9px; font-weight:700; color:#eab308; text-transform:uppercase; display:block;">YELLOW (ml)</label>
+                                                        <input type="number" x-model.number="inkYellow" step="0.1" style="width:100%; padding:6px; border:1px solid #e2e8f0; border-radius:6px; font-size:12px;">
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        <div x-show="!useInk" style="font-size:11px; color:#94a3b8; font-style:italic; text-align:center; padding:10px;">
+                                            Ink is disabled for this job type.
+                                        </div>
+                                    </div>
                                 </div>
+                            </div>
+
+                            <!-- Final Step: Pricing and Submit -->
+                            <div style="padding:20px; border-radius:16px; border:1px solid #06A1A1; background:linear-gradient(to right, #f0fdfa, #f0fdf4); box-shadow:0 4px 6px -1px rgba(6, 161, 161, 0.1);">
+                                <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap;">
+                                    <div style="flex:1; min-width:200px;">
+                                        <label style="font-size:12px; font-weight:700; color:#0f766e; text-transform:uppercase; display:block; margin-bottom:8px;">[3] Final Pricing (₱)</label>
+                                        <div style="position:relative;">
+                                            <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-weight:700; color:#0f766e;">₱</span>
+                                            <input type="number" x-model.number="jobPriceInput" 
+                                                   style="width:100%; padding:12px 12px 12px 32px; border:2px solid #06A1A1; border-radius:10px; font-size:20px; font-weight:800; color:#0f766e; outline:none;">
+                                        </div>
+                                    </div>
+                                    <button @click="submitToPay()" class="btn-action emerald" style="padding:0 32px; height:52px; font-size:15px; font-weight:800; border-radius:12px; display:flex; align-items:center; gap:10px; box-shadow:0 10px 15px -3px rgba(16, 185, 129, 0.4);">
+                                        <span>Confirm Approval</span>
+                                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                    </button>
+                                </div>
+                                <p style="font-size:12px; color:#0d9488; font-weight:500; margin-top:12px; display:flex; align-items:center; gap:6px;">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    Approving will notify the customer and prepare materials for production.
+                                </p>
                             </div>
                         </div>
                     </template>
@@ -749,6 +921,19 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         </div>
                     </template>
 
+                    <!-- Design Status / Revision Alert -->
+                    <template x-if="currentJo.design_status === 'Revision Submitted'">
+                        <div style="margin-bottom:20px; padding:12px; background:#e0f2fe; border:1px solid #bae6fd; border-radius:10px; display:flex; align-items:center; gap:10px;">
+                             <div style="background:#0284c7; color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 6px -1px rgba(2, 132, 199, 0.4);">
+                                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 11l5 5m0 0l-5 5m5-5H6"/></svg>
+                             </div>
+                            <div>
+                                <div style="font-size:13px; font-weight:700; color:#0369a1;">Revision Re-submitted</div>
+                                <div style="font-size:12px; color:#075985;">The customer has uploaded a new design file. Please review and approve.</div>
+                            </div>
+                        </div>
+                    </template>
+
                     <!-- Artwork Files -->
                     <div x-show="currentJo.files && currentJo.files.length > 0" style="margin-top:16px;">
                         <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:8px;">Artwork Files</label>
@@ -782,43 +967,131 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
     </div>
 
     <!-- REVISION MODAL -->
-    <div x-show="showRevisionModal" style="display:none; position:fixed; inset:0; z-index:100; align-items:center; justify-content:center; padding:16px;">
-        <!-- Backdrop -->
-        <div style="position:absolute; inset:0; background:rgba(17, 24, 39, 0.7); backdrop-filter:blur(4px);" @click="closeRevisionModal()"></div>
-        <!-- Modal Panel -->
-        <div style="position:relative; background:white; width:100%; max-width:400px; border-radius:16px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); border:1px solid #fee2e2; overflow:hidden;">
-            <!-- Header -->
-            <div style="padding:16px 20px; border-bottom:1px solid #fee2e2; background:#fef2f2; display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0; font-size:16px; font-weight:700; color:#b91c1c;">Request Revision</h3>
-                <button @click="closeRevisionModal()" style="background:none; border:none; color:#f87171; cursor:pointer;" onmouseover="this.style.color='#b91c1c'" onmouseout="this.style.color='#f87171'">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-            </div>
-            <!-- Body -->
-            <div style="padding:20px;">
-                <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:8px;">Reason for Revision</label>
-                <select x-model="revisionReasonSelect" style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; margin-bottom:16px; outline:none;" onfocus="this.style.borderColor='#f87171'" onblur="this.style.borderColor='#d1d5db'">
-                    <option value="">-- Select a reason --</option>
-                    <option value="Low image quality">Low image quality</option>
-                    <option value="Wrong design uploaded">Wrong design uploaded</option>
-                    <option value="Incorrect details provided">Incorrect details provided</option>
-                    <option value="Not printable / invalid format">Not printable / invalid format</option>
-                    <option value="Others">Others</option>
-                </select>
-
-                <div x-show="revisionReasonSelect === 'Others'" style="transition:all 0.2s;">
-                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:8px;">Please specify</label>
-                    <textarea x-model="revisionReasonText" rows="3" placeholder="Enter custom reason..." style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; resize:vertical; outline:none;" onfocus="this.style.borderColor='#f87171'" onblur="this.style.borderColor='#d1d5db'"></textarea>
+    <template x-if="showRevisionModal">
+        <div>
+            <!-- Backdrop -->
+            <div x-show="showRevisionModal" x-cloak
+                 style="position:fixed; inset:0; z-index:10001; background:rgba(17,24,39,0.7);"
+                 @click="closeRevisionModal()"></div>
+            <!-- Modal Panel — true viewport center via transform -->
+            <div x-show="showRevisionModal" x-cloak
+                 style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10002;
+                        width:calc(100% - 32px); max-width:420px;
+                        background:white; border-radius:16px;
+                        box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);
+                        border:1px solid #fee2e2; overflow:hidden;">
+                <!-- Header -->
+                <div style="padding:16px 20px; border-bottom:1px solid #fee2e2; background:#fef2f2; display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0; font-size:16px; font-weight:700; color:#b91c1c;">Request Revision</h3>
+                    <button @click="closeRevisionModal()" style="background:none; border:none; color:#f87171; cursor:pointer;" onmouseover="this.style.color='#b91c1c'" onmouseout="this.style.color='#f87171'">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <!-- Body -->
+                <div style="padding:20px;">
+                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:8px;">Reason for Revision</label>
+                    <select x-model="revisionReasonSelect" style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; margin-bottom:16px; outline:none;" onfocus="this.style.borderColor='#f87171'" onblur="this.style.borderColor='#d1d5db'">
+                        <option value="">-- Select a reason --</option>
+                        <option value="Low image quality">Low image quality</option>
+                        <option value="Wrong design uploaded">Wrong design uploaded</option>
+                        <option value="Incorrect details provided">Incorrect details provided</option>
+                        <option value="Not printable / invalid format">Not printable / invalid format</option>
+                        <option value="Others">Others</option>
+                    </select>
+                    <div x-show="revisionReasonSelect === 'Others'" style="transition:all 0.2s;">
+                        <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:8px;">Please specify</label>
+                        <textarea x-model="revisionReasonText" rows="3" placeholder="Enter custom reason..." style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; resize:vertical; outline:none; box-sizing:border-box;" onfocus="this.style.borderColor='#f87171'" onblur="this.style.borderColor='#d1d5db'"></textarea>
+                    </div>
+                </div>
+                <!-- Footer -->
+                <div style="padding:16px 20px; border-top:1px solid #f3f4f6; background:#f9fafb; display:flex; justify-content:flex-end; gap:8px;">
+                    <button @click="closeRevisionModal()" class="btn-secondary">Cancel</button>
+                    <button @click="submitRevision()" class="btn-action red">Submit Revision</button>
                 </div>
             </div>
-            <!-- Footer -->
-            <div style="padding:16px 20px; border-top:1px solid #f3f4f6; background:#f9fafb; display:flex; justify-content:flex-end; gap:8px;">
-                <button @click="closeRevisionModal()" class="btn-secondary">Cancel</button>
-                <button @click="submitRevision()" class="btn-action red">Submit Revision</button>
+        </div>
+    </template>
+
+    <!-- REJECT PAYMENT MODAL -->
+    <template x-if="showRejectPaymentModal">
+        <div>
+            <!-- Backdrop -->
+            <div x-show="showRejectPaymentModal" x-cloak
+                 style="position:fixed; inset:0; z-index:10001; background:rgba(17,24,39,0.7);"
+                 @click="closeRejectPaymentModal()"></div>
+            <!-- Modal Panel -->
+            <div x-show="showRejectPaymentModal" x-cloak
+                 style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10002;
+                        width:calc(100% - 32px); max-width:420px;
+                        background:white; border-radius:16px;
+                        box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);
+                        border:1px solid #fee2e2; overflow:hidden;">
+                <!-- Header -->
+                <div style="padding:16px 20px; border-bottom:1px solid #fee2e2; background:#fef2f2; display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0; font-size:16px; font-weight:700; color:#b91c1c;">Reject Payment Proof</h3>
+                    <button @click="closeRejectPaymentModal()" style="background:none; border:none; color:#f87171; cursor:pointer;" onmouseover="this.style.color='#b91c1c'" onmouseout="this.style.color='#f87171'">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <!-- Body -->
+                <div style="padding:20px;">
+                    <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:8px;">Reason for Rejection</label>
+                    <select x-model="rejectPaymentReasonSelect" style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; margin-bottom:16px; outline:none;" onfocus="this.style.borderColor='#f87171'" onblur="this.style.borderColor='#d1d5db'">
+                        <option value="">-- Select a reason --</option>
+                        <option value="Unclear image / receipt">Unclear image / receipt</option>
+                        <option value="Incorrect amount submitted">Incorrect amount submitted</option>
+                        <option value="Payment not received">Payment not received</option>
+                        <option value="Expired reference">Expired reference</option>
+                        <option value="Others">Others</option>
+                    </select>
+                    <div x-show="rejectPaymentReasonSelect === 'Others'" style="transition:all 0.2s;">
+                        <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:8px;">Please specify</label>
+                        <textarea x-model="rejectPaymentReasonText" rows="3" placeholder="Enter custom reason..." style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; resize:vertical; outline:none; box-sizing:border-box;" onfocus="this.style.borderColor='#f87171'" onblur="this.style.borderColor='#d1d5db'"></textarea>
+                    </div>
+                </div>
+                <!-- Footer -->
+                <div style="padding:16px 20px; border-top:1px solid #f3f4f6; background:#f9fafb; display:flex; justify-content:flex-end; gap:8px;">
+                    <button @click="closeRejectPaymentModal()" class="btn-secondary">Cancel</button>
+                    <button @click="submitRejectPayment()" class="btn-action red">Confirm Rejection</button>
+                </div>
             </div>
         </div>
-    </div>
-</div>
+    </template>
+        <!-- Custom Staff Alert Modal -->
+        <div x-show="alertModal.show" x-cloak style="position:fixed; inset:0; z-index:90000; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px);">
+            <div @click.self="closeStaffAlert()" style="position:fixed; inset:0; background:rgba(17,24,39,0.7);"></div>
+            <div style="background:white; border-radius:24px; width:100%; max-width:400px; position:relative; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.4); animation:modalIn 0.3s ease-out;">
+                <div style="padding:32px 32px 24px; text-align:center;">
+                    <div style="width:56px; height:56px; background:#f0f9ff; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
+                        <svg width="28" height="28" fill="none" stroke="#00A1A1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <h3 x-text="alertModal.title" style="font-size:20px; font-weight:800; color:#111827; margin:0 0 8px;"></h3>
+                    <p x-text="alertModal.message" style="font-size:15px; color:#4b5563; line-height:1.6; margin:0;"></p>
+                </div>
+                <div style="padding:0 32px 32px;">
+                    <button @click="closeStaffAlert()" style="width:100%; background:#111827; color:white; border:none; border-radius:14px; padding:14px; font-weight:700; font-size:15px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Staff Confirm Modal -->
+        <div x-show="confirmModal.show" x-cloak style="position:fixed; inset:0; z-index:90000; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px);">
+            <div @click.self="closeStaffConfirm(false)" style="position:fixed; inset:0; background:rgba(17,24,39,0.7);"></div>
+            <div style="background:white; border-radius:24px; width:100%; max-width:420px; position:relative; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.4); animation:modalIn 0.3s ease-out;">
+                <div style="padding:32px 32px 24px; text-align:center;">
+                    <div style="width:56px; height:56px; background:#fff7ed; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
+                        <svg width="28" height="28" fill="none" stroke="#ea580c" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    <h3 x-text="confirmModal.title" style="font-size:20px; font-weight:800; color:#111827; margin:0 0 8px;"></h3>
+                    <p x-text="confirmModal.message" style="font-size:15px; color:#4b5563; line-height:1.6; margin:0;"></p>
+                </div>
+                <div style="padding:0 32px 32px; display:flex; gap:12px;">
+                    <button @click="closeStaffConfirm(false)" x-text="confirmModal.cancelText" style="flex:1; background:#f3f4f6; color:#4b5563; border:none; border-radius:14px; padding:14px; font-weight:700; font-size:15px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'"></button>
+                    <button @click="closeStaffConfirm(true)" x-text="confirmModal.confirmText" style="flex:1; background:#00A1A1; color:white; border:none; border-radius:14px; padding:14px; font-weight:700; font-size:15px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(6,161,161,0.25)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'"></button>
+                </div>
+            </div>
+        </div>
+
         <?php include __DIR__ . '/partials/service_order_modal.php'; ?>
         </div><!-- /#staffJoCustomizationsPage -->
     </div><!-- /.main-content -->
@@ -833,6 +1106,8 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             }),
             statuses: ['ALL', 'PENDING', 'APPROVED', 'TO_PAY', 'TO_VERIFY', 'IN_PRODUCTION', 'TO_RECEIVE', 'COMPLETED', 'CANCELLED'],
             activeStatus: defaultStatus || 'ALL',
+            currentPage: 1,
+            itemsPerPage: 15,
             orders: [],
             machines: [],
             showDetailsModal: false,
@@ -840,6 +1115,9 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             showRevisionModal: false,
             revisionReasonSelect: '',
             revisionReasonText: '',
+            showRejectPaymentModal: false,
+            rejectPaymentReasonSelect: '',
+            rejectPaymentReasonText: '',
             previewFile: null,
             currentJo: {},
             availableRolls: {},
@@ -865,11 +1143,142 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             inkRed: '',
             inkBlack: '',
             inkYellow: '',
+            useInk: false,
+            materialSearch: '',
+            dateFilter: 'ALL',
+            serviceFilter: 'ALL',
+            customDateFrom: '',
+            customDateTo: '',
+            alertModal: {
+                show: false,
+                title: 'System Message',
+                message: '',
+                onClose: null
+            },
+            confirmModal: {
+                show: false,
+                title: 'Confirm Action',
+                message: '',
+                confirmText: 'Confirm',
+                cancelText: 'Cancel',
+                onConfirm: null,
+                onCancel: null
+            },
+            showStaffAlert(title, message, onClose = null) {
+                this.alertModal.title = title;
+                this.alertModal.message = message;
+                this.alertModal.onClose = onClose;
+                this.alertModal.show = true;
+            },
+            closeStaffAlert() {
+                const cb = this.alertModal.onClose;
+                this.alertModal.show = false;
+                if (typeof cb === 'function') cb();
+            },
+            showStaffConfirm(title, message, onConfirm, onCancel = null, confirmText = 'Confirm', cancelText = 'Cancel') {
+                this.confirmModal.title = title;
+                this.confirmModal.message = message;
+                this.confirmModal.confirmText = confirmText;
+                this.confirmModal.cancelText = cancelText;
+                this.confirmModal.onConfirm = onConfirm;
+                this.confirmModal.onCancel = onCancel;
+                this.confirmModal.show = true;
+            },
+            closeStaffConfirm(isConfirm) {
+                this.confirmModal.show = false;
+                if (isConfirm && typeof this.confirmModal.onConfirm === 'function') {
+                    this.confirmModal.onConfirm();
+                } else if (!isConfirm && typeof this.confirmModal.onCancel === 'function') {
+                    this.confirmModal.onCancel();
+                }
+            },
+
+            serviceMapping: {
+                'TARPAULIN PRINTING': { categories: [2], ink: 'TARP' },
+                'T-SHIRT PRINTING': { categories: [7], ink: ['L120', 'L130'] },
+                'DECALS/STICKERS (PRINT/CUT)': { categories: [3, 8], ink: ['L120', 'L130'] },
+                'GLASS/WALL STICKERS': { categories: [3, 8], ink: ['L120', 'L130'] },
+                'TRANSPARENT STICKERS': { categories: [3], ink: ['L120', 'L130'] },
+                'REFLECTORIZED': { categories: [3], ink: ['L120', 'L130'] },
+                'SINTRA BOARD': { categories: [3], ink: ['L120', 'L130'] },
+                'SOUVENIRS': { categories: [3, 1], ink: ['L120', 'L130'] }
+            },
 
             inkTypes: {
                 'TARP': { 'BLUE': 24, 'RED': 25, 'BLACK': 26, 'YELLOW': 27 },
                 'L120': { 'BLUE': 28, 'RED': 29, 'BLACK': 30, 'YELLOW': 31 },
                 'L130': { 'BLUE': 32, 'RED': 33, 'BLACK': 34, 'YELLOW': 35 }
+            },
+
+            getDynamicProductName(item) {
+                const custom = item.customization || {};
+                
+                // Helper to safely find a key value case-insensitively
+                const findKey = (searchKeys) => {
+                    for (const [k, v] of Object.entries(custom)) {
+                        const lowerK = k.toLowerCase().replace(/_/g, ' ');
+                        const lowerS = searchKeys.map(s => s.toLowerCase().replace(/_/g, ' '));
+                        if (lowerS.includes(lowerK) && v) return v;
+                    }
+                    return null;
+                };
+
+                const sintraVal = findKey(['sintra_type', 'sintra type', 'type']);
+                if (sintraVal || findKey(['is_standee', 'thickness', 'sintraboard_thickness'])) {
+                    return 'Sintra Board - ' + (sintraVal || 'Standee');
+                }
+
+                const tarpVal = findKey(['tarp_size', 'tarp size']);
+                if (tarpVal) {
+                    return 'Tarpaulin Printing - ' + tarpVal;
+                }
+
+                const width = findKey(['width']);
+                const height = findKey(['height']);
+                if (width && height && findKey(['finish', 'with_eyelets'])) {
+                    return 'Tarpaulin Printing (' + width + 'x' + height + ' ft)';
+                }
+
+                if (findKey(['vinyl_type', 'print_placement', 'tshirt_color', 'shirt_color', 'tshirt_size', 'shirt_source'])) {
+                    return 'T-Shirt Printing';
+                }
+
+                const stickerVal = findKey(['sticker_type', 'sticker type', 'shape', 'cut_type']);
+                if (stickerVal) {
+                    return 'Decals/Stickers (Print/Cut) - ' + stickerVal;
+                }
+
+                return item.product_name || 'Standard Product';
+            },
+            getCorrectServiceType(jo) {
+                if (!jo) return '';
+                if (jo.items && jo.items.length > 0) {
+                    for (const item of jo.items) {
+                        const custom = item.customization || {};
+                        const findKey = (searchKeys) => {
+                            for (const [k, v] of Object.entries(custom)) {
+                                const lowerK = k.toLowerCase().replace(/_/g, ' ');
+                                const lowerS = searchKeys.map(s => s.toLowerCase().replace(/_/g, ' '));
+                                if (lowerS.includes(lowerK) && v) return true;
+                            }
+                            return false;
+                        };
+
+                        // User Priority Logic
+                        if (findKey(['sintra_type', 'sintra type', 'is_standee', 'type', 'thickness', 'sintraboard_thickness'])) return 'SINTRA BOARD';
+                        if (findKey(['tarp_size', 'tarp size', 'with_eyelets', 'finish'])) return 'TARPAULIN PRINTING';
+                        if (findKey(['width']) && findKey(['height']) && findKey(['finish', 'with_eyelets'])) return 'TARPAULIN PRINTING';
+                        if (findKey(['vinyl_type', 'print_placement', 'tshirt_color', 'shirt_color', 'shirt_source'])) return 'T-SHIRT PRINTING';
+                        if (findKey(['sticker_type', 'sticker type', 'shape', 'cut_type', 'lamination'])) return 'DECALS/STICKERS (PRINT/CUT)';
+                    }
+                }
+                const raw = String(jo.service_type || jo.job_title || 'Custom Service').toUpperCase();
+                // Standardize common fallbacks
+                if (raw.includes('SINTRA')) return 'SINTRA BOARD';
+                if (raw.includes('TARP')) return 'TARPAULIN PRINTING';
+                if (raw.includes('SHIRT')) return 'T-SHIRT PRINTING';
+                if (raw.includes('STICKER') || raw.includes('DECAL')) return 'DECALS/STICKERS (PRINT/CUT)';
+                return raw;
             },
 
             customFieldLabels: {
@@ -881,12 +1290,14 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 tshirt_provider: 'T-Shirt Provider', shirt_source: 'Shirt Source', brand: 'Brand',
                 material: 'Material', surface_application: 'Surface', surface_type: 'Surface Type',
                 sintraboard_thickness: 'Thickness', is_standee: 'Standee', sticker_type: 'Sticker Type',
+                sintra_type: 'Type',
                 cut_type: 'Cut Type', thickness: 'Thickness', installation_fee: 'Installation Fee',
                 design_upload: 'Design upload', reference_upload: 'Reference upload',
                 design_upload_path: 'Design file path', reference_upload_path: 'Reference file path'
             },
-            // Only hide redundant / internal keys; show notes, uploads, install_* so staff sees full customer input.
-            customFieldSkip: ['Branch_ID', 'service_type', 'product_type', 'unit'],
+            // Redundant / internal keys to skip in the customization grid.
+            // notes and additional_notes are handled separately in the yellow 'Order Notes' box.
+            customFieldSkip: ['Branch_ID', 'branch_id', 'service_type', 'product_type', 'notes', 'additional_notes', 'layout_file', 'reference_file'],
             getDisplayableCustom(custom) {
                 if (!custom || typeof custom !== 'object') return [];
                 const skip = this.customFieldSkip;
@@ -920,22 +1331,33 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             },
             combinedCustomerNotes() {
                 const j = this.currentJo;
-                if (!j) return 'No instructions provided.';
-                const blocks = [];
-                const store = (j.store_order_notes || '').trim();
-                const jobN = (j.notes || '').trim();
-                if (store) blocks.push('Order (checkout) notes:\n' + store);
-                if (jobN && jobN !== store) blocks.push('Production (job record):\n' + jobN);
-                const itemBits = [];
-                if (j.items && j.items.length) {
+                if (!j) return '';
+                
+                // Priority 1: Store order notes (Checkout notes)
+                let note = (j.store_order_notes || '').trim();
+                
+                // Priority 2: Item-specific customization notes
+                if (!note && j.items && j.items.length) {
                     for (const it of j.items) {
                         const c = it.customization || {};
                         const n = (c.notes || c.additional_notes || '').trim();
-                        if (n) itemBits.push((it.product_name || 'Line item') + ': ' + n);
+                        if (n) { 
+                            note = n; 
+                            break; 
+                        }
                     }
                 }
-                if (itemBits.length) blocks.push('Notes on line items:\n' + itemBits.join('\n'));
-                return blocks.length ? blocks.join('\n\n') : 'No instructions provided.';
+                
+                // Priority 3: Production/Job notes (filter out Revision history)
+                if (!note && j.notes) {
+                    const lines = j.notes.split('\n')
+                        .filter(l => !l.includes('[REVISION REQUEST]'))
+                        .map(l => l.trim())
+                        .filter(l => l !== '');
+                    note = lines.join('\n');
+                }
+
+                return note || '';
             },
             isPendingReviewStatus(jo) {
                 if (!jo) return false;
@@ -995,37 +1417,50 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             get availableMaterialsForCurrentOrder() {
                 if (!this.currentJo || !this.allInventoryItems) return [];
                 
-                const service = String(this.currentJo.service_type || this.currentJo.job_title || '').toUpperCase();
-                
+                const serviceRaw = String(this.currentJo.service_type || this.currentJo.job_title || '').toUpperCase();
+                let allowedCats = [];
+
+                // Detect matching service from mapping
+                for (const [key, map] of Object.entries(this.serviceMapping)) {
+                    if (serviceRaw.includes(key)) {
+                        allowedCats = map.categories;
+                        break;
+                    }
+                }
+
                 return this.allInventoryItems.filter(item => {
                     // MUST HAVE STOCK > 0
                     const stock = parseFloat(item.current_stock || 0);
                     if (stock <= 0) return false;
 
-                    const cat = String(item.category_name || '').toUpperCase();
-                    const name = String(item.name || '').toUpperCase();
-
-                    // FILTER BASED ON ORDER TYPE
-                    if (service.includes('T-SHIRT') || service.includes('SHIRT')) {
-                        return cat.includes('VINYL') || cat.includes('INK') || cat.includes('HEAT TRANSFER') || cat.includes('APPAREL') || name.includes('SHIRT');
-                    } else if (service.includes('TARPAULIN')) {
-                        return cat.includes('TARPAULIN') || cat.includes('INK') || cat.includes('EYELET') || name.includes('GLUE') || name.includes('ROPE');
-                    } else if (service.includes('STICKER') || service.includes('DECAL')) {
-                        return cat.includes('STICKER') || cat.includes('VINYL') || cat.includes('INK') || cat.includes('LAMINATE') || name.includes('LAMINATION');
-                    } else if (service.includes('SINTRA') || service.includes('STANDEE')) {
-                        return cat.includes('SINTRA') || cat.includes('FOAM') || cat.includes('STICKER') || cat.includes('INK') || cat.includes('STAND');
-                    } else if (service.includes('REFLECT') || service.includes('SIGN')) {
-                        return cat.includes('REFLECT') || cat.includes('STICKER') || cat.includes('ACRYLIC') || cat.includes('INK') || cat.includes('SINTRA');
-                    } else if (service.includes('GLASS') || service.includes('WALL') || service.includes('FROSTED')) {
-                        return cat.includes('STICKER') || cat.includes('FROSTED') || cat.includes('INK') || cat.includes('INSTALL');
+                    // If we found specific categories for this service, filter by them
+                    if (allowedCats.length > 0) {
+                        if (!allowedCats.includes(Number(item.category_id))) return false;
                     }
-                    
-                    // Fallback to true if no service string matched cleanly, but still filtered strictly by > 0 stock
+
+                    // Search filter
+                    if (this.materialSearch && !item.name.toUpperCase().includes(this.materialSearch.toUpperCase())) {
+                        return false;
+                    }
+
                     return true;
                 });
             },
 
+            get availableInkOptionsForService() {
+                if (!this.currentJo) return [];
+                const serviceRaw = String(this.currentJo.service_type || this.currentJo.job_title || '').toUpperCase();
+                for (const [key, map] of Object.entries(this.serviceMapping)) {
+                    if (serviceRaw.includes(key)) {
+                        return Array.isArray(map.ink) ? map.ink : [map.ink];
+                    }
+                }
+                return ['L120', 'L130']; // Default
+            },
+
             async init() {
+                this.$watch('search', () => { this.currentPage = 1; });
+                this.$watch('activeStatus', () => { this.currentPage = 1; });
                 await this.loadOrders();
                 await this.loadMachines();
                 await this.loadAllInventoryItems();
@@ -1187,8 +1622,21 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 return this.orders.find(o => this.sameId(o.id, id) && (o.order_type || 'JOB') === (orderType || 'JOB'));
             },
 
+            getCorrectServiceType(jo) {
+                const combined = ((jo.job_title || '') + ' ' + (jo.service_type || '')).toUpperCase();
+                if (combined.includes('T-SHIRT') || combined.includes('TSHIRT') || combined.includes('T SHIRT')) return 'T-SHIRT PRINTING';
+                if (combined.includes('TARPAULIN')) return 'TARPAULIN PRINTING';
+                if (combined.includes('TRANSPARENT STICKER') || combined.includes('TRANSPARENT')) return 'TRANSPARENT STICKER PRINTING';
+                if (combined.includes('STICKER') || combined.includes('DECAL')) return 'DECALS/STICKERS (PRINT/CUT)';
+                if (combined.includes('SINTRA')) return 'SINTRA BOARD';
+                if (combined.includes('SOUVENIR')) return 'SOUVENIRS';
+                if (combined.includes('REFLECTORIZED')) return 'REFLECTORIZED SIGNAGE';
+                return 'OTHER';
+            },
+
             get filteredOrders() {
                 const filtered = this.orders.filter(jo => {
+                    // Status Filter
                     let matchStatus = false;
                     if (this.activeStatus === 'ALL') {
                         matchStatus = true;
@@ -1201,16 +1649,88 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     } else {
                         matchStatus = jo.status === this.activeStatus;
                     }
+                    if (!matchStatus) return false;
+
+                    // Service Filter
+                    if (this.serviceFilter !== 'ALL') {
+                        const rowService = this.getCorrectServiceType(jo);
+                        if (rowService !== this.serviceFilter) return false;
+                    }
+
+                    // Date Filter
+                    if (this.dateFilter !== 'ALL') {
+                        const orderDate = new Date(jo.created_at || jo.order_date);
+                        const now = new Date();
+                        
+                        if (this.dateFilter === 'TODAY') {
+                            if (orderDate.toDateString() !== now.toDateString()) return false;
+                        } else if (this.dateFilter === 'WEEK') {
+                            const lastWeek = new Date();
+                            lastWeek.setDate(now.getDate() - 7);
+                            if (orderDate < lastWeek) return false;
+                        } else if (this.dateFilter === 'MONTH') {
+                            if (orderDate.getMonth() !== now.getMonth() || orderDate.getFullYear() !== now.getFullYear()) return false;
+                        } else if (this.dateFilter === 'CUSTOM') {
+                            if (this.customDateFrom) {
+                                const from = new Date(this.customDateFrom);
+                                from.setHours(0,0,0,0);
+                                if (orderDate < from) return false;
+                            }
+                            if (this.customDateTo) {
+                                const to = new Date(this.customDateTo);
+                                to.setHours(23,59,59,999);
+                                if (orderDate > to) return false;
+                            }
+                        }
+                    }
                     
+                    // Search Bar
                     const searchLower = this.search.toLowerCase();
                     const matchSearch = !this.search || 
                         (jo.job_title && jo.job_title.toLowerCase().includes(searchLower)) ||
                         (jo.service_type && jo.service_type.toLowerCase().includes(searchLower)) ||
                         (((jo.first_name || '') + ' ' + (jo.last_name || '')).toLowerCase().includes(searchLower)) ||
                         (jo.id && jo.id.toString().includes(searchLower));
-                    return matchStatus && matchSearch;
+                    
+                    return matchSearch;
                 });
-                return filtered.sort((a, b) => (b._ts || 0) - (a._ts || 0));
+
+                // Sorting
+                return filtered.sort((a, b) => {
+                    const diff = (b._ts || 0) - (a._ts || 0);
+                    return this.sortOrder === 'newest' ? diff : -diff;
+                });
+            },
+
+            get paginatedOrders() {
+                const start = (this.currentPage - 1) * this.itemsPerPage;
+                const end = start + this.itemsPerPage;
+                return this.filteredOrders.slice(start, end);
+            },
+
+            get totalPages() {
+                return Math.ceil(this.filteredOrders.length / this.itemsPerPage);
+            },
+
+            get pageNumbers() {
+                const total = this.totalPages;
+                if (total <= 1) return [];
+                let pages = [1];
+                const window = 2;
+                for (let i = Math.max(2, this.currentPage - window); i <= Math.min(total - 1, this.currentPage + window); i++) {
+                    pages.push(i);
+                }
+                if (total > 1 && !pages.includes(total)) pages.push(total);
+                
+                let uniquePages = [...new Set(pages)].sort((a,b) => a - b);
+                let finalPages = [];
+                let prev = null;
+                for (let p of uniquePages) {
+                    if (prev && p - prev > 1) finalPages.push('...');
+                    finalPages.push(p);
+                    prev = p;
+                }
+                return finalPages;
             },
 
             getStatusCount(status) {
@@ -1251,7 +1771,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     if (!order || !order.items) {
                         this.loadingDetails = false;
                         this.showDetailsModal = false;
-                        alert('Order not found or not accessible.');
+                        this.showStaffAlert('Not Found', 'Order not found or not accessible.');
                         return;
                     }
                     this.currentJo = { ...order, order_type: 'ORDER' };
@@ -1289,7 +1809,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                     await this.resolveEffectiveJobId();
                                 }
                             } else {
-                                alert('Order details could not be loaded.');
+                                this.showStaffAlert('Error', 'Order details could not be loaded.');
                                 this.showDetailsModal = false;
                             }
                         }
@@ -1333,14 +1853,14 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     await this.loadOrders();
                     await this.refreshMaterials();
                 } else {
-                    alert(res.error);
+                    this.showStaffAlert('Error', res.error);
                 }
             },
 
             async jobAction(status, machineId = null) {
                 const jid = await this.resolveEffectiveJobId();
                 if (!jid) {
-                    alert('Could not create or find a production job for this store order. Confirm the order has line items in Orders.');
+                    this.showStaffAlert('Production Job Error', 'Could not create or find a production job for this store order. Confirm the order has line items in Orders.');
                     return;
                 }
                 const ok = await this.updateStatus(jid, status, machineId);
@@ -1349,7 +1869,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
             async updateStatus(id, status, machineId = null, reason = '') {
                 if (id == null || id === '' || Number(id) <= 0) {
-                    alert('Invalid job order id.');
+                    this.showStaffAlert('Error', 'Invalid job order id.');
                     return false;
                 }
                 const fd = new FormData();
@@ -1367,7 +1887,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     }
                     return true;
                 }
-                alert(res.error);
+                this.showStaffAlert('Update Failed', res.error);
                 return false;
             },
 
@@ -1382,44 +1902,71 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             },
 
             async verifyPayment() {
-                if(!confirm(`Verify payment of ₱${this.currentJo.payment_submitted_amount}?`)) return;
+                this.showStaffConfirm(
+                    'Verify Payment',
+                    `Verify payment of ₱${this.currentJo.payment_submitted_amount}?`,
+                    async () => {
+                        const base = document.body.getAttribute('data-base-url') || '/printflow';
+                        const ot = this.currentJo.order_type || 'JOB';
+                        let res;
 
-                const base = document.body.getAttribute('data-base-url') || '/printflow';
-                const ot = this.currentJo.order_type || 'JOB';
-                let res;
+                        if (ot === 'ORDER') {
+                            const oid = this.currentJo.order_id || this.currentJo.id;
+                            const fd = new FormData();
+                            fd.append('order_id', oid);
+                            fd.append('action', 'Approve');
+                            const r = await fetch(base + '/staff/api_verify_payment.php', { method: 'POST', body: fd });
+                            res = await this.parseJsonResponse(r);
+                        } else {
+                            const jid = await this.resolveEffectiveJobId();
+                            if (!jid) {
+                                this.showStaffAlert('Error', 'No linked production job for payment verification.');
+                                return;
+                            }
+                            const fd = new FormData();
+                            fd.append('action', 'verify_payment');
+                            fd.append('id', jid);
+                            const r = await fetch(base + '/admin/api_verify_job_payment.php', { method: 'POST', body: fd });
+                            res = await this.parseJsonResponse(r);
+                        }
 
-                if (ot === 'ORDER') {
-                    const oid = this.currentJo.order_id || this.currentJo.id;
-                    const fd = new FormData();
-                    fd.append('order_id', oid);
-                    fd.append('action', 'Approve');
-                    const r = await fetch(base + '/staff/api_verify_payment.php', { method: 'POST', body: fd });
-                    res = await this.parseJsonResponse(r);
-                } else {
-                    const jid = await this.resolveEffectiveJobId();
-                    if (!jid) {
-                        alert('No linked production job for payment verification.');
-                        return;
+                        if(res.success) {
+                            this.activeStatus = 'IN_PRODUCTION';
+                            await this.loadOrders();
+                            await this.viewDetails(this.currentJo.id, this.currentJo.order_type || 'JOB');
+                            this.showStaffAlert('Success', 'Payment verified and balance updated.');
+                        } else {
+                            this.showStaffAlert('Verification Failed', res.error || 'Verification failed.');
+                        }
                     }
-                    const fd = new FormData();
-                    fd.append('action', 'verify_payment');
-                    fd.append('id', jid);
-                    const r = await fetch(base + '/admin/api_verify_job_payment.php', { method: 'POST', body: fd });
-                    res = await this.parseJsonResponse(r);
-                }
-
-                if(res.success) {
-                    this.activeStatus = 'IN_PRODUCTION';
-                    await this.loadOrders();
-                    await this.viewDetails(this.currentJo.id, this.currentJo.order_type || 'JOB');
-                    alert('Payment verified and balance updated.');
-                } else {
-                    alert(res.error || 'Verification failed.');
-                }
+                );
             },
 
-            async rejectPayment() {
-                const reason = prompt("Enter reason for rejection (e.g., Unclear image, Incorrect amount):");
+            openRejectPaymentModal() {
+                this.rejectPaymentReasonSelect = '';
+                this.rejectPaymentReasonText = '';
+                this.showRejectPaymentModal = true;
+            },
+
+            closeRejectPaymentModal() {
+                this.showRejectPaymentModal = false;
+            },
+
+            async submitRejectPayment() {
+                const finalReason = this.rejectPaymentReasonSelect === 'Others' ? this.rejectPaymentReasonText : this.rejectPaymentReasonSelect;
+                if (!finalReason) {
+                    this.showStaffAlert('Input Required', 'Please select or specify a reason.');
+                    return;
+                }
+                await this.rejectPayment(finalReason);
+                this.closeRejectPaymentModal();
+            },
+
+            async rejectPayment(reasonOverride = null) {
+                let reason = reasonOverride;
+                if (!reason) {
+                    reason = prompt("Enter reason for rejection (e.g., Unclear image, Incorrect amount):");
+                }
                 if(!reason) return;
 
                 const base = document.body.getAttribute('data-base-url') || '/printflow';
@@ -1431,12 +1978,13 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     const fd = new FormData();
                     fd.append('order_id', oid);
                     fd.append('action', 'Reject');
+                    fd.append('reason', reason);
                     const r = await fetch(base + '/staff/api_verify_payment.php', { method: 'POST', body: fd });
                     res = await this.parseJsonResponse(r);
                 } else {
                     const jid = await this.resolveEffectiveJobId();
                     if (!jid) {
-                        alert('No linked production job.');
+                        this.showStaffAlert('Error', 'No linked production job.');
                         return;
                     }
                     const fd = new FormData();
@@ -1450,9 +1998,9 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 if(res.success) {
                     await this.loadOrders();
                     await this.viewDetails(this.currentJo.id, this.currentJo.order_type || 'JOB');
-                    alert('Payment proof rejected.');
+                    this.showStaffAlert('Success', 'Payment proof rejected.');
                 } else {
-                    alert(res.error || 'Rejection failed.');
+                    this.showStaffAlert('Rejection Failed', res.error || 'Rejection failed.');
                 }
             },
 
@@ -1460,7 +2008,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 if(this.jobPriceInput < 0) return;
                 let jid = id != null ? id : await this.resolveEffectiveJobId();
                 if (!jid) {
-                    alert('No linked production job.');
+                    this.showStaffAlert('Error', 'No linked production job.');
                     return;
                 }
                 const fd = new FormData();
@@ -1469,7 +2017,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 fd.append('price', this.jobPriceInput);
                 const res = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fd })).json();
                 if(!res.success) {
-                    alert(res.error);
+                    this.showStaffAlert('Error', res.error);
                     throw new Error(res.error);
                 }
             },
@@ -1506,7 +2054,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             async submitToPay() {
                 const jid = await this.resolveEffectiveJobId();
                 if (!jid) {
-                    alert('No linked production job for materials and pricing.');
+                    this.showStaffAlert('Error', 'No linked production job for materials and pricing.');
                     return;
                 }
                 // Save all pending materials from the queue
@@ -1521,7 +2069,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     fd.append('notes', pm.notes);
                     fd.append('metadata', JSON.stringify(pm.metadata));
                     const res = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fd })).json();
-                    if (!res.success) { alert('Failed to save material: ' + res.error); return; }
+                    if (!res.success) { this.showStaffAlert('Material Error', 'Failed to save material: ' + res.error); return; }
                 }
                 this.pendingMaterials = [];
 
@@ -1531,7 +2079,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 }
 
                 // Handle Ink Usage Check and Submission
-                if (this.inkCategorySelected) {
+                if (this.useInk && this.inkCategorySelected) {
                     const mappedInks = this.inkTypes[this.inkCategorySelected];
                     const inkPayload = [];
                     
@@ -1548,7 +2096,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
                         const resInk = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fdInk })).json();
                         if (!resInk.success) {
-                            alert('Failed to save ink usage: ' + resInk.error);
+                            this.showStaffAlert('Ink Error', 'Failed to save ink usage: ' + resInk.error);
                             return;
                         }
                     }
@@ -1558,7 +2106,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 await this.viewDetails(this.currentJo.id, this.currentJo.order_type || 'JOB');
 
                 if ((!this.currentJo.materials || this.currentJo.materials.length === 0) && (!this.currentJo.ink_usage || this.currentJo.ink_usage.length === 0)) {
-                    alert('Please add at least one production material or ink before submitting to pay.');
+                    this.showStaffAlert('Production Required', 'Please add at least one production material or ink before submitting to pay.');
                     return;
                 }
 
@@ -1585,40 +2133,45 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             },
 
             async approveOrder() {
-                if (!confirm('Approve this order and request payment?')) return;
-                const id = this.currentJo.id;
-                const jid = this.effectiveJobId();
-                const oid = this.currentJo.order_id || this.currentJo.id;
-                
-                // Set price first
-                if (parseFloat(this.jobPriceInput) > 0) {
-                    await this.updatePrice();
-                }
+                this.showStaffConfirm(
+                    'Approve Order',
+                    'Approve this order and request payment?',
+                    async () => {
+                        const id = this.currentJo.id;
+                        const jid = this.effectiveJobId();
+                        const oid = this.currentJo.order_id || this.currentJo.id;
+                        
+                        // Set price first
+                        if (parseFloat(this.jobPriceInput) > 0) {
+                            await this.updatePrice();
+                        }
 
-                if (this.currentJo.order_type === 'ORDER') {
-                    const fd = new FormData();
-                    fd.append('order_id', oid);
-                    fd.append('status', 'To Pay');
-                    fd.append('update_status', '1');
-                    fd.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
-                    
-                    const res = await (await fetch('orders.php', { 
-                        method: 'POST', 
-                        body: fd, 
-                        headers: {'X-Requested-With': 'XMLHttpRequest'} 
-                    })).json();
+                        if (this.currentJo.order_type === 'ORDER') {
+                            const fd = new FormData();
+                            fd.append('order_id', oid);
+                            fd.append('status', 'To Pay');
+                            fd.append('update_status', '1');
+                            fd.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
+                            
+                            const res = await (await fetch('orders.php', { 
+                                method: 'POST', 
+                                body: fd, 
+                                headers: {'X-Requested-With': 'XMLHttpRequest'} 
+                            })).json();
 
-                    if (res.success) {
-                        alert('Order approved and moved to To Pay!');
-                        await this.loadOrders();
-                        this.showDetailsModal = false;
-                    } else {
-                        alert('Error: ' + (res.error || 'Failed to update order status'));
+                            if (res.success) {
+                                this.showStaffAlert('Success', 'Order approved and moved to To Pay!');
+                                await this.loadOrders();
+                                this.showDetailsModal = false;
+                            } else {
+                                this.showStaffAlert('Error', 'Error: ' + (res.error || 'Failed to update order status'));
+                            }
+                        } else {
+                            // Custom Job Order
+                            await this.updateStatus(id, 'TO_PAY');
+                        }
                     }
-                } else {
-                    // Custom Job Order
-                    await this.updateStatus(id, 'TO_PAY');
-                }
+                );
             },
 
             async updatePrice() {
@@ -1632,7 +2185,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                    fd.append('order_id', oid);
                    fd.append('price', price);
                    const res = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fd })).json();
-                   if (!res.success) alert('Failed to update price: ' + res.error);
+                   if (!res.success) this.showStaffAlert('Error', 'Failed to update price: ' + res.error);
                    else {
                        this.currentJo.total_amount = price;
                        this.currentJo.estimated_total = price;
@@ -1654,7 +2207,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 if (res.success) {
                     this.currentJo.estimated_total = price;
                 } else {
-                    alert('Error setting price: ' + res.error);
+                    this.showStaffAlert('Error', 'Error setting price: ' + res.error);
                 }
             },
 
@@ -1678,24 +2231,29 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 }
                 
                 if (!finalReason) {
-                    alert('Please select or specify a reason for the revision request.');
+                    this.showStaffAlert('Input Required', 'Please select or specify a reason for the revision request.');
                     return;
                 }
 
-                if (!confirm(`Submit revision request?\nReason: ${finalReason}`)) return;
-
-                const ok = await this.updateStatus(oid, 'For Revision', null, finalReason);
-                if (ok) {
-                    this.showRevisionModal = false;
-                    this.showDetailsModal = false; // Optionally close details, or let it refresh automatically
-                }
+                this.showStaffConfirm(
+                    'Request Revision',
+                    `Submit revision request?\nReason: ${finalReason}`,
+                    async () => {
+                        const ok = await this.updateStatus(oid, 'For Revision', null, finalReason);
+                        if (ok) {
+                            this.showStaffAlert('Success', 'Revision requested successfully.');
+                            this.showRevisionModal = false;
+                            this.showDetailsModal = false; 
+                        }
+                    }
+                );
             },
 
             async addMaterial() {
                 if(!this.newMaterialId || !this.newMaterialQty) return;
                 const jid = await this.resolveEffectiveJobId();
                 if (!jid) {
-                    alert('No linked production job.');
+                    this.showStaffAlert('Error', 'No linked production job.');
                     return;
                 }
                 const item = this.allInventoryItems.find(i => i.id == this.newMaterialId);
@@ -1730,7 +2288,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     this.resetMaterialForm();
                     await this.refreshMaterials();
                 } else {
-                    alert(res.error);
+                    this.showStaffAlert('Error', res.error);
                 }
             },
 
@@ -1740,6 +2298,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 this.newMaterialHeight = 0;
                 this.newMaterialRollId = '';
                 this.newMaterialNotes = '';
+                this.materialSearch = '';
                 this.availableLamRollsList = [];
                 this.newMaterialMetadata = {
                     lamination: '',
@@ -1753,6 +2312,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 this.inkRed = '';
                 this.inkBlack = '';
                 this.inkYellow = '';
+                this.useInk = false;
             },
 
             isTarpaulin(itemId) {
@@ -1771,16 +2331,21 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             },
 
             async removeMaterial(jomId) {
-                if(!confirm('Remove this material?')) return;
-                const fd = new FormData();
-                fd.append('action', 'remove_material');
-                fd.append('id', jomId);
-                const res = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fd })).json();
-                if(res.success) {
-                    await this.refreshMaterials();
-                } else {
-                    alert(res.error);
-                }
+                this.showStaffConfirm(
+                    'Remove Material',
+                    'Remove this material?',
+                    async () => {
+                        const fd = new FormData();
+                        fd.append('action', 'remove_material');
+                        fd.append('id', jomId);
+                        const res = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fd })).json();
+                        if(res.success) {
+                            await this.refreshMaterials();
+                        } else {
+                            this.showStaffAlert('Error', res.error);
+                        }
+                    }
+                );
             },
 
             async refreshMaterials() {
@@ -1796,18 +2361,23 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             },
 
             async completeOrder(machineId = null) {
-                if(!confirm('This will permanently deduct materials from inventory. Confirm?')) return;
-                const jid = await this.resolveEffectiveJobId();
-                if (!jid) {
-                    alert('No linked production job for this entry.');
-                    return;
-                }
-                const ok = await this.updateStatus(jid, 'COMPLETED', machineId);
-                if (ok) {
-                    await this.loadAllInventoryItems();
-                    this.availableRolls = {};
-                    this.showDetailsModal = false;
-                }
+                this.showStaffConfirm(
+                    'Complete Order',
+                    'This will permanently deduct materials from inventory. Proceed?',
+                    async () => {
+                        const jid = await this.resolveEffectiveJobId();
+                        if (!jid) {
+                            this.showStaffAlert('Error', 'No linked production job for this entry.');
+                            return;
+                        }
+                        const ok = await this.updateStatus(jid, 'COMPLETED', machineId);
+                        if (ok) {
+                            await this.loadAllInventoryItems();
+                            this.availableRolls = {};
+                            this.showDetailsModal = false;
+                        }
+                    }
+                );
             }
         }
     }

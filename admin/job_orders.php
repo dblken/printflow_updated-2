@@ -631,7 +631,7 @@ function jo_payment_badge($status) {
                         <template x-if="historyOrders.length === 0">
                             <p style="text-align:center;padding:20px;color:#9ca3af;font-size:13px;">No store orders found.</p>
                         </template>
-                        <template x-for="ord in historyOrders" :key="ord.order_id">
+                        <template x-for="ord in (historyOrders || [])" :key="ord.order_id">
                             <div class="history-item">
                                 <div>
                                     <div style="font-size:13px;font-weight:700;color:#1f2937;" x-text="'Order #' + ord.order_id"></div>
@@ -648,7 +648,7 @@ function jo_payment_badge($status) {
                         <template x-if="historyCustoms.length === 0">
                             <p style="text-align:center;padding:20px;color:#9ca3af;font-size:13px;">No customizations found.</p>
                         </template>
-                        <template x-for="cst in historyCustoms" :key="cst.id">
+                        <template x-for="cst in (historyCustoms || [])" :key="cst.id">
                             <div class="history-item">
                                 <div>
                                     <div style="font-size:13px;font-weight:700;color:#1f2937;" x-text="cst.service_type"></div>

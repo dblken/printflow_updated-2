@@ -161,7 +161,9 @@ if (isset($_GET['ajax'])) {
         .branches-table tbody tr:hover td { background: #f9fafb; }
         .branches-table tbody tr:last-child td { border-bottom: none; }
         .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
-        .modal-panel { background:#fff; border-radius:12px; box-shadow:0 25px 50px rgba(0,0,0,0.25); width:100%; max-width:500px; max-height:85vh; overflow-y:auto; margin:16px; position:relative; }
+        .modal-panel { background:#fff; border-radius:12px; box-shadow:0 25px 50px rgba(0,0,0,0.25); width:100%; max-width:500px; max-height:85vh; margin:16px; position:relative; display:flex; flex-direction:column; overflow:hidden; }
+        .modal-header { padding:24px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
+        .modal-body { padding:24px; overflow-y:auto; flex:1; }
         .form-group { margin-bottom: 16px; }
         .form-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
         .form-input { width: 100%; padding: 10px 14px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 14px; color: #1f2937; background: #f9fafb; outline: none; transition: all 0.2s; }
@@ -400,6 +402,31 @@ if (isset($_GET['ajax'])) {
                     });
                     if ((await r.json()).success) window.location.href = 'branches_management.php?deleted=1';
                 } catch (e) {}
+            },
+
+            handleArchiveAction(e) {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                e.stopPropagation();
+                const action = btn.getAttribute('data-action');
+                const id = parseInt(btn.getAttribute('data-id'));
+                const name = btn.getAttribute('data-name');
+                if (action === 'view') {
+                    const data = JSON.parse(btn.getAttribute('data-branch'));
+                    this.openViewModal(data);
+                } else if (action === 'restore') {
+                    this.showRestoreConfirmModal(id, name);
+                } else if (action === 'delete') {
+                    this.showDeleteConfirmModal(id, name);
+                }
+            },
+
+            handleArchivePagination(e) {
+                const link = e.target.closest('a[data-archive-page]');
+                if (!link) return;
+                e.preventDefault();
+                const page = parseInt(link.getAttribute('data-archive-page'));
+                this.openArchiveModal(page);
             }
         };
     }
@@ -499,17 +526,17 @@ if (isset($_GET['ajax'])) {
 
             <!-- Branch Table -->
             <div class="card">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;" x-data="branchFilterPanel()">
                     <h3 style="font-size:16px;font-weight:700;color:#1f2937;margin:0;">Branches List</h3>
                     <div style="display:flex;align-items:center;gap:8px;">
-                        <button type="button" @click="openModal('create')" class="toolbar-btn" style="height:38px;border-color:#3b82f6;color:#3b82f6;">Add Item</button>
-                        <button type="button" @click="openArchiveModal()" class="toolbar-btn" style="height:38px;border-color:#6b7280;color:#6b7280;display:flex;align-items:center;gap:6px;">
+                        <button type="button" onclick="document.querySelector('main[x-data]')._x_dataStack[0].openModal('create')" class="toolbar-btn" style="height:38px;border-color:#3b82f6;color:#3b82f6;">Add Item</button>
+                        <button type="button" onclick="document.querySelector('main[x-data]')._x_dataStack[0].openArchiveModal()" class="toolbar-btn" style="height:38px;border-color:#6b7280;color:#6b7280;display:flex;align-items:center;gap:6px;">
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
                             </svg>
                             Archived Items
                         </button>
-                        <div style="position:relative;" x-data="branchFilterPanel()">
+                        <div style="position:relative;">
                             <button type="button" class="toolbar-btn" :class="{active: sortOpen}" @click="sortOpen = !sortOpen; filterOpen = false" style="height:38px;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/>
@@ -562,11 +589,10 @@ if (isset($_GET['ajax'])) {
                                 </div>
                             </div>
                         </div>
-                        </div>
                     </div>
                 </div>
                 <div id="branchesTableContainer">
-                <div class="overflow-x-auto">
+                    <div class="overflow-x-auto">
                     <table class="branches-table">
                         <thead>
                             <tr>
@@ -626,9 +652,8 @@ if (isset($_GET['ajax'])) {
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>
-                        </tbody>
                     </table>
-                </div>
+                    </div>
                 <?php 
                 $pagination_params = ['page' => $page];
                 if ($search) $pagination_params['search'] = $search;
@@ -644,11 +669,11 @@ if (isset($_GET['ajax'])) {
 <div x-show="viewModal.isOpen" x-cloak>
     <div class="modal-overlay" @click.self="viewModal.isOpen = false">
         <div class="modal-panel" @click.stop style="max-width:500px;">
-            <div style="padding:24px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+            <div class="modal-header">
                 <h2 style="font-size:20px; font-weight:700; color:#111827; margin:0;">Branch Details</h2>
                 <button @click="viewModal.isOpen = false" style="background:none; border:none; font-size:24px; color:#6b7280; cursor:pointer;">&times;</button>
             </div>
-            <div style="padding:24px;">
+            <div class="modal-body">
                 <div style="margin-bottom:16px;">
                     <div style="font-size:13px; font-weight:600; color:#374151; margin-bottom:6px;">Branch Name</div>
                     <div style="font-size:14px; color:#1f2937;" x-text="viewModal.data.name || '—'"></div>
@@ -688,11 +713,11 @@ if (isset($_GET['ajax'])) {
 <div x-show="archiveModal.isOpen" x-cloak>
     <div class="modal-overlay" @click.self="archiveModal.isOpen = false">
         <div class="modal-panel" @click.stop style="max-width:950px; width:95vw;">
-            <div style="padding:24px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+            <div class="modal-header">
                 <h2 style="font-size:20px; font-weight:700; color:#111827; margin:0;">Archived Items</h2>
                 <button @click="archiveModal.isOpen = false" style="background:none; border:none; font-size:24px; color:#6b7280; cursor:pointer;">&times;</button>
             </div>
-            <div style="padding:24px;">
+            <div class="modal-body">
                 <div x-show="archiveModal.loading" style="padding:40px; text-align:center; color:#6b7280;">Loading archived branches...</div>
                 <div x-show="!archiveModal.loading">
                     <div class="overflow-x-auto" @click="handleArchiveAction($event)" x-html="archiveModal.content"></div>
@@ -774,13 +799,12 @@ if (isset($_GET['ajax'])) {
 <div x-show="modal.isOpen" x-cloak>
     <div class="modal-overlay" @click.self="modal.isOpen = false">
         <div class="modal-panel" @click.stop>
-            
-            <div style="padding:24px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+            <div class="modal-header">
                 <h2 style="font-size:20px; font-weight:700; color:#111827; margin:0;" x-text="modal.mode === 'create' ? 'Register New Branch' : 'Edit Branch'"></h2>
                 <button @click="modal.isOpen = false" style="background:none; border:none; font-size:24px; color:#6b7280; cursor:pointer;">&times;</button>
             </div>
-
-            <form @submit.prevent="submitForm()" style="padding:24px;">
+            <div class="modal-body">
+            <form @submit.prevent="submitForm()">
                 <div x-show="modal.error" x-text="modal.error" style="background:#fef2f2; color:#b91c1c; padding:12px; border-radius:8px; font-size:14px; margin-bottom:16px;"></div>
                 
                 <div class="form-group">
@@ -824,7 +848,7 @@ if (isset($_GET['ajax'])) {
                             @change="form.address_province = $event.target.value; loadCities()" 
                             class="form-input" :disabled="!addressProvinces.length">
                         <option value="">Select province</option>
-                        <template x-for="p in addressProvinces" :key="p.code">
+                        <template x-for="p in (addressProvinces || [])" :key="p.code">
                             <option :value="p.name" x-text="p.name" :selected="p.name === form.address_province"></option>
                         </template>
                     </select>
@@ -835,7 +859,7 @@ if (isset($_GET['ajax'])) {
                             @change="form.address_city = $event.target.value; loadBarangays()" 
                             class="form-input" :disabled="!form.address_province || loadingCities">
                         <option value="" x-text="loadingCities ? 'Loading cities...' : 'Select city/municipality'"></option>
-                        <template x-for="c in addressCities" :key="c.code">
+                        <template x-for="c in (addressCities || [])" :key="c.code">
                             <option :value="c.name" x-text="c.name" :selected="c.name === form.address_city"></option>
                         </template>
                     </select>
@@ -846,7 +870,7 @@ if (isset($_GET['ajax'])) {
                             @change="form.address_barangay = $event.target.value; buildAddress()" 
                             class="form-input" :disabled="!form.address_city || loadingBarangays">
                         <option value="" x-text="loadingBarangays ? 'Loading barangays...' : 'Select barangay'"></option>
-                        <template x-for="b in addressBarangays" :key="b.code">
+                        <template x-for="b in (addressBarangays || [])" :key="b.code">
                             <option :value="b.name" x-text="b.name" :selected="b.name === form.address_barangay"></option>
                         </template>
                     </select>
@@ -877,6 +901,7 @@ if (isset($_GET['ajax'])) {
                             :disabled="modal.isSubmitting"></button>
                 </div>
             </form>
+            </div>
         </div>
     </div>
 </div>
@@ -885,5 +910,6 @@ if (isset($_GET['ajax'])) {
     </div>
 </div>
 
+<?php include __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>

@@ -81,11 +81,21 @@ ErrorDocument 500 /printflow/public/500.php
     ExpiresByType image/jpeg "access plus 1 year"
     ExpiresByType image/png "access plus 1 year"
     ExpiresByType image/webp "access plus 1 year"
-    ExpiresByType text/css "access plus 1 month"
-    ExpiresByType application/javascript "access plus 1 month"
+    # Disable caching for CSS and JS during development
+    ExpiresByType text/css "access plus 0 seconds"
+    ExpiresByType application/javascript "access plus 0 seconds"
     ExpiresByType application/pdf "access plus 1 month"
     ExpiresByType image/x-icon "access plus 1 year"
 </IfModule>
+
+# Prevent caching of PHP files and HTML
+<FilesMatch "\.(php|html)$">
+    <IfModule mod_headers.c>
+        Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </IfModule>
+</FilesMatch>
 
 # Gzip Compression
 <IfModule mod_deflate.c>

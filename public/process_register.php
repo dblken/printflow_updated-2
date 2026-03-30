@@ -42,6 +42,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (strlen($email) > 254 || strpos($email, ' ') !== false || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         redirect('register.php?error=' . urlencode('Invalid email address.'));
     }
+    // Require at least 2 characters after the last dot in domain
+    if (!preg_match('/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/', $email)) {
+        redirect('register.php?error=' . urlencode('Email domain extension must be at least 2 characters (e.g., .com, .org).'));
+    }
 
     // 3. Server-side password complexity validation
     $pw_errors = [];

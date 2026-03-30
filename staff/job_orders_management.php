@@ -449,7 +449,7 @@ $completed_jobs = db_query("SELECT COUNT(*) as count FROM job_orders jo WHERE st
                             <div class="om-card-title" style="font-size:13px; margin-bottom:12px; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">Customization Details</div>
                             <div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px;">
                                 <template x-for="(value, key) in (currentJo.customization || {})" :key="key">
-                                    <template x-if="!['unit', 'product_type', 'dimensions', 'service_type'].includes(key) && value !== '' && key.toLowerCase() !== 'notes' && !key.toLowerCase().includes('description')">
+                                    <template x-if="!['unit', 'product_type', 'dimensions', 'service_type', 'branch_id'].includes(key) && value !== '' && key.toLowerCase() !== 'notes' && !key.toLowerCase().includes('description')">
                                         <div style="padding:6px 0;">
                                             <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;" x-text="key.replace(/_/g, ' ')"></div>
                                             <div style="font-size:15px; font-weight:700; color:#1e293b;" x-text="value"></div>

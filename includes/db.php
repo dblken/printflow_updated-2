@@ -70,8 +70,8 @@ function printflow_is_placeholder_db_pass(string $pass): bool {
 $db_config = [
     'host' => 'localhost',
     'user' => 'root',
-    'pass' => '1234',
-    'name' => 'printflow_1',
+    'pass' => '122704',
+    'name' => 'printflow_3',
     'port' => 3306,
     'socket' => '',
 ];
@@ -308,11 +308,42 @@ function db_query($sql, $types = '', $params = []) {
 function db_execute($sql, $types = '', $params = []) {
     global $conn;
     
-    $stmt = db_prepare($sql, $types, $params);
-    if (!$stmt) return false;
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        error_log("Database prepare error: " . $conn->error);
+        return false;
+    }
+    
+    if (!empty($types) && !empty($params)) {
+        if (strpos($types, 'b') !== false) {
+            // Handle binary data using send_long_data
+            $null = null;
+            $bind_params = [];
+            $type_arr = str_split($types);
+            
+            $bind_refs = [$types];
+            foreach ($type_arr as $i => $t) {
+                if ($t === 'b') {
+                    $bind_params[$i] = $null;
+                } else {
+                    $bind_params[$i] = $params[$i];
+                }
+            }
+            $stmt->bind_param($types, ...$bind_params);
+            
+            foreach ($type_arr as $i => $t) {
+                if ($t === 'b' && $params[$i] !== null) {
+                    $stmt->send_long_data($i, $params[$i]);
+                }
+            }
+        } else {
+            $stmt->bind_param($types, ...$params);
+        }
+    }
     
     if (!$stmt->execute()) {
         error_log("Database execute error: " . $stmt->error);
+        $stmt->close();
         return false;
     }
     

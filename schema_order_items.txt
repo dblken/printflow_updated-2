@@ -1,0 +1,13 @@
+order_item_id - int
+order_id - int
+product_id - int
+variant_id - int
+quantity - int
+unit_price - decimal(10,2)
+sku - varchar(50)
+customization_data - text
+design_image - longblob
+design_image_mime - varchar(100)
+design_image_name - varchar(255)
+design_file - varchar(255)
+reference_image_file - varchar(255)

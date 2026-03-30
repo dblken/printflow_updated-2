@@ -143,14 +143,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resubmit_order'])) {
             $derived_service = $first_custom['service_type'] ?? ($items[0]['product_name'] ?? '');
             $service_name = normalize_service_name($derived_service, 'Custom Order');
         }
-        $submitted_at = date('Y-m-d H:i:s');
-        $staff_message = "Customer has resubmitted a revised design for Order #{$order_id}. "
-            . "Customer: {$customer_name}. Service: {$service_name}. Submitted: {$submitted_at}.";
+        
+        $staff_message = "{$customer_name} resubmitted a revised design for {$service_name}";
 
         // Notify Staff
-        $staff_users = db_query("SELECT user_id FROM users WHERE role = 'Staff' AND status = 'Activated'");
+        $staff_users = db_query("SELECT user_id, role FROM users WHERE role IN ('Staff', 'Admin', 'Manager') AND status = 'Activated'");
         foreach ($staff_users as $staff) {
-            create_notification($staff['user_id'], 'Staff', $staff_message, 'Order', false, false, $order_id);
+            create_notification($staff['user_id'], $staff['role'], $staff_message, 'Order', false, false, $order_id);
         }
 
         $_SESSION['success'] = "Order #{$order_id} has been resubmitted successfully. Please wait for staff approval.";
@@ -202,7 +201,7 @@ require_once __DIR__ . '/../includes/header.php';
                     </div>
 
                     <div style="display:grid; grid-template-columns: 1fr; gap:1.5rem;">
-                        <!-- Customization Fields Based on Category (Reusing logic from order_create.php) -->
+                        <!-- Customization Fields Based on Category -->
                         <div style="background:#f9fafb; padding:1.5rem; border-radius:12px; border:1px solid #f3f4f6;">
                             <h3 style="font-size:0.9rem; font-weight:700; color:#374151; margin-bottom:1rem; display:flex; align-items:center; gap:6px;">🛠️ Customization Details</h3>
                             
@@ -304,4 +303,3 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
-

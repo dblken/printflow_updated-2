@@ -151,18 +151,34 @@ if ($existingAddress !== '') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_picture']) && verify_csrf_token($_POST['csrf_token'] ?? '')) {
     if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
         $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         $max_size = 5 * 1024 * 1024; // 5MB
         
         $file = $_FILES['profile_picture'];
+        $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         
-        if (!in_array($file['type'], $allowed_types)) {
-            $_SESSION['admin_profile_error'] = 'Invalid file type. Please upload JPG, PNG, GIF, or WEBP.';
-        } elseif ($file['size'] > $max_size) {
-            $_SESSION['admin_profile_error'] = 'File too large. Maximum size is 5MB.';
+        // Check file extension first
+        if (!in_array($file_ext, $allowed_extensions)) {
+            $_SESSION['admin_profile_error'] = 'Invalid file type. Only JPG, PNG, GIF, and WEBP images are allowed.';
+        } 
+        // Check MIME type
+        elseif (!in_array($file['type'], $allowed_types)) {
+            $_SESSION['admin_profile_error'] = 'Invalid file type. Only image files are allowed. Videos are not permitted.';
+        } 
+        // Check file size
+        elseif ($file['size'] > $max_size) {
+            $size_mb = round($file['size'] / (1024 * 1024), 2);
+            $_SESSION['admin_profile_error'] = "File too large ({$size_mb}MB). Maximum size is 5MB.";
         } else {
             $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
             $filename = 'admin_' . $admin_id . '_' . time() . '.' . $ext;
             $upload_dir = __DIR__ . '/../public/assets/uploads/profiles/';
+            
+            // Create directory if it doesn't exist
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
+            
             $filepath = $upload_dir . $filename;
             
             // Delete old picture if exists
@@ -179,6 +195,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_picture']) && 
             } else {
                 $_SESSION['admin_profile_error'] = 'Failed to upload file. Please try again.';
             }
+        }
+    } elseif (isset($_FILES['profile_picture'])) {
+        // Handle upload errors
+        $error_code = $_FILES['profile_picture']['error'];
+        if ($error_code === UPLOAD_ERR_INI_SIZE || $error_code === UPLOAD_ERR_FORM_SIZE) {
+            $_SESSION['admin_profile_error'] = 'File too large. Maximum size is 5MB.';
+        } elseif ($error_code === UPLOAD_ERR_NO_FILE) {
+            $_SESSION['admin_profile_error'] = 'Please select a file to upload.';
+        } else {
+            $_SESSION['admin_profile_error'] = 'Upload failed. Please try again.';
         }
     } else {
         $_SESSION['admin_profile_error'] = 'Please select a file to upload.';
@@ -208,6 +234,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile']) && 
     $first_name = trim($_POST['first_name'] ?? '');
     $middle_name = trim($_POST['middle_name'] ?? '');
     $last_name = trim($_POST['last_name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
     $birthday = trim($_POST['birthday'] ?? '');
     $contact_number = trim($_POST['contact_number'] ?? '');
     $addressCountry = 'Philippines';
@@ -243,11 +270,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile']) && 
         $error = 'Names must be between 2 and 50 characters.';
     } elseif ($middle_name !== '' && (strlen($middle_name) < 2 || strlen($middle_name) > 50)) {
         $error = 'Middle name must be between 2 and 50 characters.';
-    } elseif ($birthday === '') {
-        $error = 'Birthday is required.';
-    } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $birthday)) {
-        $error = 'Invalid birthday format.';
+    } elseif (empty($email)) {
+        $error = 'Email is required.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = 'Please enter a valid email address.';
+    } elseif (!preg_match('/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/', $email)) {
+        $error = 'Email domain extension must be at least 2 characters (e.g., .com, .org).';
     } else {
+        // Check if email is already taken by another user
+        $existing = db_query("SELECT user_id FROM users WHERE email = ? AND user_id != ?", 'si', [$email, $admin_id]);
+        if (!empty($existing)) {
+            $error = 'This email is already registered to another account.';
+        }
+    }
+    
+    if (!$error && $birthday === '') {
+        $error = 'Birthday is required.';
+    } elseif (!$error && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $birthday)) {
+        $error = 'Invalid birthday format.';
+    } elseif (!$error) {
         try {
             $today = new DateTime('today');
             $birthDate = new DateTime($birthday);
@@ -276,10 +317,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile']) && 
         $middle_name = $middle_name !== '' ? ucfirst($middle_name) : '';
         $last_name = ucfirst($last_name);
 
-        db_execute("UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, birthday = ?, contact_number = ?, address = ?, updated_at = NOW() WHERE user_id = ?",
-            'ssssssi', [$first_name, $middle_name, $last_name, $birthday, $contact_number, $address, $admin_id]);
+        db_execute("UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, email = ?, birthday = ?, contact_number = ?, address = ?, updated_at = NOW() WHERE user_id = ?",
+            'sssssssi', [$first_name, $middle_name, $last_name, $email, $birthday, $contact_number, $address, $admin_id]);
 
         $_SESSION['user_name'] = trim($first_name . ' ' . $last_name);
+        $_SESSION['user_email'] = $email;
         $_SESSION['admin_profile_success'] = 'Personal information updated successfully!';
     } else {
         $_SESSION['admin_profile_error'] = $error;
@@ -299,8 +341,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password']) &&
         $pw_error = 'All password fields are required.';
     } elseif (!password_verify($current_password, $admin['password_hash'])) {
         $pw_error = 'Current password is incorrect.';
-    } elseif (strlen($new_password) < 8 || strlen($new_password) > 64 || !preg_match('/[A-Z]/', $new_password) || !preg_match('/[a-z]/', $new_password) || !preg_match('/[0-9]/', $new_password) || !preg_match('/[^A-Za-z0-9]/', $new_password) || strpos($new_password, ' ') !== false) {
-        $pw_error = 'Password must contain at least 8 and at most 64 characters, uppercase, lowercase, number, special character, and no spaces.';
+    } elseif (strlen($new_password) < 8 || strlen($new_password) > 100 || !preg_match('/[A-Z]/', $new_password) || !preg_match('/[a-z]/', $new_password) || !preg_match('/[0-9]/', $new_password) || !preg_match('/[^A-Za-z0-9]/', $new_password) || strpos($new_password, ' ') !== false) {
+        $pw_error = 'Password must contain at least 8 and at most 100 characters, uppercase, lowercase, number, special character, and no spaces.';
     } elseif ($new_password !== $confirm_password) {
         $pw_error = 'New passwords do not match.';
     } else {
@@ -329,6 +371,7 @@ $page_title = 'My Profile - PrintFlow Admin';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title; ?></title>
     <link rel="stylesheet" href="/printflow/public/assets/css/output.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     <?php include __DIR__ . '/../includes/admin_style.php'; ?>
     <style>
         .profile-hero {
@@ -576,9 +619,56 @@ $page_title = 'My Profile - PrintFlow Admin';
             border-radius: 12px;
             padding: 24px;
             width: 100%;
-            max-width: 400px;
+            max-width: 500px;
             margin: 16px;
             box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+        }
+        .crop-container {
+            max-height: 400px;
+            margin: 16px 0;
+        }
+        #cropImage {
+            max-width: 100%;
+            display: block;
+        }
+        .view-picture-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 20px;
+        }
+        .view-picture-modal img {
+            max-width: 90%;
+            max-height: 90vh;
+            border-radius: 8px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+        .view-picture-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #1f2937;
+            transition: all 0.2s;
+        }
+        .view-picture-close:hover {
+            background: white;
+            transform: scale(1.1);
         }
 
         /* Validation: only show errors; neutral default (no persistent "valid" green) */
@@ -607,6 +697,9 @@ $page_title = 'My Profile - PrintFlow Admin';
         }
         .password-wrapper {
             position: relative;
+        }
+        .password-wrapper input {
+            padding-right: 45px !important;
         }
         .password-toggle {
             position: absolute;
@@ -651,7 +744,7 @@ $page_title = 'My Profile - PrintFlow Admin';
             <!-- Profile Hero -->
             <div class="profile-hero">
                 <div class="profile-avatar-wrapper">
-                    <div class="profile-avatar">
+                    <div class="profile-avatar" style="<?php echo $profile_pic_url ? 'cursor: pointer;' : ''; ?>" onclick="<?php echo $profile_pic_url ? 'viewProfilePicture()' : ''; ?>">
                         <?php if ($profile_pic_url): ?>
                             <img src="<?php echo $profile_pic_url; ?>?t=<?php echo time(); ?>" alt="Profile">
                         <?php else: ?>
@@ -686,17 +779,17 @@ $page_title = 'My Profile - PrintFlow Admin';
                         <div class="form-grid">
                             <div class="form-group" id="group_first_name">
                                 <label>First Name *</label>
-                                <input type="text" name="first_name" id="first_name" value="<?php echo htmlspecialchars($admin['first_name']); ?>" required autocomplete="given-name">
+                                <input type="text" name="first_name" id="first_name" value="<?php echo htmlspecialchars($admin['first_name']); ?>" required autocomplete="given-name" onkeydown="return blockNonLetters(event)" oninput="removeNonLetters(this)" maxlength="50">
                                 <div class="error-message" id="error_first_name">First name is required.</div>
                             </div>
                             <div class="form-group" id="group_middle_name">
                                 <label>Middle Name (Optional)</label>
-                                <input type="text" name="middle_name" id="middle_name" value="<?php echo htmlspecialchars($admin['middle_name'] ?? ''); ?>" autocomplete="additional-name">
+                                <input type="text" name="middle_name" id="middle_name" value="<?php echo htmlspecialchars($admin['middle_name'] ?? ''); ?>" autocomplete="additional-name" onkeydown="return blockNonLetters(event)" oninput="removeNonLetters(this)" maxlength="50">
                                 <div class="error-message" id="error_middle_name">Middle name must contain only letters.</div>
                             </div>
                             <div class="form-group" id="group_last_name">
                                 <label>Last Name *</label>
-                                <input type="text" name="last_name" id="last_name" value="<?php echo htmlspecialchars($admin['last_name']); ?>" required autocomplete="family-name">
+                                <input type="text" name="last_name" id="last_name" value="<?php echo htmlspecialchars($admin['last_name']); ?>" required autocomplete="family-name" onkeydown="return blockNonLetters(event)" oninput="removeNonLetters(this)" maxlength="50">
                                 <div class="error-message" id="error_last_name">Last name is required.</div>
                             </div>
                             <div class="form-group" id="group_birthday">
@@ -706,15 +799,15 @@ $page_title = 'My Profile - PrintFlow Admin';
                             </div>
                         </div>
                         
-                        <div class="form-group">
-                            <label>Email</label>
-                            <input type="email" value="<?php echo htmlspecialchars($admin['email']); ?>" disabled>
-                            <p style="font-size:11px;color:#9ca3af;margin-top:4px;">Email cannot be changed</p>
+                        <div class="form-group" id="group_email">
+                            <label>Email *</label>
+                            <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($admin['email']); ?>" required autocomplete="email" maxlength="100">
+                            <div class="error-message" id="error_email">Please enter a valid email address.</div>
                         </div>
                         
                         <div class="form-group" id="group_contact_number">
                             <label>Contact Number *</label>
-                            <input type="text" name="contact_number" id="contact_number" value="<?php echo htmlspecialchars($admin['contact_number'] ?? ''); ?>" placeholder="e.g. 09171234567" required autocomplete="tel">
+                            <input type="text" name="contact_number" id="contact_number" value="<?php echo htmlspecialchars($admin['contact_number'] ?? '09'); ?>" placeholder="e.g. 09171234567" required autocomplete="tel" maxlength="11" oninput="formatPhoneNumber(this)">
                             <div class="error-message" id="error_contact_number">Contact number is required.</div>
                         </div>
                         
@@ -836,50 +929,96 @@ $page_title = 'My Profile - PrintFlow Admin';
 </div>
 
 <!-- Picture Upload Modal -->
-<div id="pictureModal" style="display:none;" class="upload-modal-overlay" onclick="if(event.target===this)this.style.display='none'">
+<div id="pictureModal" style="display:none;" class="upload-modal-overlay" onclick="if(event.target===this)closePictureModal()">
     <div class="upload-modal">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <h3 style="font-size:16px;font-weight:700;margin:0;">Profile Picture</h3>
-            <button onclick="document.getElementById('pictureModal').style.display='none'" style="background:none;border:none;cursor:pointer;color:#6b7280;">
+            <button onclick="closePictureModal()" style="background:none;border:none;cursor:pointer;color:#6b7280;">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
         
         <!-- Upload Form -->
-        <form method="POST" enctype="multipart/form-data">
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
             <?php echo csrf_field(); ?>
             <input type="hidden" name="upload_picture" value="1">
+            <input type="hidden" name="cropped_image" id="croppedImageData">
             
             <div style="border:2px dashed #e5e7eb;border-radius:8px;padding:24px;text-align:center;margin-bottom:16px;" id="dropZone">
                 <svg width="40" height="40" fill="none" stroke="#9ca3af" viewBox="0 0 24 24" style="margin:0 auto 8px;display:block;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 <p style="font-size:13px;color:#6b7280;margin:0 0 8px;">Click to select or drag a photo</p>
                 <p style="font-size:11px;color:#9ca3af;margin:0;">JPG, PNG, GIF, WEBP (max 5MB)</p>
-                <input type="file" name="profile_picture" accept="image/*" id="fileInput" style="position:absolute;opacity:0;pointer-events:none;">
+                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" id="fileInput" style="position:absolute;opacity:0;pointer-events:none;">
             </div>
             
-            <div id="previewArea" style="display:none;text-align:center;margin-bottom:16px;">
-                <img id="previewImg" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #e5e7eb;">
-                <p id="fileName" style="font-size:12px;color:#6b7280;margin-top:8px;"></p>
+            <div id="cropArea" style="display:none;">
+                <div class="crop-container">
+                    <img id="cropImage" src="">
+                </div>
+                <div style="display:flex;gap:8px;margin-top:16px;">
+                    <button type="button" class="btn-save" style="flex:1;justify-content:center;" onclick="cropAndUpload()">Crop & Upload</button>
+                    <button type="button" class="btn-danger-outline" onclick="cancelCrop()">Cancel</button>
+                </div>
             </div>
             
-            <div style="display:flex;gap:8px;">
-                <button type="submit" class="btn-save" style="flex:1;justify-content:center;">Upload</button>
-                <?php if (!empty($admin['profile_picture'])): ?>
-                    <button type="submit" name="remove_picture" value="1" class="btn-danger-outline" onclick="this.form.querySelector('[name=upload_picture]').disabled=true;">Remove</button>
-                <?php endif; ?>
+            <?php if (!empty($admin['profile_picture'])): ?>
+            <div style="display:flex;gap:8px;" id="removeArea">
+                <button type="submit" name="remove_picture" value="1" class="btn-danger-outline" style="flex:1;justify-content:center;" onclick="this.form.querySelector('[name=upload_picture]').disabled=true;">Remove Current Picture</button>
             </div>
+            <?php endif; ?>
         </form>
     </div>
 </div>
 
+<!-- View Picture Modal -->
+<div id="viewPictureModal" style="display:none;" class="view-picture-modal" onclick="if(event.target===this)closeViewPicture()">
+    <button class="view-picture-close" onclick="closeViewPicture()">
+        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+    <img id="viewPictureImg" src="" alt="Profile Picture">
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <script>
     // File input handling (Turbo-safe: var + bind once)
     var dropZone = document.getElementById('dropZone');
     var fileInput = document.getElementById('fileInput');
-    var previewArea = document.getElementById('previewArea');
-    var previewImg = document.getElementById('previewImg');
-    var fileName = document.getElementById('fileName');
-    if (dropZone && fileInput && previewArea && previewImg && fileName && !dropZone._pfUploadBound) {
+    var cropArea = document.getElementById('cropArea');
+    var cropImage = document.getElementById('cropImage');
+    var cropper = null;
+    
+    function validateFile(file) {
+        var maxSize = 5 * 1024 * 1024; // 5MB
+        var allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        var allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        
+        var fileExt = file.name.split('.').pop().toLowerCase();
+        
+        if (file.type.startsWith('video/') || ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm'].indexOf(fileExt) !== -1) {
+            alert('Videos are not allowed. Please upload an image file (JPG, PNG, GIF, or WEBP).');
+            return false;
+        }
+        
+        if (allowedExtensions.indexOf(fileExt) === -1) {
+            alert('Invalid file type. Only JPG, PNG, GIF, and WEBP images are allowed.');
+            return false;
+        }
+        
+        if (allowedTypes.indexOf(file.type) === -1) {
+            alert('Invalid file type. Only image files are allowed.');
+            return false;
+        }
+        
+        if (file.size > maxSize) {
+            var sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            alert('File too large (' + sizeMB + 'MB). Maximum size is 5MB.');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    if (dropZone && fileInput && cropArea && cropImage && !dropZone._pfUploadBound) {
         dropZone._pfUploadBound = true;
         dropZone.addEventListener('click', function () { fileInput.click(); });
         dropZone.addEventListener('dragover', function (e) { e.preventDefault(); dropZone.style.borderColor = '#53C5E0'; });
@@ -888,28 +1027,130 @@ $page_title = 'My Profile - PrintFlow Admin';
             e.preventDefault();
             dropZone.style.borderColor = '#e5e7eb';
             if (e.dataTransfer.files.length) {
-                fileInput.files = e.dataTransfer.files;
-                showPreview(e.dataTransfer.files[0]);
+                var file = e.dataTransfer.files[0];
+                if (validateFile(file)) {
+                    showCropper(file);
+                }
             }
         });
         fileInput.addEventListener('change', function (e) {
-            if (e.target.files.length) showPreview(e.target.files[0]);
+            if (e.target.files.length) {
+                var file = e.target.files[0];
+                if (validateFile(file)) {
+                    showCropper(file);
+                }
+            }
         });
     }
     
-    function showPreview(file) {
-        var pImg = document.getElementById('previewImg');
-        var pArea = document.getElementById('previewArea');
-        var pName = document.getElementById('fileName');
-        if (!pImg || !pArea || !pName) return;
+    function showCropper(file) {
+        if (!cropImage || !cropArea || !dropZone) return;
         var reader = new FileReader();
         reader.onload = function (e) {
-            pImg.src = e.target.result;
-            pName.textContent = file.name;
-            pArea.style.display = 'block';
+            cropImage.src = e.target.result;
+            dropZone.style.display = 'none';
+            var removeArea = document.getElementById('removeArea');
+            if (removeArea) removeArea.style.display = 'none';
+            cropArea.style.display = 'block';
+            
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(cropImage, {
+                aspectRatio: 1,
+                viewMode: 2,
+                dragMode: 'move',
+                autoCropArea: 1,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false,
+            });
         };
         reader.readAsDataURL(file);
     }
+    
+    function cropAndUpload() {
+        if (!cropper) return;
+        var canvas = cropper.getCroppedCanvas({
+            width: 400,
+            height: 400,
+            imageSmoothingQuality: 'high'
+        });
+        canvas.toBlob(function(blob) {
+            var formData = new FormData();
+            formData.append('profile_picture', blob, 'profile.jpg');
+            formData.append('upload_picture', '1');
+            var csrfInput = document.querySelector('input[name="csrf_token"]');
+            if (csrfInput) formData.append('csrf_token', csrfInput.value);
+            
+            fetch('profile.php', {
+                method: 'POST',
+                body: formData
+            }).then(function() {
+                window.location.reload();
+            });
+        }, 'image/jpeg', 0.9);
+    }
+    
+    function cancelCrop() {
+        if (cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+        if (cropArea) cropArea.style.display = 'none';
+        if (dropZone) dropZone.style.display = 'block';
+        var removeArea = document.getElementById('removeArea');
+        if (removeArea) removeArea.style.display = 'flex';
+        if (fileInput) fileInput.value = '';
+    }
+    
+    function closePictureModal() {
+        cancelCrop();
+        var modal = document.getElementById('pictureModal');
+        if (modal) modal.style.display = 'none';
+    }
+    
+    function viewProfilePicture() {
+        var profileImg = document.querySelector('.profile-avatar img');
+        var viewModal = document.getElementById('viewPictureModal');
+        var viewImg = document.getElementById('viewPictureImg');
+        if (profileImg && viewModal && viewImg) {
+            viewImg.src = profileImg.src;
+            viewModal.style.display = 'flex';
+        }
+    }
+    
+    function closeViewPicture() {
+        var viewModal = document.getElementById('viewPictureModal');
+        if (viewModal) viewModal.style.display = 'none';
+    }
+    
+    // Close view modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeViewPicture();
+        }
+    });
+    
+    window.viewProfilePicture = viewProfilePicture;
+    window.closeViewPicture = closeViewPicture;
+    
+    function togglePassword(fieldId, button) {
+        var field = document.getElementById(fieldId);
+        if (!field) return;
+        
+        if (field.type === 'password') {
+            field.type = 'text';
+            button.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>';
+        } else {
+            field.type = 'password';
+            button.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>';
+        }
+    }
+    
+    window.togglePassword = togglePassword;
 
     // --- PSGC-based Address Cascading (DOM refs refreshed in printflowInitProfilePage for Turbo) ---
     var addressInitial = {
@@ -1146,6 +1387,13 @@ $page_title = 'My Profile - PrintFlow Admin';
             if (val.length < 2 || val.length > 50) return "Last name must be between 2 and 50 characters.";
             return null;
         },
+        email: (val) => {
+            if (!val) return "Email is required.";
+            // Email validation: require at least 2 characters after the last dot
+            if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(val)) return "Please enter a valid email address.";
+            if (val.length > 100) return "Email cannot exceed 100 characters.";
+            return null;
+        },
         birthday: (val) => {
             if (!val) return "Birthday is required.";
             const today = new Date();
@@ -1176,7 +1424,7 @@ $page_title = 'My Profile - PrintFlow Admin';
             // Match registration rules exactly.
             if (!val) return "New password is required.";
             if (val.length < 8) return "Password must be at least 8 characters.";
-            if (val.length > 64) return "Password must be at most 64 characters.";
+            if (val.length > 100) return "Password must be at most 100 characters.";
             if (!/[A-Z]/.test(val)) return "Password must have an uppercase letter.";
             if (!/[a-z]/.test(val)) return "Password must have a lowercase letter.";
             if (!/[0-9]/.test(val)) return "Password must have a number.";
@@ -1238,6 +1486,7 @@ $page_title = 'My Profile - PrintFlow Admin';
         const fValid = validateField('first_name', validators.first_name);
         const mValid = validateField('middle_name', validators.middle_name, { skipEmpty: true });
         const lValid = validateField('last_name', validators.last_name);
+        const eValid = validateField('email', validators.email);
         const bdayValid = validateField('birthday', validators.birthday);
         const cValid = validateField('contact_number', validators.contact_number);
         const pValid = validateField('address_province', validators.address_province);
@@ -1245,7 +1494,7 @@ $page_title = 'My Profile - PrintFlow Admin';
         const bValid = validateField('address_barangay', validators.address_barangay);
         const aValid = validateField('address', validators.address);
         var btnSave = document.getElementById('btn_save_profile');
-        if (btnSave) btnSave.disabled = !(fValid && mValid && lValid && bdayValid && cValid && pValid && ciValid && bValid && aValid);
+        if (btnSave) btnSave.disabled = !(fValid && mValid && lValid && eValid && bdayValid && cValid && pValid && ciValid && bValid && aValid);
     }
 
     function checkPassword(force = false) {
@@ -1254,7 +1503,7 @@ $page_title = 'My Profile - PrintFlow Admin';
         const confirm = document.getElementById('confirm_password');
         if (!current || !newPass || !confirm) return;
         const hasAnyInput = (current.value + newPass.value + confirm.value).trim().length > 0;
-        const mustValidate = force || hasAnyInput || Object.values(passwordTouched).some(Boolean);
+        const mustValidate = force || hasAnyInput || (passwordTouched && typeof passwordTouched === 'object' ? Object.values(passwordTouched).some(Boolean) : false);
 
         if (!mustValidate) {
             passwordFieldIds.forEach(clearValidationState);
@@ -1319,6 +1568,114 @@ $page_title = 'My Profile - PrintFlow Admin';
     window.validatePersonalInfoForm = validatePersonalInfoForm;
     window.validatePasswordForm = validatePasswordForm;
 
+    // Block numbers and special characters in name fields
+    function blockNonLetters(event) {
+        // Allow: backspace, delete, tab, escape, enter, arrow keys
+        if ([8, 9, 27, 13, 46, 37, 38, 39, 40].indexOf(event.keyCode) !== -1 ||
+            // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+            (event.keyCode === 65 && event.ctrlKey === true) ||
+            (event.keyCode === 67 && event.ctrlKey === true) ||
+            (event.keyCode === 86 && event.ctrlKey === true) ||
+            (event.keyCode === 88 && event.ctrlKey === true) ||
+            // Allow: home, end
+            (event.keyCode >= 35 && event.keyCode <= 36)) {
+            return true;
+        }
+        
+        // Get the character that would be typed
+        var char = event.key;
+        
+        // Block ALL special characters and numbers - only allow letters and space
+        if (char && char.length === 1 && !/^[a-zA-Z ]$/.test(char)) {
+            event.preventDefault();
+            return false;
+        }
+        
+        // Block consecutive spaces
+        if (char === ' ') {
+            var input = event.target;
+            var value = input.value;
+            var cursorPos = input.selectionStart;
+            
+            // Block space at the beginning
+            if (cursorPos === 0) {
+                event.preventDefault();
+                return false;
+            }
+            
+            // Block consecutive spaces
+            if (value.charAt(cursorPos - 1) === ' ') {
+                event.preventDefault();
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    // Remove any non-letter characters that get through (e.g., from paste)
+    function removeNonLetters(input) {
+        var value = input.value;
+        var cursorPos = input.selectionStart;
+        
+        // Remove ALL special characters and numbers - keep only letters and spaces
+        var cleaned = value.replace(/[^a-zA-Z ]/g, '');
+        // Remove consecutive spaces
+        cleaned = cleaned.replace(/  +/g, ' ');
+        // Remove leading spaces
+        cleaned = cleaned.replace(/^ +/, '');
+        
+        // Capitalize first letter of each word, lowercase the rest
+        cleaned = cleaned.split(' ').map(function(word) {
+            if (word.length === 0) return word;
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        }).join(' ');
+        
+        // Enforce max length of 50
+        if (cleaned.length > 50) {
+            cleaned = cleaned.substring(0, 50);
+        }
+        
+        if (value !== cleaned) {
+            input.value = cleaned;
+            // Restore cursor position
+            if (cursorPos !== null) {
+                input.setSelectionRange(cursorPos, cursorPos);
+            }
+        }
+    }
+
+    // Format phone number to ensure it starts with 09 and is max 11 digits
+    function formatPhoneNumber(input) {
+        var value = input.value;
+        // Remove all non-digit characters
+        var cleaned = value.replace(/\D/g, '');
+        
+        // If empty or user deleted everything, set to '09'
+        if (cleaned.length === 0) {
+            input.value = '09';
+            return;
+        }
+        
+        // If doesn't start with 09, prepend it
+        if (!cleaned.startsWith('09')) {
+            // If starts with 9, add 0
+            if (cleaned.startsWith('9')) {
+                cleaned = '0' + cleaned;
+            } else {
+                // Otherwise, replace with 09
+                cleaned = '09' + cleaned;
+            }
+        }
+        
+        // Limit to 11 digits
+        if (cleaned.length > 11) {
+            cleaned = cleaned.substring(0, 11);
+        }
+        
+        input.value = cleaned;
+    }
+
     function printflowInitProfilePage() {
         if (!document.getElementById('personalInfoForm')) return;
 
@@ -1333,6 +1690,12 @@ $page_title = 'My Profile - PrintFlow Admin';
 
         // Reset touched states
         Object.keys(passwordTouched).forEach(k => passwordTouched[k] = false);
+
+        // Initialize phone number with 09 if empty
+        var phoneInput = document.getElementById('contact_number');
+        if (phoneInput && (!phoneInput.value || phoneInput.value.trim() === '')) {
+            phoneInput.value = '09';
+        }
 
         loadProvinces(addressInitial.province, addressInitial.city, addressInitial.barangay)
             .catch(() => {
@@ -1353,7 +1716,7 @@ $page_title = 'My Profile - PrintFlow Admin';
             });
 
         // Re-attach listeners
-        ['first_name', 'middle_name', 'last_name', 'birthday', 'contact_number', 'address', 'address_line'].forEach(id => {
+        ['first_name', 'middle_name', 'last_name', 'email', 'birthday', 'contact_number', 'address', 'address_line'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             el.removeEventListener('input', checkPersonalInfo);
@@ -1378,9 +1741,73 @@ $page_title = 'My Profile - PrintFlow Admin';
             el.addEventListener('input', () => { passwordTouched[id] = true; checkPassword(); });
             el.removeEventListener('blur', checkPassword);
             el.addEventListener('blur', () => { passwordTouched[id] = true; checkPassword(); });
+            
+            // Block input when max length (64) is reached
+            el.removeEventListener('keydown', blockExcessPasswordInput);
+            el.addEventListener('keydown', blockExcessPasswordInput);
+            
+            // Block paste when it would exceed max length
+            el.removeEventListener('paste', blockExcessPasswordPaste);
+            el.addEventListener('paste', blockExcessPasswordPaste);
         });
 
         checkPassword(false);
+    }
+    
+    function blockExcessPasswordInput(event) {
+        var input = event.target;
+        var maxLength = 100;
+        
+        // Allow: backspace, delete, tab, escape, enter, arrow keys
+        if ([8, 9, 27, 13, 46, 37, 38, 39, 40].indexOf(event.keyCode) !== -1 ||
+            // Allow: Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+Z (but NOT Ctrl+V - handled by paste event)
+            (event.ctrlKey === true && [65, 67, 88, 90].indexOf(event.keyCode) !== -1) ||
+            // Allow: home, end
+            (event.keyCode >= 35 && event.keyCode <= 36)) {
+            return true;
+        }
+        
+        // Block if at max length and no text is selected
+        if (input.value.length >= maxLength && input.selectionStart === input.selectionEnd) {
+            event.preventDefault();
+            return false;
+        }
+        
+        return true;
+    }
+    
+    function blockExcessPasswordPaste(event) {
+        var input = event.target;
+        var maxLength = 100;
+        
+        // Get pasted text
+        var pastedText = (event.clipboardData || window.clipboardData).getData('text');
+        
+        // Calculate what the new value would be
+        var currentValue = input.value;
+        var selectionStart = input.selectionStart;
+        var selectionEnd = input.selectionEnd;
+        
+        // Remove selected text and insert pasted text
+        var newValue = currentValue.substring(0, selectionStart) + pastedText + currentValue.substring(selectionEnd);
+        
+        // If new value exceeds max length, prevent paste
+        if (newValue.length > maxLength) {
+            event.preventDefault();
+            
+            // Optionally, paste only what fits
+            var availableSpace = maxLength - (currentValue.length - (selectionEnd - selectionStart));
+            if (availableSpace > 0) {
+                var truncatedText = pastedText.substring(0, availableSpace);
+                var finalValue = currentValue.substring(0, selectionStart) + truncatedText + currentValue.substring(selectionEnd);
+                input.value = finalValue;
+                input.setSelectionRange(selectionStart + truncatedText.length, selectionStart + truncatedText.length);
+            }
+            
+            return false;
+        }
+        
+        return true;
     }
 
     /* Turbo: turbo-init dispatches once per navigation (no duplicate DOMContentLoaded + page-init). */

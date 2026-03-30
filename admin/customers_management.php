@@ -98,10 +98,20 @@ if (isset($_GET['ajax'])) {
                     <tr class="customer-row" onclick="openModal(<?php echo $customer['customer_id']; ?>)">
                         <td style="color:#1f2937;"><?php echo $customer['customer_id']; ?></td>
                         <td style="font-weight:500;color:#1f2937;" class="name-cell">
-                            <?php echo htmlspecialchars($customer['first_name'] . ' ' . $customer['last_name']); ?>
+                            <div style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="<?php echo htmlspecialchars($customer['first_name'] . ' ' . $customer['last_name']); ?>">
+                                <?php echo htmlspecialchars($customer['first_name'] . ' ' . $customer['last_name']); ?>
+                            </div>
                         </td>
-                        <td class="email-cell"><?php echo htmlspecialchars($customer['email']); ?></td>
-                        <td><?php echo htmlspecialchars($customer['contact_number'] ?? 'N/A'); ?></td>
+                        <td class="email-cell">
+                            <div style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="<?php echo htmlspecialchars($customer['email']); ?>">
+                                <?php echo htmlspecialchars($customer['email']); ?>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="<?php echo htmlspecialchars($customer['contact_number'] ?? 'N/A'); ?>">
+                                <?php echo htmlspecialchars($customer['contact_number'] ?? 'N/A'); ?>
+                            </div>
+                        </td>
                         <td style="color:#6b7280;font-size:12px;"><?php echo format_date($customer['created_at']); ?></td>
                         <td style="text-align:right;" class="no-print actions" onclick="event.stopPropagation()">
                             <button type="button" onclick="event.stopPropagation();openModal(<?php echo $customer['customer_id']; ?>)" class="btn-action blue">
@@ -741,7 +751,7 @@ $page_title = 'Customers Management - Admin';
                     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                         <!-- Sort Button -->
                         <div style="position:relative;">
-                            <button type="button" class="toolbar-btn" :class="{ active: sortOpen }" @click="sortOpen = !sortOpen; filterOpen = false" id="sortBtn" style="height:38px;">
+                            <button type="button" class="toolbar-btn" :class="{ active: sortOpen || (activeSort !== 'newest') }" @click="sortOpen = !sortOpen; filterOpen = false" id="sortBtn" style="height:38px;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/>
                                 </svg>
@@ -836,28 +846,44 @@ $page_title = 'Customers Management - Admin';
                             </tr>
                         </thead>
                         <tbody id="customersTableBody">
-                            <?php foreach ($customers as $customer): ?>
-                                <tr class="customer-row" onclick="openModal(<?php echo $customer['customer_id']; ?>)">
-                                    <td style="color:#1f2937;"><?php echo $customer['customer_id']; ?></td>
-                                    <td style="font-weight:500;color:#1f2937;" class="name-cell">
-                                        <?php echo htmlspecialchars($customer['first_name'] . ' ' . $customer['last_name']); ?>
-                                    </td>
-                                    <td class="email-cell"><?php echo htmlspecialchars($customer['email']); ?></td>
-                                    <td><?php echo htmlspecialchars($customer['contact_number'] ?? 'N/A'); ?></td>
-                                    <td style="color:#6b7280;font-size:12px;"><?php echo format_date($customer['created_at']); ?></td>
-                                    <td style="text-align:right;" class="no-print actions" onclick="event.stopPropagation()">
-                                        <button type="button" onclick="event.stopPropagation();openModal(<?php echo $customer['customer_id']; ?>)" class="btn-action blue">
-                                            Profile
-                                        </button>
-                                        <button type="button" onclick="event.stopPropagation();openTransactionModal(<?php echo $customer['customer_id']; ?>)" class="btn-action teal">
-                                            Transactions
-                                        </button>
-                                    </td>
+                            <?php if (empty($customers)): ?>
+                                <tr id="emptyCustomersRow">
+                                    <td colspan="6" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No customers found</td>
                                 </tr>
-                            <?php endforeach; ?>
-                            <tr id="emptyCustomersRow" style="display: none;">
-                                <td colspan="6" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No customers found</td>
-                            </tr>
+                            <?php else: ?>
+                                <tr id="emptyCustomersRow" style="display:none;">
+                                    <td colspan="6" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No customers found</td>
+                                </tr>
+                                <?php foreach ($customers as $customer): ?>
+                                    <tr class="customer-row" onclick="openModal(<?php echo $customer['customer_id']; ?>)">
+                                        <td style="color:#1f2937;"><?php echo $customer['customer_id']; ?></td>
+                                        <td style="font-weight:500;color:#1f2937;" class="name-cell">
+                                            <div style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="<?php echo htmlspecialchars($customer['first_name'] . ' ' . $customer['last_name']); ?>">
+                                                <?php echo htmlspecialchars($customer['first_name'] . ' ' . $customer['last_name']); ?>
+                                            </div>
+                                        </td>
+                                        <td class="email-cell">
+                                            <div style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="<?php echo htmlspecialchars($customer['email']); ?>">
+                                                <?php echo htmlspecialchars($customer['email']); ?>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div style="max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="<?php echo htmlspecialchars($customer['contact_number'] ?? 'N/A'); ?>">
+                                                <?php echo htmlspecialchars($customer['contact_number'] ?? 'N/A'); ?>
+                                            </div>
+                                        </td>
+                                        <td style="color:#6b7280;font-size:12px;"><?php echo format_date($customer['created_at']); ?></td>
+                                        <td style="text-align:right;" class="no-print actions" onclick="event.stopPropagation()">
+                                            <button type="button" onclick="event.stopPropagation();openModal(<?php echo $customer['customer_id']; ?>)" class="btn-action blue">
+                                                Profile
+                                            </button>
+                                            <button type="button" onclick="event.stopPropagation();openTransactionModal(<?php echo $customer['customer_id']; ?>)" class="btn-action teal">
+                                                Transactions
+                                            </button>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -893,7 +919,12 @@ $page_title = 'Customers Management - Admin';
                 <!-- Customer Info -->
                 <div style="padding:24px;border-bottom:1px solid #f3f4f6;">
                     <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
-                        <div x-text="customer?.initial" style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:20px;"></div>
+                        <template x-if="customer?.profile_picture">
+                            <img :src="customer.profile_picture" alt="Customer" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                        </template>
+                        <template x-if="!customer?.profile_picture">
+                            <div x-text="customer?.initial" style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:20px;"></div>
+                        </template>
                         <div style="flex:1;">
                             <div x-text="(customer?.first_name || '') + (customer?.middle_name ? ' ' + customer.middle_name : '') + ' ' + (customer?.last_name || '')" style="font-size:20px;font-weight:700;color:#1f2937;margin-bottom:8px;"></div>
                         </div>
@@ -902,35 +933,43 @@ $page_title = 'Customers Management - Admin';
                     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;font-size:13px;">
                         <div>
                             <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:4px;display:block;">First Name *</label>
-                            <span style="color:#1f2937;font-weight:500;" x-text="customer?.first_name || 'N/A'"></span>
+                            <span style="color:#1f2937;font-weight:500;word-wrap:break-word;overflow-wrap:break-word;display:block;" x-text="customer?.first_name || 'N/A'"></span>
                         </div>
                         <div>
                             <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:4px;display:block;">Middle Name</label>
-                            <span style="color:#1f2937;font-weight:500;" x-text="customer?.middle_name || 'N/A'"></span>
+                            <span style="color:#1f2937;font-weight:500;word-wrap:break-word;overflow-wrap:break-word;display:block;" x-text="customer?.middle_name || 'N/A'"></span>
                         </div>
                         <div>
                             <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:4px;display:block;">Last Name *</label>
-                            <span style="color:#1f2937;font-weight:500;" x-text="customer?.last_name || 'N/A'"></span>
+                            <span style="color:#1f2937;font-weight:500;word-wrap:break-word;overflow-wrap:break-word;display:block;" x-text="customer?.last_name || 'N/A'"></span>
                         </div>
                         <div>
                             <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:4px;display:block;">Email</label>
-                            <span style="color:#1f2937;font-weight:500;" x-text="customer?.email || 'N/A'"></span>
+                            <span style="color:#1f2937;font-weight:500;word-wrap:break-word;overflow-wrap:break-word;display:block;" x-text="customer?.email || 'N/A'"></span>
                         </div>
                         <div>
                             <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:4px;display:block;">Contact Number</label>
-                            <span style="color:#1f2937;font-weight:500;" x-text="customer?.contact_number || 'N/A'"></span>
+                            <span style="color:#1f2937;font-weight:500;word-wrap:break-word;overflow-wrap:break-word;display:block;" x-text="customer?.contact_number || 'N/A'"></span>
                         </div>
                         <div>
                             <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:4px;display:block;">Date of Birth</label>
-                            <span style="color:#1f2937;font-weight:500;" x-text="customer?.dob || 'N/A'"></span>
+                            <span style="color:#1f2937;font-weight:500;word-wrap:break-word;overflow-wrap:break-word;display:block;" x-text="customer?.dob || 'N/A'"></span>
                         </div>
                         <div>
                             <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:4px;display:block;">Gender</label>
-                            <span style="color:#1f2937;font-weight:500;" x-text="customer?.gender || 'N/A'"></span>
+                            <span style="color:#1f2937;font-weight:500;word-wrap:break-word;overflow-wrap:break-word;display:block;" x-text="customer?.gender || 'N/A'"></span>
                         </div>
                         <div>
                             <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:4px;display:block;">Registered</label>
-                            <span style="color:#1f2937;font-weight:500;" x-text="customer?.created_at || 'N/A'"></span>
+                            <span style="color:#1f2937;font-weight:500;word-wrap:break-word;overflow-wrap:break-word;display:block;" x-text="customer?.created_at || 'N/A'"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Address Section -->
+                    <div style="margin-top:20px;">
+                        <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;display:block;">Address</label>
+                        <div style="background:#f9fafb;border-radius:8px;padding:12px;border:1px solid #f3f4f6;">
+                            <p style="color:#1f2937;font-weight:500;font-size:13px;margin:0;line-height:1.6;" x-text="customer?.address || 'No address provided'"></p>
                         </div>
                     </div>
                 </div>
@@ -981,16 +1020,16 @@ $page_title = 'Customers Management - Admin';
                         <!-- Orders Tab -->
                         <div x-show="transActiveTab === 'orders' && !tabLoading">
                             <template x-if="orders.length === 0">
-                                <p style="text-align:center;padding:40px;color:#9ca3af;font-size:14px;">No orders found.</p>
+                                <p style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">No orders found.</p>
                             </template>
-                            <template x-for="order in orders" :key="order.order_id">
-                                <div class="history-item" style="padding:12px; border:1px solid #f3f4f6; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                            <template x-for="order in (orders || [])" :key="order.order_id">
+                                <div class="history-item" style="padding:12px; border:1px solid #f3f4f6; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:all 0.2s;" @click="window.location.href='/printflow/admin/orders_management.php?open_order=' + order.order_id" @mouseenter="$el.style.background='#f9fafb'; $el.style.borderColor='#d1d5db'" @mouseleave="$el.style.background=''; $el.style.borderColor='#f3f4f6'">
                                     <div>
-                                        <div style="font-weight:600;color:#1f2937;" x-text="'Order #' + order.order_id"></div>
+                                        <div style="font-weight:600;color:#3b82f6;font-size:13px;margin-bottom:4px;" x-text="order.order_code"></div>
                                         <div style="font-size:12px;color:#6b7280;" x-text="new Date(order.order_date).toLocaleDateString()"></div>
                                     </div>
                                     <div style="text-align:right;">
-                                        <div style="font-weight:600;color:#1f2937;" x-text="'₱' + parseFloat(order.total_amount).toFixed(2)"></div>
+                                        <div style="font-weight:600;color:#1f2937;font-size:13px;" x-text="'₱' + parseFloat(order.total_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})"></div>
                                         <div style="font-size:11px;" x-html="getStatusBadge(order.status)"></div>
                                     </div>
                                 </div>
@@ -1010,16 +1049,17 @@ $page_title = 'Customers Management - Admin';
                         <!-- Customizations Tab -->
                         <div x-show="transActiveTab === 'customizations' && !tabLoading">
                             <template x-if="customizations.length === 0">
-                                <p style="text-align:center;padding:40px;color:#9ca3af;font-size:14px;">No customizations found.</p>
+                                <p style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">No customizations found.</p>
                             </template>
-                            <template x-for="custom in customizations" :key="custom.id">
-                                <div class="history-item" style="padding:12px; border:1px solid #f3f4f6; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                            <template x-for="custom in (customizations || [])" :key="custom.id">
+                                <div class="history-item" style="padding:12px; border:1px solid #f3f4f6; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:all 0.2s;" @click="window.location.href='/printflow/admin/customizations.php?open_job=' + custom.id" @mouseenter="$el.style.background='#f9fafb'; $el.style.borderColor='#d1d5db'" @mouseleave="$el.style.background=''; $el.style.borderColor='#f3f4f6'">
                                     <div>
-                                        <div style="font-weight:600;color:#1f2937;" x-text="custom.service_type"></div>
+                                        <div style="font-weight:600;color:#3b82f6;font-size:13px;margin-bottom:4px;" x-text="'Customization #' + custom.id"></div>
+                                        <div style="font-size:12px;color:#6b7280;" x-text="custom.service_type"></div>
                                         <div style="font-size:12px;color:#6b7280;" x-text="new Date(custom.created_at).toLocaleDateString()"></div>
                                     </div>
                                     <div style="text-align:right;">
-                                        <div style="font-weight:600;color:#1f2937;" x-text="custom.estimated_total ? '₱' + parseFloat(custom.estimated_total).toFixed(2) : 'Pending'"></div>
+                                        <div style="font-weight:600;color:#1f2937;font-size:13px;" x-text="custom.estimated_total ? '₱' + parseFloat(custom.estimated_total).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'Pending'"></div>
                                         <div style="font-size:11px;" x-html="getStatusBadge(custom.status)"></div>
                                     </div>
                                 </div>
@@ -1051,5 +1091,6 @@ $page_title = 'Customers Management - Admin';
     </div>
 </div>
 
+<?php include __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>

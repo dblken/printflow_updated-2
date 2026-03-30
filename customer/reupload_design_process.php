@@ -49,39 +49,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Update the FIRST item in the order with the new design (simplification for this project)
     // In a multi-item order, we'd ideally specify which item to update, 
     // but the current UI implies one primary design per order review flow.
-    $item_result = db_query("SELECT order_item_id FROM order_items WHERE order_id = ? ORDER BY order_item_id ASC LIMIT 1", 'i', [$order_id]);
-    
-    if (empty($item_result)) {
-        echo json_encode(['success' => false, 'error' => 'No items found for this order']);
-        exit;
-    }
-    $order_item_id = $item_result[0]['order_item_id'];
-
+    // Update ALL items in the order with the new design for consistency
+    // This ensures that the "Pending" section shows the latest design for all line items.
     $sql = "UPDATE order_items 
-            SET design_image = ?, design_image_mime = ?, design_image_name = ? 
-            WHERE order_item_id = ?";
+            SET design_image = ?, design_image_mime = ?, design_image_name = ?, design_file = NULL 
+            WHERE order_id = ?";
     
-    $success = db_execute($sql, 'bssi', [$file_data, $mime_type, $file_name, $order_item_id]);
+    $success = db_execute($sql, 'bssi', [$file_data, $mime_type, $file_name, $order_id]);
 
     if ($success) {
         // Set design status to Revision Submitted and order status back to Pending
         db_execute(
-            "UPDATE orders SET design_status = 'Revision Submitted', status = 'Pending' WHERE order_id = ?",
+            "UPDATE orders SET design_status = 'Revision Submitted', status = 'Pending', revision_reason = '' WHERE order_id = ?",
             'i', [$order_id]
         );
+        
+        // Also update associated job orders back to PENDING and clear stale files
+        db_execute("UPDATE job_orders SET status = 'PENDING', updated_at = NOW() WHERE order_id = ?", 'i', [$order_id]);
+        
+        // Clear any previous production/artwork files associated with these job orders to avoid confusion
+        // as the customer has just provided a new master design.
+        $jobs = db_query("SELECT id FROM job_orders WHERE order_id = ?", 'i', [$order_id]);
+        foreach ($jobs as $j) {
+            db_execute("DELETE FROM job_order_files WHERE job_order_id = ?", 'i', [$j['id']]);
+        }
 
         log_activity($customer_id, 'Design Re-upload', "Customer re-uploaded design for Order #$order_id");
 
-        // Notify Staff
-        create_notification(
-            null, // Multi-channel or Admin
-            'User', 
-            "📤 Customer has re-uploaded a design for Order #$order_id. Please review.", 
-            'Order', 
-            false, 
-            false, 
-            $order_id
+        // Notify Staff/Admin of this branch
+        $branch_id = db_query("SELECT branch_id FROM orders WHERE order_id = ?", 'i', [$order_id])[0]['branch_id'] ?? 1;
+        $staff_to_notify = db_query(
+            "SELECT user_id FROM users WHERE role IN ('Staff', 'Admin', 'Manager') AND (branch_id = ? OR role = 'Admin')", 
+            'i', [$branch_id]
         );
+
+        $cust_row = db_query("SELECT first_name, last_name FROM customers WHERE customer_id = ?", 'i', [$customer_id]);
+        $cust_name = !empty($cust_row) ? trim($cust_row[0]['first_name'] . ' ' . $cust_row[0]['last_name']) : "Customer";
+        
+        $first_item = db_query("SELECT customization_data FROM order_items WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
+        $service_name = 'Service Order';
+        if (!empty($first_item)) {
+            $custom_data = json_decode($first_item[0]['customization_data'] ?? '[]', true);
+            $service_name = get_service_name_from_customization($custom_data, 'Service Order');
+        }
+
+        foreach ($staff_to_notify as $st) {
+            create_notification(
+                $st['user_id'], 
+                'User', 
+                "{$cust_name} re-uploaded design for {$service_name}", 
+                'Order', 
+                false, 
+                false, 
+                $order_id
+            );
+        }
 
         echo json_encode(['success' => true]);
     } else {

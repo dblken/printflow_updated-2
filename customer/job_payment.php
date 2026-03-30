@@ -81,7 +81,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
                                 WHERE id = ?",
                         'sssdi', [$file_name, $payment_method, $reference_number, $amount_submitted, $job_id]);
                     
-                    create_notification(null, 'Admin', "Payment proof uploaded for Customization #{$job_id} (Amount: ?{$amount_submitted})", 'Payment', true, false);
+                    $cust_id = (int)$customer_id;
+                    $cust_row = db_query("SELECT first_name, last_name FROM customers WHERE customer_id = ?", 'i', [$cust_id]);
+                    $cust_name = !empty($cust_row) ? trim($cust_row[0]['first_name'] . ' ' . $cust_row[0]['last_name']) : "Customer";
+                    
+                    $action_verb = (($job['payment_proof_status'] ?? '') === 'REJECTED') ? "resubmitted" : "submitted";
+                    $srv_name = normalize_service_name($job['service_type'] ?? 'Custom Job');
+                    $msg = "{$cust_name} {$action_verb} payment for {$srv_name}";
+
+                    // Get all activated staff users to notify
+                    $staff_users = db_query("SELECT user_id, role FROM users WHERE role IN ('Staff', 'Admin', 'Manager') AND status = 'Activated'");
+                    foreach ($staff_users as $staff) {
+                        create_notification($staff['user_id'], $staff['role'], $msg, 'Payment', true, false, $job_id);
+                    }
                     
                     $success = 'Payment proof uploaded successfully! Our staff will verify it shortly.';
                     // Refresh job data

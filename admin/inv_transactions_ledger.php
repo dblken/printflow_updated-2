@@ -217,8 +217,8 @@ if (isset($_GET['ajax'])) {
         .close-btn { background: none; border: none; font-size: 20px; color: #111827; cursor: pointer; padding: 4px; line-height: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .close-btn:hover { color: #374151; }
         
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
-        .form-group.full { grid-column: span 2; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; margin-bottom: 6px; }
         
         /* Ensure select elements in modal have consistent height and style (match table font) */
         .modal select, .modal input { height: 40px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 12px; font-size: 13px; background: #fff; color: #374151; }
@@ -466,7 +466,7 @@ if (isset($_GET['ajax'])) {
 
                         <!-- Sort Button -->
                         <div style="position:relative;">
-                            <button type="button" class="toolbar-btn" :class="{active: sortOpen}" @click="sortOpen = !sortOpen; filterOpen = false" style="height:38px;">
+                            <button type="button" class="toolbar-btn" :class="{active: sortOpen || (activeSort !== 'newest')}" @click="sortOpen = !sortOpen; filterOpen = false" style="height:38px;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
                                 Sort by
                             </button>
@@ -652,34 +652,33 @@ if (isset($_GET['ajax'])) {
             <button type="button" class="close-btn" onclick="document.getElementById('viewModal').style.display='none'">×</button>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
-            <div style="grid-column:span 2; background:#f9fafb; padding:16px; border-radius:12px; border:1px solid #f3f4f6;">
-                <div style="font-size:11px; font-weight:700; color:#111827; text-transform:uppercase; margin-bottom:4px;">Material</div>
-                <div style="font-weight:700; color:#111827; overflow-wrap:break-word; word-break:break-word; hyphens:auto;" id="viewModalItem"></div>
+            <div style="grid-column:span 2;">
+                <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Material</div>
+                <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px; word-break:break-word;" id="viewModalItem"></div>
             </div>
             <div>
-                <div style="font-size:11px; font-weight:700; color:#111827; text-transform:uppercase; margin-bottom:4px;">Date</div>
-                <div style="font-weight:600; color:#374151;" id="viewModalDate"></div>
+                <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Date</div>
+                <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px;" id="viewModalDate"></div>
             </div>
             <div>
-                <div style="font-size:11px; font-weight:700; color:#111827; text-transform:uppercase; margin-bottom:4px;">Direction</div>
-                <div style="font-weight:700; color:#374151;" id="viewModalDir"></div>
+                <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Direction</div>
+                <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px;" id="viewModalDir"></div>
             </div>
             <div>
-                <div style="font-size:11px; font-weight:700; color:#111827; text-transform:uppercase; margin-bottom:4px;">Trans. Type</div>
-                <div style="color:#374151;" id="viewModalType"></div>
+                <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Trans. Type</div>
+                <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px;" id="viewModalType"></div>
             </div>
             <div>
-                <div style="font-size:11px; font-weight:700; color:#111827; text-transform:uppercase; margin-bottom:4px;">Quantity</div>
-                <div style="font-weight:700; color:#374151;" id="viewModalQty"></div>
+                <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Quantity</div>
+                <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px;" id="viewModalQty"></div>
             </div>
         </div>
         <div style="margin-bottom:24px;">
-            <div style="font-size:11px; font-weight:700; color:#111827; text-transform:uppercase; margin-bottom:8px;">Internal Notes</div>
-            <div style="background:#f3f4f6; border-radius:10px; padding:12px; color:#374151; min-height:60px;" id="viewModalNotes"></div>
+            <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Internal Notes</div>
+            <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px; min-height:60px; word-break:break-word;" id="viewModalNotes"></div>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; padding-top:20px; border-top:1px solid #f3f4f6;">
-            <div style="color:#6b7280;">Recorded by: <span style="font-weight:600; color:#374151;" id="viewModalAdmin"></span></div>
-            <button type="button" onclick="document.getElementById('viewModal').style.display='none'" class="btn-action blue">Close</button>
+        <div style="padding:16px 0 0; margin-top:24px; border-top:1px solid #f3f4f6; display:flex; justify-content:flex-end;">
+            <button type="button" onclick="document.getElementById('viewModal').style.display='none'" class="btn-secondary">Close</button>
         </div>
     </div>
 </div>
@@ -695,10 +694,10 @@ if (isset($_GET['ajax'])) {
             <input type="hidden" name="action" value="record_transaction">
             <input type="hidden" id="txType" name="transaction_type" value="">
             
-            <div class="form-grid">
-                <div class="form-group full">
+            <div style="display:grid; gap:14px; margin-bottom:18px;">
+                <div class="form-group">
                     <label for="txItem">Resource / Material *</label>
-                    <select id="txItem" name="item_id" required style="width: 100%;">
+                    <select id="txItem" name="item_id" required style="width:100%; height:40px; border:1px solid #e5e7eb; border-radius:8px; padding:0 14px; font-size:14px; background:#f9fafb; color:#1f2937; font-family:inherit;">
                         <option value="">Search for an item...</option>
                         <?php foreach ($items as $item): ?>
                             <option value="<?php echo $item['id']; ?>"><?php echo htmlspecialchars($item['name']); ?> (SOH: <?php echo (float)InventoryManager::getStockOnHand($item['id']); ?> <?php echo $item['unit']; ?>)</option>
@@ -706,25 +705,28 @@ if (isset($_GET['ajax'])) {
                     </select>
                 </div>
                 
-                <div class="filter-group">
-                    <label for="txDate">Transaction Date *</label>
-                    <input type="date" id="txDate" name="transaction_date" value="<?php echo date('Y-m-d'); ?>" required>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label for="txDate">Transaction Date *</label>
+                        <input type="date" id="txDate" name="transaction_date" value="<?php echo date('Y-m-d'); ?>" required style="width:100%; height:40px; border:1px solid #e5e7eb; border-radius:8px; padding:0 14px; font-size:14px; background:#f9fafb; color:#1f2937; font-family:inherit;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="txQty">Quantity *</label>
+                        <input type="number" step="0.01" id="txQty" name="quantity" min="0.01" required placeholder="0.00" style="width:100%; height:40px; border:1px solid #e5e7eb; border-radius:8px; padding:0 14px; font-size:14px; background:#f9fafb; color:#1f2937; font-family:inherit;">
+                    </div>
                 </div>
                 
-                <div class="filter-group">
-                    <label for="txQty">Quantity *</label>
-                    <input type="number" step="0.01" id="txQty" name="quantity" min="0.01" required placeholder="0.00">
-                </div>
-                
-                <div class="form-group full">
+                <div class="form-group">
                     <label for="txNotes">Internal Memo / Notes</label>
-                    <input type="text" id="txNotes" name="notes" placeholder="Reason for this movement...">
+                    <textarea id="txNotes" name="notes" rows="1" maxlength="200" placeholder="Reason for this movement..." style="width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#1f2937; font-family:inherit; resize:none; max-width:100%; box-sizing:border-box; overflow:hidden; min-height:40px;" onkeydown="handleNotesKeydown(event)"></textarea>
+                    <div style="font-size:11px; color:#6b7280; margin-top:4px; text-align:right;"><span id="txNotesCount">0</span>/200</div>
                 </div>
             </div>
             
-            <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 24px; border-top: 1px solid #f3f4f6;">
-                <button type="button" onclick="closeModal()" class="btn-secondary" style="height: 44px; border-radius: 10px; padding: 0 24px;">Cancel</button>
-                <button type="submit" class="btn-primary" id="saveBtn" style="height: 44px; border-radius: 10px; padding: 0 24px; background: #6366f1;">Submit Entry</button>
+            <div style="padding:16px 0 0; margin-top:24px; border-top:1px solid #f3f4f6; display:flex; justify-content:flex-end; gap:12px;">
+                <button type="button" onclick="closeModal()" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary" id="saveBtn" style="background:#0d9488; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer;">Submit Entry</button>
             </div>
         </form>
     </div>
@@ -790,6 +792,12 @@ if (isset($_GET['ajax'])) {
                 fetchUpdatedTable({ page: 1 });
             });
         });
+        
+        // Setup notes character counter
+        const notesInput = document.getElementById('txNotes');
+        if (notesInput) {
+            notesInput.addEventListener('input', updateNotesCounter);
+        }
     }
 
     if (document.readyState === 'loading') {
@@ -967,11 +975,8 @@ if (isset($_GET['ajax'])) {
         document.getElementById('viewModalType').textContent = typeStr;
         document.getElementById('viewModalType').style.textTransform = 'capitalize';
         document.getElementById('viewModalDir').textContent = t.direction;
-        document.getElementById('viewModalDir').style.color = isIN ? '#059669' : '#dc2626';
         document.getElementById('viewModalQty').textContent = displayQty + ' ' + t.unit;
-        document.getElementById('viewModalQty').style.color = isIN ? '#059669' : '#dc2626';
         document.getElementById('viewModalNotes').textContent = t.notes || 'No notes.';
-        document.getElementById('viewModalAdmin').textContent = t.created_by_name || 'System';
         document.getElementById('viewModal').style.display = 'flex';
     }
 
@@ -988,10 +993,110 @@ if (isset($_GET['ajax'])) {
             document.getElementById('modalTitle').textContent = 'Receive Stock (STOCK-IN)';
             document.getElementById('txType').value = 'purchase';
         }
+        
+        // Reset character counter
+        updateNotesCounter();
+        
+        // Setup quantity input based on selected item
+        const itemSelect = document.getElementById('txItem');
+        if (itemSelect) {
+            itemSelect.addEventListener('change', handleItemChange);
+        }
     }
 
     function closeModal() {
         document.getElementById('txModal').style.display = 'none';
+        const itemSelect = document.getElementById('txItem');
+        if (itemSelect) {
+            itemSelect.removeEventListener('change', handleItemChange);
+        }
+    }
+    
+    function handleItemChange() {
+        const itemSelect = document.getElementById('txItem');
+        const qtyInput = document.getElementById('txQty');
+        if (!itemSelect || !qtyInput) return;
+        
+        const selectedOption = itemSelect.options[itemSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) return;
+        
+        // Extract UOM from option text (format: "Name (SOH: X unit)")
+        const optionText = selectedOption.textContent || '';
+        const uomMatch = optionText.match(/\((SOH:[^)]+)\s+(\w+)\)/);
+        const uom = uomMatch ? uomMatch[2].toLowerCase() : 'pcs';
+        
+        // Configure quantity input based on UOM
+        if (uom === 'pcs') {
+            qtyInput.step = '1';
+            qtyInput.min = '1';
+            qtyInput.placeholder = 'e.g. 10';
+            qtyInput.addEventListener('keydown', handlePcsKeyDown);
+            qtyInput.addEventListener('paste', handlePcsPaste);
+        } else {
+            qtyInput.step = '0.01';
+            qtyInput.min = '0.01';
+            qtyInput.placeholder = '0.00';
+            qtyInput.removeEventListener('keydown', handlePcsKeyDown);
+            qtyInput.removeEventListener('paste', handlePcsPaste);
+        }
+        
+        // Clear existing value when item changes
+        qtyInput.value = '';
+    }
+    
+    function handlePcsKeyDown(e) {
+        const allowed = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab', 'Home', 'End', 'Enter'];
+        if (allowed.includes(e.key)) return;
+        
+        // Block decimal point, comma, and scientific notation
+        if (e.key === '.' || e.key === ',' || e.key === 'e' || e.key === 'E' || e.key === '-' || e.key === '+') {
+            e.preventDefault();
+            return;
+        }
+        
+        // Allow only digits
+        if (!/^\d$/.test(e.key)) e.preventDefault();
+    }
+    
+    function handlePcsPaste(e) {
+        const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+        // For pcs, only whole-number paste is allowed
+        if (!/^\d+$/.test(text.trim())) {
+            e.preventDefault();
+            return;
+        }
+        // Disallow 0
+        if (parseInt(text.trim(), 10) === 0) {
+            e.preventDefault();
+            return;
+        }
+    }
+    
+    function handleNotesKeydown(e) {
+        if (e.key === 'Enter') {
+            const notesInput = e.target;
+            const lineBreaks = (notesInput.value.match(/\n/g) || []).length;
+            // Block if already at 3 line breaks (4 lines total)
+            if (lineBreaks >= 3) {
+                e.preventDefault();
+                return;
+            }
+        }
+    }
+    
+    function updateNotesCounter() {
+        const notesInput = document.getElementById('txNotes');
+        const counter = document.getElementById('txNotesCount');
+        if (notesInput && counter) {
+            // Enforce 200 character limit including line breaks
+            if (notesInput.value.length > 200) {
+                notesInput.value = notesInput.value.substring(0, 200);
+            }
+            counter.textContent = notesInput.value.length;
+            // Auto-resize to fit content
+            notesInput.style.height = 'auto';
+            notesInput.style.height = notesInput.scrollHeight + 'px';
+        }
     }
 
     async function saveTransaction(e) {
@@ -1030,7 +1135,7 @@ if (isset($_GET['ajax'])) {
                     alert(summary);
                 }
             } else {
-                const errMsg = data.error || (data.errors ? Object.values(data.errors).join(' ') : 'Unknown error');
+                const errMsg = data.error || (data.errors && typeof data.errors === 'object' ? Object.values(data.errors).join(' ') : 'Unknown error');
                 alert('Error: ' + errMsg);
             }
         } catch (err) {
@@ -1057,5 +1162,6 @@ if (isset($_GET['ajax'])) {
 
     // Page-specific initialization is handled above via printflowInitInvLedgerPage.
 </script>
+<?php include __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>

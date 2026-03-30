@@ -118,7 +118,35 @@ if ($update_success) {
     }
 
     // Notify staff
-    $staff_msg = "Customer submitted payment for {$type_label} #{$order_id} (PHP " . number_format($amount, 2) . ")";
+    $customer_name_row = db_query("SELECT first_name, last_name FROM customers WHERE customer_id = ?", 'i', [$customer_id]);
+    $customer_display_name = !empty($customer_name_row) ? trim($customer_name_row[0]['first_name'] . ' ' . $customer_name_row[0]['last_name']) : "Customer";
+    
+    // Determine Service Name
+    $service_name = "Order";
+    if (!$is_job) {
+        $first_item = db_query("SELECT customization_data FROM order_items WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
+        $custom_data = !empty($first_item[0]['customization_data']) ? json_decode($first_item[0]['customization_data'], true) : [];
+        $service_name = get_service_name_from_customization($custom_data, 'Service Order');
+    } else {
+        $service_name = normalize_service_name($order['service_type'] ?? 'Custom Job');
+    }
+
+    // Determine if it was a resubmission
+    $is_resubmission = false;
+    if (!$is_job) {
+        // If regular order status implies we backtracked from a previous verification
+        if (in_array($order['status'], ['To Pay', 'For Revision']) && !empty($order['payment_submitted_at'])) {
+            $is_resubmission = true;
+        }
+    } else {
+        // For job orders, we explicitly track REJECTED status
+        if (($order['payment_proof_status'] ?? '') === 'REJECTED') {
+            $is_resubmission = true;
+        }
+    }
+
+    $action_verb = $is_resubmission ? "resubmitted" : "submitted";
+    $staff_msg = "{$customer_display_name} {$action_verb} payment for {$service_name}";
     
     // Get all activated staff users to notify
     $staff_users = db_query("SELECT user_id FROM users WHERE role IN ('Staff', 'Admin', 'Manager') AND status = 'Activated'");

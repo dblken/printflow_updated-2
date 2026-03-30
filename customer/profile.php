@@ -223,245 +223,510 @@ $use_customer_css = true;
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<div class="min-h-screen bg-gray-50 py-8">
-    <div class="container mx-auto px-4">
-        <h1 class="text-3xl font-bold text-gray-900 mb-6">My Profile</h1>
+<style>
+/* ── Profile Page Brand-Aligned Refinement ─── */
+:root {
+    --pf-bg-primary: #030d11;
+    --pf-bg-secondary: #0a1f26;
+    --pf-accent: #53c5e0;
+    --pf-accent-hover: #32a1c4;
+    --pf-text-main: #eaf6fb;
+    --pf-text-muted: #9fc4d4;
+    --pf-border: rgba(83, 197, 224, 0.15);
+}
 
-        <?php if ($error): ?>
-            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-                <?php echo htmlspecialchars($error); ?>
+.profile-page-wrap {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+}
+.profile-page-title {
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: var(--pf-text-main);
+    margin-bottom: 2.5rem;
+    letter-spacing: -0.03em;
+}
+.profile-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 3rem;
+    align-items: start;
+}
+@media (max-width: 1024px) {
+    .profile-layout { grid-template-columns: 1fr; gap: 2rem; }
+}
+
+/* ─ Sidebar ─ */
+.profile-sidebar {
+    position: sticky;
+    top: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+.profile-sidebar-card {
+    background: var(--pf-bg-secondary);
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    border: 1px solid var(--pf-border);
+    text-align: center;
+}
+.profile-avatar-wrap {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 1.5rem;
+}
+.profile-avatar-ring {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 1px solid var(--pf-border);
+    background: rgba(255,255,255,0.03);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto;
+    transition: all 0.3s ease;
+}
+.profile-avatar-ring img {
+    width: 100%; height: 100%; object-fit: cover;
+}
+.profile-avatar-edit-btn {
+    position: absolute;
+    bottom: 2px; right: 2px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--pf-accent);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: all 0.2s;
+    border: 2px solid var(--pf-bg-secondary);
+}
+.profile-avatar-edit-btn:hover { background: var(--pf-accent-hover); transform: scale(1.05); }
+
+.profile-user-name {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--pf-text-main);
+    margin-bottom: 6px;
+}
+.profile-user-email {
+    font-size: 0.9rem;
+    color: var(--pf-text-muted);
+    word-break: break-all;
+}
+
+.profile-nav-card {
+    background: var(--pf-bg-secondary);
+    border-radius: 20px;
+    padding: 0.75rem;
+    border: 1px solid var(--pf-border);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+.profile-nav-list {
+    list-style: none;
+    padding: 0; margin: 0;
+}
+.profile-nav-item a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--pf-text-muted);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+.profile-nav-item a:hover {
+    background: rgba(255,255,255,0.03);
+    color: var(--pf-text-main);
+}
+.profile-nav-item a.active {
+    background: rgba(83, 197, 224, 0.1);
+    color: var(--pf-accent);
+}
+
+/* ─ Cards ─ */
+.pf-card {
+    background: var(--pf-bg-secondary);
+    border-radius: 20px;
+    padding: 3rem;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.2);
+    border: 1px solid var(--pf-border);
+    margin-bottom: 2.5rem;
+}
+@media (max-width: 640px) {
+    .pf-card { padding: 1.5rem; }
+}
+.pf-card-header {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding-bottom: 1.5rem;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--pf-border);
+}
+.pf-card-icon {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.03);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--pf-accent);
+    border: 1px solid var(--pf-border);
+}
+.pf-card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--pf-text-main);
+}
+.pf-card-subtitle {
+    font-size: 0.9rem;
+    color: var(--pf-text-muted);
+    margin-top: 4px;
+}
+
+/* ─ Form elements ─ */
+.pf-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--pf-text-muted);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.pf-input {
+    width: 100%;
+    padding: 14px 18px;
+    border: 1px solid var(--pf-border);
+    border-radius: 12px;
+    font-size: 1rem;
+    color: var(--pf-text-main);
+    background: rgba(0, 0, 0, 0.15);
+    transition: all 0.2s;
+}
+.pf-input:focus {
+    outline: none;
+    border-color: var(--pf-accent);
+    background: rgba(0,0,0,0.25);
+    box-shadow: 0 0 0 4px rgba(83, 197, 224, 0.15);
+}
+.pf-input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.pf-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 36px;
+    background: var(--pf-accent);
+    color: #030d11;
+    font-size: 1rem;
+    font-weight: 800;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+.pf-btn-primary:hover { background: var(--pf-accent-hover); transform: translateY(-1px); }
+.pf-btn-primary:active { transform: translateY(0); }
+
+.pf-alert {
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    font-weight: 500;
+}
+.pf-alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171; }
+.pf-alert-success { background: rgba(83, 197, 224, 0.1); border: 1px solid rgba(83, 197, 224, 0.2); color: #53c5e0; }
+
+.live-indicator { font-size: 0.75rem; margin-top: 6px; min-height: 1.2rem; }
+.live-indicator.error { color: #f87171; font-weight: 600; }
+.live-indicator .hint { color: var(--pf-text-muted); opacity: 0.7; }
+#pw-checklist li { color: var(--pf-text-muted); font-size: 0.75rem; }
+#pw-checklist li.ok { color: #4ade80; }
+#pw-checklist li.fail { opacity: 0.6; }
+
+/* ── Overriding some legacy stuff ── */
+.req { color: #f87171; margin-left: 2px; }
+.addr-select-wrap select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.25rem; }
+</style>
+
+<div class="min-h-screen py-8">
+  <div class="profile-page-wrap">
+    <h1 class="profile-page-title">My Profile</h1>
+
+    <?php if ($error): ?>
+    <div class="pf-alert pf-alert-error" style="margin-bottom:1.5rem;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10" stroke-width="2"/><path d="M12 8v4m0 4h.01" stroke-width="2" stroke-linecap="round"/></svg>
+        <?php echo htmlspecialchars($error); ?>
+    </div>
+    <?php endif; ?>
+    <?php if ($success): ?>
+    <div class="pf-alert pf-alert-success" style="margin-bottom:1.5rem;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        <?php echo htmlspecialchars($success); ?>
+    </div>
+    <?php endif; ?>
+
+    <div class="profile-layout">
+
+      <!-- ── SIDEBAR ── -->
+      <aside class="profile-sidebar">
+        <!-- Avatar card -->
+        <div class="profile-sidebar-card">
+          <div class="profile-avatar-wrap">
+            <div class="profile-avatar-ring">
+              <?php if (!empty($customer['profile_picture'])): ?>
+                <img src="/printflow/public/assets/uploads/profiles/<?php echo htmlspecialchars($customer['profile_picture']); ?>?t=<?php echo time(); ?>" alt="Avatar" id="profile-preview">
+              <?php else: ?>
+                <svg width="46" height="46" fill="none" stroke="#94a3b8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                <img src="" alt="Profile" style="display:none;width:100%;height:100%;object-fit:cover;" id="profile-preview">
+              <?php endif; ?>
             </div>
-        <?php endif; ?>
+            <label for="profile_picture" class="profile-avatar-edit-btn" title="Change photo">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </label>
+          </div>
+          <div class="profile-user-name"><?php echo htmlspecialchars(trim($customer['first_name'] . ' ' . $customer['last_name'])); ?></div>
+          <div class="profile-user-email"><?php echo htmlspecialchars($customer['email']); ?></div>
+          <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--pf-border);font-size:0.85rem;color:var(--pf-text-muted);">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span>Joined</span><span style="color:var(--pf-text-main);font-weight:600;"><?php echo isset($customer['created_at']) ? date('M Y', strtotime($customer['created_at'])) : 'Account member'; ?></span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Account</span><span style="color:#4ade80;font-weight:700;">Verified</span></div>
+          </div>
+        </div>
+        <!-- Nav -->
+        <div class="profile-nav-card">
+          <ul class="profile-nav-list">
+            <li class="profile-nav-item"><a href="#section-profile" class="active">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              Profile Info
+            </a></li>
+            <li class="profile-nav-item"><a href="#section-address">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              Address
+            </a></li>
+            <li class="profile-nav-item"><a href="#section-password">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+              Security
+            </a></li>
+          </ul>
+        </div>
+      </aside>
 
-        <?php if ($success): ?>
-            <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-                <?php echo htmlspecialchars($success); ?>
+      <!-- ── MAIN CONTENT ── -->
+      <div>
+
+        <!-- Profile Information card -->
+        <div class="pf-card" id="section-profile">
+          <div class="pf-card-header">
+            <div class="pf-card-icon">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
             </div>
-        <?php endif; ?>
+            <div>
+              <div class="pf-card-title">Personal Details</div>
+              <div class="pf-card-subtitle">Manage your identity and contact info</div>
+            </div>
+          </div>
 
-        <div class="grid grid-cols-1 gap-8">
-            <!-- Profile Information -->
-            <div class="card">
-                <h2 class="text-xl font-bold mb-4">Profile Information</h2>
-                
-                <form method="POST" action="" enctype="multipart/form-data">
-                    <?php echo csrf_field(); ?>
-                    <input type="hidden" name="update_profile" value="1">
+          <form method="POST" action="" enctype="multipart/form-data">
+            <?php echo csrf_field(); ?>
+            <input type="hidden" name="update_profile" value="1">
+            <input type="file" id="profile_picture" name="profile_picture" class="hidden" accept="image/*" style="display:none;"
+                   onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const p=document.getElementById('profile-preview');p.src=e.target.result;p.style.display='block';const ph=document.getElementById('profile-placeholder');if(ph)ph.style.display='none';};r.readAsDataURL(f);}">
+            <div style="display:none;" id="profile-placeholder"></div>
 
-                    <!-- Profile Picture Upload -->
-                    <div class="mb-8 flex flex-col items-center">
-                        <div class="relative group">
-                            <div class="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl bg-gray-100 flex items-center justify-center">
-                                <?php if (!empty($customer['profile_picture'])): ?>
-                                    <img src="/printflow/public/assets/uploads/profiles/<?php echo htmlspecialchars($customer['profile_picture']); ?>?t=<?php echo time(); ?>" 
-                                         alt="Profile" class="w-full h-full object-cover" id="profile-preview">
-                                <?php else: ?>
-                                    <div class="w-full h-full flex items-center justify-center bg-primary-50 text-primary-600" id="profile-placeholder">
-                                        <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                        </svg>
-                                    </div>
-                                    <img src="" alt="Profile" class="w-full h-full object-cover hidden" id="profile-preview">
-                                <?php endif; ?>
-                            </div>
-                            <label for="profile_picture" class="absolute bottom-1 right-1 bg-primary-600 text-white p-2 rounded-full shadow-lg cursor-pointer hover:bg-primary-700 transition-colors">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                </svg>
-                                <input type="file" id="profile_picture" name="profile_picture" class="hidden" accept="image/*" 
-                                       onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = (e) => { document.getElementById('profile-preview').src = e.target.result; document.getElementById('profile-preview').classList.remove('hidden'); if(document.getElementById('profile-placeholder')) document.getElementById('profile-placeholder').classList.add('hidden'); }; reader.readAsDataURL(file); }">
-                            </label>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-2">JPG, PNG or WEBP. Max 2MB.</p>
-                    </div>
-                    
-                    <div class="grid grid-cols-3 gap-8 mb-12">
-                        <div class="mb-2">
-                            <label for="first_name" class="block text-sm font-bold text-gray-800 mb-3">First Name <span class="required-asterisk">*</span></label>
-                            <input type="text" id="first_name" name="first_name" class="input-field py-3 validate-advanced-name" placeholder="First Name" required value="<?php echo htmlspecialchars($customer['first_name']); ?>" maxlength="50">
-                            <div class="live-indicator mt-1 flex items-center gap-1 text-[11px] font-medium" data-for="first_name"></div>
-                        </div>
-                        
-                        <div class="mb-2">
-                            <label for="middle_name" class="block text-sm font-bold text-gray-800 mb-3">Middle Name</label>
-                            <input type="text" id="middle_name" name="middle_name" class="input-field py-3 validate-advanced-name" placeholder="Middle Name" value="<?php echo htmlspecialchars($customer['middle_name'] ?? ''); ?>" maxlength="50">
-                            <div class="live-indicator mt-1 flex items-center gap-1 text-[11px] font-medium" data-for="middle_name"></div>
-                        </div>
-
-                        <div class="mb-2">
-                            <label for="last_name" class="block text-sm font-bold text-gray-800 mb-3">Last Name <span class="required-asterisk">*</span></label>
-                            <input type="text" id="last_name" name="last_name" class="input-field py-3 validate-advanced-name" placeholder="Last Name" required value="<?php echo htmlspecialchars($customer['last_name']); ?>" maxlength="50">
-                            <div class="live-indicator mt-1 flex items-center gap-1 text-[11px] font-medium" data-for="last_name"></div>
-                        </div>
-                    </div>
-
-                    <div class="custom-grid-4 mb-12">
-                        <div class="mb-2">
-                            <label for="email" class="block text-sm font-bold text-gray-800 mb-3">Email address</label>
-                            <input type="email" id="email" class="input-field bg-gray-50 border-gray-200 text-gray-400 py-3 validate-advanced-email" placeholder="Email address" value="<?php echo htmlspecialchars($customer['email']); ?>" disabled>
-                            <div class="live-indicator mt-1 flex items-center gap-1 text-[11px] font-medium" data-for="email"></div>
-                        </div>
-
-                        <div class="mb-2">
-                            <label for="contact_number" class="block text-sm font-bold text-gray-800 mb-3">Contact Number <span class="required-asterisk">*</span></label>
-                            <input type="tel" id="contact_number" name="contact_number" class="input-field py-3 validate-advanced-contact" placeholder="+639XXXXXXXXX" value="<?php echo htmlspecialchars($customer['contact_number'] ?? ''); ?>" maxlength="13" required>
-                            <div class="live-indicator mt-1 flex items-center gap-1 text-[11px] font-medium" data-for="contact_number"></div>
-                        </div>
-
-                        <div class="mb-2">
-                            <label for="dob" class="block text-sm font-bold text-gray-800 mb-3">Date of Birth</label>
-                            <input type="date" id="dob" name="dob" class="input-field py-3 validate-advanced-dob" value="<?php echo htmlspecialchars($customer['dob'] ?? ''); ?>" max="<?php echo $max_birthday; ?>">
-                            <div class="live-indicator mt-1 flex items-center gap-1 text-[11px] font-medium" data-for="dob"></div>
-                        </div>
-                        
-                        <div class="mb-2">
-                            <label for="gender" class="block text-sm font-bold text-gray-800 mb-3">Gender</label>
-                            <select id="gender" name="gender" class="input-field py-3">
-                                <option value="">Select Gender</option>
-                                <option value="Male" <?php echo ($customer['gender'] ?? '') === 'Male' ? 'selected' : ''; ?>>Male</option>
-                                <option value="Female" <?php echo ($customer['gender'] ?? '') === 'Female' ? 'selected' : ''; ?>>Female</option>
-                                <option value="Other" <?php echo ($customer['gender'] ?? '') === 'Other' ? 'selected' : ''; ?>>Other</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; justify-content: flex-start; margin-top: 1.5rem;">
-                        <button type="submit" id="btn-update-profile" class="btn-dark" style="width: auto; padding: 0.75rem 2.5rem;">Update Profile</button>
-                    </div>
-                </form>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-bottom:1.5rem;">
+              <div>
+                <label for="first_name" class="pf-label">First Name<span class="req">*</span></label>
+                <input type="text" id="first_name" name="first_name" class="pf-input input-field validate-advanced-name" placeholder="First Name" required value="<?php echo htmlspecialchars($customer['first_name']); ?>" maxlength="50">
+                <div class="live-indicator" data-for="first_name"></div>
+              </div>
+              <div>
+                <label for="middle_name" class="pf-label">Middle Name</label>
+                <input type="text" id="middle_name" name="middle_name" class="pf-input input-field validate-advanced-name" placeholder="Middle Name" value="<?php echo htmlspecialchars($customer['middle_name'] ?? ''); ?>" maxlength="50">
+                <div class="live-indicator" data-for="middle_name"></div>
+              </div>
+              <div>
+                <label for="last_name" class="pf-label">Last Name<span class="req">*</span></label>
+                <input type="text" id="last_name" name="last_name" class="pf-input input-field validate-advanced-name" placeholder="Last Name" required value="<?php echo htmlspecialchars($customer['last_name']); ?>" maxlength="50">
+                <div class="live-indicator" data-for="last_name"></div>
+              </div>
             </div>
 
-            <!-- Edit Address -->
-            <div class="card" id="address-card">
-                <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:1.5rem;">
-                    <div style="width:2.25rem;height:2.25rem;background:#f0f7f9;border-radius:0.6rem;display:flex;align-items:center;justify-content:center;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#0a2530" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-bold" style="margin:0;">Edit Address</h2>
-                        <p style="font-size:0.78rem;color:#6b7280;margin:2px 0 0;">Select your location from Region down to Barangay</p>
-                    </div>
-                </div>
-
-                <form method="POST" action="" id="address-form">
-                    <?php echo csrf_field(); ?>
-                    <input type="hidden" name="update_address" value="1">
-
-                    <!-- Alert box -->
-                    <div id="addr-alert" style="display:none;padding:0.75rem 1rem;border-radius:0.5rem;margin-bottom:1.25rem;font-size:0.875rem;font-weight:500;"></div>
-
-                    <div class="grid grid-cols-2 gap-4 mb-4">
-                        <!-- Region -->
-                        <div>
-                            <label class="block text-sm font-bold text-gray-800 mb-2" for="addr_region">Region</label>
-                            <div class="addr-select-wrap">
-                                <select id="addr_region" name="region" class="input-field addr-select" data-level="region">
-                                    <option value="">— Select Region —</option>
-                                </select>
-                                <span class="addr-spinner" id="spin_region"></span>
-                            </div>
-                        </div>
-
-                        <!-- Province -->
-                        <div>
-                            <label class="block text-sm font-bold text-gray-800 mb-2" for="addr_province">Province</label>
-                            <div class="addr-select-wrap">
-                                <select id="addr_province" name="province" class="input-field addr-select" data-level="province" disabled>
-                                    <option value="">— Select Province —</option>
-                                </select>
-                                <span class="addr-spinner" id="spin_province"></span>
-                            </div>
-                        </div>
-
-                        <!-- City / Municipality -->
-                        <div>
-                            <label class="block text-sm font-bold text-gray-800 mb-2" for="addr_city">City / Municipality</label>
-                            <div class="addr-select-wrap">
-                                <select id="addr_city" name="city" class="input-field addr-select" data-level="city" disabled>
-                                    <option value="">— Select City / Municipality —</option>
-                                </select>
-                                <span class="addr-spinner" id="spin_city"></span>
-                            </div>
-                        </div>
-
-                        <!-- Barangay -->
-                        <div>
-                            <label class="block text-sm font-bold text-gray-800 mb-2" for="addr_barangay">Barangay</label>
-                            <div class="addr-select-wrap">
-                                <select id="addr_barangay" name="barangay" class="input-field addr-select" data-level="barangay" disabled>
-                                    <option value="">— Select Barangay —</option>
-                                </select>
-                                <span class="addr-spinner" id="spin_barangay"></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Street Address -->
-                    <div class="mb-6">
-                        <label class="block text-sm font-bold text-gray-800 mb-2" for="addr_street">Street Address / House No. / Lot / Block</label>
-                        <input type="text" id="addr_street" name="street_address" class="input-field"
-                               placeholder="e.g. 123 Sampaguita St., Brgy. Poblacion"
-                               value="<?php echo htmlspecialchars($customer['street_address'] ?? ''); ?>">
-                    </div>
-
-                    <!-- Full assembled address preview -->
-                    <div id="addr-preview" style="display:none;background:#f0f7f9;border:1px solid #b0e0ee;border-radius:0.5rem;padding:0.75rem 1rem;margin-bottom:1.25rem;font-size:0.875rem;color:#0a2530;">
-                        <strong>📍 Selected Address:</strong> <span id="addr-preview-text"></span>
-                    </div>
-
-                    <div class="flex justify-end">
-                        <button type="submit" class="btn-dark" style="width:auto;padding:0.75rem 2.5rem;">Save Address</button>
-                    </div>
-                </form>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1.25rem;margin-bottom:1.75rem;">
+              <div>
+                <label for="email" class="pf-label">Email Address</label>
+                <input type="email" id="email" class="pf-input input-field" placeholder="Email" value="<?php echo htmlspecialchars($customer['email']); ?>" disabled>
+                <div style="font-size:0.72rem;color:#94a3b8;margin-top:4px;">Email cannot be changed</div>
+              </div>
+              <div>
+                <label for="contact_number" class="pf-label">Contact Number<span class="req">*</span></label>
+                <input type="tel" id="contact_number" name="contact_number" class="pf-input input-field validate-advanced-contact" placeholder="+639XXXXXXXXX" value="<?php echo htmlspecialchars($customer['contact_number'] ?? ''); ?>" maxlength="13" required>
+                <div class="live-indicator" data-for="contact_number"></div>
+              </div>
+              <div>
+                <label for="dob" class="pf-label">Date of Birth</label>
+                <input type="date" id="dob" name="dob" class="pf-input input-field validate-advanced-dob" value="<?php echo htmlspecialchars($customer['dob'] ?? ''); ?>" max="<?php echo $max_birthday; ?>">
+                <div class="live-indicator" data-for="dob"></div>
+              </div>
+              <div>
+                <label for="gender" class="pf-label">Gender</label>
+                <select id="gender" name="gender" class="pf-input input-field">
+                  <option value="">Select Gender</option>
+                  <option value="Male" <?php echo ($customer['gender'] ?? '') === 'Male' ? 'selected' : ''; ?>>Male</option>
+                  <option value="Female" <?php echo ($customer['gender'] ?? '') === 'Female' ? 'selected' : ''; ?>>Female</option>
+                  <option value="Other" <?php echo ($customer['gender'] ?? '') === 'Other' ? 'selected' : ''; ?>>Other</option>
+                </select>
+              </div>
             </div>
 
-            <!-- Change Password -->
-            <div class="card" id="change-password">
-                <h2 class="text-xl font-bold mb-4">Change Password</h2>
-                
-                <form method="POST" action="">
-                    <?php echo csrf_field(); ?>
-                    <input type="hidden" name="change_password" value="1">
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        <div>
-                            <label for="current_password" class="block text-sm font-bold text-gray-800 mb-3">Current Password <span class="required-asterisk">*</span></label>
-                            <input type="password" id="current_password" name="current_password" class="input-field py-3" placeholder="••••••••" required>
-                        </div>
-
-                        <div>
-                            <label for="new_password" class="block text-sm font-bold text-gray-800 mb-3">New Password <span class="required-asterisk">*</span></label>
-                            <input type="password" id="new_password" name="new_password" class="input-field py-3" placeholder="••••••••" required minlength="8">
-                            <p class="text-[11px] text-gray-500 mt-1 pl-1">Minimum 8 characters</p>
-                            <ul class="pw-checklist mt-2 hidden grid-cols-2 gap-1 text-[10px]" id="pw-checklist" style="display:none;">
-                                <li id="pw-rule-len" class="text-red-500 flex items-center gap-1"><span class="ck font-bold">✗</span> 8–64 characters</li>
-                                <li id="pw-rule-upper" class="text-red-500 flex items-center gap-1"><span class="ck font-bold">✗</span> Uppercase</li>
-                                <li id="pw-rule-lower" class="text-red-500 flex items-center gap-1"><span class="ck font-bold">✗</span> Lowercase</li>
-                                <li id="pw-rule-num" class="text-red-500 flex items-center gap-1"><span class="ck font-bold">✗</span> Number</li>
-                                <li id="pw-rule-spec" class="text-red-500 flex items-center gap-1"><span class="ck font-bold">✗</span> Special char</li>
-                            </ul>
-                        </div>
-
-                        <div>
-                            <label for="confirm_password" class="block text-sm font-bold text-gray-800 mb-3">Confirm Password <span class="required-asterisk">*</span></label>
-                            <input type="password" id="confirm_password" name="confirm_password" class="input-field py-3" placeholder="••••••••" required minlength="8">
-                            <p class="text-[11px] font-bold mt-2" id="pw-match-indicator"></p>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end">
-                        <button type="submit" class="btn-dark" style="width:auto; padding:0.6rem 1.6rem; font-size:0.9rem;">Change Password</button>
-                    </div>
-                </form>
+            <div style="display:flex;justify-content:flex-end;">
+              <button type="submit" id="btn-update-profile" class="pf-btn-primary">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                Save Profile
+              </button>
             </div>
+          </form>
         </div>
 
+        <!-- Address card -->
+        <div class="pf-card" id="section-address">
+          <div class="pf-card-header">
+            <div class="pf-card-icon">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </div>
+            <div>
+              <div class="pf-card-title">Default Address</div>
+              <div class="pf-card-subtitle">Used for delivery estimations</div>
+            </div>
+          </div>
 
-    </div>
+          <form method="POST" action="" id="address-form">
+            <?php echo csrf_field(); ?>
+            <input type="hidden" name="update_address" value="1">
+            <div id="addr-alert" style="display:none;padding:12px 16px;border-radius:10px;margin-bottom:1.25rem;font-size:0.875rem;font-weight:500;"></div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
+              <div>
+                <label class="pf-label" for="addr_region">Region</label>
+                <div class="addr-select-wrap">
+                  <select id="addr_region" name="region" class="pf-input input-field addr-select" data-level="region">
+                    <option value="">— Select Region —</option>
+                  </select>
+                  <span class="addr-spinner" id="spin_region"></span>
+                </div>
+              </div>
+              <div>
+                <label class="pf-label" for="addr_province">Province</label>
+                <div class="addr-select-wrap">
+                  <select id="addr_province" name="province" class="pf-input input-field addr-select" data-level="province" disabled>
+                    <option value="">— Select Province —</option>
+                  </select>
+                  <span class="addr-spinner" id="spin_province"></span>
+                </div>
+              </div>
+              <div>
+                <label class="pf-label" for="addr_city">City / Municipality</label>
+                <div class="addr-select-wrap">
+                  <select id="addr_city" name="city" class="pf-input input-field addr-select" data-level="city" disabled>
+                    <option value="">— Select City / Municipality —</option>
+                  </select>
+                  <span class="addr-spinner" id="spin_city"></span>
+                </div>
+              </div>
+              <div>
+                <label class="pf-label" for="addr_barangay">Barangay</label>
+                <div class="addr-select-wrap">
+                  <select id="addr_barangay" name="barangay" class="pf-input input-field addr-select" data-level="barangay" disabled>
+                    <option value="">— Select Barangay —</option>
+                  </select>
+                  <span class="addr-spinner" id="spin_barangay"></span>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-bottom:1.25rem;">
+              <label class="pf-label" for="addr_street">House No. / Lot / Block / Street</label>
+              <input type="text" id="addr_street" name="street_address" class="pf-input input-field"
+                     placeholder="e.g. 123 Sampaguita St., Brgy. Poblacion"
+                     value="<?php echo htmlspecialchars($customer['street_address'] ?? ''); ?>">
+            </div>
+
+            <div id="addr-preview" style="display:none;background:rgba(83,197,224,0.05);border:1px solid rgba(83,197,224,0.2);border-radius:12px;padding:16px;margin-bottom:1.5rem;font-size:0.9rem;color:var(--pf-text-main);">
+              <strong>Delivery Destination:</strong> <span id="addr-preview-text" style="color:var(--pf-accent);"></span>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;">
+              <button type="submit" class="pf-btn-primary">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                Save Address
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Change Password card -->
+        <div class="pf-card" id="section-password">
+          <div class="pf-card-header">
+            <div class="pf-card-icon">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            </div>
+            <div>
+              <div class="pf-card-title">Security Settings</div>
+              <div class="pf-card-subtitle">Keep your account guarded</div>
+            </div>
+          </div>
+
+          <form method="POST" action="">
+            <?php echo csrf_field(); ?>
+            <input type="hidden" name="change_password" value="1">
+
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-bottom:1.75rem;">
+              <div>
+                <label for="current_password" class="pf-label">Current Password<span class="req">*</span></label>
+                <input type="password" id="current_password" name="current_password" class="pf-input input-field" placeholder="••••••••" required>
+              </div>
+              <div>
+                <label for="new_password" class="pf-label">New Password<span class="req">*</span></label>
+                <input type="password" id="new_password" name="new_password" class="pf-input input-field" placeholder="••••••••" required minlength="8">
+                <ul id="pw-checklist" style="display:none;">
+                  <li id="pw-rule-len" class="fail"><span class="ck">✗</span> 8–64 chars</li>
+                  <li id="pw-rule-upper" class="fail"><span class="ck">✗</span> Uppercase</li>
+                  <li id="pw-rule-lower" class="fail"><span class="ck">✗</span> Lowercase</li>
+                  <li id="pw-rule-num" class="fail"><span class="ck">✗</span> Number</li>
+                  <li id="pw-rule-spec" class="fail"><span class="ck">✗</span> Special char</li>
+                </ul>
+              </div>
+              <div>
+                <label for="confirm_password" class="pf-label">Confirm Password<span class="req">*</span></label>
+                <input type="password" id="confirm_password" name="confirm_password" class="pf-input input-field" placeholder="••••••••" required minlength="8">
+                <p class="text-[11px] font-bold mt-2" id="pw-match-indicator" style="font-size:0.72rem;margin-top:4px;"></p>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;">
+              <button type="submit" class="pf-btn-primary">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                Change Password
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div><!-- /main -->
+    </div><!-- /layout -->
+  </div><!-- /wrap -->
 </div>
 
 <style>
+/* ── password checklist styles already in page head ── */
+.pw-checklist-hidden { display:none; }
 /* ── Cascading Address Selector ── */
 .addr-select-wrap {
     position: relative;

@@ -12,6 +12,9 @@ require_role(['Admin', 'Manager']);
 $current_user = get_logged_in_user();
 $admin_id = get_user_id();
 
+// Auto-delete notifications older than 1 month
+db_execute("DELETE FROM notifications WHERE created_at < DATE_SUB(NOW(), INTERVAL 1 MONTH)");
+
 // Handle actions
 if (isset($_GET['action'])) {
     $action = $_GET['action'];
@@ -29,18 +32,13 @@ if (isset($_GET['action'])) {
         redirect('/printflow/admin/notifications.php?success=All notifications marked as read');
     }
     
-    if ($action === 'delete' && isset($_GET['id'])) {
-        $notification_id = (int)$_GET['id'];
-        db_execute("DELETE FROM notifications WHERE notification_id = ? AND user_id = ?", 'ii', [$notification_id, $admin_id]);
-        header('Content-Type: application/json');
-        echo json_encode(['success' => true]);
-        exit;
-    }
+
 }
 
 // Get filter
 $filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$sort_by = $_GET['sort'] ?? 'newest';
 
 // Build query
 $where = "user_id = ? AND type != 'Message'";
@@ -70,8 +68,15 @@ if ($page > $total_pages) {
     $page = $total_pages;
 }
 $offset = ($page - 1) * $per_page;
+
+// Sort order
+$order_clause = match($sort_by) {
+    'oldest' => "created_at ASC",
+    default  => "created_at DESC"
+};
+
 $notifications = db_query(
-    "SELECT * FROM notifications WHERE $where ORDER BY created_at DESC LIMIT ? OFFSET ?",
+    "SELECT * FROM notifications WHERE $where ORDER BY $order_clause LIMIT ? OFFSET ?",
     $types . 'ii',
     array_merge($params, [$per_page, $offset])
 ) ?: [];
@@ -81,7 +86,7 @@ $unread_result = db_query("SELECT COUNT(*) as count FROM notifications WHERE use
 $unread_count = $unread_result[0]['count'] ?? 0;
 
 $notif_filter_badge = ($filter !== 'all' ? 1 : 0) + ($search !== '' ? 1 : 0);
-$notif_pagination_params = ['filter' => $filter];
+$notif_pagination_params = ['filter' => $filter, 'sort' => $sort_by];
 if ($search !== '') {
     $notif_pagination_params['search'] = $search;
 }
@@ -127,8 +132,36 @@ $page_title = 'Notifications - Admin';
             height: 38px;
         }
         .toolbar-btn:hover { border-color: #9ca3af; background: #f9fafb; }
-        .toolbar-btn.active { border-color: #00232b; color: #00232b; background: #e8f1f3; }
+        .toolbar-btn.active { border-color: #0d9488; color: #0d9488; background: #f0fdfa; }
         .toolbar-btn svg { flex-shrink: 0; }
+
+        /* Sort Dropdown */
+        .sort-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            width: 180px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            z-index: 200;
+            padding: 6px;
+        }
+        .sort-option {
+            padding: 9px 12px;
+            font-size: 13px;
+            color: #4b5563;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .sort-option:hover { background: #f9fafb; color: #111827; }
+        .sort-option.selected { background: #f0fdfa; color: #0d9488; font-weight: 600; }
+        .sort-option svg.check { color: #0d9488; }
+
         .filter-panel {
             position: absolute;
             top: calc(100% + 6px);
@@ -159,7 +192,7 @@ $page_title = 'Notifications - Admin';
         .filter-reset-link {
             font-size: 12px;
             font-weight: 600;
-            color: #00232b;
+            color: #0d9488;
             cursor: pointer;
             background: none;
             border: none;
@@ -178,7 +211,7 @@ $page_title = 'Notifications - Admin';
             box-sizing: border-box;
             cursor: pointer;
         }
-        .filter-select:focus { outline: none; border-color: #00232b; }
+        .filter-select:focus { outline: none; border-color: #0d9488; }
         .filter-search-input {
             width: 100%;
             height: 34px;
@@ -189,7 +222,7 @@ $page_title = 'Notifications - Admin';
             color: #1f2937;
             box-sizing: border-box;
         }
-        .filter-search-input:focus { outline: none; border-color: #00232b; }
+        .filter-search-input:focus { outline: none; border-color: #0d9488; }
         .filter-actions { display: flex; gap: 8px; padding: 14px 18px; border-top: 1px solid #f3f4f6; }
         .filter-btn-reset {
             flex: 1;
@@ -209,7 +242,7 @@ $page_title = 'Notifications - Admin';
             justify-content: center;
             width: 18px;
             height: 18px;
-            background: #00232b;
+            background: #0d9488;
             color: #fff;
             border-radius: 50%;
             font-size: 10px;
@@ -223,13 +256,13 @@ $page_title = 'Notifications - Admin';
             align-items: center;
             gap: 6px;
             text-decoration: none;
-            background: #00232b;
+            background: #0d9488;
             color: #fff !important;
             border: none;
             border-radius: 8px;
             font-weight: 600;
         }
-        .notif-header-primary:hover { background: #00151a; color: #fff !important; }
+        .notif-header-primary:hover { background: #0f766e; color: #fff !important; }
 
         /* ── Notification Row ──────────────────────── */
         .notif-item {
@@ -245,7 +278,7 @@ $page_title = 'Notifications - Admin';
         .notif-item:hover { background: #fafafa; margin: 0 -20px; padding: 16px 20px; border-radius: 8px; }
         .notif-dot {
             width: 8px; height: 8px; border-radius: 50%;
-            background: #00232b; flex-shrink: 0; margin-top: 6px;
+            background: #0d9488; flex-shrink: 0; margin-top: 6px;
         }
         .notif-dot.read { background: transparent; border: 2px solid #e5e7eb; }
         .notif-icon-wrap {
@@ -315,7 +348,6 @@ $page_title = 'Notifications - Admin';
         <header>
             <div>
                 <h1 class="page-title" style="margin-bottom:4px;">Notifications</h1>
-                <p style="font-size:14px;color:#6b7280;"><?php echo $unread_count; ?> unread · <?php echo number_format($total_count); ?> matching this view</p>
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
                 <button onclick="refreshNotifications()" class="btn-secondary" style="height:38px;padding:0 16px;font-size:13px;display:inline-flex;align-items:center;gap:6px;">
@@ -339,10 +371,31 @@ $page_title = 'Notifications - Admin';
             <div class="card" style="padding:0;overflow:hidden;">
                 <div class="notif-card-head" x-data="notifFilterPanel()">
                     <div>
-                        <h3>Notifications</h3>
+                        <h3>All Notifications</h3>
                         <div class="notif-card-sub">Page <?php echo (int)$page; ?> of <?php echo (int)$total_pages; ?> · <?php echo number_format($total_count); ?> total</div>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <!-- Sort Button -->
+                        <div style="position:relative;">
+                            <button type="button" class="toolbar-btn" :class="{active: sortOpen || (activeSort !== 'newest')}" @click="sortOpen = !sortOpen; filterOpen = false" style="height:38px;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/>
+                                </svg>
+                                Sort by
+                            </button>
+                            <div class="sort-dropdown" x-show="sortOpen" x-cloak @click.outside="sortOpen = false">
+                                <div class="sort-option" :class="{'selected': activeSort === 'newest'}" @click="applySortFilter('newest')">
+                                    Newest to Oldest
+                                    <svg x-show="activeSort === 'newest'" class="check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
+                                <div class="sort-option" :class="{'selected': activeSort === 'oldest'}" @click="applySortFilter('oldest')">
+                                    Oldest to Newest
+                                    <svg x-show="activeSort === 'oldest'" class="check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Filter Button -->
                         <div style="position:relative;">
                             <button type="button" class="toolbar-btn" :class="{active: filterOpen || hasActiveFilters}" @click="filterOpen = !filterOpen" style="height:38px;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -441,10 +494,6 @@ $page_title = 'Notifications - Admin';
                                         Read
                                     </button>
                                     <?php endif; ?>
-                                    <button onclick="deleteNotification(<?php echo $notif['notification_id']; ?>)" class="notif-action-btn danger">
-                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                        Delete
-                                    </button>
                                 </div>
                             </div>
                             <?php endforeach; ?>
@@ -459,11 +508,17 @@ $page_title = 'Notifications - Admin';
     </div>
 </div>
 
+<?php include __DIR__ . '/../includes/footer.php'; ?>
+
 <script>
 var ntSearchTimer = null;
+var activeSort = '<?php echo $sort_by; ?>';
+
 function notifFilterPanel() {
     return {
         filterOpen: false,
+        sortOpen: false,
+        activeSort: '<?php echo $sort_by; ?>',
         get hasActiveFilters() {
             var f = document.getElementById('nt_fp_filter');
             var s = document.getElementById('nt_fp_search');
@@ -474,16 +529,27 @@ function notifFilterPanel() {
     };
 }
 window.notifFilterPanel = notifFilterPanel;
-function notifNavigate(page) {
-    var p = new URLSearchParams();
-    var ff = document.getElementById('nt_fp_filter');
-    p.set('filter', ff ? ff.value : 'all');
-    var si = document.getElementById('nt_fp_search');
-    var q = si ? (si.value || '').trim() : '';
-    if (q) p.set('search', q);
-    if (page && page > 1) p.set('page', String(page));
-    window.location.href = (window.location.pathname || '') + '?' + p.toString();
+
+function buildNotifFilterURL(page = 1) {
+    const params = new URLSearchParams();
+    params.set('page', page);
+    const f = document.getElementById('nt_fp_filter')?.value;
+    if (f && f !== 'all') params.set('filter', f);
+    const s = document.getElementById('nt_fp_search')?.value;
+    if (s) params.set('search', s);
+    if (activeSort !== 'newest') params.set('sort', activeSort);
+    return '?' + params.toString();
 }
+
+function notifNavigate(page) {
+    window.location.href = buildNotifFilterURL(page);
+}
+
+function applySortFilter(sortKey) {
+    activeSort = sortKey;
+    notifNavigate(1);
+}
+
 function notifResetAllFilters() {
     window.location.href = window.location.pathname || 'notifications.php';
 }
@@ -530,30 +596,6 @@ function markAsRead(notifId, redirectUrl) {
                     if (readBtn) readBtn.remove();
                 }
                 setTimeout(function() { window.location.reload(); }, 500);
-            }
-        })
-        .catch(function(error) { console.error('Error:', error); });
-}
-
-function deleteNotification(notifId) {
-    if (!confirm('Delete this notification?')) return;
-    fetch('?action=delete&id=' + notifId)
-        .then(function(response) { return response.json(); })
-        .then(function(data) {
-            if (data.success) {
-                var item = document.querySelector('[data-id="' + notifId + '"]');
-                if (item) {
-                    item.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
-                    item.style.opacity = '0';
-                    item.style.transform = 'translateX(16px)';
-                    setTimeout(function() {
-                        item.remove();
-                        var container = document.getElementById('notifications-container');
-                        if (container && container.querySelectorAll('.notif-item').length === 0) {
-                            window.location.reload();
-                        }
-                    }, 250);
-                }
             }
         })
         .catch(function(error) { console.error('Error:', error); });

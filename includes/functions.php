@@ -15,6 +15,14 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 /**
+ * Check if request is AJAX/XHR
+ * @return bool
+ */
+function is_xhr() {
+    return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+}
+
+/**
  * Send email notification using PHPMailer
  * @param string $to Recipient email
  * @param string $subject Email subject
@@ -89,6 +97,14 @@ function send_email($to, $subject, $message, $is_html = true) {
         
     } catch (Exception $e) {
         error_log("Failed to send email to {$to}: " . $mail->ErrorInfo);
+        error_log("\n" . str_repeat('=', 70));
+        error_log("PRINTFLOW EMAIL ERROR - Quick Fix Guide:");
+        error_log("1. Open: includes/smtp_config.php");
+        error_log("2. Replace 'your-email@gmail.com' with your actual Gmail");
+        error_log("3. Get App Password: https://myaccount.google.com/apppasswords");
+        error_log("4. Replace 'your-app-password' with the 16-char password");
+        error_log("5. See SMTP_SETUP_GUIDE.md for detailed instructions");
+        error_log(str_repeat('=', 70) . "\n");
         return false;
     }
 }
@@ -168,6 +184,26 @@ function send_sms($phone, $message) {
  * @return bool|int
  */
 function create_notification($user_id, $user_type, $message, $type = 'System', $send_email = false, $send_sms = false, $data_id = null) {
+    // ── Pre-check ENUM ───────────────────────────────────────────────────────
+    static $enums_checked = false;
+    if (!$enums_checked) {
+        try {
+            $col = db_query("SHOW COLUMNS FROM notifications LIKE 'type'");
+            if (!empty($col[0]['Type'])) {
+                $t = (string)$col[0]['Type'];
+                if (stripos($t, "'Rating'") === false || stripos($t, "'Review'") === false) {
+                    preg_match_all("/'((?:[^'\\\\]|\\\\.)*)'/", $t, $m);
+                    $vals = $m[1] ?? [];
+                    if (!in_array('Rating', $vals)) $vals[] = 'Rating';
+                    if (!in_array('Review', $vals)) $vals[] = 'Review';
+                    $escaped = array_map(fn($v) => "'" . str_replace("'", "\\'", $v) . "'", $vals);
+                    db_execute("ALTER TABLE notifications MODIFY COLUMN type ENUM(" . implode(",", $escaped) . ") DEFAULT 'System'");
+                }
+            }
+        } catch (Throwable $e) { error_log("Failed to ensure notification enum: " . $e->getMessage()); }
+        $enums_checked = true;
+    }
+
     $customer_id = $user_type === 'Customer' ? $user_id : null;
     $staff_user_id = $user_type !== 'Customer' ? $user_id : null;
     
@@ -227,14 +263,25 @@ function create_notification($user_id, $user_type, $message, $type = 'System', $
  * Uses each user's role for web push subscription matching.
  */
 function notify_staff_new_order(int $order_id, string $customer_first_name): void {
+    // Get service name from context
+    $first_item = db_query("SELECT customization_data FROM order_items WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
+    $service_name = 'Service Order';
+    if (!empty($first_item)) {
+        $custom_data = !empty($first_item[0]['customization_data']) ? json_decode($first_item[0]['customization_data'], true) : [];
+        $service_name = get_service_name_from_customization($custom_data, 'Service Order');
+    }
+
     $users = db_query(
         "SELECT user_id, role FROM users WHERE role IN ('Staff', 'Admin', 'Manager') AND status = 'Activated'"
     );
     if (empty($users)) {
         return;
     }
+    
     $name = trim($customer_first_name) !== '' ? trim($customer_first_name) : 'A customer';
-    $msg = "New Order #{$order_id} from {$name}!";
+    // Format: "Customer Name placed an order for Service Name"
+    $msg = "{$name} placed an order for {$service_name}";
+    
     foreach ($users as $u) {
         $role = $u['role'] ?? 'Staff';
         if (!in_array($role, ['Staff', 'Admin', 'Manager'], true)) {
@@ -249,13 +296,12 @@ function notify_staff_new_order(int $order_id, string $customer_first_name): voi
  */
 function staff_notification_target_url(array $n): string {
     $base = defined('BASE_URL') ? BASE_URL : '/printflow';
-
+    $msg = isset($n['message']) ? (string)$n['message'] : '';
+    $msg_lower = strtolower($msg);
+    
     $is_rating = (
         (isset($n['type']) && (string)$n['type'] === 'Rating') ||
-        (isset($n['message']) && (
-            stripos((string)$n['message'], 'rating') !== false ||
-            stripos((string)$n['message'], 'review') !== false
-        ))
+        ((stripos($msg, 'rating') !== false || stripos($msg, 'review') !== false) && stripos($msg, 'design') === false)
     );
     if ($is_rating) {
         return $base . '/staff/reviews.php';
@@ -269,7 +315,12 @@ function staff_notification_target_url(array $n): string {
     // Order / Job / Payment / Design notifications with a data_id
     if (!empty($n['data_id']) && isset($n['type']) && (string)$n['type'] === 'Order') {
         $data_id = (int)$n['data_id'];
-        $msg = isset($n['message']) ? (string)$n['message'] : '';
+        
+        // Re-uploaded design or design re-upload
+        if (stripos($msg, 're-uploaded design') !== false || stripos($msg, 'design re-upload') !== false) {
+             return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=ORDER&status=PENDING';
+        }
+
         $payment_submitted = (stripos($msg, 'submitted payment') !== false || stripos($msg, 'payment proof') !== false);
 
         if ($payment_submitted) {
@@ -638,34 +689,77 @@ function upload_file($file, $allowed_extensions = [], $destination = 'uploads', 
 }
 
 /**
- * Ensure ratings table exists.
- * One rating entry per order.
+ * Ensure review and ratings tables exist.
+ * One review entry per order. Multi-image, video, and staff replies supported.
  * @return void
  */
 function ensure_ratings_table_exists() {
     static $ensured = false;
     if ($ensured) return;
 
+    // 1. Core reviews table
     db_execute("
-        CREATE TABLE IF NOT EXISTS ratings (
+        CREATE TABLE IF NOT EXISTS reviews (
             id INT AUTO_INCREMENT PRIMARY KEY,
             order_id INT NOT NULL,
             customer_id INT NOT NULL,
             service_type VARCHAR(150) DEFAULT NULL,
             rating TINYINT NOT NULL,
-            comment TEXT DEFAULT NULL,
-            image VARCHAR(255) DEFAULT NULL,
+            message TEXT DEFAULT NULL,
+            video_path VARCHAR(255) DEFAULT NULL,
             created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE KEY uniq_rating_order (order_id),
-            KEY idx_rating_customer (customer_id),
-            KEY idx_rating_value (rating),
-            CONSTRAINT fk_ratings_order FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
-            CONSTRAINT fk_ratings_customer FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE,
-            CONSTRAINT chk_ratings_value CHECK (rating BETWEEN 1 AND 5)
+            UNIQUE KEY uniq_review_order (order_id),
+            KEY idx_review_customer (customer_id),
+            KEY idx_review_rating (rating),
+            CONSTRAINT fk_reviews_order FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
+            CONSTRAINT fk_reviews_customer FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE,
+            CONSTRAINT chk_reviews_rating CHECK (rating BETWEEN 1 AND 5)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    ");
+
+    // 2. Review multiple images
+    db_execute("
+        CREATE TABLE IF NOT EXISTS review_images (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            review_id INT NOT NULL,
+            image_path VARCHAR(255) NOT NULL,
+            CONSTRAINT fk_review_images_review FOREIGN KEY (review_id) REFERENCES reviews(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    ");
+
+    // 3. Staff replies to reviews
+    db_execute("
+        CREATE TABLE IF NOT EXISTS review_replies (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            review_id INT NOT NULL,
+            staff_id INT NOT NULL,
+            reply_message TEXT NOT NULL,
+            created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_review_replies_review FOREIGN KEY (review_id) REFERENCES reviews(id) ON DELETE CASCADE,
+            CONSTRAINT fk_review_replies_staff FOREIGN KEY (staff_id) REFERENCES users(user_id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     ");
 
     $ensured = true;
+}
+
+/**
+ * Format a timestamp into a relative "X ago" string.
+ * @param string|int $timestamp
+ * @return string
+ */
+function format_ago($timestamp) {
+    if (!$timestamp) return 'n/a';
+    $time = is_numeric($timestamp) ? $timestamp : strtotime($timestamp);
+    if (!$time) return 'n/a';
+    
+    $diff = time() - $time;
+    if ($diff < 60) return 'just now';
+    if ($diff < 3600) return floor($diff / 60) . 'm ago';
+    if ($diff < 86400) return floor($diff / 3600) . 'h ago';
+    if ($diff < 2592000) return floor($diff / 86400) . 'd ago';
+    if ($diff < 31536000) return floor($diff / 2592000) . 'mo ago';
+    return floor($diff / 31536000) . 'y ago';
 }
 
 /**
@@ -783,7 +877,7 @@ function add_order_system_message($order_id, $message) {
  * @param string $currency
  * @return string
  */
-function format_currency($amount, $currency = 'PHP') {
+function format_currency($amount, $currency = '₱') {
     return $currency . ' ' . number_format($amount, 2);
 }
 
@@ -876,41 +970,45 @@ function status_badge($status, $type = 'order') {
     
     $colors = [
         'order' => [
-            'Pending' => 'bg-yellow-100 text-yellow-800',
-            'Pending Review' => 'bg-yellow-100 text-yellow-800',
-            'Approved' => 'bg-blue-100 text-blue-800',
-            'To Pay' => 'bg-indigo-100 text-indigo-800',
-            'To Verify' => 'bg-orange-100 text-orange-800',
-            'Downpayment Submitted' => 'bg-purple-100 text-purple-800',
-            'Pending Verification' => 'bg-orange-100 text-orange-800',
-            'Processing' => 'bg-blue-100 text-blue-800',
-            'For Revision' => 'bg-pink-100 text-pink-800',
-            'Ready for Pickup' => 'bg-teal-100 text-teal-800',
-            'Completed' => 'bg-green-100 text-green-800',
-            'To Rate' => 'bg-purple-100 text-purple-800',
-            'Rated' => 'bg-emerald-100 text-emerald-800',
-            'Cancelled' => 'bg-red-100 text-red-800'
+            'Pending' => 'background: #fef3c7; color: #92400e; border: none;',
+            'Pending Review' => 'background: #fef3c7; color: #92400e; border: none;',
+            'Approved' => 'background: #dbeafe; color: #1e40af; border: none;',
+            'To Pay' => 'background: #dbeafe; color: #1e40af; border: none;',
+            'To Verify' => 'background: #fef9c3; color: #854d0e; border: none;',
+            'Downpayment Submitted' => 'background: #fce7f3; color: #be185d; border: none;',
+            'Pending Verification' => 'background: #fef9c3; color: #854d0e; border: none;',
+            'Processing' => 'background: #e0e7ff; color: #4338ca; border: none;',
+            'In Production' => 'background: #cffafe; color: #0891b2; border: none;',
+            'Printing' => 'background: #cffafe; color: #0891b2; border: none;',
+            'For Revision' => 'background: #ffe4e6; color: #b91c1c; border: none;',
+            'Revision Submitted' => 'background: #fef3c7; color: #92400e; border: none;',
+            'Ready for Pickup' => 'background: #dcfce7; color: #15803d; border: none;',
+            'Completed' => 'background: #dcfce7; color: #166534; border: none;',
+            'To Rate' => 'background: #f3e8ff; color: #6b21a8; border: none;',
+            'Rated' => 'background: #f3e8ff; color: #6b21a8; border: none;',
+            'Cancelled' => 'background: #fee2e2; color: #991b1b; border: none;'
         ],
         'payment' => [
-            'Unpaid' => 'bg-red-100 text-red-800',
-            'Partially Paid' => 'bg-yellow-100 text-yellow-800',
-            'Paid' => 'bg-green-100 text-green-800',
-            'Refunded' => 'bg-gray-100 text-gray-800',
-            'Pending Verification' => 'bg-orange-100 text-orange-800'
+            'Unpaid' => 'background: #fee2e2; color: #991b1b; border: none;',
+            'Partially Paid' => 'background: #fef3c7; color: #92400e; border: none;',
+            'Paid' => 'background: #dcfce7; color: #166534; border: none;',
+            'Refunded' => 'background: #f3f4f6; color: #374151; border: none;',
+            'Pending Verification' => 'background: #fef3c7; color: #92400e; border: none;'
         ],
         'design' => [
-            'Pending' => 'bg-yellow-100 text-yellow-800',
-            'Approved' => 'bg-green-100 text-green-800',
-            'Rejected' => 'bg-red-100 text-red-800'
+            'Pending' => 'background: #fffbeb; color: #92400e; border: 1px solid #fef3c7;',
+            'Approved' => 'background: #f0fdf4; color: #166534; border: 1px solid #dcfce7;',
+            'Rejected' => 'background: #fef2f2; color: #991b1b; border: 1px solid #fee2e2;'
         ]
     ];
     
-    $color = $colors[$type][$status] ?? 'bg-gray-100 text-gray-800';
+    $style = $colors[$type][$status] ?? 'background: #f9fafb; color: #374151; border: 1px solid #f3f4f6;';
     // Display "Pending" instead of "Pending Review" for consistency
     $display = ($status === 'Pending Review') ? 'Pending' : $status;
     
-    return "<span class='px-2 py-1 text-xs font-semibold rounded-full {$color}'>" . htmlspecialchars($display) . "</span>";
+    return "<span class='status-badge-pill' style='{$style}'>" . htmlspecialchars($display) . "</span>";
 }
+
 
 /**
  * Sanitize input
@@ -953,7 +1051,7 @@ function get_unread_notification_count($user_id, $user_type) {
         $result = db_query("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0", 'i', [$user_id]);
     }
     
-    return $result[0]['count'] ?? 0;
+    return (!empty($result) && isset($result[0]['count'])) ? (int)$result[0]['count'] : 0;
 }
 
 /**
@@ -1053,75 +1151,72 @@ function set_setting($key, $value) {
  * @return string HTML string
  */
 function render_pagination($current_page, $total_pages, $extra_params = [], $page_param = 'page') {
-    $current_page = (int)$current_page;
-
     if ($total_pages <= 1) return '';
-    
-    $params = $extra_params;
-    unset($params[$page_param]);
 
-    // Build page range: always show current ±2 pages, plus first and last
-    $window = 2;
+    $current_page = (int)$current_page;
+    $window = 2; // Show 2 pages before and after current
     $pages = [];
-
+    
     // Always include first page
     $pages[] = 1;
-
-    // Pages around current
+    
     $range_start = max(2, $current_page - $window);
     $range_end   = min($total_pages - 1, $current_page + $window);
     for ($i = $range_start; $i <= $range_end; $i++) {
         $pages[] = $i;
     }
-
+    
     // Always include last page
     if ($total_pages > 1) {
         $pages[] = $total_pages;
     }
-
+    
     $pages = array_unique($pages);
     sort($pages);
 
-    // Shared button styles
-    $base_btn  = 'display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;color:#374151;text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s;';
-    $active_btn = 'display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:6px;border:1px solid #0d9488;background:#0d9488;color:white;text-decoration:none;font-size:13px;font-weight:600;';
-    $hover = ' onmouseover="this.style.background=\'#f5f7fa\'" onmouseout="this.style.background=\'white\'"';
+    // Shared button styles — 'all:unset' defeats Tailwind/output.css resets on <a> tags
+    // Using PrintFlow Primary #06A1A1
+    $base_btn  = 'all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:8px;border:1px solid #e5e7eb;background:#ffffff;color:#374151 !important;text-decoration:none !important;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;';
+    $active_btn = 'all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:8px;border:1px solid #06A1A1;background:#06A1A1;color:#ffffff !important;text-decoration:none !important;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 4px rgba(6,161,161,0.2);';
+    $hover = ' onmouseover="this.style.borderColor=\'#06A1A1\';this.style.color=\'#06A1A1\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.color=\'#374151\'"';
     $ellipsis = '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;font-size:13px;color:#9ca3af;letter-spacing:1px;">···</span>';
 
-    $html = '<div style="display:flex; align-items:center; justify-content:center; gap:4px; margin-top:20px; padding-top:16px; border-top:1px solid #f3f4f6;">';
+    $params = $extra_params;
+    unset($params[$page_param]);
+    
+    $html = '<div style="display:flex; align-items:center; justify-content:center; gap:6px; margin-top:24px; padding:16px 0; border-top:1px solid #f1f5f9; width:100%;">';
 
     // Previous button
     if ($current_page > 1) {
         $params[$page_param] = $current_page - 1;
-        $url = '?' . http_build_query($params) . '#recent-transactions';
-        $html .= '<a href="' . htmlspecialchars($url) . '" style="' . $base_btn . '" onclick="sessionStorage.setItem(\'scrollToTransactions\', \'true\');"' . $hover . '>
+        $url = '?' . http_build_query($params);
+        $html .= '<a href="' . htmlspecialchars($url) . '" style="' . $base_btn . '"' . $hover . '>
             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         </a>';
     }
 
     $prev_page = null;
     foreach ($pages as $p) {
-        // Insert ellipsis if there's a gap
         if ($prev_page !== null && $p - $prev_page > 1) {
             $html .= $ellipsis;
         }
-
+        
         $params[$page_param] = $p;
-        $url = '?' . http_build_query($params) . '#recent-transactions';
-        if ($p === $current_page) {
-            $html .= '<a href="' . htmlspecialchars($url) . '" style="' . $active_btn . '" onclick="sessionStorage.setItem(\'scrollToTransactions\', \'true\');">' . $p . '</a>';
+        $url = '?' . http_build_query($params);
+        
+        if ((int)$p === (int)$current_page) {
+            $html .= '<a href="' . htmlspecialchars($url) . '" style="' . $active_btn . '">' . $p . '</a>';
         } else {
-            $html .= '<a href="' . htmlspecialchars($url) . '" style="' . $base_btn . '" onclick="sessionStorage.setItem(\'scrollToTransactions\', \'true\');"' . $hover . '>' . $p . '</a>';
+            $html .= '<a href="' . htmlspecialchars($url) . '" style="' . $base_btn . '"' . $hover . '>' . $p . '</a>';
         }
-
         $prev_page = $p;
     }
 
     // Next button
     if ($current_page < $total_pages) {
         $params[$page_param] = $current_page + 1;
-        $url = '?' . http_build_query($params) . '#recent-transactions';
-        $html .= '<a href="' . htmlspecialchars($url) . '" style="' . $base_btn . '" onclick="sessionStorage.setItem(\'scrollToTransactions\', \'true\');"' . $hover . '>
+        $url = '?' . http_build_query($params);
+        $html .= '<a href="' . htmlspecialchars($url) . '" style="' . $base_btn . '"' . $hover . '>
             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </a>';
     }
@@ -1168,29 +1263,32 @@ function normalize_service_name($name, $fallback = 'Custom Order') {
     if ($clean === '') return $fallback;
 
     $normalized = strtolower(preg_replace('/\s+/', ' ', $clean));
+    
+    // Exact mapping for core services to ensure consistency across the system
     $map = [
-        'custom order' => $fallback,
-        'customer order' => $fallback,
-        'order item' => $fallback,
-        'service order' => $fallback,
-        'tshirt' => 'T-Shirt Printing',
+        'tarpaulin' => 'Tarpaulin Printing',
+        'tarpaulin printing' => 'Tarpaulin Printing',
+        'tarp' => 'Tarpaulin Printing',
         't-shirt' => 'T-Shirt Printing',
-        't shirts' => 'T-Shirt Printing',
-        't-shirts' => 'T-Shirt Printing',
-        'tarpaulin' => 'Tarpaulin',
-        'decal' => 'Decals',
-        'decals' => 'Decals',
-        'sticker' => 'Stickers',
-        'stickers' => 'Stickers',
-        'glass/wall' => 'Glass/Wall Stickers',
-        'glass stickers' => 'Glass/Wall Stickers',
-        'transparent' => 'Transparent',
-        'transparent sticker' => 'Transparent',
-        'transparent sticker printing' => 'Transparent',
+        'tshirt' => 'T-Shirt Printing',
+        't-shirt printing' => 'T-Shirt Printing',
+        'tshirt printing' => 'T-Shirt Printing',
+        'stickers' => 'Decals/Stickers (Print/Cut)',
+        'sticker' => 'Decals/Stickers (Print/Cut)',
+        'decal' => 'Decals/Stickers (Print/Cut)',
+        'decals' => 'Decals/Stickers (Print/Cut)',
+        'decals/stickers (print/cut)' => 'Decals/Stickers (Print/Cut)',
+        'decals / stickers (print/cut)' => 'Decals/Stickers (Print/Cut)',
+        'decals / stickers (print & cut)' => 'Decals/Stickers (Print/Cut)',
+        'sintraboard' => 'Sintraboard Standees',
+        'sintra board' => 'Sintraboard Standees',
+        'standee' => 'Sintraboard Standees',
+        'standees' => 'Sintraboard Standees',
+        'glass sticker' => 'Glass/Wall Stickers',
+        'frosted sticker' => 'Glass/Wall Stickers',
+        'wall sticker' => 'Glass/Wall Stickers',
+        'transparent sticker' => 'Transparent Stickers',
         'reflectorized' => 'Reflectorized',
-        'sintraboard' => 'Sintraboard',
-        'standees' => 'Standees',
-        'standee' => 'Standees',
         'souvenir' => 'Souvenirs',
         'souvenirs' => 'Souvenirs'
     ];
@@ -1206,31 +1304,30 @@ function get_service_name_from_customization($custom, $fallback = 'Custom Order'
     if (!$custom) return $fallback;
     $custom = is_string($custom) ? json_decode($custom, true) : $custom;
     
+    // User Requested Priority Logic
+    // 1. Sintra Board
+    if (!empty($custom['sintra_type']) || !empty($custom['Sintra Type']) || !empty($custom['is_standee'])) {
+        return 'Sintraboard Standees';
+    }
+    // 2. Tarpaulin Printing
+    if (!empty($custom['tarp_size']) || !empty($custom['Tarp Size']) || (!empty($custom['width']) && !empty($custom['height']) && (!empty($custom['finish']) || !empty($custom['with_eyelets'])))) {
+        return 'Tarpaulin Printing';
+    }
+    // 3. T-Shirt Printing
+    if (!empty($custom['vinyl_type']) || !empty($custom['print_placement']) || !empty($custom['tshirt_color']) || !empty($custom['shirt_source'])) {
+        return 'T-Shirt Printing';
+    }
+    // 4. Decals/Stickers
+    if (!empty($custom['sticker_type']) || !empty($custom['Sticker Type']) || !empty($custom['shape']) || !empty($custom['Cut_Type'])) {
+        return 'Decals/Stickers (Print/Cut)';
+    }
+
+    // Secondary explicitly provided fields
     if (!empty($custom['service_type'])) {
         return normalize_service_name($custom['service_type'], $fallback);
     }
     if (!empty($custom['product_type'])) {
         return normalize_service_name($custom['product_type'], $fallback);
-    }
-
-    // Heuristics based on common customization fields
-    if (isset($custom['print_placement']) || isset($custom['tshirt_color']) || isset($custom['tshirt_size'])) {
-        return normalize_service_name('T-Shirt Printing', $fallback);
-    }
-    if (isset($custom['width']) && isset($custom['height']) && (isset($custom['finish']) || isset($custom['with_eyelets']))) {
-        return normalize_service_name('Tarpaulin', $fallback);
-    }
-    if (isset($custom['surface_application']) && isset($custom['dimensions']) && isset($custom['layout'])) {
-        return normalize_service_name('Transparent Sticker Printing', $fallback);
-    }
-    if (isset($custom['surface_type']) && (isset($custom['laminate_option']) || isset($custom['lamination']))) {
-        return normalize_service_name('Glass & Wall Sticker Printing', $fallback);
-    }
-    if (isset($custom['shape']) && isset($custom['size']) && (isset($custom['waterproof']) || isset($custom['sticker_type']) || isset($custom['laminate_option']))) {
-        return normalize_service_name('Stickers', $fallback);
-    }
-    if (isset($custom['sintraboard_thickness']) || isset($custom['is_standee'])) {
-        return normalize_service_name('Sintraboard', $fallback);
     }
     
     return normalize_service_name($fallback, $fallback);
@@ -1256,7 +1353,7 @@ function get_services_image_map() {
         'reflectorized' => $base . '/images/products/signage.jpg',
         'signage'     => $base . '/images/products/signage.jpg',
         'sintraboard' => $base . '/images/products/standeeflat.jpg',
-        'standee'     => $base . '/images/services/Sintraboard Standees.jpg',
+        'standee'     => $base . '/images/products/standeeflat.jpg',
         'souvenir'    => $base . '/assets/images/services/default.png',
     ];
 }

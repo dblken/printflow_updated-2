@@ -146,12 +146,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_order'])) {
                     if (!empty($item['reference_tmp_path']) && file_exists($item['reference_tmp_path'])) @unlink($item['reference_tmp_path']);
                     unset($_SESSION['cart'][$item_key]);
 
-                    $welcomeMsg = "Your order #{$order_id} has been placed successfully! Our team will review it shortly.";
+                    $srv_name = get_service_name_from_customization($custom, 'Service Order');
+                    $welcomeMsg = "Your order for {$srv_name} has been placed successfully! Our team will review it shortly.";
                     create_notification($customer_id, 'Customer', $welcomeMsg, 'Order', true, false, $order_id);
                     add_order_system_message($order_id, $welcomeMsg);
                     notify_staff_new_order((int)$order_id, (string)($customer['first_name'] ?? 'Customer'));
 
-                    $_SESSION['success'] = "Your order #{$order_id} has been placed successfully!";
+                    $_SESSION['success'] = "Your order for {$srv_name} has been placed successfully!";
                     $order_placed_id = $order_id;
                 } else {
                     $order_error = 'Failed to place order. Please try again.';
@@ -376,76 +377,15 @@ require_once __DIR__ . '/../includes/header.php';
         background: #0a2530;
     }
 
-    /* Force clean item renderer to match review theme */
-    .review-order-item > .card {
-        background: rgba(10, 37, 48, 0.35) !important;
-        border: 1px solid rgba(83, 197, 224, 0.24) !important;
-        border-radius: 12px !important;
-    }
-    .review-order-item > .card > div:first-child {
-        border-bottom: 1px solid rgba(83, 197, 224, 0.2) !important;
-        background: transparent !important;
-    }
-    .review-order-item > .card > div:first-child > div:first-child {
-        background: rgba(255, 255, 255, 0.08) !important;
-        border: 1px solid rgba(83, 197, 224, 0.26) !important;
-    }
-    .review-order-item h3,
-    .review-order-item h4,
-    .review-order-item p,
-    .review-order-item div,
-    .review-order-item span {
-        color: #d9edf6 !important;
-    }
-    .review-order-item > .card > div:first-child > div:last-child > div:nth-child(2) {
-        color: #9fc4d4 !important;
-    }
-    .review-order-item > .card > div:nth-child(2) {
-        background: transparent !important;
-    }
-    /*
-     * Specs grid: use .review-spec-grid / .review-spec-tile (see order_ui_helper.php).
-     * Do NOT use div:nth-child(2) > div:last-child for Notes — when Notes are absent,
-     * that selector matched the grid and drew a border around the whole specs area.
+    /* 
+     * Target the image clickable state 
      */
-    .review-order-item .review-spec-grid {
-        display: grid !important;
-        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-        gap: 0.75rem !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        outline: none !important;
+    .review-order-item img {
+        cursor: pointer;
+        transition: transform 0.2s;
     }
-    .review-order-item .review-spec-grid > .review-spec-tile {
-        background: transparent !important;
-        border: 1px solid rgba(83, 197, 224, 0.24) !important;
-        box-shadow: none !important;
-    }
-    .review-order-item .review-spec-grid > .review-spec-tile > div:first-child {
-        color: #9fc4d4 !important;
-    }
-    .review-order-item .review-spec-grid > .review-spec-tile > div:last-child {
-        color: #eaf6fb !important;
-    }
-    .review-order-item .review-spec-grid > .review-spec-tile:last-child:nth-child(3n + 1) {
-        grid-column: 2 / span 1;
-    }
-    .review-order-item .review-spec-notes {
-        background: transparent !important;
-        border: 1px solid rgba(83, 197, 224, 0.34) !important;
-    }
-    .review-order-item .review-spec-notes > div:first-child,
-    .review-order-item .review-spec-notes > div:last-child {
-        color: #def1f8 !important;
-    }
-    .review-order-item > .card > div:last-child {
-        border-top: 1px solid rgba(83, 197, 224, 0.2) !important;
-        background: rgba(10, 37, 48, 0.4) !important;
-    }
-    .review-order-item > .card > div:last-child > div:last-child {
-        border: 1px solid rgba(83, 197, 224, 0.24) !important;
-        background: rgba(255, 255, 255, 0.05) !important;
+    .review-order-item img:hover {
+        transform: scale(1.02);
     }
 
     /* Success Modal Styles */

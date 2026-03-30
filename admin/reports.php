@@ -503,6 +503,11 @@ if (!$branch_empty) {
 $cust_total = 0;
 try { $cust_total = (int)(db_query("SELECT COUNT(*) as cnt FROM customers")[0]['cnt'] ?? 0); } catch(Exception $e){}
 
+// ── Variables required by footer.php ──────────────────────────────────────────
+$base_url = '/printflow';
+$url_products = '/printflow/public/products.php';
+$is_logged_in = true;
+
 // ── 17. Seasonal event insights ───────────────────────────────────────────────
 $month_now = (int)date('n');
 $seasonal_events = [
@@ -545,6 +550,11 @@ foreach ($active_events as $ev) {
 
 $page_title = 'Reports & Analytics — Admin';
 $last_updated = date('M j, Y g:i A');
+
+// Required variables for footer.php
+$base_url = '/printflow';
+$url_products = '/printflow/public/products.php';
+$is_logged_in = true;
 
 // ── Period empty (branch has orders but none in date range) ─────────────────
 $period_empty = (!$branch_empty && !$period_has_activity);

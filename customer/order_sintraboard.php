@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'source_page'      => 'services',
                     'branch_id'        => $branch_id,
                     'name'             => $product_name,
-                    'category'         => 'Sintraboard & Standees',
+                    'category'         => 'Sintraboard Standees',
                     'price'            => $sintra_price,
                     'quantity'         => $quantity,
                     'image'            => '📦',
@@ -135,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$page_title = 'Order Sintraboard - PrintFlow';
+$page_title = 'Order Sintraboard Standees - PrintFlow';
 $use_customer_css = true;
 require_once __DIR__ . '/../includes/header.php';
 
@@ -156,7 +156,7 @@ if (!empty($_POST['dimensions']) && preg_match('/^(\d+(?:\.\d+)?)\s*[x×]\s*(\d+
 ?>
 <div class="min-h-screen py-8 sintra-order-page">
     <div class="container mx-auto px-4" style="max-width: 640px;">
-        <h1 class="text-2xl font-bold mb-6 sintra-page-title">Sintraboard & Standees</h1>
+        <h1 class="text-2xl font-bold mb-6 sintra-page-title">Sintraboard Standees</h1>
         <?php if ($error): ?><div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
         <div class="card sintra-order-card">
             <form method="POST" enctype="multipart/form-data" id="sintraForm" class="sintra-order-form" novalidate>

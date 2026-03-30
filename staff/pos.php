@@ -591,14 +591,25 @@ try {
                             <span id="pos-total">₱0.00</span>
                         </div>
                         
-                        <input type="hidden" id="pos-active-pm" value="Cash">
-
+                        <div class="pos-tender-group" style="margin-bottom: 12px;">
+                            <span style="font-weight: 600; font-size: 14px; color: #475569;">Payment Method</span>
+                            <select id="pos-payment-method" class="pos-category-select" style="min-width: 140px; text-align: right; padding: 10px;" onchange="toggleReferenceField()">
+                                <option value="Cash">Cash</option>
+                                <option value="GCash">GCash</option>
+                                <option value="Maya">Maya</option>
+                            </select>
+                        </div>
+                        
+                        <div class="pos-tender-group" id="reference-group" style="display: none; margin-bottom: 12px;">
+                            <span style="font-weight: 600; font-size: 14px; color: #475569;">Reference No. *</span>
+                            <input type="text" id="pos-reference" name="reference_number" class="pos-tender-input" placeholder="e.g. 100234" oninput="updateCheckoutState()">
+                        </div>
 
                         <div class="pos-tender-group" id="tender-group">
                             <span style="font-weight: 600; font-size: 14px; color: #475569;">Tendered</span>
                             <div style="position: relative;">
                                 <span style="position: absolute; left: 12px; top: 12px; font-weight: 600; color: #94a3b8;">₱</span>
-                                <input type="number" id="pos-tendered" class="pos-tender-input" placeholder="0.00" oninput="calculateChange()" style="padding-left: 28px;">
+                                <input type="number" id="pos-tendered" name="amount_tendered" class="pos-tender-input" placeholder="0.00" oninput="calculateChange()" style="padding-left: 28px;">
                             </div>
                         </div>
                         
@@ -654,13 +665,13 @@ try {
         <h3 id="pm-title" style="margin:0 0 12px 0; font-size:20px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">Set Price</h3>
         <div id="pm-name-group" style="margin-bottom: 24px; display:none;">
             <label style="display:block; font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:8px; letter-spacing:0.05em;">Service Name</label>
-            <input type="text" id="pm-name-input" style="width:100%; padding:14px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#1e293b; outline:none;" placeholder="e.g. Custom Frame">
+            <input type="text" id="pm-name-input" name="custom_service_name" style="width:100%; padding:14px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#1e293b; outline:none;" placeholder="e.g. Custom Frame">
         </div>
         <div style="margin-bottom:28px;">
             <label style="display:block; font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:8px; letter-spacing:0.05em;">Negotiated Price</label>
             <div style="position: relative;">
                 <span style="position: absolute; left: 16px; top: 14px; font-weight: 700; color: #94a3b8;">₱</span>
-                <input type="number" id="pm-price-input" style="width:100%; padding:14px 14px 14px 32px; border:1px solid #e2e8f0; border-radius:12px; font-weight:800; font-size:24px; background:#f8fafc; color:#1e293b; outline:none;" placeholder="0.00" step="0.01">
+                <input type="number" id="pm-price-input" name="custom_service_price" style="width:100%; padding:14px 14px 14px 32px; border:1px solid #e2e8f0; border-radius:12px; font-weight:800; font-size:24px; background:#f8fafc; color:#1e293b; outline:none;" placeholder="0.00" step="0.01">
             </div>
         </div>
         <div style="display:flex; gap:12px;">
@@ -679,11 +690,43 @@ let currentTotal = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchProducts();
+    refreshCart(); // Initialize cart from session
     const searchEl = document.getElementById('pos-search');
     const catEl = document.getElementById('pos-category');
     if (searchEl) searchEl.addEventListener('input', renderProducts);
     if (catEl) catEl.addEventListener('change', renderProducts);
 });
+
+async function syncedCartAction(action, payload = {}) {
+    console.log('syncedCartAction:', action, payload);
+    try {
+        const response = await fetch('/printflow/staff/api/pos_cart_handler.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, ...payload })
+        });
+        const data = await response.json();
+        console.log('syncedCartAction Response:', data);
+        if (data.success) {
+            cart = data.cart || [];
+            console.log('Updated local cart:', cart);
+            renderCart();
+            return { success: true };
+        } else {
+            console.error('syncedCartAction Error:', data.message);
+            alert(data.message || 'Action failed');
+            return { success: false, message: data.message };
+        }
+    } catch (e) {
+        console.error('Cart Action Error:', e);
+        alert('Network error while updating cart.');
+        return { success: false };
+    }
+}
+
+async function refreshCart() {
+    await syncedCartAction('get');
+}
 
 async function fetchProducts() {
     try {
@@ -915,7 +958,7 @@ function renderProducts() {
     });
 }
 
-function addToCart(p, overridePrice = null, overrideName = null) {
+async function addToCart(p, overridePrice = null, overrideName = null) {
     const name = overrideName || p.product_name;
     const price = overridePrice !== null ? overridePrice : parseFloat(p.price);
     
@@ -924,22 +967,12 @@ function addToCart(p, overridePrice = null, overrideName = null) {
         return;
     }
     
-    // Check if exactly this item (ID + name + price) exists
-    const existing = cart.find(i => i.product_id === p.product_id && i.name === name && i.price === price);
-    
-    if(existing) {
-        if(existing.qty < p.stock_quantity || p.stock_quantity === null) existing.qty++;
-        else alert('Not enough stock!');
-    } else {
-        cart.push({
-            product_id: p.product_id,
-            name: name,
-            price: price,
-            qty: 1,
-            stock: p.stock_quantity
-        });
-    }
-    renderCart();
+    await syncedCartAction('add', {
+        product_id: p.product_id,
+        name: name,
+        price: price,
+        qty: 1
+    });
 }
 
 let pendingCustomProduct = null;
@@ -1087,6 +1120,23 @@ function openCustomModal(product, requirements) {
         }
     }
     
+    // Inject Price Input directly into the form if product price is 0
+    const initialPrice = parseFloat(product.price) || 0;
+    if (initialPrice === 0) {
+        const priceHtml = `
+            <div id="cm-price-section" style="margin-top:16px; padding-top:16px; border-top:1px dashed #cbd5e1;">
+                <label style="display:block; font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:8px; letter-spacing:0.05em;">Negotiated Price *</label>
+                <div style="position: relative;">
+                    <span style="position: absolute; left: 16px; top: 14px; font-weight: 700; color: #94a3b8;">₱</span>
+                    <input type="number" id="cm-price-input" style="width:100%; padding:14px 14px 14px 32px; border:1px solid #e2e8f0; border-radius:12px; font-weight:800; font-size:24px; background:#f8fafc; color:#1e293b; outline:none;" placeholder="0.00" step="0.01">
+                </div>
+            </div>`;
+        container.insertAdjacentHTML('beforeend', priceHtml);
+        
+        // Ensure scrolling works properly
+        container.style.maxHeight = '55vh'; 
+    }
+    
     document.getElementById('custom-modal-overlay').style.display = 'flex';
 }
 
@@ -1212,7 +1262,7 @@ function collectRequirementsToCustomization(requirements, startIdx, customizatio
     });
 }
 
-function confirmCustomization() {
+async function confirmCustomization() {
     if (!pendingCustomProduct || !currentCustomRequirements) return;
     
     const customization = {};
@@ -1228,45 +1278,43 @@ function confirmCustomization() {
         if (!customization.product_type) {
             validation.valid = false;
         }
-        if (customization.product_type === 'Custom Reflectorized Sign' && customization.dimensions) {
-            customization.unit = customization.unit || 'in';
-        }
-        if (customization.product_type === 'Plate Number / Temporary Plate' && !customization.temp_plate_text) {
-            customization.temp_plate_text = 'TEMPORARY PLATE';
-        }
     }
     
     if (!validation.valid) {
-        alert('Please complete all required fields before proceeding.');
+        alert('Please complete all required fields (marked *) before proceeding.');
         return;
     }
     
-    const price = parseFloat(pendingCustomProduct.price) || 0;
+    let price = parseFloat(pendingCustomProduct.price) || 0;
     if (price === 0) {
+        const pInput = document.getElementById('cm-price-input');
+        if (pInput) {
+            price = parseFloat(pInput.value);
+            if (isNaN(price) || price <= 0) {
+                alert('Please enter a valid negotiated price.');
+                pInput.focus();
+                return;
+            }
+        } else {
+            // Fallback if input somehow didn't render
+            const p = pendingCustomProduct;
+            closeCustomModal();
+            openPriceModal(p, false, customization);
+            return;
+        }
+    }
+    
+    const result = await syncedCartAction('add', {
+        product_id: pendingCustomProduct.product_id,
+        name: pendingCustomProduct.product_name || pendingCustomProduct.name,
+        price: price,
+        qty: 1,
+        customization: customization
+    });
+
+    if (result.success) {
         closeCustomModal();
-        openPriceModal(pendingCustomProduct, false, customization);
-        return;
     }
-    
-    const customString = JSON.stringify(customization);
-    const existing = cart.find(i => i.product_id === pendingCustomProduct.product_id && i.price === price && JSON.stringify(i.customization) === customString);
-    
-    if (existing) {
-        if (existing.stock === null || existing.qty < existing.stock) existing.qty++;
-        else alert('Not enough stock!');
-    } else {
-        cart.push({
-            product_id: pendingCustomProduct.product_id,
-            name: pendingCustomProduct.product_name || pendingCustomProduct.name,
-            price: price,
-            qty: 1,
-            stock: pendingCustomProduct.stock_quantity,
-            customization: customization
-        });
-    }
-    
-    renderCart();
-    closeCustomModal();
 }
 
 let pendingProduct = null;
@@ -1306,23 +1354,15 @@ function confirmPrice() {
     closePriceModal();
 }
 
-function addToCartWithCustomization(p, price, name, customization) {
+async function addToCartWithCustomization(p, price, name, customization) {
     const itemName = name || p.product_name || p.name;
-    const existing = cart.find(i => i.product_id === p.product_id && i.name === itemName && i.price === price && JSON.stringify(i.customization || {}) === JSON.stringify(customization || {}));
-    if (existing) {
-        if (existing.stock === null || existing.qty < existing.stock) existing.qty++;
-        else alert('Not enough stock!');
-    } else {
-        cart.push({
-            product_id: p.product_id,
-            name: itemName,
-            price: price,
-            qty: 1,
-            stock: p.stock_quantity,
-            customization: customization || null
-        });
-    }
-    renderCart();
+    await syncedCartAction('add', {
+        product_id: p.product_id,
+        name: itemName,
+        price: price,
+        qty: 1,
+        customization: customization
+    });
 }
 
 function setActiveService(btn) {
@@ -1332,7 +1372,26 @@ function setActiveService(btn) {
 }
 
 function addQuickService(serviceName) {
-    let p = products.find(prod => prod.category === serviceName || prod.product_name.includes(serviceName));
+    // Mapping for UI button names to DB category names
+    const categoryMap = {
+        'Decals / Stickers': 'Decals & Stickers',
+        'T-Shirt': 'Apparel',
+        'Glass/Wall': 'Glass/Wall',
+        'Transparent': 'Transparent Stickers',
+        'Sintraboard': 'Sintraboard',
+        'Standees': 'Standees',
+        'Souvenirs': 'Souvenirs',
+        'Reflectorized': 'Reflectorized'
+    };
+    
+    const dbCategory = categoryMap[serviceName] || serviceName;
+    
+    // Look for exact category match first, then partial product name match
+    let p = products.find(prod => 
+        prod.category === dbCategory || 
+        prod.product_name.toLowerCase().includes(serviceName.toLowerCase()) ||
+        prod.product_name.toLowerCase().includes(dbCategory.toLowerCase())
+    );
     if(!p) p = products.find(prod => prod.category.includes(serviceName));
 
     if(p) {
@@ -1359,30 +1418,26 @@ function addOtherService() {
     openPriceModal(otherBase, true);
 }
 
-function updateQty(id, price, delta) {
-    const item = cart.find(i => i.product_id === id && i.price === price);
+async function updateQtyByCartIndex(index, delta) {
+    const item = cart[index];
     if(!item) return;
-    const newQty = item.qty + delta;
-    if(newQty <= 0) {
-        cart = cart.filter(i => !(i.product_id === id && i.price === price));
-    } else if(newQty > item.stock && item.stock !== null) {
-        alert('Not enough stock!');
-    } else {
-        item.qty = newQty;
+    let newQty = parseInt(item.qty) + delta;
+    if (newQty < 1) newQty = 1;
+    if (newQty > 100) {
+        alert("Maximum quantity per item is 100.");
+        newQty = 100;
     }
-    renderCart();
+    await syncedCartAction('update', { index, qty: newQty });
 }
 
-function removeFromCart(id, price) {
-    cart = cart.filter(i => !(i.product_id === id && i.price === price));
-    renderCart();
+async function removeByCartIndex(index) {
+    await syncedCartAction('remove', { index });
 }
 
-function clearCart() {
+async function clearCart() {
     if(cart.length > 0 && confirm('Clear current order?')) {
-        cart = [];
+        await syncedCartAction('clear');
         document.getElementById('pos-tendered').value = '';
-        renderCart();
     }
 }
 
@@ -1414,16 +1469,15 @@ function renderCart() {
             div.innerHTML = `
                 <div class="pos-item-details" style="flex:1;">
                     <div class="pos-item-name">${item.name}</div>
-                    ${customHtml}
                     <div class="pos-item-price" style="margin-top:2px;">₱${item.price.toFixed(2)}</div>
                 </div>
                 <div class="pos-item-controls">
-                    <button class="pos-qty-btn" onclick="updateQtyByCartIndex(${index}, -1)"><i class="fas fa-minus" style="font-size:10px;"></i></button>
+                    <button class="pos-qty-btn" style="font-size:16px; line-height:1; font-weight:bold;" onclick="updateQtyByCartIndex(${index}, -1)">&minus;</button>
                     <input class="pos-qty-val" value="${item.qty}" readonly>
-                    <button class="pos-qty-btn" onclick="updateQtyByCartIndex(${index}, 1)"><i class="fas fa-plus" style="font-size:10px;"></i></button>
+                    <button class="pos-qty-btn" style="font-size:16px; line-height:1; font-weight:bold;" onclick="updateQtyByCartIndex(${index}, 1)">&plus;</button>
                 </div>
                 <div class="pos-item-total" style="width:70px; text-align:right;">₱${rowTotal.toFixed(2)}</div>
-                <button class="pos-item-remove" onclick="removeByCartIndex(${index})"><i class="fas fa-times"></i></button>
+                <button class="pos-item-remove" style="font-size:18px; line-height:1; font-weight:bold;" onclick="removeByCartIndex(${index})">&times;</button>
             `;
             cont.appendChild(div);
         });
@@ -1437,27 +1491,21 @@ function renderCart() {
     updateCheckoutState();
 }
 
-function updateQtyByCartIndex(index, delta) {
-    const item = cart[index];
-    if(!item) return;
-    const newQty = item.qty + delta;
-    if(newQty <= 0) {
-        cart.splice(index, 1);
-    } else if(newQty > item.stock && item.stock !== null) {
-        alert('Not enough stock!');
+// Handlers are used above in renderCart via 'index' directly
+
+
+// Handlers are used above in renderCart via 'index' directly
+
+
+function toggleReferenceField() {
+    const pm = document.getElementById('pos-payment-method').value;
+    const refGroup = document.getElementById('reference-group');
+    if (pm !== 'Cash') {
+        refGroup.style.display = 'flex';
     } else {
-        item.qty = newQty;
+        refGroup.style.display = 'none';
+        document.getElementById('pos-reference').value = '';
     }
-    renderCart();
-}
-
-function removeByCartIndex(index) {
-    cart.splice(index, 1);
-    renderCart();
-}
-
-function setPaymentMethod(method) {
-    document.getElementById('pos-active-pm').value = 'Cash';
     updateCheckoutState();
 }
 
@@ -1466,11 +1514,20 @@ function calculateChange() {
         document.getElementById('pos-change').textContent = '₱0.00';
         return;
     }
-    const tendered = parseFloat(document.getElementById('pos-tendered').value) || 0;
-    const change = tendered - currentTotal;
+    const tenderedInput = document.getElementById('pos-tendered');
+    let tendered = parseFloat(tenderedInput.value) || 0;
+    
+    if (tendered > 1000000) {
+        tendered = 1000000;
+        tenderedInput.value = tendered;
+    }
+    
+    let change = tendered - currentTotal;
+    if (change < 0) change = 0; // Must never be negative on display
+    
     const changeEl = document.getElementById('pos-change');
-    changeEl.textContent = change >= 0 ? `₱${change.toFixed(2)}` : '₱0.00';
-    changeEl.style.color = (change < 0 && tendered > 0) ? '#ef4444' : '#06A1A1';
+    changeEl.textContent = `₱${change.toFixed(2)}`;
+    changeEl.style.color = (tendered < currentTotal && tendered > 0) ? '#ef4444' : '#06A1A1';
     
     updateCheckoutState();
 }
@@ -1487,16 +1544,48 @@ function updateCheckoutState() {
         return;
     }
     
+    let canCheckout = true;
+    let message = 'Complete Sale';
+    
+    const pm = document.getElementById('pos-payment-method').value;
+    const ref = document.getElementById('pos-reference').value.trim();
+    
+    if (pm !== 'Cash' && !ref) {
+        canCheckout = false;
+        message = 'Enter Ref Number';
+    }
+    
     const tendered = parseFloat(document.getElementById('pos-tendered').value) || 0;
-    const canCheckout = tendered >= currentTotal;
+    if (tendered < currentTotal || tendered > 1000000) {
+        canCheckout = false;
+        if (message === 'Complete Sale') message = 'Enter Valid Amount';
+    }
     
     btn.disabled = !canCheckout;
     icon.className = canCheckout ? 'fas fa-check-circle' : 'fas fa-lock';
-    text.textContent = canCheckout ? 'Complete Sale' : 'Enter Valid Amount';
+    text.textContent = message;
 }
 
 async function processCheckout() {
     if(cart.length === 0) return;
+    
+    const pm = document.getElementById('pos-payment-method').value;
+    const ref = document.getElementById('pos-reference').value.trim();
+    if (pm !== 'Cash' && !ref) {
+        alert("Reference number is required for " + pm);
+        return;
+    }
+    
+    const tendered = parseFloat(document.getElementById('pos-tendered').value) || 0;
+    if (tendered < currentTotal || tendered > 1000000) {
+        alert("Amount tendered must be at least ₱" + currentTotal.toFixed(2) + " and not exceed ₱1,000,000.");
+        return;
+    }
+    
+    const changeAmount = (tendered - currentTotal).toFixed(2);
+    if(!confirm(`Confirm payment of ₱${currentTotal.toFixed(2)} using ${pm}?\nChange due: ₱${changeAmount}\n\nProceed to finish the transaction?`)) {
+        return;
+    }
     
     const btn = document.getElementById('pos-checkout-btn');
     btn.disabled = true;
@@ -1506,8 +1595,9 @@ async function processCheckout() {
     const payload = {
         action: 'walkin_checkout',
         customer_id: document.getElementById('pos-customer').value,
-        payment_method: document.getElementById('pos-active-pm').value,
-        amount_tendered: document.getElementById('pos-tendered').value || currentTotal,
+        payment_method: pm,
+        reference_number: ref,
+        amount_tendered: tendered,
         items: cart.map(i => ({ id: i.product_id, qty: i.qty, price: i.price, name: i.name || null, customization: i.customization || null }))
     };
     
@@ -1520,12 +1610,13 @@ async function processCheckout() {
         const data = await res.json();
         if(data.success) {
             alert('Sale Completed! Order ID: ' + data.order_id);
-            cart = [];
+            await syncedCartAction('clear');
             document.getElementById('pos-customer').value = 'guest';
             document.getElementById('pos-tendered').value = '';
-            setPaymentMethod('Cash');
-            renderCart();
-            fetchProducts(); // Refresh stock
+            document.getElementById('pos-reference').value = '';
+            document.getElementById('pos-payment-method').value = 'Cash';
+            toggleReferenceField();
+            fetchProducts();
         } else {
             alert('Checkout failed: ' + (data.message || 'Error'));
         }
@@ -1588,6 +1679,9 @@ window.processCheckout = processCheckout;
 window.addQuickService = addQuickService;
 window.addToCart = addToCart;
 window.togglePosOtherInput = togglePosOtherInput;
+window.updateQtyByCartIndex = updateQtyByCartIndex;
+window.removeByCartIndex = removeByCartIndex;
+window.clearCart = clearCart;
 </script>
 
 </body>

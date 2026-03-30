@@ -144,7 +144,7 @@ function service_order_staff_modal_data(int $order_id): ?array {
     $customer_type_label = $order['customer_type'] ?? 'REGULAR';
     $cust_badge_class = strtoupper((string)$customer_type_label) === 'NEW' ? 'badge-confirmed' : 'badge-fulfilled';
 
-    $skip_spec_keys = ['notes', 'production_notes', 'additional_notes', 'special_instructions'];
+    $skip_spec_keys = ['notes', 'production_notes', 'additional_notes', 'special_instructions', 'branch_id'];
     $spec_rows = [];
     foreach ($details as $d) {
         $k = strtolower((string)$d['field_name']);

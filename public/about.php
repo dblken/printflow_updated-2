@@ -34,8 +34,8 @@ $founding_year = htmlspecialchars($about_cfg['founding_year'] ?? '2018');
 $team_size     = htmlspecialchars($about_cfg['team_size']     ?? '25+');
 $projects_done = htmlspecialchars($about_cfg['projects_done'] ?? '10,000+');
 $happy_clients = htmlspecialchars($about_cfg['happy_clients'] ?? '5,000+');
-$values        = $about_cfg['values']       ?? [];
-$team_members  = $about_cfg['team_members'] ?? [];
+$values        = isset($about_cfg['values']) && is_array($about_cfg['values']) ? $about_cfg['values'] : [];
+$team_members  = isset($about_cfg['team_members']) && is_array($about_cfg['team_members']) ? $about_cfg['team_members'] : [];
 
 // Value icon SVGs
 function about_icon(string $icon): string {
@@ -73,24 +73,24 @@ function about_icon(string $icon): string {
 <!-- ============================================================
      STATS BAR
      ============================================================ -->
-<section style="background:#fff; border-bottom:3px solid #e2e8f0; padding:3rem 0;">
+<section style="background:var(--lp-bg2); border-bottom:1px solid var(--lp-border); padding:3rem 0;">
     <div class="lp-wrap">
         <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:2rem; text-align:center;">
             <div>
                 <div style="font-size:2.25rem; font-weight:800; color:var(--lp-accent); line-height:1;"><?php echo $founding_year; ?></div>
-                <div style="font-size:0.85rem; color:#64748b; margin-top:0.5rem; text-transform:uppercase; letter-spacing:.06em;">Est. Year</div>
+                <div style="font-size:0.85rem; color:var(--lp-muted); margin-top:0.5rem; text-transform:uppercase; letter-spacing:.06em;">Est. Year</div>
             </div>
             <div>
                 <div style="font-size:2.25rem; font-weight:800; color:var(--lp-accent); line-height:1;"><?php echo $team_size; ?></div>
-                <div style="font-size:0.85rem; color:#64748b; margin-top:0.5rem; text-transform:uppercase; letter-spacing:.06em;">Team Members</div>
+                <div style="font-size:0.85rem; color:var(--lp-muted); margin-top:0.5rem; text-transform:uppercase; letter-spacing:.06em;">Team Members</div>
             </div>
             <div>
                 <div style="font-size:2.25rem; font-weight:800; color:var(--lp-accent); line-height:1;"><?php echo $projects_done; ?></div>
-                <div style="font-size:0.85rem; color:#64748b; margin-top:0.5rem; text-transform:uppercase; letter-spacing:.06em;">Projects Done</div>
+                <div style="font-size:0.85rem; color:var(--lp-muted); margin-top:0.5rem; text-transform:uppercase; letter-spacing:.06em;">Projects Done</div>
             </div>
             <div>
                 <div style="font-size:2.25rem; font-weight:800; color:var(--lp-accent); line-height:1;"><?php echo $happy_clients; ?></div>
-                <div style="font-size:0.85rem; color:#64748b; margin-top:0.5rem; text-transform:uppercase; letter-spacing:.06em;">Happy Clients</div>
+                <div style="font-size:0.85rem; color:var(--lp-muted); margin-top:0.5rem; text-transform:uppercase; letter-spacing:.06em;">Happy Clients</div>
             </div>
         </div>
     </div>
@@ -144,22 +144,22 @@ function about_icon(string $icon): string {
     <div class="lp-wrap">
         <div style="text-align:center; margin-bottom:3.5rem;">
             <p style="font-size:0.8rem; font-weight:700; color:var(--lp-accent); text-transform:uppercase; letter-spacing:.1em; margin-bottom:.75rem;">What Drives Us</p>
-            <h2 style="font-size:clamp(1.9rem,4vw,2.8rem); font-weight:800; color:#0f172a; letter-spacing:-0.025em; margin-bottom:1rem;">Our Core <span style="color:var(--lp-accent);">Values</span></h2>
-            <p style="font-size:1.0625rem; color:#475569; max-width:520px; margin:0 auto; line-height:1.7;">The principles that guide every print, every project, every promise we make to you.</p>
+            <h2 style="font-size:clamp(1.9rem,4vw,2.8rem); font-weight:800; color:#fff; letter-spacing:-0.025em; margin-bottom:1rem;">Our Core <span style="color:var(--lp-accent);">Values</span></h2>
+            <p style="font-size:1.0625rem; color:var(--lp-muted); max-width:520px; margin:0 auto; line-height:1.7;">The principles that guide every print, every project, every promise we make to you.</p>
         </div>
 
         <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:1.5rem;">
             <?php foreach ($values as $v): ?>
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:1.25rem; padding:2rem; box-shadow:0 2px 12px rgba(0,0,0,0.05); transition:transform .2s, box-shadow .2s;"
-                onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 30px rgba(50,161,196,0.15)'"
-                onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 12px rgba(0,0,0,0.05)'">
+            <div style="background:var(--lp-surface); border:1px solid rgba(83,197,224,0.15); border-radius:1.25rem; padding:2rem; box-shadow:0 2px 12px rgba(0,0,0,0.2); transition:transform .2s, box-shadow .2s;"
+                onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 30px rgba(50,161,196,0.2)'"
+                onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 12px rgba(0,0,0,0.2)'">
                 <div style="width:48px; height:48px; background:linear-gradient(135deg, #eaf7fb, #cff1f8); border-radius:12px; display:flex; align-items:center; justify-content:center; margin-bottom:1.25rem;">
                     <svg style="width:24px; height:24px; color:var(--lp-accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <?php echo about_icon($v['icon'] ?? 'star'); ?>
                     </svg>
                 </div>
-                <h3 style="font-size:1.0625rem; font-weight:700; color:#0f172a; margin-bottom:.5rem;"><?php echo htmlspecialchars($v['title']); ?></h3>
-                <p style="font-size:.9375rem; color:#64748b; line-height:1.6;"><?php echo htmlspecialchars($v['desc']); ?></p>
+                <h3 style="font-size:1.0625rem; font-weight:700; color:#fff; margin-bottom:.5rem;"><?php echo htmlspecialchars($v['title']); ?></h3>
+                <p style="font-size:.9375rem; color:var(--lp-muted); line-height:1.6;"><?php echo htmlspecialchars($v['desc']); ?></p>
             </div>
             <?php endforeach; ?>
         </div>
@@ -179,9 +179,9 @@ function about_icon(string $icon): string {
             <p class="lp-heading-desc">Passionate professionals dedicated to making your printing experience seamless and outstanding.</p>
         </div>
 
-        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:1.75rem; justify-items:center;">
+        <div style="display:flex; flex-wrap:wrap; gap:1.75rem; justify-content:center;">
             <?php foreach ($team_members as $tm): ?>
-            <div style="text-align:center; max-width:240px; width:100%;">
+            <div style="text-align:center; max-width:240px; width:100%; margin:0 auto;">
                 <?php if (!empty($tm['photo'])): ?>
                     <img src="/printflow/public/assets/uploads/team/<?php echo htmlspecialchars($tm['photo']); ?>"
                          style="width:100px; height:100px; border-radius:50%; object-fit:cover; border:3px solid var(--lp-accent); margin:0 auto 1rem; display:block;">
@@ -209,13 +209,13 @@ function about_icon(string $icon): string {
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:4rem; align-items:center;">
             <div>
                 <p style="font-size:0.8rem; font-weight:700; color:var(--lp-accent); text-transform:uppercase; letter-spacing:.1em; margin-bottom:.75rem;">Why <?php echo $shop_name; ?></p>
-                <h2 style="font-size:clamp(1.9rem,4vw,2.8rem); font-weight:800; color:#0f172a; letter-spacing:-0.025em; margin-bottom:1.5rem; line-height:1.15;">Built on <span style="color:var(--lp-accent);">Quality</span>,<br>Driven by <span style="color:var(--lp-accent);">Results</span></h2>
-                <p style="font-size:1rem; color:#475569; line-height:1.8; margin-bottom:1.75rem;">
+                <h2 style="font-size:clamp(1.9rem,4vw,2.8rem); font-weight:800; color:#fff; letter-spacing:-0.025em; margin-bottom:1.5rem; line-height:1.15;">Built on <span style="color:var(--lp-accent);">Quality</span>,<br>Driven by <span style="color:var(--lp-accent);">Results</span></h2>
+                <p style="font-size:1rem; color:var(--lp-muted); line-height:1.8; margin-bottom:1.75rem;">
                     We're not just a printing shop — we're your creative partner. From concept to completion, we ensure every detail meets your expectations and exceeds industry standards.
                 </p>
                 <div style="display:flex; gap:1rem; flex-wrap:wrap;">
                     <a href="/printflow/public/services.php" class="lp-btn lp-btn-primary">Explore Services</a>
-                    <a href="/printflow/public/products.php" class="lp-btn" style="background:#f1f5f9; color:#0f172a; border:2px solid #e2e8f0; font-weight:600;">View Products</a>
+                    <a href="/printflow/public/products.php" class="lp-btn lp-btn-outline">View Products</a>
                 </div>
             </div>
             <div style="display:flex; flex-direction:column; gap:1rem;">
@@ -226,15 +226,15 @@ function about_icon(string $icon): string {
                     ['title'=>'Fast & Reliable Pickup','desc'=>'Rush orders, same-day pickups, and clear notifications so you know exactly when your order is ready.'],
                 ]; ?>
                 <?php foreach ($perks as $perk): ?>
-                <div style="display:flex; gap:1rem; align-items:flex-start; padding:1.25rem; background:#fff; border:1px solid #e2e8f0; border-radius:1rem; box-shadow:0 1px 6px rgba(0,0,0,0.04);">
+                <div style="display:flex; gap:1rem; align-items:flex-start; padding:1.25rem; background:var(--lp-surface); border:1px solid rgba(83,197,224,0.15); border-radius:1rem; box-shadow:0 1px 6px rgba(0,0,0,0.2);">
                     <div style="width:36px; height:36px; background:linear-gradient(135deg,#eaf7fb,#cff1f8); border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px;">
                         <svg style="width:18px;height:18px;color:var(--lp-accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
                         </svg>
                     </div>
                     <div>
-                        <div style="font-size:.9375rem; font-weight:700; color:#0f172a; margin-bottom:.2rem;"><?php echo $perk['title']; ?></div>
-                        <div style="font-size:.875rem; color:#64748b; line-height:1.6;"><?php echo $perk['desc']; ?></div>
+                        <div style="font-size:.9375rem; font-weight:700; color:#fff; margin-bottom:.2rem;"><?php echo $perk['title']; ?></div>
+                        <div style="font-size:.875rem; color:var(--lp-muted); line-height:1.6;"><?php echo $perk['desc']; ?></div>
                     </div>
                 </div>
                 <?php endforeach; ?>

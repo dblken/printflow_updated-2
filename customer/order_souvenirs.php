@@ -27,25 +27,25 @@ $souvenir_type_options = ['Mug', 'Keychain', 'Tote Bag', 'Pen', 'Tumbler', 'T-Sh
                 <!-- Branch -->
                 <div class="mb-4" id="card-branch-souvenir">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
-                    <select name="branch_id" id="souvenir_branch_id" class="input-field w-full">
-                        <option value="" selected disabled>Please select</option>
+                    <select name="branch_id" id="souvenir_branch_id" class="input-field w-full" required>
+                        <option value="" selected disabled>Please select Branch</option>
                         <?php foreach($branches as $b): ?>
                             <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['branch_name']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
 
-                <!-- Mirrors order_tshirt.php #shirt-type-section (same classes, no per-radio onchange; IDs/names are souvenir-specific) -->
+                <!-- Souvenir Type -->
                 <div class="mb-4" id="souvenir-type-section">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Souvenir Type <span id="souvenir-type-required-mark">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Souvenir Type *</label>
                     <div class="option-grid option-grid-3x2 souvenir-type-grid">
                         <?php foreach ($souvenir_type_options as $st): ?>
-                        <label class="opt-btn-wrap"><input type="radio" name="souvenir_type" value="<?php echo htmlspecialchars($st); ?>"> <span><?php echo htmlspecialchars($st); ?></span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="souvenir_type" value="<?php echo htmlspecialchars($st); ?>" required onchange="souvenirUpdateOpt(this)"> <span><?php echo htmlspecialchars($st); ?></span></label>
                         <?php endforeach; ?>
-                        <label class="opt-btn-wrap opt-btn-others"><input type="radio" name="souvenir_type" value="Others"> <span>Others</span></label>
+                        <label class="opt-btn-wrap opt-btn-others" style="grid-column: 1 / -1; max-width: calc(33.333% - 0.4rem); margin: 0 auto;"><input type="radio" name="souvenir_type" value="Others" onchange="souvenirUpdateOpt(this)"> <span>Others</span></label>
                     </div>
                     <div id="souvenir-type-other-wrap" style="display: none; margin-top: 0.75rem;">
-                        <input type="text" name="souvenir_type_other" id="souvenir_type_other" class="input-field" placeholder="Enter custom shirt type">
+                        <input type="text" name="souvenir_type_other" id="souvenir_type_other" class="input-field" placeholder="Enter custom souvenir type">
                     </div>
                 </div>
 
@@ -53,15 +53,15 @@ $souvenir_type_options = ['Mug', 'Keychain', 'Tote Bag', 'Pen', 'Tumbler', 'T-Sh
                 <div class="mb-4" id="card-custom-print-souvenir">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Custom Print? *</label>
                     <div class="opt-btn-group">
-                        <label class="opt-btn-wrap"><input type="radio" name="custom_print" value="No"> <span>No</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="custom_print" value="Yes"> <span>Yes – I have a design</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="custom_print" value="No" required onchange="toggleDesignUpload(); souvenirUpdateOpt(this)"> <span>No</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="custom_print" value="Yes" required onchange="toggleDesignUpload(); souvenirUpdateOpt(this)"> <span>Yes – I have a design</span></label>
                     </div>
                 </div>
 
                 <!-- Design Upload -->
                 <div class="mb-4" id="card-upload-souvenir">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Upload Design <span id="upload-asterisk" class="souvenir-upload-asterisk" style="display: none;" aria-hidden="true">*</span>
+                        Upload Design <span id="upload-asterisk" class="souvenir-upload-asterisk" style="display: none;">*</span>
                         (JPG, PNG, PDF – max 5MB)
                         <span id="upload-hint" class="font-normal normal-case text-sm ml-1 text-gray-400">(Optional)</span>
                     </label>
@@ -76,8 +76,8 @@ $souvenir_type_options = ['Mug', 'Keychain', 'Tote Bag', 'Pen', 'Tumbler', 'T-Sh
                 <div class="mb-4" id="card-lamination-souvenir">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Lamination *</label>
                     <div class="opt-btn-group">
-                        <label class="opt-btn-wrap"><input type="radio" name="lamination" value="With Lamination"> <span>With Lamination</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="lamination" value="Without Lamination"> <span>Without Lamination</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="lamination" value="With Lamination" required onchange="souvenirUpdateOpt(this)"> <span>With Lamination</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="lamination" value="Without Lamination" required onchange="souvenirUpdateOpt(this)"> <span>Without Lamination</span></label>
                     </div>
                 </div>
 
@@ -91,9 +91,9 @@ $souvenir_type_options = ['Mug', 'Keychain', 'Tote Bag', 'Pen', 'Tumbler', 'T-Sh
                         <div class="need-qty-qty souvenir-field-inner" id="souvenir-wrap-qty" style="min-width:0;">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
                             <div class="sticker-qty-stepper sticker-qty-stepper-wide souvenir-qty-stepper">
-                                <button type="button" onclick="souvenirQtyDown()">−</button>
+                                <button type="button" class="souvenir-qty-btn" onclick="souvenirQtyDown()">−</button>
                                 <input type="number" id="souvenir-qty" name="quantity" min="1" max="999" required value="<?php echo max(1, (int)($_GET['qty'] ?? 1)); ?>" oninput="souvenirQtyClamp()">
-                                <button type="button" onclick="souvenirQtyUp()">+</button>
+                                <button type="button" class="souvenir-qty-btn" onclick="souvenirQtyUp()">+</button>
                             </div>
                         </div>
                     </div>
@@ -225,7 +225,7 @@ function toggleDesignUpload() {
         hint.style.color = '#ef4444';
         hint.style.fontWeight = '700';
         fileInput.required = true;
-        if (asterisk) { asterisk.style.display = 'inline'; asterisk.setAttribute('aria-hidden', 'false'); }
+        if (asterisk) { asterisk.style.display = 'inline'; }
         if (shell) {
             shell.classList.add('souvenir-upload-shell--required');
         }
@@ -234,7 +234,7 @@ function toggleDesignUpload() {
         hint.style.color = '#9ca3af';
         hint.style.fontWeight = 'normal';
         fileInput.required = false;
-        if (asterisk) { asterisk.style.display = 'none'; asterisk.setAttribute('aria-hidden', 'true'); }
+        if (asterisk) { asterisk.style.display = 'none'; }
         if (shell) {
             shell.classList.remove('souvenir-upload-shell--required');
         }
@@ -271,8 +271,11 @@ function souvenirQtyDown() {
 function submitSouvenirOrder(action) {
     const form = document.getElementById('souvenirForm');
     form.dataset.action = action;
-    const event = new Event('submit', { cancelable: true });
-    form.dispatchEvent(event);
+    if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+    } else {
+        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -281,6 +284,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     toggleSouvenirTypeOther();
     toggleDesignUpload();
+    checkSouvenirFormValid();
 });
 
 var souvenirFormEl = document.getElementById('souvenirForm');
@@ -349,7 +353,6 @@ if (souvenirTypeOtherEl) {
         if (window.__souvenirValidationTriggered) checkSouvenirFormValid();
     });
 }
-
 </script>
 
 <style>
@@ -368,7 +371,6 @@ if (souvenirTypeOtherEl) {
     gap: 1rem;
     color-scheme: dark;
 }
-/* Section cards — same contract as #tshirtForm .mb-4 on order_tshirt.php */
 #souvenirForm .mb-4 {
     margin-bottom: 0 !important;
     padding: 1rem;
@@ -399,24 +401,8 @@ if (souvenirTypeOtherEl) {
     border-color: rgba(239, 68, 68, 0.35) !important;
     box-shadow: none !important;
 }
-#souvenirForm .souvenir-field-inner.is-invalid {
-    border-radius: 8px;
-}
 #souvenirForm .mb-4.is-invalid .input-field,
 #souvenirForm .need-qty-card.is-invalid .input-field {
-    border-color: rgba(239, 68, 68, 0.55) !important;
-}
-#souvenirForm .souvenir-field-inner.is-invalid .input-field.souvenir-date-full {
-    border-color: rgba(239, 68, 68, 0.55) !important;
-}
-#souvenirForm .souvenir-field-inner.is-invalid .sticker-qty-stepper {
-    border-color: rgba(239, 68, 68, 0.55) !important;
-}
-#souvenirForm .mb-4.is-invalid .souvenir-upload-shell {
-    border-color: rgba(239, 68, 68, 0.55) !important;
-    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.25);
-}
-#souvenirForm .mb-4.is-invalid .opt-btn-wrap {
     border-color: rgba(239, 68, 68, 0.55) !important;
 }
 #souvenirForm .input-field {
@@ -430,264 +416,62 @@ if (souvenirTypeOtherEl) {
     border: 1px solid rgba(83, 197, 224, 0.26) !important;
     color: #e9f6fb !important;
     box-shadow: none !important;
-    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
-#souvenirForm .input-field::placeholder {
-    color: #a9c1cd !important;
-}
-#souvenirForm .input-field:focus,
-#souvenirForm .input-field:focus-visible {
+#souvenirForm .input-field::placeholder { color: #a9c1cd !important; }
+#souvenirForm .input-field:focus {
     background: rgba(16, 52, 67, 0.98) !important;
     border-color: #53c5e0 !important;
     box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.16) !important;
-    outline: none !important;
 }
-#souvenirForm select.input-field option {
-    background: #0a2530 !important;
-    color: #f8fafc !important;
-}
-#souvenirForm select.input-field option:hover,
-#souvenirForm select.input-field option:focus {
-    background: #53c5e0 !important;
-    color: #06232c !important;
-}
-#souvenirForm select.input-field option:checked {
-    background: #53c5e0 !important;
-    color: #06232c !important;
-}
-#souvenirForm .input-field[type="date"]::-webkit-calendar-picker-indicator {
-    filter: brightness(0) invert(1);
-    opacity: 1;
-    cursor: pointer;
-}
-#souvenirForm .input-field.souvenir-input-h:not(.souvenir-file-input) {
-    min-height: 42px !important;
-    height: 42px !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-}
-.souvenir-date-full { width: 100%; }
-.souvenir-file-input {
-    padding: 0.5rem 0.65rem !important;
-    height: auto !important;
-    min-height: 44px;
-    line-height: 1.35;
-}
+#souvenirForm .input-field[type="date"]::-webkit-calendar-picker-indicator { filter: brightness(0) invert(1); cursor: pointer; }
+
 #souvenirForm .souvenir-upload-shell {
     border: 1px solid rgba(83, 197, 224, 0.26);
     border-radius: 10px;
     padding: 0.35rem 0.5rem;
     background: rgba(13, 43, 56, 0.92);
+}
+#souvenirForm .souvenir-upload-shell--required { border-color: rgba(239, 68, 68, 0.45); }
+#souvenirForm .souvenir-file-input { width: 100%; border: none !important; background: transparent !important; padding: 4px 0 !important; }
+
+.souvenir-need-qty-card .need-qty-row { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
+.souvenir-need-qty-card .need-qty-date, .souvenir-need-qty-card .need-qty-qty { flex: 1; min-width: 0; }
+.sticker-qty-stepper {
+    display: flex; align-items: center; height: 44px; width: 100%;
+    border: 1px solid rgba(83, 197, 224, 0.24); border-radius: 10px; overflow: hidden;
+    background: rgba(13, 43, 56, 0.92);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
-#souvenirForm .souvenir-upload-shell--required {
-    border-color: rgba(239, 68, 68, 0.45);
-    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2);
-}
-#souvenirForm .souvenir-upload-shell .souvenir-file-input {
-    width: 100%;
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    min-height: 40px;
-}
-#souvenirForm .souvenir-upload-shell .souvenir-file-input:focus,
-#souvenirForm .souvenir-upload-shell .souvenir-file-input:focus-visible {
-    outline: none !important;
-    box-shadow: none !important;
-}
-#souvenirForm .souvenir-upload-shell .souvenir-file-input::file-selector-button,
-#souvenirForm .souvenir-upload-shell .souvenir-file-input::-webkit-file-upload-button {
-    margin-right: 0.85rem;
-    padding: 0.45rem 1rem;
-    border: none;
-    border-radius: 6px;
-    background: #fff !important;
-    color: #0a2530 !important;
-    font-weight: 700;
-    font-size: 0.8rem;
-    cursor: pointer;
-    font-family: inherit;
-}
-#souvenirForm .souvenir-upload-shell .souvenir-file-input::file-selector-button:hover,
-#souvenirForm .souvenir-upload-shell .souvenir-file-input::-webkit-file-upload-button:hover {
-    background: #f1f5f9 !important;
-}
-.souvenir-need-qty-card .need-qty-row {
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-    flex-wrap: wrap;
-}
-.souvenir-need-qty-card .need-qty-date { flex: 1; min-width: 0; }
-.souvenir-need-qty-card .need-qty-qty { flex: 1; min-width: 0; }
-.souvenir-need-qty-card .need-qty-qty .sticker-qty-stepper-wide { width: 100%; max-width: 100%; }
-.souvenir-need-qty-card .need-qty-qty .sticker-qty-stepper-wide input { max-width: none; flex: 1; }
-.sticker-qty-stepper {
-    display: inline-flex;
-    align-items: center;
-    width: 110px;
-    height: 42px;
-    border: 1px solid rgba(83, 197, 224, 0.24);
-    border-radius: 10px;
-    overflow: hidden;
-    background: rgba(13, 43, 56, 0.92);
-    box-sizing: border-box;
-}
-.sticker-qty-stepper * { box-sizing: border-box; }
-.sticker-qty-stepper button {
-    flex: 0 0 36px;
-    height: 42px;
-    border: none;
-    background: rgba(83, 197, 224, 0.12);
-    color: #d8edf5;
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.sticker-qty-stepper button:hover { background: rgba(83, 197, 224, 0.22); }
-.sticker-qty-stepper input {
-    flex: 1;
-    min-width: 36px;
-    border: none;
-    text-align: center;
-    font-weight: 700;
-    font-size: 0.875rem;
-    outline: none;
-    background: rgba(13, 43, 56, 0.92);
-    color: #f8fafc;
-    padding: 0 4px;
-    height: 42px;
-}
-#souvenir-qty::-webkit-outer-spin-button,
-#souvenir-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-#souvenir-qty { -moz-appearance: textfield; appearance: textfield; }
-/* option-grid / radios — aligned with order_tshirt.php (base + redesign gaps/columns) */
-#souvenirForm .option-grid {
-    display: grid;
-    gap: 0.5rem;
-    width: 100%;
-}
-#souvenirForm .option-grid-3x2 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.6rem;
-}
-#souvenirForm .souvenir-type-grid .opt-btn-others {
-    grid-column: 2;
-}
-#souvenirForm .opt-btn-group {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.6rem;
-    width: 100%;
-}
+.sticker-qty-stepper:focus-within { border-color: #53c5e0; box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.16); }
+.sticker-qty-stepper button, .souvenir-qty-btn { flex: 0 0 44px; height: 100%; border: none; background: rgba(83, 197, 224, 0.12); color: #d8edf5; font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; outline: none; }
+.sticker-qty-stepper button:hover, .souvenir-qty-btn:hover { background: rgba(83, 197, 224, 0.25); color: #fff; }
+.sticker-qty-stepper button:active, .souvenir-qty-btn:active { background: rgba(83, 197, 224, 0.38); }
+.sticker-qty-stepper input { flex: 1; min-width: 0; border: none; text-align: center; font-weight: 700; font-size: 1rem; background: transparent; color: #f8fafc; outline: none; -moz-appearance: textfield; }
+.sticker-qty-stepper input::-webkit-inner-spin-button, .sticker-qty-stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+#souvenirForm .option-grid { display: grid; gap: 0.5rem; width: 100%; }
+#souvenirForm .option-grid-3x2 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+#souvenirForm .opt-btn-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; width: 100%; }
 #souvenirForm .opt-btn-wrap {
-    min-height: 44px;
-    padding: 0.65rem 0.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 0.86rem;
-    text-align: center;
-    line-height: 1.25;
-    box-sizing: border-box;
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1px solid rgba(83, 197, 224, 0.2) !important;
-    color: #d2e7f1 !important;
-    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    min-height: 44px; padding: 0.65rem 0.75rem; display: flex; align-items: center; justify-content: center;
+    border-radius: 10px; cursor: pointer; font-weight: 500; font-size: 0.86rem; text-align: center;
+    background: rgba(255, 255, 255, 0.04) !important; border: 1px solid rgba(83, 197, 224, 0.2) !important; color: #d2e7f1 !important;
 }
-#souvenirForm .opt-btn-wrap:hover {
-    background: rgba(83, 197, 224, 0.12) !important;
-    border-color: rgba(83, 197, 224, 0.5) !important;
-    box-shadow: 0 0 0 2px rgba(83, 197, 224, 0.12);
-}
-#souvenirForm .opt-btn-wrap:has(input:checked),
 #souvenirForm .opt-btn-wrap.active {
     background: linear-gradient(135deg, rgba(83, 197, 224, 0.28), rgba(50, 161, 196, 0.24)) !important;
-    border-color: #53c5e0 !important;
-    color: #f8fcff !important;
-    box-shadow: 0 0 0 2px rgba(83, 197, 224, 0.22), 0 8px 18px rgba(11, 42, 56, 0.35);
+    border-color: #53c5e0 !important; color: #f8fcff !important;
 }
-#souvenirForm input[type="radio"] {
-    accent-color: #53c5e0;
-}
-#souvenirForm .opt-btn-wrap input {
-    margin-right: 0.5rem;
-}
-.tshirt-actions-row {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 1.1rem;
-    flex-wrap: wrap;
-}
-.tshirt-btn {
-    height: 46px;
-    min-width: 150px;
-    padding: 0 1.15rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    text-decoration: none;
-    font-size: 0.9rem;
-    font-weight: 700;
-    transition: all 0.2s;
-    box-sizing: border-box;
-}
-.tshirt-btn-secondary {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(83, 197, 224, 0.28) !important;
-    color: #d9e6ef !important;
-}
-.tshirt-btn-secondary:hover {
-    background: rgba(83, 197, 224, 0.14) !important;
-    border-color: rgba(83, 197, 224, 0.52) !important;
-    color: #fff !important;
-}
-.tshirt-btn-primary {
-    border: none;
-    background: linear-gradient(135deg, #53c5e0, #32a1c4) !important;
-    color: #fff !important;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    box-shadow: 0 10px 22px rgba(50, 161, 196, 0.3);
-}
-.tshirt-btn:active {
-    transform: translateY(1px) scale(0.99);
-}
+#souvenirForm .opt-btn-wrap input { margin-right: 0.5rem; }
+
+.tshirt-actions-row { display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; margin-top: 1.1rem; flex-wrap: wrap; }
+.tshirt-btn { height: 46px; min-width: 150px; padding: 0 1.15rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; text-decoration: none; font-size: 0.9rem; font-weight: 700; }
+.tshirt-btn-secondary { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(83, 197, 224, 0.28) !important; color: #d9e6ef !important; }
+.tshirt-btn-primary { border: none; background: linear-gradient(135deg, #53c5e0, #32a1c4) !important; color: #fff !important; text-transform: uppercase; cursor: pointer; }
+
 @media (max-width: 640px) {
-    #souvenirForm .option-grid-3x2 {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    #souvenirForm .souvenir-type-grid .opt-btn-others {
-        grid-column: 1 / -1;
-        justify-self: center;
-        width: calc(50% - 0.3rem);
-        max-width: 100%;
-    }
-    .souvenir-need-qty-card .need-qty-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .tshirt-actions-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .tshirt-btn {
-        width: 100%;
-    }
+    #souvenirForm .option-grid-3x2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .souvenir-need-qty-card .need-qty-row { flex-direction: column; align-items: stretch; }
+    .tshirt-actions-row { flex-direction: column; align-items: stretch; }
 }
 </style>
-
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

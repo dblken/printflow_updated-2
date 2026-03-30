@@ -110,8 +110,10 @@ function _ft_detect_social(string $url): array {
                 <div>
                     <h3 class="ft-title">Quick Links</h3>
                     <ul class="ft-list">
+                        <li><a href="/printflow/public/index.php">Home</a></li>
+                        <li><a href="/printflow/public/about.php">About</a></li>
+                        <li><a href="/printflow/public/services.php">Services</a></li>
                         <li><a href="<?php echo $url_products; ?>">Products</a></li>
-
                         <?php if (!$is_logged_in): ?>
                         <li><a href="#" data-auth-modal="login">Login</a></li>
                         <li><a href="#" data-auth-modal="register">Register</a></li>
@@ -292,17 +294,17 @@ function _ft_detect_social(string $url): array {
     }
     .ft-bubble-left { 
         left: 20px; 
-        background: #00232b; 
+        background: linear-gradient(135deg, #00313d, #00232b);
         color: #53C5E0; 
-        border: 2px solid rgba(83,197,224,0.3);
-        box-shadow: 0 4px 12px rgba(0,35,43,0.4);
+        border: 1.5px solid rgba(83,197,224,.4);
+        box-shadow: 0 4px 16px rgba(0,0,0,.5), 0 0 12px rgba(83,197,224,.15);
     }
     .ft-bubble-right { 
         right: 20px; 
-        background: #53C5E0; 
-        color: #00232b; 
+        background: linear-gradient(135deg, #53C5E0, #32a1c4);
+        color: #00151b; 
         border: none;
-        box-shadow: 0 4px 12px rgba(83,197,224,0.3);
+        box-shadow: 0 4px 16px rgba(83,197,224,.4), 0 0 12px rgba(83,197,224,.2);
     }
     
     .ft-bubble-hidden { 
@@ -322,7 +324,13 @@ function _ft_detect_social(string $url): array {
     #chatbot-btn:hover { background: #32a1c4; box-shadow: 0 8px 24px rgba(50,161,196,0.5); transform: scale(1.1) rotate(5deg); }
     #chatbot-btn:active { transform: scale(0.95); }
     
-    #lp-scroll-top:hover { border-color: #53C5E0; color: white; background: #1a5a6f; box-shadow: 0 8px 24px rgba(83,197,224,0.4); transform: scale(1.1) rotate(-5deg); }
+    #lp-scroll-top:hover { 
+        border-color: rgba(83,197,224,.7); 
+        color: #fff; 
+        background: linear-gradient(135deg, #1a5a6f, #00313d); 
+        box-shadow: 0 8px 28px rgba(83,197,224,.35), 0 0 20px rgba(83,197,224,.2); 
+        transform: scale(1.1) translateY(-3px); 
+    }
     #lp-scroll-top:active { transform: scale(0.95); }
     
     #chatbot-input:focus { border-color: #53C5E0; box-shadow: 0 0 0 3px rgba(83,197,224,0.15); background: #f8fcfd; }
@@ -696,5 +704,6 @@ function _ft_detect_social(string $url): array {
     <script src="<?php echo $base_url; ?>/public/assets/js/notifications.js" defer></script>
     <script src="<?php echo $base_url; ?>/public/assets/js/inactivity_logout.js" defer></script>
     <?php endif; ?>
+    <script src="<?php echo $base_url ?? '/printflow'; ?>/public/assets/js/order_validation.js" defer></script>
 </body>
 </html>

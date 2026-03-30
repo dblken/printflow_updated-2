@@ -95,8 +95,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
     // Save general + logo
     if (isset($_POST['save_general'])) {
         $shop_cfg['name']  = sanitize($_POST['shop_name'] ?? 'PrintFlow');
-        $shop_cfg['email'] = sanitize($_POST['contact_email'] ?? '');
-        $shop_cfg['phone'] = sanitize($_POST['contact_phone'] ?? '');
         if (!empty($_FILES['shop_logo']['name'])) {
             $ext = strtolower(pathinfo($_FILES['shop_logo']['name'], PATHINFO_EXTENSION));
             if (in_array($ext, ['jpg','jpeg','png','webp','svg'])) {
@@ -222,6 +220,20 @@ $page_title = 'Settings - Admin';
         .f-group input:focus, .f-group select:focus, .f-group textarea:focus { border-color:#6366f1; background:#fff; }
         .f-group input[type="file"] { background:#fff; padding:7px 12px; }
         .f-group textarea { resize:vertical; min-height:70px; }
+        .f-group.is-invalid input, .f-group.is-invalid select, .f-group.is-invalid textarea {
+            border-color: #ef4444 !important;
+            background-color: #fef2f2;
+        }
+        .error-message {
+            color: #ef4444;
+            font-size: 11px;
+            margin-top: 4px;
+            display: none;
+            font-weight: 500;
+        }
+        .f-group.is-invalid .error-message {
+            display: block;
+        }
         .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8fafc; border-radius:10px; border:1px solid #e5e7eb; margin-bottom:12px; gap:10px; }
         .toggle-label { font-size:14px; font-weight:600; color:#111827; }
         .toggle-sub { font-size:12px; color:#9ca3af; }
@@ -288,17 +300,10 @@ $page_title = 'Settings - Admin';
                             <input type="file" name="shop_logo" accept="image/png,image/jpeg,image/webp,image/svg+xml">
                             <p style="font-size:11px;color:#9ca3af;margin-top:4px;">🔵 Recommended: <strong>500×500 px</strong> square image (PNG/WebP with transparent background). Displayed as a circle.</p>
                         </div>
-                        <div class="f-group">
+                        <div class="f-group" id="group_shop_name">
                             <label>Shop Name</label>
-                            <input type="text" name="shop_name" value="<?php echo htmlspecialchars($shop_cfg['name'] ?? 'PrintFlow'); ?>">
-                        </div>
-                        <div class="f-group">
-                            <label>Contact Email</label>
-                            <input type="email" name="contact_email" value="<?php echo htmlspecialchars($shop_cfg['email'] ?? 'support@printflow.com'); ?>">
-                        </div>
-                        <div class="f-group">
-                            <label>Contact Phone</label>
-                            <input type="tel" name="contact_phone" value="<?php echo htmlspecialchars($shop_cfg['phone'] ?? ''); ?>">
+                            <input type="text" name="shop_name" id="shop_name" value="<?php echo htmlspecialchars($shop_cfg['name'] ?? 'PrintFlow'); ?>" maxlength="50" required>
+                            <div class="error-message" id="error_shop_name">Shop name must contain only letters and single spaces between words.</div>
                         </div>
                         <div class="f-group">
                             <label>Currency</label>
@@ -341,11 +346,11 @@ $page_title = 'Settings - Admin';
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;">
                                     <div class="f-group" style="margin-bottom:0;">
                                         <label>Provider Name</label>
-                                        <input type="text" name="pm_provider[]" value="<?php echo htmlspecialchars($pm['provider'] ?? ''); ?>" placeholder="e.g. GCash" required>
+                                        <input type="text" name="pm_provider[]" class="pm-provider-input" value="<?php echo htmlspecialchars($pm['provider'] ?? ''); ?>" placeholder="e.g. GCash" required maxlength="50">
                                     </div>
                                     <div class="f-group" style="margin-bottom:0;">
                                         <label>Account Name / Label</label>
-                                        <input type="text" name="pm_label[]" value="<?php echo htmlspecialchars($pm['label'] ?? ''); ?>" placeholder="e.g. Main Account">
+                                        <input type="text" name="pm_label[]" class="pm-label-input" value="<?php echo htmlspecialchars($pm['label'] ?? ''); ?>" placeholder="e.g. Main Account" maxlength="50">
                                     </div>
                                 </div>
                                 <div class="f-group" style="margin-bottom:0;">
@@ -382,21 +387,23 @@ $page_title = 'Settings - Admin';
 
                             <!-- Col 1: Info -->
                             <div>
-                                <div class="f-group">
+                                <div class="f-group" id="group_footer_tagline">
                                     <label>Tagline / Short Description</label>
-                                    <input type="text" name="footer_tagline" value="<?php echo htmlspecialchars($footer_cfg['tagline'] ?? ''); ?>" placeholder="e.g. Your trusted printing partner">
+                                    <input type="text" name="footer_tagline" id="footer_tagline" value="<?php echo htmlspecialchars($footer_cfg['tagline'] ?? ''); ?>" placeholder="e.g. Your trusted printing partner" maxlength="100">
                                 </div>
-                                <div class="f-group">
+                                <div class="f-group" id="group_footer_hours">
                                     <label>Business Hours</label>
-                                    <input type="text" name="footer_hours" value="<?php echo htmlspecialchars($footer_cfg['hours'] ?? ''); ?>" placeholder="e.g. Mon–Sat, 8AM–6PM">
+                                    <input type="text" name="footer_hours" id="footer_hours" value="<?php echo htmlspecialchars($footer_cfg['hours'] ?? ''); ?>" placeholder="e.g. Mon–Sat, 8AM–6PM" maxlength="100">
                                 </div>
-                                <div class="f-group">
+                                <div class="f-group" id="group_footer_email">
                                     <label>Contact Email</label>
-                                    <input type="email" name="footer_email" value="<?php echo htmlspecialchars($footer_cfg['email'] ?? ''); ?>" placeholder="e.g. support@yourshop.com">
+                                    <input type="email" name="footer_email" id="footer_email" value="<?php echo htmlspecialchars($footer_cfg['email'] ?? ''); ?>" placeholder="e.g. support@yourshop.com" maxlength="100">
+                                    <div class="error-message" id="error_footer_email">Please enter a valid email address with at least 2 characters after the dot (e.g., .com, .org).</div>
                                 </div>
-                                <div class="f-group">
+                                <div class="f-group" id="group_footer_phone">
                                     <label>Contact Phone</label>
-                                    <input type="tel" name="footer_phone" value="<?php echo htmlspecialchars($footer_cfg['phone'] ?? ''); ?>" placeholder="e.g. +63 912 345 6789">
+                                    <input type="tel" name="footer_phone" id="footer_phone" value="<?php echo htmlspecialchars($footer_cfg['phone'] ?? ''); ?>" placeholder="e.g. 09171234567" maxlength="11">
+                                    <div class="error-message" id="error_footer_phone">Contact number must be exactly 11 digits and start with 09.</div>
                                 </div>
                             </div>
 
@@ -424,7 +431,7 @@ $page_title = 'Settings - Admin';
                                                 </select>
                                                 <button type="button" onclick="this.closest('.branch-addr-row').remove()" style="padding:5px 9px;border:1px solid #fee2e2;background:#fef2f2;color:#b91c1c;border-radius:6px;cursor:pointer;font-size:13px;flex-shrink:0;">✕</button>
                                             </div>
-                                            <textarea name="ba_address[]" rows="2" placeholder="Full address for this branch" style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:7px;font-size:13px;font-family:inherit;resize:vertical;background:#fff;color:#111827;"><?php echo htmlspecialchars($ba_addr); ?></textarea>
+                                            <textarea name="ba_address[]" rows="2" placeholder="Full address for this branch" class="ba-address-input" style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:7px;font-size:13px;font-family:inherit;resize:vertical;background:#fff;color:#111827;"><?php echo htmlspecialchars($ba_addr); ?></textarea>
                                         </div>
                                         <?php endforeach; ?>
                                     </div>
@@ -436,7 +443,7 @@ $page_title = 'Settings - Admin';
                             <div>
                                 <div class="f-group">
                                     <label>Our Services <span style="font-weight:400;color:#9ca3af;">(one per line)</span></label>
-                                    <textarea name="footer_services" rows="5" placeholder="Tarpaulin Printing
+                                    <textarea name="footer_services" id="footer_services" rows="5" placeholder="Tarpaulin Printing
 T-shirt Printing
 Stickers &amp; Decals"><?php
                                         echo htmlspecialchars(implode("\n", $footer_cfg['services'] ?? []));
@@ -452,7 +459,7 @@ Stickers &amp; Decals"><?php
                                         foreach ($existing_socials as $sl):
                                         ?>
                                         <div class="social-row" style="display:flex;gap:8px;align-items:center;">
-                                            <input type="url" name="social_url[]" value="<?php echo htmlspecialchars($sl['url'] ?? ''); ?>" placeholder="https://facebook.com/yourpage" style="flex:1;">
+                                            <input type="url" name="social_url[]" class="social-url-input" value="<?php echo htmlspecialchars($sl['url'] ?? ''); ?>" placeholder="https://facebook.com/yourpage" style="flex:1;" maxlength="200">
                                             <button type="button" onclick="this.closest('.social-row').remove()" style="padding:6px 10px;border:1px solid #fee2e2;background:#fef2f2;color:#b91c1c;border-radius:6px;cursor:pointer;font-size:13px;">✕</button>
                                         </div>
                                         <?php endforeach; ?>
@@ -482,11 +489,11 @@ Stickers &amp; Decals"><?php
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
                             <div class="f-group" style="margin-bottom:0;">
                                 <label>Tagline (Hero Heading)</label>
-                                <input type="text" name="about_tagline" value="<?php echo htmlspecialchars($about_cfg['tagline'] ?? ''); ?>" placeholder="Your Trusted Printing Partner Since Day One">
+                                <input type="text" name="about_tagline" id="about_tagline" class="about-text-input" value="<?php echo htmlspecialchars($about_cfg['tagline'] ?? ''); ?>" placeholder="Your Trusted Printing Partner Since Day One" maxlength="150">
                             </div>
                             <div class="f-group" style="margin-bottom:0;">
                                 <label>Hero Subtitle</label>
-                                <input type="text" name="about_hero_subtitle" value="<?php echo htmlspecialchars($about_cfg['hero_subtitle'] ?? ''); ?>" placeholder="Short description under the tagline">
+                                <input type="text" name="about_hero_subtitle" id="about_hero_subtitle" class="about-text-input" value="<?php echo htmlspecialchars($about_cfg['hero_subtitle'] ?? ''); ?>" placeholder="Short description under the tagline" maxlength="200">
                             </div>
                         </div>
 
@@ -495,19 +502,19 @@ Stickers &amp; Decals"><?php
                         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;">
                             <div class="f-group" style="margin-bottom:0;">
                                 <label>Founding Year</label>
-                                <input type="text" name="about_founding_year" value="<?php echo htmlspecialchars($about_cfg['founding_year'] ?? ''); ?>" placeholder="e.g. 2018">
+                                <input type="text" name="about_founding_year" id="about_founding_year" class="about-text-input" value="<?php echo htmlspecialchars($about_cfg['founding_year'] ?? ''); ?>" placeholder="e.g. 2018" maxlength="50">
                             </div>
                             <div class="f-group" style="margin-bottom:0;">
                                 <label>Team Size</label>
-                                <input type="text" name="about_team_size" value="<?php echo htmlspecialchars($about_cfg['team_size'] ?? ''); ?>" placeholder="e.g. 25+">
+                                <input type="text" name="about_team_size" id="about_team_size" class="about-text-input" value="<?php echo htmlspecialchars($about_cfg['team_size'] ?? ''); ?>" placeholder="e.g. 25+" maxlength="50">
                             </div>
                             <div class="f-group" style="margin-bottom:0;">
                                 <label>Projects Done</label>
-                                <input type="text" name="about_projects_done" value="<?php echo htmlspecialchars($about_cfg['projects_done'] ?? ''); ?>" placeholder="e.g. 10,000+">
+                                <input type="text" name="about_projects_done" id="about_projects_done" class="about-text-input" value="<?php echo htmlspecialchars($about_cfg['projects_done'] ?? ''); ?>" placeholder="e.g. 10,000+" maxlength="50">
                             </div>
                             <div class="f-group" style="margin-bottom:0;">
                                 <label>Happy Clients</label>
-                                <input type="text" name="about_happy_clients" value="<?php echo htmlspecialchars($about_cfg['happy_clients'] ?? ''); ?>" placeholder="e.g. 5,000+">
+                                <input type="text" name="about_happy_clients" id="about_happy_clients" class="about-text-input" value="<?php echo htmlspecialchars($about_cfg['happy_clients'] ?? ''); ?>" placeholder="e.g. 5,000+" maxlength="50">
                             </div>
                         </div>
 
@@ -516,11 +523,11 @@ Stickers &amp; Decals"><?php
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
                             <div class="f-group" style="margin-bottom:0;">
                                 <label>Mission Statement</label>
-                                <textarea name="about_mission" rows="4" placeholder="Our mission is to..."><?php echo htmlspecialchars($about_cfg['mission'] ?? ''); ?></textarea>
+                                <textarea name="about_mission" id="about_mission" class="about-textarea-input" rows="4" placeholder="Our mission is to..."><?php echo htmlspecialchars($about_cfg['mission'] ?? ''); ?></textarea>
                             </div>
                             <div class="f-group" style="margin-bottom:0;">
                                 <label>Vision Statement</label>
-                                <textarea name="about_vision" rows="4" placeholder="Our vision is to..."><?php echo htmlspecialchars($about_cfg['vision'] ?? ''); ?></textarea>
+                                <textarea name="about_vision" id="about_vision" class="about-textarea-input" rows="4" placeholder="Our vision is to..."><?php echo htmlspecialchars($about_cfg['vision'] ?? ''); ?></textarea>
                             </div>
                         </div>
 
@@ -534,12 +541,12 @@ Stickers &amp; Decals"><?php
                             <div class="about-value-row" style="display:grid;grid-template-columns:1fr 2fr auto;gap:10px;align-items:start;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;">
                                 <div class="f-group" style="margin-bottom:0;">
                                     <label>Title</label>
-                                    <input type="text" name="about_value_title[]" value="<?php echo htmlspecialchars($av['title']??''); ?>" placeholder="e.g. Quality First">
+                                    <input type="text" name="about_value_title[]" class="about-value-title-input" value="<?php echo htmlspecialchars($av['title']??''); ?>" placeholder="e.g. Quality First" maxlength="50">
                                     <input type="hidden" name="about_value_icon[]" value="<?php echo htmlspecialchars($av['icon']??'star'); ?>">
                                 </div>
                                 <div class="f-group" style="margin-bottom:0;">
                                     <label>Description</label>
-                                    <input type="text" name="about_value_desc[]" value="<?php echo htmlspecialchars($av['desc']??''); ?>" placeholder="Short description">
+                                    <input type="text" name="about_value_desc[]" class="about-value-desc-input" value="<?php echo htmlspecialchars($av['desc']??''); ?>" placeholder="Short description" maxlength="150">
                                 </div>
                                 <button type="button" onclick="this.closest('.about-value-row').remove()" style="margin-top:20px;padding:7px 10px;border:1px solid #fee2e2;background:#fef2f2;color:#b91c1c;border-radius:6px;cursor:pointer;font-size:13px;flex-shrink:0;">✕</button>
                             </div>
@@ -558,11 +565,11 @@ Stickers &amp; Decals"><?php
                                 <button type="button" onclick="this.closest('.about-team-row').remove()" style="position:absolute;top:8px;right:8px;padding:4px 8px;border:1px solid #fee2e2;background:#fef2f2;color:#b91c1c;border-radius:5px;cursor:pointer;font-size:11px;">✕</button>
                                 <div class="f-group">
                                     <label>Full Name</label>
-                                    <input type="text" name="about_team_name[]" value="<?php echo htmlspecialchars($tm['name']??''); ?>" placeholder="e.g. Maria Santos">
+                                    <input type="text" name="about_team_name[]" class="about-team-name-input" value="<?php echo htmlspecialchars($tm['name']??''); ?>" placeholder="e.g. Maria Santos" maxlength="100">
                                 </div>
                                 <div class="f-group">
                                     <label>Role / Position</label>
-                                    <input type="text" name="about_team_role[]" value="<?php echo htmlspecialchars($tm['role']??''); ?>" placeholder="e.g. Founder & CEO">
+                                    <input type="text" name="about_team_role[]" class="about-team-role-input" value="<?php echo htmlspecialchars($tm['role']??''); ?>" placeholder="e.g. Founder & CEO" maxlength="100">
                                 </div>
                                 <div class="f-group" style="margin-bottom:0;">
                                     <label>Photo <span style="font-weight:400;color:#9ca3af;">(optional)</span></label>
@@ -603,7 +610,360 @@ Stickers &amp; Decals"><?php
     </div>
 </div>
 
+<script>
 function printflowInitSettingsPage() {
+    // Block non-letters in name fields
+    function blockNonLetters(event) {
+        if ([8, 9, 27, 13, 46, 37, 38, 39, 40].indexOf(event.keyCode) !== -1 ||
+            (event.keyCode === 65 && event.ctrlKey === true) ||
+            (event.keyCode === 67 && event.ctrlKey === true) ||
+            (event.keyCode === 86 && event.ctrlKey === true) ||
+            (event.keyCode === 88 && event.ctrlKey === true) ||
+            (event.keyCode >= 35 && event.keyCode <= 36)) {
+            return true;
+        }
+        
+        var char = event.key;
+        
+        if (char && char.length === 1 && !/^[a-zA-Z ]$/.test(char)) {
+            event.preventDefault();
+            return false;
+        }
+        
+        if (char === ' ') {
+            var input = event.target;
+            var value = input.value;
+            var cursorPos = input.selectionStart;
+            
+            if (cursorPos === 0) {
+                event.preventDefault();
+                return false;
+            }
+            
+            if (value.charAt(cursorPos - 1) === ' ') {
+                event.preventDefault();
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    function removeNonLetters(input) {
+        var value = input.value;
+        var cursorPos = input.selectionStart;
+        
+        var cleaned = value.replace(/[^a-zA-Z ]/g, '');
+        cleaned = cleaned.replace(/  +/g, ' ');
+        cleaned = cleaned.replace(/^ +/, '');
+        
+        cleaned = cleaned.split(' ').map(function(word) {
+            if (word.length === 0) return word;
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        }).join(' ');
+        
+        if (cleaned.length > 50) {
+            cleaned = cleaned.substring(0, 50);
+        }
+        
+        if (value !== cleaned) {
+            input.value = cleaned;
+            if (cursorPos !== null) {
+                input.setSelectionRange(cursorPos, cursorPos);
+            }
+        }
+    }
+    
+    // Shop Name validation
+    const shopName = document.getElementById('shop_name');
+    if (shopName && !shopName.dataset.pfValidationBound) {
+        shopName.dataset.pfValidationBound = '1';
+        shopName.addEventListener('keydown', blockNonLetters);
+        shopName.addEventListener('input', function() { removeNonLetters(this); });
+    }
+    
+    // Payment Method Provider and Label validation
+    function attachPaymentFieldValidation() {
+        document.querySelectorAll('.pm-provider-input, .pm-label-input').forEach(function(input) {
+            if (!input.dataset.pfValidationBound) {
+                input.dataset.pfValidationBound = '1';
+                input.addEventListener('keydown', blockNonLetters);
+                input.addEventListener('input', function() { removeNonLetters(this); });
+            }
+        });
+    }
+    
+    attachPaymentFieldValidation();
+    
+    // Footer fields space validation (allow any characters, just block consecutive/leading spaces)
+    function blockConsecutiveSpaces(event) {
+        if ([8, 9, 27, 13, 46, 37, 38, 39, 40].indexOf(event.keyCode) !== -1 ||
+            (event.ctrlKey === true && [65, 67, 86, 88, 90].indexOf(event.keyCode) !== -1) ||
+            (event.keyCode >= 35 && event.keyCode <= 36)) {
+            return true;
+        }
+        
+        var char = event.key;
+        
+        if (char === ' ') {
+            var input = event.target;
+            var value = input.value;
+            var cursorPos = input.selectionStart;
+            
+            if (cursorPos === 0) {
+                event.preventDefault();
+                return false;
+            }
+            
+            if (value.charAt(cursorPos - 1) === ' ') {
+                event.preventDefault();
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    function blockAllSpaces(event) {
+        if ([8, 9, 27, 13, 46, 37, 38, 39, 40].indexOf(event.keyCode) !== -1 ||
+            (event.ctrlKey === true && [65, 67, 86, 88, 90].indexOf(event.keyCode) !== -1) ||
+            (event.keyCode >= 35 && event.keyCode <= 36)) {
+            return true;
+        }
+        
+        var char = event.key;
+        
+        if (char === ' ') {
+            event.preventDefault();
+            return false;
+        }
+        
+        return true;
+    }
+    
+    function removeConsecutiveSpaces(input) {
+        var value = input.value;
+        var cursorPos = input.selectionStart;
+        
+        var cleaned = value.replace(/  +/g, ' ');
+        cleaned = cleaned.replace(/^ +/, '');
+        
+        var maxLen = parseInt(input.getAttribute('maxlength')) || 100;
+        if (cleaned.length > maxLen) {
+            cleaned = cleaned.substring(0, maxLen);
+        }
+        
+        if (value !== cleaned) {
+            input.value = cleaned;
+            if (cursorPos !== null) {
+                input.setSelectionRange(cursorPos, cursorPos);
+            }
+        }
+    }
+    
+    function removeAllSpaces(input) {
+        var value = input.value;
+        var cursorPos = input.selectionStart;
+        
+        var cleaned = value.replace(/\s/g, '');
+        
+        var maxLen = parseInt(input.getAttribute('maxlength')) || 100;
+        if (cleaned.length > maxLen) {
+            cleaned = cleaned.substring(0, maxLen);
+        }
+        
+        if (value !== cleaned) {
+            input.value = cleaned;
+            if (cursorPos !== null) {
+                input.setSelectionRange(cursorPos, cursorPos);
+            }
+        }
+    }
+    
+    function formatFooterPhone(input) {
+        var value = input.value;
+        var cleaned = value.replace(/\D/g, '');
+        
+        if (cleaned.length === 0) {
+            input.value = '09';
+            return;
+        }
+        
+        if (!cleaned.startsWith('09')) {
+            if (cleaned.startsWith('9')) {
+                cleaned = '0' + cleaned;
+            } else {
+                cleaned = '09' + cleaned;
+            }
+        }
+        
+        if (cleaned.length > 11) {
+            cleaned = cleaned.substring(0, 11);
+        }
+        
+        input.value = cleaned;
+    }
+    
+    function validateFooterPhone(fieldId) {
+        const input = document.getElementById(fieldId);
+        const group = document.getElementById('group_' + fieldId);
+        const error = document.getElementById('error_' + fieldId);
+        
+        if (!input || !group || !error) return true;
+        
+        const value = input.value.trim();
+        
+        if (value === '' || value === '09') {
+            group.classList.remove('is-invalid');
+            return true;
+        }
+        
+        if (!/^09\d{9}$/.test(value)) {
+            group.classList.add('is-invalid');
+            return false;
+        }
+        
+        group.classList.remove('is-invalid');
+        return true;
+    }
+    
+    const footerTagline = document.getElementById('footer_tagline');
+    if (footerTagline && !footerTagline.dataset.pfValidationBound) {
+        footerTagline.dataset.pfValidationBound = '1';
+        footerTagline.addEventListener('keydown', blockConsecutiveSpaces);
+        footerTagline.addEventListener('input', function() { removeConsecutiveSpaces(this); });
+    }
+    
+    const footerHours = document.getElementById('footer_hours');
+    if (footerHours && !footerHours.dataset.pfValidationBound) {
+        footerHours.dataset.pfValidationBound = '1';
+        footerHours.addEventListener('keydown', blockConsecutiveSpaces);
+        footerHours.addEventListener('input', function() { removeConsecutiveSpaces(this); });
+    }
+    
+    const footerPhone = document.getElementById('footer_phone');
+    if (footerPhone && !footerPhone.dataset.pfValidationBound) {
+        footerPhone.dataset.pfValidationBound = '1';
+        if (!footerPhone.value || footerPhone.value.trim() === '') {
+            footerPhone.value = '09';
+        }
+        footerPhone.addEventListener('input', function() { 
+            formatFooterPhone(this); 
+            validateFooterPhone('footer_phone');
+        });
+        footerPhone.addEventListener('blur', function() { validateFooterPhone('footer_phone'); });
+    }
+    
+    // Branch address textarea validation
+    function attachBranchAddressValidation() {
+        document.querySelectorAll('.ba-address-input').forEach(function(textarea) {
+            if (!textarea.dataset.pfValidationBound) {
+                textarea.dataset.pfValidationBound = '1';
+                textarea.addEventListener('keydown', blockConsecutiveSpaces);
+                textarea.addEventListener('input', function() { removeConsecutiveSpaces(this); });
+            }
+        });
+    }
+    
+    attachBranchAddressValidation();
+    
+    // Footer services textarea validation
+    const footerServices = document.getElementById('footer_services');
+    if (footerServices && !footerServices.dataset.pfValidationBound) {
+        footerServices.dataset.pfValidationBound = '1';
+        footerServices.addEventListener('keydown', blockConsecutiveSpaces);
+        footerServices.addEventListener('input', function() { removeConsecutiveSpaces(this); });
+    }
+    
+    // Social URL validation
+    function attachSocialUrlValidation() {
+        document.querySelectorAll('.social-url-input').forEach(function(input) {
+            if (!input.dataset.pfValidationBound) {
+                input.dataset.pfValidationBound = '1';
+                input.addEventListener('keydown', blockConsecutiveSpaces);
+                input.addEventListener('input', function() { removeConsecutiveSpaces(this); });
+            }
+        });
+    }
+    
+    attachSocialUrlValidation();
+    
+    // About Page fields validation
+    function attachAboutFieldsValidation() {
+        document.querySelectorAll('.about-text-input').forEach(function(input) {
+            if (!input.dataset.pfValidationBound) {
+                input.dataset.pfValidationBound = '1';
+                input.addEventListener('keydown', blockConsecutiveSpaces);
+                input.addEventListener('input', function() { removeConsecutiveSpaces(this); });
+            }
+        });
+        
+        document.querySelectorAll('.about-textarea-input').forEach(function(textarea) {
+            if (!textarea.dataset.pfValidationBound) {
+                textarea.dataset.pfValidationBound = '1';
+                textarea.addEventListener('keydown', blockConsecutiveSpaces);
+                textarea.addEventListener('input', function() { removeConsecutiveSpaces(this); });
+            }
+        });
+        
+        document.querySelectorAll('.about-value-title-input, .about-value-desc-input').forEach(function(input) {
+            if (!input.dataset.pfValidationBound) {
+                input.dataset.pfValidationBound = '1';
+                input.addEventListener('keydown', blockConsecutiveSpaces);
+                input.addEventListener('input', function() { removeConsecutiveSpaces(this); });
+            }
+        });
+        
+        document.querySelectorAll('.about-team-name-input, .about-team-role-input').forEach(function(input) {
+            if (!input.dataset.pfValidationBound) {
+                input.dataset.pfValidationBound = '1';
+                input.addEventListener('keydown', blockConsecutiveSpaces);
+                input.addEventListener('input', function() { removeConsecutiveSpaces(this); });
+            }
+        });
+    }
+    
+    attachAboutFieldsValidation();
+    
+    // Email validation
+    function validateEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(email);
+    }
+    
+    function validateEmailField(fieldId) {
+        const input = document.getElementById(fieldId);
+        const group = document.getElementById('group_' + fieldId);
+        const error = document.getElementById('error_' + fieldId);
+        
+        if (!input || !group || !error) return true;
+        
+        const value = input.value.trim();
+        
+        if (value === '') {
+            group.classList.remove('is-invalid');
+            return true;
+        }
+        
+        if (!validateEmail(value)) {
+            group.classList.add('is-invalid');
+            return false;
+        }
+        
+        group.classList.remove('is-invalid');
+        return true;
+    }
+    
+    const footerEmail = document.getElementById('footer_email');
+    if (footerEmail && !footerEmail.dataset.pfValidationBound) {
+        footerEmail.dataset.pfValidationBound = '1';
+        footerEmail.addEventListener('keydown', blockAllSpaces);
+        footerEmail.addEventListener('input', function() { 
+            removeAllSpaces(this);
+            validateEmailField('footer_email');
+        });
+        footerEmail.addEventListener('blur', () => validateEmailField('footer_email'));
+    }
+    
     // Add social link row
     const addSocialBtn = document.getElementById('add-social');
     if (addSocialBtn && !addSocialBtn.dataset.pfBound) {
@@ -614,10 +974,11 @@ function printflowInitSettingsPage() {
             var row = document.createElement('div');
             row.className = 'social-row';
             row.style.cssText = 'display:flex;gap:8px;align-items:center;';
-            row.innerHTML = '<input type="url" name="social_url[]" placeholder="https://facebook.com/yourpage" style="flex:1;">' +
+            row.innerHTML = '<input type="url" name="social_url[]" class="social-url-input" placeholder="https://facebook.com/yourpage" style="flex:1;" maxlength="200">' +
                 '<button type="button" onclick="this.closest(\'.social-row\').remove()" style="padding:6px 10px;border:1px solid #fee2e2;background:#fef2f2;color:#b91c1c;border-radius:6px;cursor:pointer;font-size:13px;">✕</button>';
             list.appendChild(row);
             row.querySelector('input').focus();
+            attachSocialUrlValidation();
         });
     }
 
@@ -645,9 +1006,10 @@ function printflowInitSettingsPage() {
                     '</select>' +
                     '<button type="button" onclick="this.closest(\'.branch-addr-row\').remove()" style="padding:5px 9px;border:1px solid #fee2e2;background:#fef2f2;color:#b91c1c;border-radius:6px;cursor:pointer;font-size:13px;flex-shrink:0;">✕</button>' +
                 '</div>' +
-                '<textarea name="ba_address[]" rows="2" placeholder="Full address for this branch" style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:7px;font-size:13px;font-family:inherit;resize:vertical;background:#fff;color:#111827;box-sizing:border-box;"></textarea>';
+                '<textarea name="ba_address[]" rows="2" placeholder="Full address for this branch" class="ba-address-input" style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:7px;font-size:13px;font-family:inherit;resize:vertical;background:#fff;color:#111827;box-sizing:border-box;"></textarea>';
             list.appendChild(row);
             row.querySelector('select').focus();
+            attachBranchAddressValidation();
         });
     }
 
@@ -674,11 +1036,11 @@ function printflowInitSettingsPage() {
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;">
                     <div class="f-group" style="margin-bottom:0;">
                         <label>Provider Name</label>
-                        <input type="text" name="pm_provider[]" placeholder="e.g. GCash" required>
+                        <input type="text" name="pm_provider[]" class="pm-provider-input" placeholder="e.g. GCash" required maxlength="50">
                     </div>
                     <div class="f-group" style="margin-bottom:0;">
                         <label>Account Name / Label</label>
-                        <input type="text" name="pm_label[]" placeholder="e.g. Main Account">
+                        <input type="text" name="pm_label[]" class="pm-label-input" placeholder="e.g. Main Account" maxlength="50">
                     </div>
                 </div>
                 <div class="f-group" style="margin-bottom:0;">
@@ -691,6 +1053,7 @@ function printflowInitSettingsPage() {
                     </div>
                 </div>`;
             list.appendChild(row);
+            attachPaymentFieldValidation();
         });
     }
 
@@ -698,7 +1061,8 @@ function printflowInitSettingsPage() {
     if (!document.body.dataset.pfSettingsBound) {
         document.body.dataset.pfSettingsBound = '1';
 
-        let currentCropper = null;
+        // Make cropper accessible globally for cleanup
+        window.currentCropper = null;
         let currentFileInput = null;
         let currentPreviewImg = null;
         let currentHiddenInput = null;
@@ -720,11 +1084,11 @@ function printflowInitSettingsPage() {
                         const modal = document.getElementById('cropperModal');
                         if (modal) modal.style.display = 'flex';
                         
-                        if (currentCropper) {
-                            currentCropper.destroy();
+                        if (window.currentCropper) {
+                            window.currentCropper.destroy();
                         }
                         
-                        currentCropper = new Cropper(img, {
+                        window.currentCropper = new Cropper(img, {
                             aspectRatio: 1, // perfect square!
                             viewMode: 1,
                             autoCropArea: 0.8
@@ -738,9 +1102,9 @@ function printflowInitSettingsPage() {
         window.closeCropper = function() {
             const modal = document.getElementById('cropperModal');
             if (modal) modal.style.display = 'none';
-            if (currentCropper) {
-                currentCropper.destroy();
-                currentCropper = null;
+            if (window.currentCropper) {
+                window.currentCropper.destroy();
+                window.currentCropper = null;
             }
             if (currentFileInput && currentHiddenInput && !currentHiddenInput.value) {
                 currentFileInput.value = ''; // Reset input if they cancelled
@@ -750,8 +1114,8 @@ function printflowInitSettingsPage() {
         const cropBtn = document.getElementById('btnCrop');
         if (cropBtn) {
             cropBtn.addEventListener('click', function() {
-                if (currentCropper) {
-                    const canvas = currentCropper.getCroppedCanvas({ width: 500, height: 500 });
+                if (window.currentCropper) {
+                    const canvas = window.currentCropper.getCroppedCanvas({ width: 500, height: 500 });
                     const dataUrl = canvas.toDataURL('image/png');
                     if (currentHiddenInput) {
                         currentHiddenInput.value = dataUrl;
@@ -778,11 +1142,12 @@ function printflowInitSettingsPage() {
             var row = document.createElement('div');
             row.className = 'about-value-row';
             row.style.cssText = 'display:grid;grid-template-columns:1fr 2fr auto;gap:10px;align-items:start;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;';
-            row.innerHTML = '<div class="f-group" style="margin-bottom:0;"><label>Title</label><input type="text" name="about_value_title[]" placeholder="e.g. Quality First"><input type="hidden" name="about_value_icon[]" value="star"></div>' +
-                '<div class="f-group" style="margin-bottom:0;"><label>Description</label><input type="text" name="about_value_desc[]" placeholder="Short description"></div>' +
+            row.innerHTML = '<div class="f-group" style="margin-bottom:0;"><label>Title</label><input type="text" name="about_value_title[]" class="about-value-title-input" placeholder="e.g. Quality First" maxlength="50"><input type="hidden" name="about_value_icon[]" value="star"></div>' +
+                '<div class="f-group" style="margin-bottom:0;"><label>Description</label><input type="text" name="about_value_desc[]" class="about-value-desc-input" placeholder="Short description" maxlength="150"></div>' +
                 '<button type="button" onclick="this.closest(\'.about-value-row\').remove()" style="margin-top:20px;padding:7px 10px;border:1px solid #fee2e2;background:#fef2f2;color:#b91c1c;border-radius:6px;cursor:pointer;font-size:13px;flex-shrink:0;">✕</button>';
             list.appendChild(row);
             row.querySelector('input[type="text"]').focus();
+            attachAboutFieldsValidation();
         });
     }
 
@@ -798,21 +1163,39 @@ function printflowInitSettingsPage() {
             row.className = 'about-team-row';
             row.style.cssText = 'background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px;position:relative;';
             row.innerHTML = '<button type="button" onclick="this.closest(\'.about-team-row\').remove()" style="position:absolute;top:8px;right:8px;padding:4px 8px;border:1px solid #fee2e2;background:#fef2f2;color:#b91c1c;border-radius:5px;cursor:pointer;font-size:11px;">✕</button>' +
-                '<div class="f-group"><label>Full Name</label><input type="text" name="about_team_name[]" placeholder="e.g. Maria Santos"></div>' +
-                '<div class="f-group"><label>Role / Position</label><input type="text" name="about_team_role[]" placeholder="e.g. Founder & CEO"></div>' +
+                '<div class="f-group"><label>Full Name</label><input type="text" name="about_team_name[]" class="about-team-name-input" placeholder="e.g. Maria Santos" maxlength="100"></div>' +
+                '<div class="f-group"><label>Role / Position</label><input type="text" name="about_team_role[]" class="about-team-role-input" placeholder="e.g. Founder & CEO" maxlength="100"></div>' +
                 '<div class="f-group" style="margin-bottom:0;"><label>Photo <span style="font-weight:400;color:#9ca3af;">(optional)</span></label><input type="file" name="about_team_photo_upload[' + idx + ']" accept="image/*"><input type="hidden" name="about_team_photo[]" value=""></div>';
             list.appendChild(row);
             row.querySelector('input[type="text"]').focus();
+            attachAboutFieldsValidation();
         });
     }
 }
 
+// Initialize on page load
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', printflowInitSettingsPage);
 } else {
     printflowInitSettingsPage();
 }
+
+// Re-initialize after Turbo navigation
 document.addEventListener('printflow:page-init', printflowInitSettingsPage);
+
+// Cleanup before Turbo caches/navigates away
+document.addEventListener('turbo:before-cache', function() {
+    // Destroy cropper instance if exists
+    if (window.currentCropper) {
+        try {
+            window.currentCropper.destroy();
+            window.currentCropper = null;
+        } catch(e) {}
+    }
+    // Hide modal
+    const modal = document.getElementById('cropperModal');
+    if (modal) modal.style.display = 'none';
+});
 </script>
 
 </body>

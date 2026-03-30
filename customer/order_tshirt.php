@@ -69,9 +69,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $color_other = trim($_POST['color_other'] ?? '');
     $sizes = trim($_POST['sizes'] ?? '');
     $sizes_other = trim($_POST['sizes_other'] ?? '');
-    $size = ($sizes === 'Others' && $sizes_other) ? $sizes_other : $sizes;
     $print_placement = trim($_POST['print_placement'] ?? '');
     $lamination = trim($_POST['lamination'] ?? '');
+    $design_type = trim($_POST['design_type'] ?? '');
+    $print_color = trim($_POST['print_color'] ?? '');
+    $text_content = trim($_POST['text_content'] ?? '');
+    $font_style = trim($_POST['font_style'] ?? '');
+    $font_size = trim($_POST['font_size'] ?? '');
     $quantity = (int)($_POST['quantity'] ?? 1);
     $needed_date = trim($_POST['needed_date'] ?? '');
     $notes = trim($_POST['notes'] ?? '');
@@ -80,16 +84,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $shirt_type_display = ($shirt_type === 'Others') ? $shirt_type_other : $shirt_type;
 
     $shop_provides = ($shirt_source === 'Shop provides shirt');
+    $is_text_only = ($design_type === 'Text Only');
+    $is_logo_only = ($design_type === 'Logo Only');
     $proceed = false;
+    
     if ($branch_id <= 0) {
         $error = 'Please select a branch.';
     } elseif (empty($shirt_source)) {
         $error = 'Please select whether the shop or customer will provide the shirt.';
+    } elseif (empty($design_type)) {
+        $error = 'Please select a design type.';
+    } elseif ($is_text_only && (empty($text_content) || empty($print_color))) {
+        $error = 'Please provide text content and print color for text designs.';
     } elseif ((function_exists('mb_strlen') ? mb_strlen($notes) : strlen($notes)) > 500) {
         $error = 'Notes must not exceed 500 characters.';
     } elseif ($shop_provides) {
         if (empty($shirt_type_display) || empty($color_display) || empty($size) || empty($print_placement) || empty($lamination) || empty($needed_date) || $quantity < 1) {
-            $error = 'Please fill in Shirt Type, Color, Sizes, Print Placement, Lamination, Needed Date, and Quantity.';
+            $error = 'Please fill in required fields: Shirt Type, Color, Sizes, Print Placement, Lamination, Needed Date, and Quantity.';
         } elseif ($shirt_type === 'Others' && empty($shirt_type_other)) {
             $error = 'Please enter your custom shirt type.';
         } elseif ($sizes === 'Others' && empty($sizes_other)) {
@@ -101,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } else {
         if (empty($shirt_type_display) || empty($color_display) || empty($print_placement) || empty($lamination) || empty($needed_date) || $quantity < 1) {
-            $error = 'Please fill in Shirt Type, Color, Print Placement, Lamination, Needed Date, and Quantity.';
+            $error = 'Please fill in required fields: Shirt Type, Color, Print Placement, Lamination, Needed Date, and Quantity.';
         } elseif ($shirt_color === 'Other' && empty($color_other)) {
             $error = 'Please enter your custom shirt color.';
         } elseif ($shirt_type === 'Others' && empty($shirt_type_other)) {
@@ -112,8 +123,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $has_new_upload = isset($_FILES['design_file']) && ($_FILES['design_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
-    if ($proceed && !$has_new_upload && !$is_edit_mode) {
-        $error = 'Please upload your design file.';
+    if ($proceed && $is_logo_only && !$has_new_upload && !$is_edit_mode) {
+        $error = 'Please upload your design file for logo printing.';
         $proceed = false;
     }
 
@@ -158,9 +169,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'design_mime' => $mime,
                     'customization' => [
                         'shirt_source' => $shirt_source,
+                        'design_type' => $design_type,
+                        'print_color' => $print_color,
+                        'text_content' => $text_content,
+                        'font_style' => $font_style,
+                        'font_size' => $font_size,
                         'shirt_type' => $shirt_type_display,
                         'shirt_color' => $color_display,
-                        'size' => $size,
+                        'size' => $size ?? '',
                         'print_placement' => $print_placement,
                         'lamination' => $lamination,
                         'quantity' => $quantity,
@@ -217,12 +233,55 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Shirt Source *</label>
                     <div class="opt-btn-group">
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_source" value="Shop provides shirt"> <span>Shop provides shirt</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_source" value="Customer provides shirt"> <span>Customer provides shirt</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="shirt_source" value="Shop will provide the shirt" required> <span>Shop will provide the shirt</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="shirt_source" value="Customer will provide the shirt" required> <span>Customer will provide the shirt</span></label>
                     </div>
                     <div id="shop-provides-note" style="display: none; margin-top: 0.75rem; padding: 0.75rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 0.875rem; color: #92400e;">
                         Additional charges apply since shirt is included. Shirt cost + print cost will be charged.
                     </div>
+                </div>
+
+                <!-- 1b. Design Type -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Design Type *</label>
+                    <div class="opt-btn-group">
+                        <label class="opt-btn-wrap"><input type="radio" name="design_type" value="Logo Only" required> <span>Logo Only</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="design_type" value="Text Only" required> <span>Text Only</span></label>
+                    </div>
+                </div>
+
+                <!-- 1c. File Upload (Moved here) -->
+                <div class="mb-4" id="upload-section">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" id="upload-label">Upload Design * (JPG, PNG, PDF - max 5MB)</label>
+                    <input type="file" name="design_file" id="design_file" accept=".jpg,.jpeg,.png,.pdf" class="input-field">
+                    <?php if ($is_edit_mode): ?>
+                        <p class="sintra-hint mt-2">Leave empty to keep your current uploaded design.</p>
+                    <?php endif; ?>
+                </div>
+
+                <!-- 1d. Text Design Details (Visible only for Text Only) -->
+                <div id="text-design-section" style="display: none;">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Text Content *</label>
+                        <input type="text" name="text_content" id="text_content" class="input-field" placeholder="Enter the text to be printed">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Print Color * (Required for text designs)</label>
+                        <input type="text" name="print_color" id="print_color" class="input-field" placeholder="e.g. White, Gold, Red">
+                    </div>
+                    <div class="mb-4 grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Font Style</label>
+                            <input type="text" name="font_style" id="font_style" class="input-field" placeholder="e.g. Arial, Script">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Font Size</label>
+                            <input type="text" name="font_size" id="font_size" class="input-field" placeholder="e.g. 2 inch, 48px">
+                        </div>
+                    </div>
+                    <p class="tshirt-top-notice mb-4" style="background: rgba(83, 197, 224, 0.05); border-left: 3px solid #53c5e0; font-size: 0.8rem;">
+                        Not sure about font size or style? You can place your order and message our staff afterward for assistance.
+                    </p>
                 </div>
 
                 <!-- 2. Shirt Type (3×2 grid) -->
@@ -245,13 +304,13 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Shirt Color *</label>
                     <div class="option-grid option-grid-3x3 option-grid-color">
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Black"> <span>Black</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="White"> <span>White</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Red"> <span>Red</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Blue"> <span>Blue</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Navy"> <span>Navy</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Grey"> <span>Grey</span></label>
-                        <label class="opt-btn-wrap opt-btn-others"><input type="radio" name="shirt_color" value="Other"> <span>Others</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Black" required> <span>Black</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="White" required> <span>White</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Red" required> <span>Red</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Blue" required> <span>Blue</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Navy" required> <span>Navy</span></label>
+                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Grey" required> <span>Grey</span></label>
+                        <label class="opt-btn-wrap opt-btn-others"><input type="radio" name="shirt_color" value="Other" required> <span>Others</span></label>
                     </div>
                     <div id="color-other-wrap" style="display: none; margin-top: 0.75rem;">
                         <input type="text" name="color_other" id="color_other" class="input-field" placeholder="Enter custom color">
@@ -295,23 +354,16 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
                     </div>
                 </div>
 
-                <!-- 6. File Upload -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Upload Design * (JPG, PNG, PDF - max 5MB)</label>
-                    <input type="file" name="design_file" id="design_file" accept=".jpg,.jpeg,.png,.pdf" class="input-field" <?php echo $is_edit_mode ? '' : 'required'; ?>>
-                    <?php if ($is_edit_mode): ?>
-                        <p class="sintra-hint mt-2">Leave empty to keep your current uploaded design.</p>
-                    <?php endif; ?>
-                </div>
+                <!-- 6. Removed from here -->
 
                 <!-- 7. Lamination + Quantity (One Row) -->
-                <div class="mb-4 lam-qty-card">
+                <div class="mb-4">
                     <div class="lam-qty-row">
                         <div class="lam-qty-lam">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Lamination *</label>
                             <div class="lam-options">
-                                <label class="opt-btn-wrap lam-opt"><input type="radio" name="lamination" value="With Laminate"> <span>With Laminate</span></label>
-                                <label class="opt-btn-wrap lam-opt"><input type="radio" name="lamination" value="Without Laminate"> <span>Without Laminate</span></label>
+                                <label class="opt-btn-wrap lam-opt"><input type="radio" name="lamination" value="With Laminate" required> <span>With Laminate</span></label>
+                                <label class="opt-btn-wrap lam-opt"><input type="radio" name="lamination" value="Without Laminate" required> <span>Without Laminate</span></label>
                             </div>
                         </div>
                     </div>
@@ -594,8 +646,8 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
 }
 
 #tshirtForm .input-field {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(83, 197, 224, 0.24) !important;
+    background: rgba(13, 43, 56, 0.94) !important;
+    border: 1px solid rgba(83, 197, 224, 0.3) !important;
     color: #eef7fb !important;
 }
 #tshirtForm .input-field::placeholder {
@@ -660,18 +712,51 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
 }
 
 .qty-control {
-    background: rgba(255, 255, 255, 0.04) !important;
+    display: flex;
+    align-items: center;
+    height: 44px;
+    background: rgba(13, 43, 56, 0.92) !important;
     border: 1px solid rgba(83, 197, 224, 0.24) !important;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.qty-control:focus-within {
+    border-color: #53c5e0 !important;
+    box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.16) !important;
 }
 .qty-btn {
+    flex: 0 0 44px;
+    height: 100%;
+    border: none;
     background: rgba(83, 197, 224, 0.12) !important;
     color: #d8edf5 !important;
+    font-weight: 800;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    outline: none;
 }
 .qty-btn:hover {
-    background: rgba(83, 197, 224, 0.2) !important;
+    background: rgba(83, 197, 224, 0.28) !important;
+    color: #fff !important;
+}
+.qty-btn:active {
+    background: rgba(83, 197, 224, 0.4) !important;
 }
 .qty-control input {
+    flex: 1;
+    border: none;
+    text-align: center;
+    background: transparent !important;
     color: #f8fafc !important;
+    font-weight: 700;
+    font-size: 1rem;
+    outline: none;
+    -moz-appearance: textfield;
 }
 #quantity-input::-webkit-outer-spin-button,
 #quantity-input::-webkit-inner-spin-button {
@@ -762,7 +847,13 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
 <script>
 const TSHIRT_IS_EDIT_MODE = <?php echo $is_edit_mode ? 'true' : 'false'; ?>;
 const TSHIRT_PREFILL = <?php echo json_encode([
+    'branch_id' => (string)($_POST['branch_id'] ?? ''),
     'shirt_source' => (string)($_POST['shirt_source'] ?? ''),
+    'design_type' => (string)($_POST['design_type'] ?? ''),
+    'print_color' => (string)($_POST['print_color'] ?? ''),
+    'text_content' => (string)($_POST['text_content'] ?? ''),
+    'font_style' => (string)($_POST['font_style'] ?? ''),
+    'font_size' => (string)($_POST['font_size'] ?? ''),
     'shirt_type' => (string)($_POST['shirt_type'] ?? ''),
     'shirt_type_other' => (string)($_POST['shirt_type_other'] ?? ''),
     'shirt_color' => (string)($_POST['shirt_color'] ?? ''),
@@ -778,9 +869,10 @@ function tshirtSetRadio(name, value) {
     const input = Array.from(document.querySelectorAll('input[name="' + name + '"]')).find(function(el) {
         return el.value === value;
     });
-    if (!input) return;
-    input.checked = true;
-    input.dispatchEvent(new Event('change', { bubbles: true }));
+    if (input) {
+        input.checked = true;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
 }
 
 function tshirtIncreaseQty() {
@@ -791,179 +883,199 @@ function tshirtIncreaseQty() {
 function tshirtDecreaseQty() {
     const i = document.getElementById('quantity-input');
     const v = parseInt(i.value) || 1;
-    if (v > 1) { i.value = v - 1; checkFormValid(); }
+    if (v > 1) { i.value = v - 1; }
+    checkFormValid();
 }
+
+function clearFieldError(container) {
+    if (!container) return;
+    const err = container.querySelector('.field-error');
+    container.classList.remove('is-invalid');
+    if (err) {
+        err.textContent = '';
+        err.style.display = 'none';
+    }
+}
+
+function setFieldError(container, message) {
+    if (!container) return;
+    let err = container.querySelector('.field-error');
+    if (!err) {
+        err = document.createElement('div');
+        err.className = 'field-error';
+        container.appendChild(err);
+    }
+    if (message) {
+        container.classList.add('is-invalid');
+        err.textContent = message;
+        err.style.display = 'block';
+    } else {
+        container.classList.remove('is-invalid');
+        err.textContent = '';
+        err.style.display = 'none';
+    }
+}
+
+function checkFormValid() {
+    const showErrors = window.__tshirtValidationTriggered === true;
+
+    const branch = document.querySelector('select[name="branch_id"]');
+    const shirtSource = document.querySelector('input[name="shirt_source"]:checked');
+    const designType = document.querySelector('input[name="design_type"]:checked');
+    const shirtType = document.querySelector('input[name="shirt_type"]:checked');
+    const shirtColor = document.querySelector('input[name="shirt_color"]:checked');
+    const placement = document.querySelector('input[name="print_placement"]:checked');
+    const lamination = document.querySelector('input[name="lamination"]:checked');
+    const qty = parseInt(document.getElementById('quantity-input').value) || 0;
+    const file = document.getElementById('design_file');
+    const neededDate = document.getElementById('needed_date');
+
+    const textContent = document.getElementById('text_content');
+    const printColor = document.getElementById('print_color');
+
+    const cBranch = branch?.closest('.mb-4');
+    const cShirtSource = document.querySelector('input[name="shirt_source"]')?.closest('.mb-4');
+    const cDesignType = document.querySelector('input[name="design_type"]')?.closest('.mb-4');
+    const cShirtType = document.querySelector('input[name="shirt_type"]')?.closest('.mb-4');
+    const cShirtColor = document.querySelector('input[name="shirt_color"]')?.closest('.mb-4');
+    const cPlacement = document.querySelector('input[name="print_placement"]')?.closest('.mb-4');
+    const cFile = file?.closest('.mb-4');
+    const cLamination = document.querySelector('input[name="lamination"]')?.closest('.lam-qty-lam');
+    const cDate = neededDate?.closest('.mb-4');
+    const cTextContent = textContent?.closest('.mb-4');
+    const cPrintColor = printColor?.closest('.mb-4');
+
+    const shopProvides = shirtSource && shirtSource.value === 'Shop provides shirt';
+    const isTextOnly = designType && designType.value === 'Text Only';
+    const isLogoOnly = designType && designType.value === 'Logo Only';
+    const hasFile = !!(file && file.files && file.files.length > 0);
+
+    let ok = !!branch?.value && !!shirtSource && !!designType && !!shirtType && !!shirtColor && !!placement && !!lamination && qty >= 1 && neededDate?.value.trim() !== '';
+    
+    // Conditional validation for Logo Only
+    if (isLogoOnly && !TSHIRT_IS_EDIT_MODE) {
+        ok = ok && hasFile;
+    }
+    
+    // Conditional validation for Text Only
+    if (isTextOnly) {
+        ok = ok && !!textContent.value.trim() && !!printColor.value.trim();
+    }
+
+    if (showErrors) {
+        setFieldError(cBranch, branch && !branch.value ? 'Please select a branch' : '');
+        setFieldError(cShirtSource, !shirtSource ? 'Please select shirt source' : '');
+        setFieldError(cDesignType, !designType ? 'Please select design type' : '');
+        setFieldError(cShirtType, !shirtType ? 'Please select shirt type' : '');
+        setFieldError(cShirtColor, !shirtColor ? 'Please select shirt color' : '');
+        setFieldError(cPlacement, !placement ? 'Please select placement' : '');
+        setFieldError(cFile, (isLogoOnly && !TSHIRT_IS_EDIT_MODE && !hasFile) ? 'Please upload your design for logo printing' : '');
+        setFieldError(cLamination, !lamination ? 'Please select lamination' : '');
+        setFieldError(cDate, !neededDate.value.trim() ? 'Please select a date' : '');
+        
+        if (isTextOnly) {
+            setFieldError(cTextContent, !textContent.value.trim() ? 'Text content is required for text designs' : '');
+            setFieldError(cPrintColor, !printColor.value.trim() ? 'Print color is required for text designs' : '');
+        } else {
+            clearFieldError(cTextContent);
+            clearFieldError(cPrintColor);
+        }
+    } else {
+        [cBranch, cShirtSource, cDesignType, cShirtType, cShirtColor, cPlacement, cFile, cLamination, cDate, cTextContent, cPrintColor].forEach(clearFieldError);
+    }
+
+    return ok;
+}
+
+// ── Event Listeners ──
+document.getElementById('tshirtForm').addEventListener('change', checkFormValid);
+document.getElementById('tshirtForm').addEventListener('input', checkFormValid);
+document.getElementById('design_file').addEventListener('change', checkFormValid);
+document.getElementById('quantity-input').addEventListener('input', checkFormValid);
+document.getElementById('needed_date').addEventListener('change', checkFormValid);
+
+document.querySelectorAll('input[name="design_type"]').forEach(r => {
+    r.addEventListener('change', function() {
+        const isLogo = this.value === 'Logo Only';
+        const isText = this.value === 'Text Only';
+        const uploadLabel = document.getElementById('upload-label');
+        const fileInput = document.getElementById('design_file');
+        const textSection = document.getElementById('text-design-section');
+        
+        // Toggle Upload Section Label/Requirement
+        if (isLogo) {
+            uploadLabel.textContent = 'Upload Design * (Required for logo printing)';
+            if (!TSHIRT_IS_EDIT_MODE) fileInput.required = true;
+        } else {
+            uploadLabel.textContent = 'Upload Design (Optional - for reference only)';
+            fileInput.required = false;
+        }
+
+        // Toggle Text Section
+        textSection.style.display = isText ? 'block' : 'none';
+        
+        checkFormValid();
+    });
+});
 
 document.querySelectorAll('input[name="shirt_source"]').forEach(r => {
     r.addEventListener('change', function() {
         const shopProvides = this.value === 'Shop provides shirt';
         document.getElementById('shop-provides-note').style.display = shopProvides ? 'block' : 'none';
         document.getElementById('size-section').style.display = shopProvides ? 'block' : 'none';
-        document.querySelectorAll('input[name="sizes"]').forEach(s => { s.required = shopProvides; if (!shopProvides) s.checked = false; });
-        document.querySelectorAll('input[name="shirt_type"]').forEach(s => s.required = true);
+        document.querySelectorAll('input[name="sizes"]').forEach(s => { 
+            s.required = shopProvides;
+            if (!shopProvides) s.checked = false; 
+        });
         document.getElementById('size-required-mark').textContent = shopProvides ? '*' : '';
-        document.getElementById('shirt-type-required-mark').textContent = '*';
-        if (!shopProvides) document.getElementById('sizes-other-wrap').style.display = 'none';
-        checkFormValid();
     });
 });
 
 document.querySelectorAll('input[name="sizes"]').forEach(r => {
     r.addEventListener('change', function() {
         document.getElementById('sizes-other-wrap').style.display = this.value === 'Others' ? 'block' : 'none';
-        document.getElementById('sizes_other').required = this.value === 'Others';
-        checkFormValid();
     });
 });
 
 document.querySelectorAll('input[name="shirt_type"]').forEach(r => {
     r.addEventListener('change', function() {
         document.getElementById('shirt-type-other-wrap').style.display = this.value === 'Others' ? 'block' : 'none';
-        document.getElementById('shirt_type_other').required = this.value === 'Others';
-        checkFormValid();
     });
 });
 
 document.querySelectorAll('input[name="shirt_color"]').forEach(r => {
     r.addEventListener('change', function() {
         document.getElementById('color-other-wrap').style.display = this.value === 'Other' ? 'block' : 'none';
-        document.getElementById('color_other').required = this.value === 'Other';
-        checkFormValid();
     });
 });
 
-function checkFormValid() {
-    const showErrors = window.__tshirtValidationTriggered === true;
-
-    function clearFieldError(container) {
-        if (!container) return;
-        const err = container.querySelector('.field-error');
-        container.classList.remove('is-invalid');
-        if (err) {
-            err.textContent = '';
-            err.style.display = 'none';
-        }
-    }
-
-    function setFieldError(container, message) {
-        if (!container) return;
-        let err = container.querySelector('.field-error');
-        if (!err) {
-            err = document.createElement('div');
-            err.className = 'field-error';
-            container.appendChild(err);
-        }
-        if (message) {
-            container.classList.add('is-invalid');
-            err.textContent = message;
-            err.style.display = 'block';
-        } else {
-            container.classList.remove('is-invalid');
-            err.textContent = '';
-            err.style.display = 'none';
-        }
-    }
-
-    const shirtSource = document.querySelector('input[name="shirt_source"]:checked');
-    const shirtType = document.querySelector('input[name="shirt_type"]:checked');
-    const shirtTypeOther = document.getElementById('shirt_type_other');
-    const shirtColor = document.querySelector('input[name="shirt_color"]:checked');
-    const colorOther = document.getElementById('color_other');
-    const sizes = document.querySelector('input[name="sizes"]:checked');
-    const sizesOther = document.getElementById('sizes_other');
-    const placement = document.querySelector('input[name="print_placement"]:checked');
-    const lamination = document.querySelector('input[name="lamination"]:checked');
-    const qty = parseInt(document.getElementById('quantity-input').value) || 0;
-    const file = document.getElementById('design_file');
-    const neededDate = document.getElementById('needed_date');
-    const branch = document.querySelector('select[name="branch_id"]');
-
-    const cBranch = branch?.closest('.mb-4');
-    const cShirtSource = document.querySelector('input[name="shirt_source"]')?.closest('.mb-4');
-    const cShirtType = document.querySelector('input[name="shirt_type"]')?.closest('.mb-4');
-    const cShirtColor = document.querySelector('input[name="shirt_color"]')?.closest('.mb-4');
-    const cSizes = document.querySelector('input[name="sizes"]')?.closest('.mb-4');
-    const cPlacement = document.querySelector('input[name="print_placement"]')?.closest('.mb-4');
-    const cFile = file?.closest('.mb-4');
-    const cLamQtyCard = document.querySelector('.lam-qty-card');
-    const cLamination = document.querySelector('input[name="lamination"]')?.closest('.lam-qty-lam');
-    const cQty = document.getElementById('quantity-input')?.closest('.lam-qty-qty');
-    const cDate = neededDate?.closest('.mb-4');
-
-    const hasFile = !!(file && file.files && file.files.length > 0);
-    let ok = !!branch && !!branch.value && !!shirtSource && !!shirtType && !!shirtColor && !!placement && !!lamination && qty >= 1 && (TSHIRT_IS_EDIT_MODE ? true : hasFile) && neededDate.value.trim() !== '';
-    if (shirtType && shirtType.value === 'Others') ok = ok && shirtTypeOther.value.trim() !== '';
-    if (shirtColor && shirtColor.value === 'Other') ok = ok && colorOther.value.trim() !== '';
-
-    const shopProvides = shirtSource && shirtSource.value === 'Shop provides shirt';
-    if (shopProvides) {
-        ok = ok && !!shirtType && !!sizes;
-        if (shirtType && shirtType.value === 'Others') ok = ok && shirtTypeOther.value.trim() !== '';
-        if (sizes && sizes.value === 'Others') ok = ok && sizesOther && sizesOther.value.trim() !== '';
-    }
-
-    if (showErrors) {
-        setFieldError(cBranch, branch && !branch.value ? 'This field is required' : '');
-        setFieldError(cShirtSource, !shirtSource ? 'This field is required' : '');
-        setFieldError(cShirtType, !shirtType ? 'This field is required' : (shirtType && shirtType.value === 'Others' && !shirtTypeOther.value.trim() ? 'This field is required' : ''));
-        setFieldError(cShirtColor, !shirtColor ? 'This field is required' : (shirtColor && shirtColor.value === 'Other' && !colorOther.value.trim() ? 'This field is required' : ''));
-        setFieldError(cPlacement, !placement ? 'This field is required' : '');
-        setFieldError(cFile, (!TSHIRT_IS_EDIT_MODE && !hasFile) ? 'This field is required' : '');
-        setFieldError(cLamination, !lamination ? 'This field is required' : '');
-        clearFieldError(cQty);
-        if (cLamQtyCard) cLamQtyCard.classList.toggle('is-invalid', !lamination);
-        setFieldError(cDate, (!neededDate.value.trim() || qty < 1) ? 'This field is required' : '');
-        if (shopProvides) {
-            setFieldError(cSizes, !sizes ? 'This field is required' : (sizes && sizes.value === 'Others' && !(sizesOther && sizesOther.value.trim()) ? 'This field is required' : ''));
-        } else {
-            clearFieldError(cSizes);
-        }
-    } else {
-        if (cLamQtyCard) cLamQtyCard.classList.remove('is-invalid');
-        [
-            cBranch, cShirtSource, cShirtType, cShirtColor, cSizes,
-            cPlacement, cFile, cLamination, cQty, cDate
-        ].forEach(clearFieldError);
-    }
-
-    return ok;
-}
-
-document.getElementById('tshirtForm').addEventListener('change', checkFormValid);
-document.getElementById('tshirtForm').addEventListener('input', checkFormValid);
-document.getElementById('design_file').addEventListener('change', checkFormValid);
-document.getElementById('quantity-input').addEventListener('input', checkFormValid);
-document.getElementById('needed_date').addEventListener('change', checkFormValid);
-document.getElementById('tshirtForm').addEventListener('invalid', function(e) {
-    e.preventDefault();
-}, true);
 document.getElementById('tshirtForm').addEventListener('submit', function(e) {
     window.__tshirtValidationTriggered = true;
     if (!checkFormValid()) {
         e.preventDefault();
+        const firstErr = document.querySelector('.is-invalid');
+        if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 });
 
-checkFormValid();
+// Prefill values
+if (TSHIRT_PREFILL.text_content) document.getElementById('text_content').value = TSHIRT_PREFILL.text_content;
+if (TSHIRT_PREFILL.print_color) document.getElementById('print_color').value = TSHIRT_PREFILL.print_color;
+if (TSHIRT_PREFILL.font_style) document.getElementById('font_style').value = TSHIRT_PREFILL.font_style;
+if (TSHIRT_PREFILL.font_size) document.getElementById('font_size').value = TSHIRT_PREFILL.font_size;
+if (TSHIRT_PREFILL.shirt_type_other) document.getElementById('shirt_type_other').value = TSHIRT_PREFILL.shirt_type_other;
+if (TSHIRT_PREFILL.color_other) document.getElementById('color_other').value = TSHIRT_PREFILL.color_other;
+if (TSHIRT_PREFILL.sizes_other) document.getElementById('sizes_other').value = TSHIRT_PREFILL.sizes_other;
 
-if (TSHIRT_PREFILL.shirt_type_other) {
-    const el = document.getElementById('shirt_type_other');
-    if (el) el.value = TSHIRT_PREFILL.shirt_type_other;
-}
-if (TSHIRT_PREFILL.color_other) {
-    const el = document.getElementById('color_other');
-    if (el) el.value = TSHIRT_PREFILL.color_other;
-}
-if (TSHIRT_PREFILL.sizes_other) {
-    const el = document.getElementById('sizes_other');
-    if (el) el.value = TSHIRT_PREFILL.sizes_other;
-}
+tshirtSetRadio('branch_id', TSHIRT_PREFILL.branch_id);
 tshirtSetRadio('shirt_source', TSHIRT_PREFILL.shirt_source);
+tshirtSetRadio('design_type', TSHIRT_PREFILL.design_type);
 tshirtSetRadio('shirt_type', TSHIRT_PREFILL.shirt_type);
 tshirtSetRadio('shirt_color', TSHIRT_PREFILL.shirt_color);
 tshirtSetRadio('sizes', TSHIRT_PREFILL.sizes);
 tshirtSetRadio('print_placement', TSHIRT_PREFILL.print_placement);
 tshirtSetRadio('lamination', TSHIRT_PREFILL.lamination);
+
 checkFormValid();
 </script>
 

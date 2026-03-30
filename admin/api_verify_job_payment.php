@@ -59,12 +59,13 @@ if ($action === 'verify_payment') {
     // so if we clearly have proof + amount, treat it as SUBMITTED for this verification.
     if ($payment_proof_status !== 'SUBMITTED') {
         $can_treat_as_submitted =
-            in_array($job_status, ['VERIFY_PAY', 'TO_VERIFY', 'PENDING_VERIFICATION', 'DOWNPAYMENT_SUBMITTED'], true) &&
+            in_array($job_status, ['TO_PAY', 'VERIFY_PAY', 'TO_VERIFY', 'PENDING_VERIFICATION', 'DOWNPAYMENT_SUBMITTED'], true) &&
             $submitted_amount > 0 &&
             $has_proof_path;
 
         if (!$can_treat_as_submitted) {
-            echo json_encode(['success' => false, 'error' => 'Payment proof is not currently in SUBMITTED state.']);
+            $msg = "Payment proof is not currently in SUBMITTED state (Current: {$payment_proof_status}, Job: {$job_status}, Amount: {$submitted_amount}, Proof: " . ($has_proof_path ? 'Yes' : 'No') . ").";
+            echo json_encode(['success' => false, 'error' => $msg]);
             exit;
         }
 
@@ -144,7 +145,7 @@ if ($action === 'verify_payment') {
         
         echo json_encode(['success' => true]);
     } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => 'Database error during verification.']);
+        echo json_encode(['success' => false, 'error' => 'Database error during verification: ' . $e->getMessage()]);
     }
 
 } 
@@ -160,8 +161,8 @@ elseif ($action === 'reject_payment') {
     
     // Idempotency check
     $payment_proof_status = strtoupper((string)($job['payment_proof_status'] ?? ''));
-    if ($payment_proof_status !== 'SUBMITTED') {
-        echo json_encode(['success' => false, 'error' => 'Payment proof is not currently in SUBMITTED state.']);
+    if ($payment_proof_status !== 'SUBMITTED' && !in_array($job_status, ['TO_PAY', 'VERIFY_PAY'], true)) {
+        echo json_encode(['success' => false, 'error' => 'Payment proof is not currently in SUBMITTED state for rejection.']);
         exit;
     }
     
@@ -183,12 +184,13 @@ elseif ($action === 'reject_payment') {
             log_activity($user_id, 'Job payment rejected', "Job #{$job_id}: rejected by {$user_name}. {$reason}");
         }
         if (!empty($job['customer_id'])) {
-            create_notification((int)$job['customer_id'], 'Customer', "Your payment proof for Custom Job #{$job_id} was rejected. Please review and re-upload.", 'Payment Issue', true, true);
+            $data_id = (int)($job['order_id'] ?: $job_id);
+            create_notification((int)$job['customer_id'], 'Customer', "Your payment proof for Custom Job #{$job_id} was rejected. Please review and re-upload.", 'Payment Issue', true, true, $data_id);
         }
         
         echo json_encode(['success' => true]);
     } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => 'Database error during rejection.']);
+        echo json_encode(['success' => false, 'error' => 'Database error during rejection: ' . $e->getMessage()]);
     }
 
 } else {

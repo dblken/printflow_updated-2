@@ -381,7 +381,7 @@ $page_title = "Order #{$order_id} - Staff";
                                                             $description = '';
                                                             if ($custom_data):
                                                                 foreach ($custom_data as $key => $val):
-                                                                    if (!empty($val) && $key !== 'design_upload' && $key !== 'reference_upload'):
+                                                                    if (!empty($val) && $key !== 'design_upload' && $key !== 'reference_upload' && $key !== 'branch_id'):
                                                                         if (strpos(strtolower($key), 'description') !== false):
                                                                             $description = $val;
                                                                             continue;

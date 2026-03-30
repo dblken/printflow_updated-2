@@ -17,8 +17,7 @@ function printflow_default_customer_service_catalog(): array {
         ['name' => 'Glass/Wall', 'category' => 'Decals', 'img' => '/printflow/public/images/products/Glass Stickers  Wall  Frosted Stickers.png', 'link' => 'order_glass_stickers.php'],
         ['name' => 'Transparent', 'category' => 'Decals', 'img' => '/printflow/public/images/products/product_26.jpg', 'link' => 'order_transparent.php'],
         ['name' => 'Reflectorized', 'category' => 'Signage', 'img' => '/printflow/public/images/products/signage.jpg', 'link' => 'order_reflectorized.php'],
-        ['name' => 'Sintraboard', 'category' => 'Signage', 'img' => '/printflow/public/images/products/standeeflat.jpg', 'link' => 'order_sintraboard.php'],
-        ['name' => 'Standees', 'category' => 'Signage', 'img' => '/printflow/public/services/Sintraboard Standees.jpg', 'link' => 'order_standees.php'],
+        ['name' => 'Sintraboard Standees', 'category' => 'Signage', 'img' => '/printflow/public/images/products/standeeflat.jpg', 'link' => 'order_sintraboard.php'],
         ['name' => 'Souvenirs', 'category' => 'Merchandise', 'img' => '/printflow/public/assets/images/services/default.png', 'link' => 'order_souvenirs.php'],
     ];
 }
