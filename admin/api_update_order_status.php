@@ -8,6 +8,7 @@
  * If deduction fails, refuses the status change and returns error.
  */
 
+require_once __DIR__ . '/../includes/api_header.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/branch_context.php';
@@ -15,8 +16,6 @@ require_once __DIR__ . '/../includes/variant_functions.php';
 require_once __DIR__ . '/../includes/TarpaulinService.php';
 
 require_role(['Admin', 'Manager']);
-
-header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'error' => 'Method not allowed']);

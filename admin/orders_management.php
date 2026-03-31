@@ -232,6 +232,7 @@ if (isset($_GET['ajax'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="turbo-cache-control" content="no-cache">
     <title><?php echo $page_title; ?></title>
     <link rel="stylesheet" href="/printflow/public/assets/css/output.css">
     <?php include __DIR__ . '/../includes/admin_style.php'; ?>
@@ -571,7 +572,7 @@ if (isset($_GET['ajax'])) {
                     date_to:   () => document.getElementById('fp_date_to')?.value   || '',
                 };
                 for (const [key, getter] of Object.entries(fields)) {
-                    val = (overrides[key] !== undefined) ? overrides[key] : getter();
+                    var val = (overrides[key] !== undefined) ? overrides[key] : getter();
                     if (val) params.set(key, val);
                     else params.delete(key);
                 }
@@ -601,7 +602,7 @@ if (isset($_GET['ajax'])) {
                         const pc = document.getElementById('ordersPagination');
                         if (pc) pc.innerHTML = data.pagination;
                         const bc = document.getElementById('filterBadgeContainer');
-                        if (bc) bc.innerHTML = data.badge > 0 ? `<span class="filter-badge">${data.badge}</span>` : '';
+                        if (bc) bc.innerHTML = data.badge > 0 ? '<span class="filter-badge">' + data.badge + '</span>' : '';
                         
                         window.dispatchEvent(new CustomEvent('filter-badge-update', { detail: { badge: data.badge } }));
                         const displayUrl = buildFilterURL(overrides, false);
@@ -634,16 +635,20 @@ if (isset($_GET['ajax'])) {
             }
 
             function filterPanel() {
-                return {
+                console.log('[orders] filterPanel() called');
+                const data = {
                     filterOpen: false,
                     sortOpen:   false,
                     activeSort: '<?php echo $sort_by; ?>',
                     hasActiveFilters: <?php echo count(array_filter([$status_filter, $search, $date_from, $date_to])) > 0 ? 'true' : 'false'; ?>
                 };
+                console.log('[orders] filterPanel data:', data);
+                return data;
             }
 
             function orderModal() {
-                return {
+                console.log('[orders] orderModal() called');
+                const data = {
                     showModal: false,
                     loading: false,
                     errorMsg: '',
@@ -749,40 +754,83 @@ if (isset($_GET['ajax'])) {
                         this.order = null;
                         this.items = [];
                         fetch('/printflow/admin/api_order_details.php?id=' + orderId)
-                            .then(r => r.json())
+                            .then(r => {
+                                if (!r.ok) throw new Error('HTTP ' + r.status);
+                                const contentType = r.headers.get('content-type');
+                                if (!contentType || !contentType.includes('application/json')) {
+                                    throw new Error('Response is not JSON');
+                                }
+                                return r.json();
+                            })
                             .then(data => {
                                 this.loading = false;
                                 if (data.success) {
-                                    this.order = data.order;
-                                    this.items = data.items.map(i => ({
+                                    this.order = data.order || {};
+                                    this.items = (data.items || []).map(i => ({
                                         ...i,
                                         editingTarp: false,
                                         savingTarp: false,
-                                        tempWidth: i.tarp_details?.width_ft || 0,
-                                        tempHeight: i.tarp_details?.height_ft || 0,
-                                        tempRollId: i.tarp_details?.roll_id || '',
+                                        tempWidth: (i.tarp_details && i.tarp_details.width_ft) || 0,
+                                        tempHeight: (i.tarp_details && i.tarp_details.height_ft) || 0,
+                                        tempRollId: (i.tarp_details && i.tarp_details.roll_id) || '',
                                         availableRolls: []
                                     }));
-                                    this.selectedStatus = data.order.status;
-                                } else { this.errorMsg = data.error || 'Failed to load order details.'; }
+                                    this.selectedStatus = data.order.status || 'Pending';
+                                } else { 
+                                    this.errorMsg = data.error || 'Failed to load order details.'; 
+                                }
                             })
                             .catch(err => {
                                 this.loading = false;
-                                this.errorMsg = 'Network error.';
+                                this.errorMsg = 'Network error: ' + err.message;
+                                console.error('Order modal error:', err);
                             });
                     }
                 };
+                console.log('[orders] orderModal data:', data);
+                return data;
             }
 
             function ordersPage() { 
-                const filterData = filterPanel();
-                const modalData = orderModal();
+                console.log('[orders] ordersPage() factory function called');
                 
-                return {
-                    ...filterData,
-                    ...modalData,
+                const filterData = filterPanel();
+                console.log('[orders] filterData received:', filterData);
+                
+                const modalData = orderModal();
+                console.log('[orders] modalData received:', modalData);
+                
+                const component = {
+                    // Explicitly list all properties to avoid spread operator issues
+                    filterOpen: filterData.filterOpen,
+                    sortOpen: filterData.sortOpen,
+                    activeSort: filterData.activeSort,
+                    hasActiveFilters: filterData.hasActiveFilters,
+                    
+                    showModal: modalData.showModal,
+                    loading: modalData.loading,
+                    errorMsg: modalData.errorMsg,
+                    order: modalData.order,
+                    items: modalData.items,
+                    selectedStatus: modalData.selectedStatus,
+                    updatingStatus: modalData.updatingStatus,
+                    statusUpdateMsg: modalData.statusUpdateMsg,
+                    statusUpdateError: modalData.statusUpdateError,
+                    
+                    // Methods from modalData
+                    startTarpEdit: modalData.startTarpEdit,
+                    fetchRolls: modalData.fetchRolls,
+                    saveTarpSpecs: modalData.saveTarpSpecs,
+                    updateStatus: modalData.updateStatus,
+                    statusBadge: modalData.statusBadge,
+                    openModal: modalData.openModal,
                     
                     init() {
+                        console.log('[orders] Component init() called');
+                        console.log('[orders] Component this:', this);
+                        console.log('[orders] sortOpen value:', this.sortOpen);
+                        console.log('[orders] filterOpen value:', this.filterOpen);
+                        
                         window.addEventListener('open-order-modal', e => this.openModal(e.detail.orderId));
                         window.addEventListener('sort-changed', e => { 
                             this.activeSort = e.detail.sortKey; 
@@ -793,33 +841,107 @@ if (isset($_GET['ajax'])) {
                         });
                     }
                 };
+                
+                console.log('[orders] Returning component:', component);
+                console.log('[orders] Component sortOpen:', component.sortOpen);
+                console.log('[orders] Component filterOpen:', component.filterOpen);
+                return component;
             }
 
+            // ═══════════════════════════════════════════════════════════════
+            // ORDERS PAGE INITIALIZATION - Simplified and Robust
+            // ═══════════════════════════════════════════════════════════════
+            
             function printflowInitOrdersPage() {
-                if (typeof Alpine === 'undefined' || typeof Alpine.initTree !== 'function') return;
+                console.log('[orders] Starting initialization...');
+                
+                // Check if we're on the orders page
                 var main = document.querySelector('main[x-data="ordersPage()"]');
-                if (main && !main._x_dataStack) { try { Alpine.initTree(main); } catch (e0) { console.error(e0); } }
-                /* #ordersTableContainer is plain HTML inside main; do not initTree (already walked). */
+                if (!main) {
+                    console.log('[orders] Not on orders page, skipping');
+                    return;
+                }
+                
+                console.log('[orders] Found main element with ordersPage()');
+                console.log('[orders] Alpine dataStack:', main._x_dataStack);
+                
+                /* Bind filter inputs - these work independently of Alpine */
                 const inputs = ['fp_status', 'fp_date_from', 'fp_date_to'];
                 inputs.forEach(id => {
                     const el = document.getElementById(id);
                     if (el && !el._pf_bound) {
                         el._pf_bound = true;
-                        el.addEventListener('change', () => fetchUpdatedTable());
+                        el.addEventListener('change', () => {
+                            console.log('[orders] Filter changed:', id);
+                            fetchUpdatedTable();
+                        });
+                        console.log('[orders] Bound filter input:', id);
                     }
                 });
+                
                 const searchInput = document.getElementById('fp_search');
                 if (searchInput && !searchInput._pf_bound) {
                     searchInput._pf_bound = true;
                     searchInput.addEventListener('input', () => {
                         clearTimeout(searchDebounceTimer);
-                        searchDebounceTimer = setTimeout(() => { fetchUpdatedTable(); }, 500);
+                        searchDebounceTimer = setTimeout(() => { 
+                            console.log('[orders] Search triggered');
+                            fetchUpdatedTable(); 
+                        }, 500);
                     });
+                    console.log('[orders] Bound search input');
                 }
+                
+                console.log('[orders] Initialization complete');
             }
-            if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', printflowInitOrdersPage); }
-            else { printflowInitOrdersPage(); }
-            document.addEventListener('printflow:page-init', printflowInitOrdersPage);
+            
+            // Wait for Alpine to be fully ready
+            function waitForAlpineAndInitOrders() {
+                // Check if we're on the orders page
+                if (!document.querySelector('main[x-data="ordersPage()"]')) {
+                    console.log('[orders] Not on orders page');
+                    return;
+                }
+                
+                // Check if Alpine is loaded
+                if (typeof window.Alpine === 'undefined') {
+                    console.log('[orders] Alpine not loaded yet, retrying...');
+                    setTimeout(waitForAlpineAndInitOrders, 50);
+                    return;
+                }
+                
+                console.log('[orders] Alpine is loaded, version:', Alpine.version);
+                
+                // Check if Alpine has initialized the component
+                var main = document.querySelector('main[x-data="ordersPage()"]');
+                if (main && (!main._x_dataStack || main._x_dataStack.length === 0)) {
+                    console.log('[orders] Alpine component not initialized yet, retrying...');
+                    setTimeout(waitForAlpineAndInitOrders, 100);
+                    return;
+                }
+                
+                console.log('[orders] Alpine component is ready!');
+                printflowInitOrdersPage();
+            }
+            
+            // Start initialization
+            console.log('[orders] Script loaded, readyState:', document.readyState);
+            
+            if (document.readyState === 'loading') { 
+                document.addEventListener('DOMContentLoaded', function() {
+                    console.log('[orders] DOMContentLoaded fired');
+                    waitForAlpineAndInitOrders();
+                }); 
+            } else { 
+                console.log('[orders] DOM already loaded');
+                waitForAlpineAndInitOrders();
+            }
+            
+            // Also listen for Turbo navigation
+            document.addEventListener('printflow:page-init', function() {
+                console.log('[orders] printflow:page-init event fired');
+                waitForAlpineAndInitOrders();
+            });
 
             function openOrderModal(orderId) { window.dispatchEvent(new CustomEvent('open-order-modal', { detail: { orderId } })); }
 
@@ -838,8 +960,10 @@ if (isset($_GET['ajax'])) {
             <?php render_branch_selector($branchCtx); ?>
         </header>
 
-        <main x-data="ordersPage()">
+        <main x-data="ordersPage()" x-init="console.log('[orders] Alpine x-init called'); console.log('[orders] Component data:', $data)">
             <?php render_branch_context_banner($branchCtx['branch_name']); ?>
+            
+
             <!-- KPI Summary Row (matches reports page style) -->
             <div class="kpi-row">
                 <div class="kpi-card indigo">
@@ -1071,9 +1195,9 @@ if (isset($_GET['ajax'])) {
                 <!-- Header -->
                 <div style="padding:20px 24px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
                     <div>
-                        <h3 style="font-size:18px;font-weight:700;color:#1f2937;margin:0;">Order Code: <span x-text="order?.order_code"></span></h3>
-                        <p style="font-size:13px;color:#6b7280;margin:2px 0 0;" x-text="order?.order_date"></p>
-                        <p style="font-size:12px;color:#4F46E5;margin:3px 0 0;font-weight:600;"><span x-text="order?.branch_name"></span></p>
+                        <h3 style="font-size:18px;font-weight:700;color:#1f2937;margin:0;">Order Code: <span x-text="order ? (order.order_code || 'N/A') : 'N/A'"></span></h3>
+                        <p style="font-size:13px;color:#6b7280;margin:2px 0 0;" x-text="order ? (order.order_date || 'N/A') : 'N/A'"></p>
+                        <p style="font-size:12px;color:#4F46E5;margin:3px 0 0;font-weight:600;"><span x-text="order ? (order.branch_name || 'Main Branch') : 'Main Branch'"></span></p>
                     </div>
                     <button @click="showModal = false" style="width:32px;height:32px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7280;">
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -1086,19 +1210,19 @@ if (isset($_GET['ajax'])) {
                     <div style="background:#f9fafb;border-radius:10px;padding:16px;border:1px solid #f3f4f6;">
                         <h4 style="font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 12px;">Customer</h4>
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                            <template x-if="order?.customer_picture">
+                            <template x-if="order && order.customer_picture">
                                 <img :src="order.customer_picture" alt="Customer" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
                             </template>
-                            <template x-if="!order?.customer_picture">
-                                <div x-text="order?.customer_initial" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;flex-shrink:0;"></div>
+                            <template x-if="!order || !order.customer_picture">
+                                <div x-text="order ? (order.customer_initial || 'C') : 'C'" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;flex-shrink:0;"></div>
                             </template>
                             <div>
-                                <div x-text="order?.customer_name" style="font-weight:600;font-size:14px;color:#1f2937;"></div>
-                                <div x-text="order?.customer_email" style="font-size:12px;color:#6b7280;"></div>
+                                <div x-text="order ? (order.customer_name || 'N/A') : 'N/A'" style="font-weight:600;font-size:14px;color:#1f2937;"></div>
+                                <div x-text="order ? (order.customer_email || 'N/A') : 'N/A'" style="font-size:12px;color:#6b7280;"></div>
                             </div>
                         </div>
                         <div style="font-size:13px;color:#6b7280;">
-                            <span>Phone: </span><span x-text="order?.customer_phone" style="color:#1f2937;font-weight:500;"></span>
+                            <span>Phone: </span><span x-text="order ? (order.customer_phone || 'N/A') : 'N/A'" style="color:#1f2937;font-weight:500;"></span>
                         </div>
                     </div>
 
@@ -1108,15 +1232,15 @@ if (isset($_GET['ajax'])) {
                         <div style="display:flex;flex-direction:column;gap:10px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;">
                                 <span style="font-size:13px;color:#6b7280;">Status</span>
-                                <span x-html="statusBadge(order?.status, 'order')"></span>
+                                <span x-html="statusBadge(order ? order.status : 'N/A', 'order')"></span>
                             </div>
                             <div style="display:flex;justify-content:space-between;align-items:center;">
                                 <span style="font-size:13px;color:#6b7280;">Payment</span>
-                                <span x-html="statusBadge(order?.payment_status, 'payment')"></span>
+                                <span x-html="statusBadge(order ? order.payment_status : 'N/A', 'payment')"></span>
                             </div>
                             <div style="display:flex;justify-content:space-between;align-items:center;">
                                 <span style="font-size:13px;color:#6b7280;">Total</span>
-                                <span x-text="order?.total_amount" style="font-weight:700;font-size:16px;color:#1f2937;"></span>
+                                <span x-text="order ? (order.total_amount || '₱0.00') : '₱0.00'" style="font-weight:700;font-size:16px;color:#1f2937;"></span>
                             </div>
                         </div>
                     </div>
@@ -1142,14 +1266,14 @@ if (isset($_GET['ajax'])) {
                                 <template x-for="item in (items || [])" :key="item.sku">
                                     <tr style="border-top:1px solid #f3f4f6;">
                                         <td style="padding:10px 14px;">
-                                            <div x-text="item.product_name" style="font-weight:500;color:#1f2937;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" :title="item.product_name"></div>
+                                            <div x-text="item.product_name || 'Unknown'" style="font-weight:500;color:#1f2937;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" :title="item.product_name || 'Unknown'"></div>
                                             <template x-if="item.variant_name">
                                                 <div style="margin-top:3px;">
                                                     <span x-text="'📐 ' + item.variant_name"
                                                           style="display:inline-flex;align-items:center;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" :title="'📐 ' + item.variant_name"></span>
                                                 </div>
                                             </template>
-                                            <div x-text="item.category" style="font-size:11px;color:#9ca3af;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" :title="item.category"></div>
+                                            <div x-text="item.category || '—'" style="font-size:11px;color:#9ca3af;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" :title="item.category || '—'"></div>
                                             
                                             <!-- Tarpaulin/Sticker Specific Specs (Roll-based) -->
                                             <template x-if="item.category && (item.category.toUpperCase().includes('TARPAULIN') || item.category.toUpperCase().includes('STKR'))">
@@ -1159,7 +1283,7 @@ if (isset($_GET['ajax'])) {
                                                             <div>
                                                                 <template x-if="item.tarp_details">
                                                                     <div>
-                                                                        <span style="color:#166534; font-weight:600;" x-text="item.tarp_details.width_ft + ' x ' + item.tarp_details.height_ft + ' ft'"></span>
+                                                                        <span style="color:#166534; font-weight:600;" x-text="(item.tarp_details.width_ft || 0) + ' x ' + (item.tarp_details.height_ft || 0) + ' ft'"></span>
                                                                         <span style="color:#6b7280; margin-left:8px;" x-text="'Roll: ' + (item.tarp_details.roll_code || 'Not Assigned')"></span>
                                                                     </div>
                                                                 </template>
@@ -1187,7 +1311,7 @@ if (isset($_GET['ajax'])) {
                                                             <select x-model="item.tempRollId" style="width:100% !important; height:32px; border:1px solid #e5e7eb; border-radius:6px; padding:0 8px; display:block;">
                                                                 <option value="">Select a Roll</option>
                                                                 <template x-for="roll in item.availableRolls || []" :key="roll.id">
-                                                                    <option :value="roll.id" x-text="roll.roll_code + ' (' + roll.remaining_length_ft + ' ft left)'"></option>
+                                                                    <option :value="roll.id" x-text="(roll.roll_code || 'Roll') + ' (' + (roll.remaining_length_ft || 0) + ' ft left)'"></option>
                                                                 </template>
                                                             </select>
                                                         </div>
@@ -1199,16 +1323,16 @@ if (isset($_GET['ajax'])) {
                                                 </div>
                                             </template>
                                         </td>
-                                        <td style="padding:10px 14px;text-align:center;" x-text="item.quantity"></td>
-                                        <td style="padding:10px 14px;text-align:right;color:#6b7280;" x-text="item.unit_price_formatted"></td>
-                                        <td style="padding:10px 14px;text-align:right;font-weight:600;color:#1f2937;" x-text="item.subtotal_formatted"></td>
+                                        <td style="padding:10px 14px;text-align:center;" x-text="item.quantity || 0"></td>
+                                        <td style="padding:10px 14px;text-align:right;color:#6b7280;" x-text="item.unit_price_formatted || '₱0.00'"></td>
+                                        <td style="padding:10px 14px;text-align:right;font-weight:600;color:#1f2937;" x-text="item.subtotal_formatted || '₱0.00'"></td>
                                     </tr>
                                 </template>
                             </tbody>
-                            <tfoot x-show="items.length > 0">
+                            <tfoot x-show="items && items.length > 0">
                                 <tr style="border-top:2px solid #e5e7eb;background:#f9fafb;">
                                     <td colspan="3" style="padding:12px 14px;text-align:right;font-weight:600;font-size:14px;">Total</td>
-                                    <td style="padding:12px 14px;text-align:right;font-weight:700;font-size:15px;color:#1f2937;" x-text="order?.total_amount"></td>
+                                    <td style="padding:12px 14px;text-align:right;font-weight:700;font-size:15px;color:#1f2937;" x-text="order ? (order.total_amount || '₱0.00') : '₱0.00'"></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -1216,7 +1340,7 @@ if (isset($_GET['ajax'])) {
                 </div>
 
                 <!-- Notes -->
-                <template x-if="order?.notes">
+                <template x-if="order && order.notes">
                     <div style="padding:0 24px 20px;">
                         <h4 style="font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px;">Notes</h4>
                         <p x-text="order.notes" style="font-size:13px;color:#6b7280;background:#f9fafb;padding:12px;border-radius:8px;border:1px solid #f3f4f6;margin:0;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;"></p>

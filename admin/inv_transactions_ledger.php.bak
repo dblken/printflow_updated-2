@@ -110,8 +110,6 @@ $items = db_query("SELECT id, name, unit_of_measure as unit FROM inv_items ORDER
 
 // AJAX Partial Response
 if (isset($_GET['ajax'])) {
-    // Start buffering ALL output to catch any potential warnings/notices
-    if (ob_get_level() > 0) ob_clean();
     ob_start();
     ?>
     <?php if (empty($transactions)): ?>
@@ -163,14 +161,8 @@ if (isset($_GET['ajax'])) {
     echo render_pagination($page, $total_pages, $p);
     $pagination_html = ob_get_clean();
 
-    // Prepare common variables
     $badge_count = count(array_filter([$item_id ?: '', $type_filter, $search, $start_date, $end_date], function($v) { return $v !== null && $v !== ''; }));
 
-    // Clean any accidental output (whitespace, notices) before the JSON
-    $captured_garbage = ob_get_clean(); 
-    if (ob_get_level() > 0) ob_clean();
-    
-    header('Content-Type: application/json');
     echo json_encode([
         'success'    => true,
         'table'      => $table_html,
@@ -748,9 +740,9 @@ if (isset($_GET['ajax'])) {
 
 <script>
     /* var: Turbo re-runs this script; let would conflict with other admin pages (e.g. inv_items currentSort). */
-    var ledgerPage = <?php echo (int)($page ?? 1); ?>;
-    var currentSort = <?php echo json_encode($sort ?? 'transaction_date'); ?>;
-    var currentDir = <?php echo json_encode($dir ?? 'DESC'); ?>;
+    var ledgerPage = <?php echo $page; ?>;
+    var currentSort = '<?php echo $sort; ?>';
+    var currentDir = '<?php echo $dir; ?>';
     var searchTimer = null;
     var ledgerFetchController = null;
     var ledgerRequestSerial = 0;
@@ -759,15 +751,7 @@ if (isset($_GET['ajax'])) {
         return {
             sortOpen: false,
             filterOpen: false,
-            activeSort: <?php 
-                $activeSort = 'newest';
-                if (($sort ?? '') === 'transaction_date') {
-                    $activeSort = ($dir ?? 'DESC') === 'DESC' ? 'newest' : 'oldest';
-                } elseif (($sort ?? '') === 'item_name') {
-                    $activeSort = ($dir ?? 'ASC') === 'ASC' ? 'az' : 'za';
-                }
-                echo json_encode($activeSort);
-            ?>,
+            activeSort: '<?php echo $sort === 'transaction_date' ? ($dir === 'DESC' ? 'newest' : 'oldest') : ($sort === 'item_name' ? ($dir === 'ASC' ? 'az' : 'za') : 'newest'); ?>',
             get hasActiveFilters() {
                 const start = document.getElementById('fp_start_date')?.value || '';
                 const end = document.getElementById('fp_end_date')?.value || '';
@@ -902,7 +886,7 @@ if (isset($_GET['ajax'])) {
             console.log('Response status:', resp.status);
             
             if (!resp.ok) throw new Error('Request failed with status ' + resp.status);
-            const rawText = (await resp.text()).trim();
+            const rawText = await resp.text();
             console.log('Response length:', rawText.length);
             
             let data;
@@ -910,12 +894,8 @@ if (isset($_GET['ajax'])) {
                 data = JSON.parse(rawText);
             } catch (_parseErr) {
                 console.log('JSON parse failed, trying to extract...');
-                const startIdx = rawText.indexOf('{');
-                if (startIdx >= 0) {
-                    data = JSON.parse(rawText.slice(startIdx));
-                } else {
-                    throw _parseErr;
-                }
+                const possibleJson = rawText.slice(rawText.indexOf('{'));
+                data = JSON.parse(possibleJson);
             }
             
             console.log('Parsed data:', data);

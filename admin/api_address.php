@@ -3,11 +3,10 @@
  * Philippine Address API (PSGC)
  * Shared endpoint for province/city/barangay cascading (used by profile, branches, etc.)
  */
+require_once __DIR__ . '/../includes/api_header.php';
 require_once __DIR__ . '/../includes/auth.php';
 
 require_role(['Admin', 'Manager', 'Owner']);
-
-header('Content-Type: application/json');
 
 $action = $_GET['address_action'] ?? '';
 if ($action === '') {

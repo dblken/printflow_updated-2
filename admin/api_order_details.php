@@ -5,13 +5,12 @@
  * Returns order details as JSON for the modal view
  */
 
+require_once __DIR__ . '/../includes/api_header.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/branch_context.php';
 
 require_role(['Admin', 'Manager']);
-
-header('Content-Type: application/json');
 
 if (isset($_GET['customer_id'])) {
     $cust_id = (int)$_GET['customer_id'];

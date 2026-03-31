@@ -2915,10 +2915,6 @@ if (isset($_GET['ajax'])) {
         printflowInitInvItemsBindings();
         ensureInvItemsAlpineBoot();
     }
-    document.addEventListener('printflow:page-init', function () {
-        printflowInitInvItemsBindings();
-        ensureInvItemsAlpineBoot();
-    });
 </script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

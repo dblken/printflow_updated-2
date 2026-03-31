@@ -709,7 +709,6 @@ function custom_payment_badge($status) {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', printflowInitCustomizationsPage);
         } else { printflowInitCustomizationsPage(); }
-        document.addEventListener('printflow:page-init', printflowInitCustomizationsPage);
 
         function printflowOpenJobFromQuery() {
             var oj = new URLSearchParams(window.location.search).get('open_job');
@@ -724,7 +723,6 @@ function custom_payment_badge($status) {
             });
         }
         printflowOpenJobFromQuery();
-        document.addEventListener('printflow:page-init', printflowOpenJobFromQuery);
         </script>
         <header>
             <h1 class="page-title">Customizations</h1>

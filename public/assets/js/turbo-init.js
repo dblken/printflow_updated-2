@@ -110,7 +110,9 @@
                 }
             });
             
+            console.debug('[turbo] Destroying Alpine tree for', alpineEls.length, 'elements');
             Alpine.destroyTree(el);
+            console.debug('[turbo] Alpine tree destroyed successfully');
         } catch (e) { 
             /* Alpine may throw while tearing partial trees; safe to ignore if it refers to the Object.values crash */ 
             if (e instanceof TypeError && (e.message.includes('undefined or null to object') || e.message.includes('Cannot convert'))) {
@@ -125,6 +127,7 @@
         printflowAlpineNeedsReinit = true;
         var mc = document.querySelector('.main-content');
         if (mc) {
+            console.log('[turbo] Destroying Alpine tree before render');
             pfDestroyAlpineTree(mc);
         }
     });
@@ -164,9 +167,12 @@
 
     /* ─── turbo:load — main re-init hook ─────────────────────────────────── */
     function printflowInitAll() {
+        console.log('[turbo] printflowInitAll called, printflowAlpineNeedsReinit:', printflowAlpineNeedsReinit);
+        
         function finishPageBoot() {
             printflowRunChartInitsForPage();
             try {
+                console.log('[turbo] Dispatching printflow:page-init event');
                 document.dispatchEvent(new CustomEvent('printflow:page-init', { bubbles: false }));
             } catch (e) { /* ignore */ }
             try {
@@ -175,9 +181,11 @@
         }
 
         /* Inline <script> in the new body defines x-data factories; initTree must run after them.
-           Only re-init on Turbo swaps — first paint uses Alpine.start() only. */
+           On first load: Alpine.start() handles initialization automatically.
+           On Turbo navigation: We need to manually call initTree on the new content. */
         if (printflowAlpineNeedsReinit && typeof window.Alpine !== 'undefined' && typeof Alpine.initTree === 'function') {
             printflowAlpineNeedsReinit = false;
+            console.log('[turbo] Re-initializing Alpine after navigation');
             setTimeout(function () {
                 try {
                     var root = document.querySelector('.main-content') || document.body;
@@ -185,37 +193,48 @@
                         // Check if there are any Alpine components to initialize
                         const hasAlpineComponents = root.querySelector('[x-data], [x-for], [x-if], [x-show], [x-bind], [x-on], [x-model], [x-text], [x-html], [x-cloak]');
                         if (!hasAlpineComponents && !root.hasAttribute('x-data')) {
-                            console.debug('[turbo] No Alpine components found in', root, ', skipping initTree');
+                            console.log('[turbo] No Alpine components found in', root, ', skipping initTree');
                             finishPageBoot();
                             return;
                         }
                         
-                        console.debug('[turbo] Found Alpine components, re-initializing for:', root);
+                        console.log('[turbo] Found Alpine components, re-initializing...');
                         
                         // Ensure cleanup before re-init
                         pfDestroyAlpineTree(root);
                         
                         // Pre-initialize Alpine properties on new elements to prevent errors
                         const newAlpineEls = root.querySelectorAll('[x-data], [x-for], [x-if], [x-show]');
-                        console.debug('[turbo] Found', newAlpineEls.length, 'Alpine elements to initialize');
+                        console.log('[turbo] Found', newAlpineEls.length, 'Alpine elements to initialize');
                         newAlpineEls.forEach(function(el) {
                             if (el && el._x_dataStack == null) {
                                 el._x_dataStack = [];
                             }
                         });
                         
-                        Alpine.initTree(root);
-                        console.debug('[turbo] Alpine.initTree completed successfully for', newAlpineEls.length, 'elements');
+                        console.log('[turbo] Calling Alpine.initTree on root');
+                        
+                        // CRITICAL: Wait a bit longer to ensure inline scripts have executed
+                        // Inline scripts in the new body define x-data factories like ordersPage()
+                        setTimeout(function() {
+                            try {
+                                Alpine.initTree(root);
+                                console.log('[turbo] Alpine.initTree completed successfully');
+                            } catch (e) {
+                                console.error('[turbo] Alpine.initTree error:', e);
+                            }
+                            finishPageBoot();
+                        }, 50);
                     }
                 } catch (e) { 
-                    console.error('[turbo] Alpine.initTree error:', e); 
+                    console.error('[turbo] Alpine setup error:', e);
+                    finishPageBoot();
                 }
-                finishPageBoot();
-            }, 100);
+            }, 150); // Increased delay to ensure inline scripts execute first
             return;
         }
 
-        console.debug('[turbo] Skipping Alpine re-init, printflowAlpineNeedsReinit:', printflowAlpineNeedsReinit);
+        console.log('[turbo] Skipping Alpine re-init (first load or no reinit needed)');
         finishPageBoot();
     }
 

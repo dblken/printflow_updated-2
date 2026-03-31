@@ -1,27 +1,17 @@
 <?php require_once __DIR__ . '/favicon_links.php'; ?>
-<meta name="turbo-cache-control" content="no-cache">
-
 <?php
 /**
- * Alpine + Turbo (admin / manager / staff shell).
- * Many shell pages (e.g. customers_management, orders_management) rely on x-data / @click but never
- * loaded these libraries — controls appear "dead". Loaded once per request; POS skips Turbo via PRINTFLOW_DISABLE_TURBO.
+ * Alpine.js Core Loading (admin / manager / staff shell).
+ * Turbo Drive removed for stability - using standard page navigation.
  */
 if (empty($GLOBALS['__printflow_shell_core_js'])) {
     $GLOBALS['__printflow_shell_core_js'] = true;
     $__pf_asset_js = '/printflow/public/assets/js';
-    $__pf_skip_turbo = !empty($GLOBALS['PRINTFLOW_DISABLE_TURBO']);
     ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<?php if (!$__pf_skip_turbo): ?>
-<script src="https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.13/dist/turbo.es2017-umd.js" defer></script>
-<?php endif; ?>
 <script src="<?php echo $__pf_asset_js; ?>/alpine.min.js" defer></script>
-<?php if (!$__pf_skip_turbo): ?>
-<script src="<?php echo $__pf_asset_js; ?>/turbo-init.js" defer></script>
-<?php endif; ?>
 <?php
-    unset($__pf_asset_js, $__pf_skip_turbo);
+    unset($__pf_asset_js);
 }
 ?>
 
@@ -1043,10 +1033,9 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
         transform: translateY(-1px);
     }
 </style>
-<?php if (!empty($GLOBALS['PRINTFLOW_DISABLE_TURBO'])): ?>
 <script>
 (function () {
-    function printflowBootChartsNoTurbo() {
+    function printflowBootCharts() {
         requestAnimationFrame(function () {
             requestAnimationFrame(function () {
                 try {
@@ -1055,34 +1044,15 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
                     } else if (document.getElementById('salesChart') && typeof window.printflowInitDashboardCharts === 'function') {
                         window.printflowInitDashboardCharts();
                     }
-                } catch (e) { console.error(e); }
+                } catch (e) { }
             });
         });
     }
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', printflowBootChartsNoTurbo);
+        document.addEventListener('DOMContentLoaded', printflowBootCharts);
     } else {
-        printflowBootChartsNoTurbo();
+        printflowBootCharts();
     }
 })();
 </script>
-<?php endif; ?>
-<script>
-(function () {
-    document.addEventListener('mouseenter', function (e) {
-        var a = e.target && e.target.closest && e.target.closest('a.nav-item[href]');
-        if (!a || a.getAttribute('href').charAt(0) === '#') return;
-        if (a.dataset.pfPrefetched) return;
-        if (a.target === '_blank' || a.hasAttribute('download')) return;
-        try {
-            var u = new URL(a.href, location.href);
-            if (u.origin !== location.origin) return;
-        } catch (err) { return; }
-        a.dataset.pfPrefetched = '1';
-        var l = document.createElement('link');
-        l.rel = 'prefetch';
-        l.href = a.href;
-        document.head.appendChild(l);
-    }, true);
-})();
-</script>
+

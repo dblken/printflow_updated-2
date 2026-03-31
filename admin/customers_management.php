@@ -680,9 +680,16 @@ $page_title = 'Customers Management - Admin';
             window.openTransactionModal = function (id) { callCustomerModalMethod('openTransactionModal', id); };
 
             function printflowInitCustomersPage() {
-                if (typeof Alpine === 'undefined' || typeof Alpine.initTree !== 'function') return;
+                console.debug('[customers] Initializing...');
                 var root = document.querySelector('main[x-data="customerModal()"]');
-                if (root && !root._x_dataStack) { try { Alpine.initTree(root); } catch (e) { console.error(e); } }
+                if (root && !root._x_dataStack) { 
+                    try { 
+                        Alpine.initTree(root);
+                        console.debug('[customers] Alpine initialized successfully');
+                    } catch (e) { 
+                        console.error('[customers] Alpine init error:', e); 
+                    } 
+                }
                 /* #customersTableContainer has no x-data; initTree here double-binds after Alpine.start / turbo-init(.main-content). */
                 ['fp_date_from', 'fp_date_to'].forEach(id => {
                     const el = document.getElementById(id);
@@ -700,9 +707,13 @@ $page_title = 'Customers Management - Admin';
                     });
                 }
             }
-            if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', printflowInitCustomersPage); }
-            else { printflowInitCustomersPage(); }
-            document.addEventListener('printflow:page-init', printflowInitCustomersPage);
+            
+            // Initialize on page load
+            if (document.readyState === 'loading') { 
+                document.addEventListener('DOMContentLoaded', printflowInitCustomersPage); 
+            } else { 
+                printflowInitCustomersPage();
+            }
         </script>
 
         <main x-data="customerModal()">

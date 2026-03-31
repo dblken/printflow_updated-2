@@ -3,11 +3,11 @@
  * Admin User Details API
  * PrintFlow - Printing Shop PWA
  */
+require_once __DIR__ . '/../includes/api_header.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 require_role(['Admin', 'Manager']);
-header('Content-Type: application/json');
 
 $user_id = (int)($_GET['id'] ?? 0);
 if (!$user_id) {

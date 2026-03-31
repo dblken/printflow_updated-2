@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpine Filter Test</title>
+    <script src="/printflow/public/assets/js/alpine.min.js" defer></script>
+    <style>
+        body { font-family: sans-serif; padding: 40px; }
+        .filter-panel { 
+            position: absolute; 
+            top: 50px; 
+            right: 0; 
+            width: 300px; 
+            background: white; 
+            border: 1px solid #ccc; 
+            padding: 20px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .btn { 
+            padding: 10px 20px; 
+            background: #3b82f6; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+        }
+        .btn:hover { background: #2563eb; }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body>
+
+<h1>Alpine.js Filter Test</h1>
+
+<div x-data="testComponent()">
+    <p>Filter Open: <strong x-text="filterOpen"></strong></p>
+    <p>Sort Open: <strong x-text="sortOpen"></strong></p>
+    
+    <div style="position: relative; display: inline-block;">
+        <button class="btn" @click="filterOpen = !filterOpen; sortOpen = false">
+            Toggle Filter
+        </button>
+        
+        <div class="filter-panel" x-show="filterOpen" x-cloak @click.outside="filterOpen = false">
+            <h3>Filter Panel</h3>
+            <p>This panel should show/hide when you click the button.</p>
+            <button class="btn" @click="filterOpen = false">Close</button>
+        </div>
+    </div>
+    
+    <button class="btn" @click="sortOpen = !sortOpen; filterOpen = false" style="margin-left: 10px;">
+        Toggle Sort
+    </button>
+    
+    <div x-show="sortOpen" x-cloak style="margin-top: 20px; padding: 20px; background: #f0f0f0; border-radius: 6px;">
+        <h3>Sort Panel</h3>
+        <p>This panel should show/hide when you click the sort button.</p>
+    </div>
+</div>
+
+<script>
+    function testComponent() {
+        return {
+            filterOpen: false,
+            sortOpen: false,
+            
+            init() {
+                console.log('✅ Alpine component initialized');
+                console.log('filterOpen:', this.filterOpen);
+                console.log('sortOpen:', this.sortOpen);
+            }
+        };
+    }
+    
+    // Verify Alpine is loading
+    document.addEventListener('alpine:init', () => {
+        console.log('✅ Alpine:init event fired');
+    });
+    
+    document.addEventListener('alpine:initialized', () => {
+        console.log('✅ Alpine:initialized event fired');
+    });
+    
+    // Check Alpine after page load
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            console.log('Alpine object:', typeof Alpine);
+            console.log('Alpine version:', Alpine?.version);
+        }, 100);
+    });
+</script>
+
+<hr style="margin-top: 40px;">
+
+<h2>Test Instructions:</h2>
+<ol>
+    <li>Open browser console (F12)</li>
+    <li>Check for "Alpine:init" and "Alpine:initialized" messages</li>
+    <li>Click "Toggle Filter" button</li>
+    <li>Filter panel should appear</li>
+    <li>Click outside the panel - it should close</li>
+    <li>Click "Toggle Sort" button</li>
+    <li>Sort panel should appear</li>
+</ol>
+
+<h3>Expected Console Output:</h3>
+<pre>
+✅ Alpine:init event fired
+✅ Alpine:initialized event fired
+✅ Alpine component initialized
+filterOpen: false
+sortOpen: false
+Alpine object: object
+Alpine version: 3.14.3
+</pre>
+
+<h3>If Filter Doesn't Work:</h3>
+<ul>
+    <li>Check if Alpine.js file exists at /printflow/public/assets/js/alpine.min.js</li>
+    <li>Check browser console for JavaScript errors</li>
+    <li>Verify Alpine version is loaded</li>
+    <li>Check if @click events are firing (add console.log inside @click)</li>
+</ul>
+
+</body>
+</html>

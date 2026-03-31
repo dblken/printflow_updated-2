@@ -64,6 +64,7 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
     <!-- Core Libraries (Turbo & Alpine) -->
     <script src="https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.13/dist/turbo.es2017-umd.js" defer></script>
     <script src="<?php echo $asset_base; ?>/assets/js/alpine.min.js" defer></script>
+    <script src="<?php echo $asset_base; ?>/assets/js/alpine-init-helper.js"></script>
     <script src="<?php echo $asset_base; ?>/assets/js/turbo-init.js" defer></script>
     
     <!-- Critical: base link/layout so page is never unstyled -->

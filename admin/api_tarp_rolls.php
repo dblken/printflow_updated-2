@@ -2,13 +2,12 @@
 /**
  * Tarpaulin Rolls API
  */
+require_once __DIR__ . '/../includes/api_header.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/TarpaulinService.php';
 
 require_role(['Admin', 'Staff']);
-
-header('Content-Type: application/json');
 
 $action = $_GET['action'] ?? '';
 

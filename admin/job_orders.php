@@ -303,7 +303,6 @@ function jo_payment_badge($status) {
 
         if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', printflowInitJobOrdersPage); }
         else { printflowInitJobOrdersPage(); }
-        document.addEventListener('printflow:page-init', printflowInitJobOrdersPage);
 
         function printflowOpenJobFromQuery() {
             var oj = new URLSearchParams(window.location.search).get('open_job');
@@ -313,7 +312,6 @@ function jo_payment_badge($status) {
             requestAnimationFrame(function () { openJobModal(jid); });
         }
         printflowOpenJobFromQuery();
-        document.addEventListener('printflow:page-init', printflowOpenJobFromQuery);
         </script>
     <div class="main-content">
 

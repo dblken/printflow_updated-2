@@ -1651,6 +1651,9 @@ async function fetchUpdatedTable(overrides = {}) {
                         console.error('Alpine initTree error:', e);
                     }
                 }
+                
+                // Re-initialize bridge after table update
+                setTimeout(initAlpineGlobalBridge, 50);
             }
             
             // Update badge
@@ -2144,10 +2147,13 @@ function userManagement() {
 window.userManagement = userManagement;
 
 function printflowInitUserStaffPage() {
+    // Initialize Alpine global bridge first
+    initAlpineGlobalBridge();
+    
     // Re-initialize Alpine if needed
     if (typeof Alpine !== 'undefined') {
         const main = document.querySelector('main[x-data="userManagement()"]');
-        if (main && !main.__x) {
+        if (main && !main.__x && !main._x_dataStack) {
             try {
                 Alpine.initTree(main);
             } catch (e) {
@@ -2176,6 +2182,9 @@ function printflowInitUserStaffPage() {
             }, 500);
         });
     }
+    
+    // Ensure bridge is ready after a short delay
+    setTimeout(initAlpineGlobalBridge, 100);
 }
 
 if (document.readyState === 'loading') {
@@ -2193,8 +2202,6 @@ if (typeof Turbo !== 'undefined') {
 
 // Global expose to bridge AJAX table clicks to userManagement Alpine component
 function initAlpineGlobalBridge() {
-    if (typeof Alpine === 'undefined') return;
-    
     const getData = () => {
         const el = document.querySelector('[x-data="userManagement()"]');
         return (el && el.__x && el.__x.$data) ? el.__x.$data : (el && el._x_dataStack ? el._x_dataStack[0] : null);
@@ -2203,23 +2210,10 @@ function initAlpineGlobalBridge() {
     window._editUser = (id) => { const d = getData(); if (d) d.editUser(id); };
 }
 
-if (typeof Alpine !== 'undefined') {
-    document.addEventListener('alpine:init', initAlpineGlobalBridge);
-    // Also init immediately if Alpine is already loaded
-    if (Alpine.version) {
-        initAlpineGlobalBridge();
-    }
-} else {
-    // Fallback if Alpine hasn't loaded yet
-    setTimeout(() => {
-        if (typeof Alpine !== 'undefined') {
-            document.addEventListener('alpine:init', initAlpineGlobalBridge);
-            initAlpineGlobalBridge();
-        }
-    }, 100);
-}
-
-// Re-init on page changes
+// Initialize immediately and on all page events
+initAlpineGlobalBridge();
+document.addEventListener('alpine:init', initAlpineGlobalBridge);
+document.addEventListener('alpine:initialized', initAlpineGlobalBridge);
 document.addEventListener('printflow:page-init', initAlpineGlobalBridge);
 if (typeof Turbo !== 'undefined') {
     document.addEventListener('turbo:load', initAlpineGlobalBridge);

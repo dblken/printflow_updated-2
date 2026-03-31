@@ -1,10 +1,9 @@
 <?php
+require_once __DIR__ . '/../includes/api_header.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 require_role(['Admin', 'Manager']);
-
-header('Content-Type: application/json');
 
 if (!isset($_GET['id'])) {
     echo json_encode(['success' => false, 'error' => 'No customer ID provided']);
