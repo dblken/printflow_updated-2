@@ -13,106 +13,147 @@ $use_customer_css = true;
 require_once __DIR__ . '/../includes/header.php';
 
 $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Active'");
+$_svc = db_query("SELECT hero_image FROM services WHERE customer_link LIKE '%order_souvenirs%' LIMIT 1");
+$display_img = (!empty($_svc) && !empty($_svc[0]['hero_image'])) ? $_svc[0]['hero_image'] : '';
+if ($display_img !== '' && strpos($display_img, 'http') === false && $display_img[0] !== '/') { $display_img = '/' . ltrim($display_img, '/'); }
 $souvenir_type_options = ['Mug', 'Keychain', 'Tote Bag', 'Pen', 'Tumbler', 'T-Shirt'];
 ?>
-<div class="min-h-screen py-8 souvenir-order-page">
-    <div class="container mx-auto px-4 souvenir-order-container" style="max-width: 640px;">
-        <div class="flex items-center justify-between mb-6">
-            <h1 class="text-2xl font-bold souvenir-page-title">Souvenirs</h1>
+<div class="min-h-screen py-8">
+    <div class="shopee-layout-container">
+        <!-- Breadcrumb -->
+        <div class="text-sm text-gray-500 mb-6 flex items-center gap-2">
+            <a href="services.php" class="hover:text-blue-600">Services</a>
+            <span>/</span>
+            <span class="font-semibold text-gray-900">Souvenirs</span>
         </div>
-        <div class="card p-6 souvenir-order-card">
-            <form id="souvenirForm" method="POST" enctype="multipart/form-data" class="souvenir-order-form" novalidate>
-                <?php echo csrf_field(); ?>
 
-                <!-- Branch -->
-                <div class="mb-4" id="card-branch-souvenir">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
-                    <select name="branch_id" id="souvenir_branch_id" class="input-field w-full" required>
-                        <option value="" selected disabled>Please select Branch</option>
-                        <?php foreach($branches as $b): ?>
-                            <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['branch_name']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <!-- Souvenir Type -->
-                <div class="mb-4" id="souvenir-type-section">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Souvenir Type *</label>
-                    <div class="option-grid option-grid-3x2 souvenir-type-grid">
-                        <?php foreach ($souvenir_type_options as $st): ?>
-                        <label class="opt-btn-wrap"><input type="radio" name="souvenir_type" value="<?php echo htmlspecialchars($st); ?>" required onchange="souvenirUpdateOpt(this)"> <span><?php echo htmlspecialchars($st); ?></span></label>
-                        <?php endforeach; ?>
-                        <label class="opt-btn-wrap opt-btn-others" style="grid-column: 1 / -1; max-width: calc(33.333% - 0.4rem); margin: 0 auto;"><input type="radio" name="souvenir_type" value="Others" onchange="souvenirUpdateOpt(this)"> <span>Others</span></label>
-                    </div>
-                    <div id="souvenir-type-other-wrap" style="display: none; margin-top: 0.75rem;">
-                        <input type="text" name="souvenir_type_other" id="souvenir_type_other" class="input-field" placeholder="Enter custom souvenir type">
+        <div class="shopee-card">
+            <!-- Left Side: Image -->
+            <div class="shopee-image-section">
+                <div class="sticky top-24">
+                    <div class="shopee-main-image-wrap">
+                        <img src="<?php echo htmlspecialchars($display_img ?: 'https://placehold.co/600x600/f8fafc/0f172a?text=Souvenirs'); ?>" alt="Souvenirs" class="shopee-main-image" onerror="this.src='https://placehold.co/600x600/f8fafc/0f172a?text=Souvenirs'">
                     </div>
                 </div>
+            </div>
 
-                <!-- Custom Print -->
-                <div class="mb-4" id="card-custom-print-souvenir">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Custom Print? *</label>
-                    <div class="opt-btn-group">
-                        <label class="opt-btn-wrap"><input type="radio" name="custom_print" value="No" required onchange="toggleDesignUpload(); souvenirUpdateOpt(this)"> <span>No</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="custom_print" value="Yes" required onchange="toggleDesignUpload(); souvenirUpdateOpt(this)"> <span>Yes – I have a design</span></label>
+            <!-- Right Side: Form -->
+            <div class="shopee-form-section">
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Souvenirs</h1>
+                
+                <?php
+                $stats = service_order_get_page_stats('order_souvenirs');
+                $raw_avg = (float)($stats['avg_rating'] ?? 0);
+                $review_count = (int)($stats['review_count'] ?? 0);
+                $sold_count = (int)($stats['sold_count'] ?? 0);
+                $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k' : $sold_count;
+                
+                $_s_name = 'PrintFlow Service';
+                $_s_row = db_query("SELECT name FROM services WHERE customer_link LIKE '%order_souvenirs%' LIMIT 1");
+                if(!empty($_s_row)) { $_s_name = $_s_row[0]['name']; }
+                ?>
+                <div class="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+                    <div class="flex items-center gap-1">
+                        <?php for($i=1; $i<=5; $i++): ?>
+                            <svg class="w-4 h-4" style="fill: <?php echo ($i <= round($raw_avg)) ? '#FBBF24' : '#E2E8F0'; ?>;" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <?php endfor; ?>
+                        
+                        <?php if ($review_count > 0): ?>
+                            <a href="reviews.php?service_id=<?php echo $stats['service_id']; ?>" class="text-sm text-gray-500 hover:text-blue-500 hover:underline ml-1 cursor-pointer">(<?php echo number_format($review_count); ?> Reviews)</a>
+                        <?php endif; ?>
                     </div>
+                    <div class="h-4 w-px bg-gray-200"></div>
+                    <div class="text-sm text-gray-500"><?php echo $sold_display; ?> Sold</div>
                 </div>
 
-                <!-- Design Upload -->
-                <div class="mb-4" id="card-upload-souvenir">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Upload Design <span id="upload-asterisk" class="souvenir-upload-asterisk" style="display: none;">*</span>
-                        (JPG, PNG, PDF – max 5MB)
-                        <span id="upload-hint" class="font-normal normal-case text-sm ml-1 text-gray-400">(Optional)</span>
-                    </label>
-                    <div id="souvenir-upload-shell" class="souvenir-upload-shell">
-                        <input type="file" name="design_file" id="design_file"
-                               accept=".jpg,.jpeg,.png,.pdf"
-                               class="input-field souvenir-input-h souvenir-file-input">
-                    </div>
-                </div>
+                <form id="souvenirForm" method="POST" enctype="multipart/form-data" novalidate>
+                    <?php echo csrf_field(); ?>
+                    <input type="hidden" name="service_type" value="Souvenirs">
 
-                <!-- Lamination -->
-                <div class="mb-4" id="card-lamination-souvenir">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Lamination *</label>
-                    <div class="opt-btn-group">
-                        <label class="opt-btn-wrap"><input type="radio" name="lamination" value="With Lamination" required onchange="souvenirUpdateOpt(this)"> <span>With Lamination</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="lamination" value="Without Lamination" required onchange="souvenirUpdateOpt(this)"> <span>Without Lamination</span></label>
+                    <div class="shopee-form-row" id="card-branch-souvenir">
+                        <label class="shopee-form-label">Branch *</label>
+                        <select name="branch_id" id="souvenir_branch_id" class="input-field shopee-form-field" required>
+                            <option value="" selected disabled>Select Branch</option>
+                            <?php foreach($branches as $b): ?>
+                                <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['branch_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
-                </div>
 
-                <!-- Needed Date + Quantity -->
-                <div class="mb-4 need-qty-card souvenir-need-qty-card" id="card-date-qty-souvenir">
-                    <div class="need-qty-row">
-                        <div class="need-qty-date souvenir-field-inner" id="souvenir-wrap-date" style="min-width:0;">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Needed Date *</label>
-                            <input type="date" name="needed_date" id="needed_date" class="input-field souvenir-input-h souvenir-date-full" required min="<?php echo date('Y-m-d'); ?>">
-                        </div>
-                        <div class="need-qty-qty souvenir-field-inner" id="souvenir-wrap-qty" style="min-width:0;">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-                            <div class="sticker-qty-stepper sticker-qty-stepper-wide souvenir-qty-stepper">
-                                <button type="button" class="souvenir-qty-btn" onclick="souvenirQtyDown()">−</button>
-                                <input type="number" id="souvenir-qty" name="quantity" min="1" max="999" required value="<?php echo max(1, (int)($_GET['qty'] ?? 1)); ?>" oninput="souvenirQtyClamp()">
-                                <button type="button" class="souvenir-qty-btn" onclick="souvenirQtyUp()">+</button>
+                    <div class="shopee-form-row" id="souvenir-type-section">
+                        <label class="shopee-form-label pt-2">Type *</label>
+                        <div class="shopee-form-field">
+                            <div class="shopee-opt-group">
+                                <?php foreach ($souvenir_type_options as $st): ?>
+                                <label class="shopee-opt-btn"><input type="radio" name="souvenir_type" value="<?php echo htmlspecialchars($st); ?>" required style="display:none;" onchange="souvenirUpdateOpt(this)"> <span><?php echo htmlspecialchars($st); ?></span></label>
+                                <?php endforeach; ?>
+                                <label class="shopee-opt-btn"><input type="radio" name="souvenir_type" value="Others" style="display:none;" onchange="souvenirUpdateOpt(this)"> <span>Others</span></label>
+                            </div>
+                            <div id="souvenir-type-other-wrap" style="display: none; margin-top: 0.75rem;">
+                                <input type="text" name="souvenir_type_other" id="souvenir_type_other" class="input-field" placeholder="Specify other type">
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Notes -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes / Special Instructions</label>
-                    <textarea name="notes" rows="3" class="input-field w-full"
-                              placeholder="e.g., preferred colors, text to print, placement..."></textarea>
-                </div>
+                    <div class="shopee-form-row" id="card-custom-print-souvenir">
+                        <label class="shopee-form-label pt-2">Custom Print? *</label>
+                        <div class="shopee-opt-group shopee-form-field">
+                            <label class="shopee-opt-btn"><input type="radio" name="custom_print" value="No" required style="display:none;" onchange="toggleDesignUpload(); souvenirUpdateOpt(this)"> <span>No</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="custom_print" value="Yes" required style="display:none;" onchange="toggleDesignUpload(); souvenirUpdateOpt(this)"> <span>Yes (I have a design)</span></label>
+                        </div>
+                    </div>
 
-                <!-- Buttons -->
-                <div class="tshirt-actions-row">
-                    <a href="<?php echo BASE_URL; ?>/customer/services.php" class="tshirt-btn tshirt-btn-secondary">Back to Services</a>
-                    <button type="button" onclick="submitSouvenirOrder('add_to_cart')" class="tshirt-btn tshirt-btn-secondary">Add to Cart</button>
-                    <button type="button" onclick="submitSouvenirOrder('buy_now')" class="tshirt-btn tshirt-btn-primary">Buy Now</button>
-                </div>
-            </form>
+                    <div class="shopee-form-row" id="card-upload-souvenir">
+                        <label class="shopee-form-label">
+                            Design <span id="upload-asterisk" class="text-red-500" style="display: none;">*</span>
+                            <span id="upload-hint" class="block text-xs font-normal text-gray-400">(Optional)</span>
+                        </label>
+                        <input type="file" name="design_file" id="design_file" accept=".jpg,.jpeg,.png,.pdf" class="input-field shopee-form-field">
+                    </div>
+
+                    <div class="shopee-form-row" id="card-lamination-souvenir">
+                        <label class="shopee-form-label pt-2">Lamination *</label>
+                        <div class="shopee-opt-group shopee-form-field">
+                            <label class="shopee-opt-btn"><input type="radio" name="lamination" value="With Lamination" required style="display:none;" onchange="souvenirUpdateOpt(this)"> <span>With Lamination</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="lamination" value="Without Lamination" required style="display:none;" onchange="souvenirUpdateOpt(this)"> <span>Without Lamination</span></label>
+                        </div>
+                    </div>
+
+                    <div class="shopee-form-row pt-4 border-t border-gray-50" id="card-date-qty-souvenir">
+                        <label class="shopee-form-label pt-2">Order Details *</label>
+                        <div class="shopee-form-field">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div id="souvenir-wrap-date">
+                                    <label class="dim-label">Needed Date</label>
+                                    <input type="date" name="needed_date" id="needed_date" class="input-field" required min="<?php echo date('Y-m-d'); ?>">
+                                </div>
+                                <div id="souvenir-wrap-qty">
+                                    <label class="dim-label">Quantity</label>
+                                    <div class="shopee-qty-control">
+                                        <button type="button" class="shopee-qty-btn" onclick="souvenirQtyDown()">−</button>
+                                        <input type="number" id="souvenir-qty" name="quantity" class="shopee-qty-input" min="1" max="999" required value="<?php echo max(1, (int)($_GET['qty'] ?? 1)); ?>" oninput="souvenirQtyClamp()">
+                                        <button type="button" class="shopee-qty-btn" onclick="souvenirQtyUp()">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="shopee-form-row">
+                        <label class="shopee-form-label">Notes</label>
+                        <textarea name="notes" rows="3" class="input-field shopee-form-field" placeholder="e.g., preferred colors, text to print, placement..."></textarea>
+                    </div>
+
+                    <div class="shopee-form-row pt-8">
+                        <div style="width: 130px;"></div>
+                        <div class="flex gap-4 flex-1">
+                            <a href="<?php echo BASE_URL; ?>/customer/services.php" class="shopee-btn-outline" style="flex:1;">Back</a>
+                            <button type="button" onclick="submitSouvenirOrder('add_to_cart')" class="shopee-btn-outline" style="width:2.75rem;height:2.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;" title="Add to Cart"><svg style="width:1.25rem;height:1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></button>
+                            <button type="button" onclick="submitSouvenirOrder('buy_now')" class="shopee-btn-primary" style="flex:1.5;">Buy Now</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -121,7 +162,7 @@ $souvenir_type_options = ['Mug', 'Keychain', 'Tote Bag', 'Pen', 'Tumbler', 'T-Sh
 function souvenirUpdateOpt(input) {
     const name = input.name;
     document.querySelectorAll('input[name="' + name + '"]').forEach(function(r) {
-        const wrap = r.closest('.opt-btn-wrap');
+        const wrap = r.closest('.shopee-opt-btn');
         if (wrap) { wrap.classList.remove('active'); if (r.checked) wrap.classList.add('active'); }
     });
     if (input.name === 'souvenir_type') {
@@ -279,7 +320,7 @@ function submitSouvenirOrder(action) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('#souvenirForm .opt-btn-wrap').forEach(function(w) {
+    document.querySelectorAll('#souvenirForm .shopee-opt-btn').forEach(function(w) {
         if (w.querySelector('input:checked')) w.classList.add('active');
     });
     toggleSouvenirTypeOther();
@@ -356,122 +397,7 @@ if (souvenirTypeOtherEl) {
 </script>
 
 <style>
-.souvenir-order-page .souvenir-page-title {
-    color: #eaf6fb !important;
-}
-.souvenir-order-card.card {
-    background: rgba(10, 37, 48, 0.55);
-    border: 1px solid rgba(83, 197, 224, 0.22);
-    border-radius: 1.25rem;
-    box-shadow: 0 12px 40px rgba(2, 12, 18, 0.35);
-}
-#souvenirForm.souvenir-order-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    color-scheme: dark;
-}
-#souvenirForm .mb-4 {
-    margin-bottom: 0 !important;
-    padding: 1rem;
-    background: rgba(10, 37, 48, 0.48);
-    border: 1px solid rgba(83, 197, 224, 0.22);
-    border-radius: 12px;
-    backdrop-filter: blur(4px);
-}
-#souvenirForm label.block {
-    font-size: 0.95rem !important;
-    font-weight: 700 !important;
-    color: #d9e6ef !important;
-    margin-bottom: 0.55rem !important;
-}
-#souvenirForm label .text-gray-400 {
-    color: #9fc6d9 !important;
-}
-#souvenirForm .field-error {
-    margin-top: 0.4rem;
-    font-size: 0.75rem;
-    color: #fca5a5;
-    line-height: 1.3;
-    display: block;
-    width: 100%;
-}
-#souvenirForm .mb-4.is-invalid,
-#souvenirForm .need-qty-card.is-invalid {
-    border-color: rgba(239, 68, 68, 0.35) !important;
-    box-shadow: none !important;
-}
-#souvenirForm .mb-4.is-invalid .input-field,
-#souvenirForm .need-qty-card.is-invalid .input-field {
-    border-color: rgba(239, 68, 68, 0.55) !important;
-}
-#souvenirForm .input-field {
-    min-height: 44px;
-    padding: 0.72rem 0.9rem;
-    border-radius: 10px;
-    font-size: 0.95rem;
-    width: 100%;
-    box-sizing: border-box;
-    background: rgba(13, 43, 56, 0.92) !important;
-    border: 1px solid rgba(83, 197, 224, 0.26) !important;
-    color: #e9f6fb !important;
-    box-shadow: none !important;
-}
-#souvenirForm .input-field::placeholder { color: #a9c1cd !important; }
-#souvenirForm .input-field:focus {
-    background: rgba(16, 52, 67, 0.98) !important;
-    border-color: #53c5e0 !important;
-    box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.16) !important;
-}
-#souvenirForm .input-field[type="date"]::-webkit-calendar-picker-indicator { filter: brightness(0) invert(1); cursor: pointer; }
-
-#souvenirForm .souvenir-upload-shell {
-    border: 1px solid rgba(83, 197, 224, 0.26);
-    border-radius: 10px;
-    padding: 0.35rem 0.5rem;
-    background: rgba(13, 43, 56, 0.92);
-}
-#souvenirForm .souvenir-upload-shell--required { border-color: rgba(239, 68, 68, 0.45); }
-#souvenirForm .souvenir-file-input { width: 100%; border: none !important; background: transparent !important; padding: 4px 0 !important; }
-
-.souvenir-need-qty-card .need-qty-row { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
-.souvenir-need-qty-card .need-qty-date, .souvenir-need-qty-card .need-qty-qty { flex: 1; min-width: 0; }
-.sticker-qty-stepper {
-    display: flex; align-items: center; height: 44px; width: 100%;
-    border: 1px solid rgba(83, 197, 224, 0.24); border-radius: 10px; overflow: hidden;
-    background: rgba(13, 43, 56, 0.92);
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-.sticker-qty-stepper:focus-within { border-color: #53c5e0; box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.16); }
-.sticker-qty-stepper button, .souvenir-qty-btn { flex: 0 0 44px; height: 100%; border: none; background: rgba(83, 197, 224, 0.12); color: #d8edf5; font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; outline: none; }
-.sticker-qty-stepper button:hover, .souvenir-qty-btn:hover { background: rgba(83, 197, 224, 0.25); color: #fff; }
-.sticker-qty-stepper button:active, .souvenir-qty-btn:active { background: rgba(83, 197, 224, 0.38); }
-.sticker-qty-stepper input { flex: 1; min-width: 0; border: none; text-align: center; font-weight: 700; font-size: 1rem; background: transparent; color: #f8fafc; outline: none; -moz-appearance: textfield; }
-.sticker-qty-stepper input::-webkit-inner-spin-button, .sticker-qty-stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-
-#souvenirForm .option-grid { display: grid; gap: 0.5rem; width: 100%; }
-#souvenirForm .option-grid-3x2 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
-#souvenirForm .opt-btn-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; width: 100%; }
-#souvenirForm .opt-btn-wrap {
-    min-height: 44px; padding: 0.65rem 0.75rem; display: flex; align-items: center; justify-content: center;
-    border-radius: 10px; cursor: pointer; font-weight: 500; font-size: 0.86rem; text-align: center;
-    background: rgba(255, 255, 255, 0.04) !important; border: 1px solid rgba(83, 197, 224, 0.2) !important; color: #d2e7f1 !important;
-}
-#souvenirForm .opt-btn-wrap.active {
-    background: linear-gradient(135deg, rgba(83, 197, 224, 0.28), rgba(50, 161, 196, 0.24)) !important;
-    border-color: #53c5e0 !important; color: #f8fcff !important;
-}
-#souvenirForm .opt-btn-wrap input { margin-right: 0.5rem; }
-
-.tshirt-actions-row { display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; margin-top: 1.1rem; flex-wrap: wrap; }
-.tshirt-btn { height: 46px; min-width: 150px; padding: 0 1.15rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; text-decoration: none; font-size: 0.9rem; font-weight: 700; }
-.tshirt-btn-secondary { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(83, 197, 224, 0.28) !important; color: #d9e6ef !important; }
-.tshirt-btn-primary { border: none; background: linear-gradient(135deg, #53c5e0, #32a1c4) !important; color: #fff !important; text-transform: uppercase; cursor: pointer; }
-
-@media (max-width: 640px) {
-    #souvenirForm .option-grid-3x2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .souvenir-need-qty-card .need-qty-row { flex-direction: column; align-items: stretch; }
-    .tshirt-actions-row { flex-direction: column; align-items: stretch; }
-}
+.dim-label { font-size: 0.70rem; color: #94a3b8; font-weight: 600; margin-bottom: 4px; display: block; text-transform: uppercase; }
+</style>
 </style>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

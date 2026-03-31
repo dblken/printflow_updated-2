@@ -79,125 +79,141 @@ $use_customer_css = true;
 require_once __DIR__ . '/../includes/header.php';
 
 $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Active'");
+$_svc = db_query("SELECT hero_image FROM services WHERE customer_link LIKE '%order_layout%' LIMIT 1");
+$display_img = (!empty($_svc) && !empty($_svc[0]['hero_image'])) ? $_svc[0]['hero_image'] : '';
+if ($display_img !== '' && strpos($display_img, 'http') === false && $display_img[0] !== '/') { $display_img = '/' . ltrim($display_img, '/'); }
 $layout_types = ['Logo', 'Banner', 'Invitation', 'Poster', 'Other'];
 ?>
-<div class="min-h-screen py-8 layout-order-page">
-    <div class="container mx-auto px-4 layout-order-container">
-        <h1 class="text-2xl font-bold mb-6 layout-page-title">Layout Design Service</h1>
-        <?php if ($error): ?><div class="layout-form-error mb-4"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
-        <div class="card layout-order-card">
-            <form method="POST" enctype="multipart/form-data" id="layoutForm" class="layout-order-form" novalidate>
-                <?php echo csrf_field(); ?>
+<div class="min-h-screen py-8">
+    <div class="shopee-layout-container">
+        <!-- Breadcrumb -->
+        <div class="text-sm text-gray-500 mb-6 flex items-center gap-2">
+            <a href="services.php" class="hover:text-blue-600">Services</a>
+            <span>/</span>
+            <span class="font-semibold text-gray-900">Layout Design</span>
+        </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
-                    <select name="branch_id" class="input-field" required>
-                        <option value="" selected disabled>Select Branch</option>
-                        <?php foreach($branches as $b): ?>
-                            <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['branch_name']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Type of Layout *</label>
-                    <div class="opt-btn-group layout-type-grid">
-                        <?php foreach ($layout_types as $lt): ?>
-                        <label class="opt-btn-wrap"><input type="radio" name="layout_type" value="<?php echo htmlspecialchars($lt); ?>" required <?php echo (($_POST['layout_type'] ?? '') === $lt) ? 'checked' : ''; ?>> <span><?php echo htmlspecialchars($lt); ?></span></label>
-                        <?php endforeach; ?>
+        <div class="shopee-card">
+            <!-- Left Side: Image -->
+            <div class="shopee-image-section">
+                <div class="sticky top-24">
+                    <div class="shopee-main-image-wrap">
+                        <img src="<?php echo htmlspecialchars($display_img ?: 'https://placehold.co/600x600/f8fafc/0f172a?text=Layout+Design'); ?>" alt="Layout Design" class="shopee-main-image" onerror="this.src='https://placehold.co/600x600/f8fafc/0f172a?text=Layout+Design'">
                     </div>
                 </div>
+            </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Rush Order? *</label>
-                    <div class="opt-btn-group">
-                        <label class="opt-btn-wrap"><input type="radio" name="rush" value="No" required <?php echo (($_POST['rush'] ?? 'No') === 'No') ? 'checked' : ''; ?>> <span>No</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="rush" value="Yes" <?php echo (($_POST['rush'] ?? '') === 'Yes') ? 'checked' : ''; ?>> <span>Yes</span></label>
+            <!-- Right Side: Form -->
+            <div class="shopee-form-section">
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Layout & Graphic Design</h1>
+                
+                <?php
+                $stats = service_order_get_page_stats('order_layout');
+                $raw_avg = (float)($stats['avg_rating'] ?? 0);
+                $review_count = (int)($stats['review_count'] ?? 0);
+                $sold_count = (int)($stats['sold_count'] ?? 0);
+                $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k' : $sold_count;
+                
+                $_s_name = 'PrintFlow Service';
+                $_s_row = db_query("SELECT name FROM services WHERE customer_link LIKE '%order_layout%' LIMIT 1");
+                if(!empty($_s_row)) { $_s_name = $_s_row[0]['name']; }
+                ?>
+                <div class="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+                    <div class="flex items-center gap-1">
+                        <?php for($i=1; $i<=5; $i++): ?>
+                            <svg class="w-4 h-4" style="fill: <?php echo ($i <= round($raw_avg)) ? '#FBBF24' : '#E2E8F0'; ?>;" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <?php endfor; ?>
+                        
+                        <?php if ($review_count > 0): ?>
+                            <a href="reviews.php?service=<?php echo urlencode($_s_name); ?>" class="text-sm text-gray-500 hover:text-blue-500 hover:underline ml-1 cursor-pointer">(<?php echo number_format($review_count); ?> Reviews)</a>
+                        <?php endif; ?>
                     </div>
+                    <div class="h-4 w-px bg-gray-200"></div>
+                    <div class="text-sm text-gray-500"><?php echo $sold_display; ?> Designed</div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Needed Date *</label>
-                    <input type="date" name="needed_date" id="layout_needed_date" class="input-field" required min="<?php echo date('Y-m-d'); ?>" value="<?php echo htmlspecialchars($_POST['needed_date'] ?? ''); ?>">
-                </div>
+                <?php if ($error): ?><div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    <textarea name="description" rows="4" class="input-field layout-notes" placeholder="Describe your layout needs..."><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
-                </div>
+                <form method="POST" enctype="multipart/form-data" id="layoutForm" novalidate>
+                    <?php echo csrf_field(); ?>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Upload Reference File (JPG, PNG, PDF – max 5MB) <span class="layout-optional-tag">(Optional)</span></label>
-                    <input type="file" name="reference_file" accept=".jpg,.jpeg,.png,.pdf" class="input-field layout-file-input">
-                </div>
+                    <div class="shopee-form-row">
+                        <label class="shopee-form-label">Branch *</label>
+                        <select name="branch_id" class="input-field shopee-form-field" required>
+                            <option value="" selected disabled>Select Branch</option>
+                            <?php foreach($branches as $b): ?>
+                                <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['branch_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
-                <div class="tshirt-actions-row">
-                    <a href="<?php echo BASE_URL; ?>/customer/services.php" class="tshirt-btn tshirt-btn-secondary">Back to Services</a>
-                    <button type="submit" name="action" value="add_to_cart" class="tshirt-btn tshirt-btn-secondary">Add to Cart</button>
-                    <button type="submit" name="action" value="buy_now" class="tshirt-btn tshirt-btn-primary">Buy Now</button>
-                </div>
-            </form>
+                    <div class="shopee-form-row">
+                        <label class="shopee-form-label pt-2">Type of Layout *</label>
+                        <div class="shopee-opt-group shopee-form-field">
+                            <?php foreach ($layout_types as $lt): ?>
+                            <label class="shopee-opt-btn"><input type="radio" name="layout_type" value="<?php echo htmlspecialchars($lt); ?>" required style="display:none;" onchange="layoutUpdateOpt(this)" <?php echo (($_POST['layout_type'] ?? '') === $lt) ? 'checked' : ''; ?>> <span><?php echo htmlspecialchars($lt); ?></span></label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <div class="shopee-form-row">
+                        <label class="shopee-form-label pt-2">Rush Order? *</label>
+                        <div class="shopee-opt-group shopee-form-field">
+                            <label class="shopee-opt-btn"><input type="radio" name="rush" value="No" required style="display:none;" onchange="layoutUpdateOpt(this)" <?php echo (($_POST['rush'] ?? 'No') === 'No') ? 'checked' : ''; ?>> <span>No</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="rush" value="Yes" style="display:none;" onchange="layoutUpdateOpt(this)" <?php echo (($_POST['rush'] ?? '') === 'Yes') ? 'checked' : ''; ?>> <span>Yes (+Fee)</span></label>
+                        </div>
+                    </div>
+
+                    <div class="shopee-form-row pt-4 border-t border-gray-50">
+                        <label class="shopee-form-label pt-2">Needed Date *</label>
+                        <div class="shopee-form-field">
+                            <div class="w-1/2">
+                                <input type="date" name="needed_date" id="layout_needed_date" class="input-field shopee-form-field" required min="<?php echo date('Y-m-d'); ?>" value="<?php echo htmlspecialchars($_POST['needed_date'] ?? ''); ?>">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="shopee-form-row">
+                        <label class="shopee-form-label">Description</label>
+                        <textarea name="description" rows="4" class="input-field shopee-form-field" placeholder="Describe your layout needs, text to include, preferred colors..."><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
+                    </div>
+
+                    <div class="shopee-form-row">
+                        <label class="shopee-form-label">Reference <span class="text-xs text-gray-400 font-normal">(Optional)</span></label>
+                        <input type="file" name="reference_file" accept=".jpg,.jpeg,.png,.pdf" class="input-field shopee-form-field">
+                    </div>
+
+                    <div class="shopee-form-row pt-8">
+                        <div style="width: 130px;"></div>
+                        <div class="flex gap-4 flex-1">
+                            <a href="<?php echo BASE_URL; ?>/customer/services.php" class="shopee-btn-outline" style="flex:1;">Back</a>
+                            <button type="submit" name="action" value="add_to_cart" class="shopee-btn-outline" style="flex:1;">Add to Cart</button>
+                            <button type="submit" name="action" value="buy_now" class="shopee-btn-primary" style="flex:1.5;">Buy Now</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-document.querySelectorAll('#layoutForm .opt-btn-wrap').forEach(function(w) {
-    w.addEventListener('click', function() {
-        var inp = w.querySelector('input[type="radio"]');
-        if (!inp) return;
-        var name = inp.name;
-        document.querySelectorAll('#layoutForm input[name="' + name + '"]').forEach(function(r) {
-            var p = r.closest('.opt-btn-wrap'); if (p) p.classList.remove('active');
-        });
-        inp.checked = true;
-        w.classList.add('active');
+function layoutUpdateOpt(input) {
+    const name = input.name;
+    document.querySelectorAll(`input[name="${name}"]`).forEach(function(r) {
+        const wrap = r.closest('.shopee-opt-btn');
+        if (wrap) wrap.classList.toggle('active', r.checked);
     });
-});
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('#layoutForm .opt-btn-wrap').forEach(function(w) {
+    document.querySelectorAll('#layoutForm .shopee-opt-btn').forEach(function(w) {
         if (w.querySelector('input:checked')) w.classList.add('active');
     });
 });
 </script>
 
 <style>
-.layout-order-container { max-width: 640px; }
-.layout-page-title { color: #eaf6fb !important; }
-.layout-form-error { padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid rgba(248, 113, 113, 0.45); background: rgba(127, 29, 29, 0.25); color: #fecaca !important; font-size: 0.875rem; font-weight: 600; }
-.layout-order-card.card { background: rgba(10, 37, 48, 0.55); border: 1px solid rgba(83, 197, 224, 0.22); border-radius: 1.25rem; box-shadow: 0 12px 40px rgba(2, 12, 18, 0.35); }
-#layoutForm.layout-order-form { display: flex; flex-direction: column; gap: 1rem; color-scheme: dark; }
-#layoutForm .mb-4 { margin-bottom: 0 !important; padding: 1rem; background: rgba(10, 37, 48, 0.48); border: 1px solid rgba(83, 197, 224, 0.22); border-radius: 12px; backdrop-filter: blur(4px); }
-#layoutForm label.block { font-size: 0.95rem !important; font-weight: 700 !important; color: #d9e6ef !important; margin-bottom: 0.55rem !important; }
-.layout-optional-tag { font-size: 0.75rem; font-weight: 500; color: #9fc6d9; }
-#layoutForm .input-field { min-height: 44px; padding: 0.72rem 0.9rem; border-radius: 10px; font-size: 0.95rem; width: 100%; box-sizing: border-box; background: rgba(13, 43, 56, 0.92) !important; border: 1px solid rgba(83, 197, 224, 0.26) !important; color: #e9f6fb !important; box-shadow: none !important; }
-#layoutForm .input-field::placeholder { color: #a9c1cd !important; }
-#layoutForm .input-field:focus { background: rgba(16, 52, 67, 0.98) !important; border-color: #53c5e0 !important; box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.16) !important; outline: none !important; }
-#layoutForm .input-field[type="date"]::-webkit-calendar-picker-indicator { filter: brightness(0) invert(1); cursor: pointer; }
-#layoutForm select.input-field option { background: #0a2530 !important; color: #f8fafc !important; }
-.layout-file-input { padding-top: 8px !important; height: auto !important; min-height: 42px; }
-.layout-notes { overflow-y: auto; resize: vertical; min-height: 110px; max-height: 220px; scrollbar-width: thin; scrollbar-color: rgba(83, 197, 224, 0.65) rgba(255, 255, 255, 0.08); }
-
-#layoutForm .opt-btn-group { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 0.5rem; }
-#layoutForm .layout-type-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
-#layoutForm .layout-type-grid .opt-btn-wrap:last-child { grid-column: 2; }
-#layoutForm .opt-btn-wrap { min-height: 44px; padding: 0.65rem 1rem; display: flex; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.86rem; min-width: 100px; background: rgba(255, 255, 255, 0.04) !important; border: 1px solid rgba(83, 197, 224, 0.2) !important; color: #d2e7f1 !important; transition: all 0.2s; }
-#layoutForm .opt-btn-wrap:hover { background: rgba(83, 197, 224, 0.12) !important; border-color: rgba(83, 197, 224, 0.5) !important; }
-#layoutForm .opt-btn-wrap:has(input:checked), #layoutForm .opt-btn-wrap.active { background: linear-gradient(135deg, rgba(83, 197, 224, 0.28), rgba(50, 161, 196, 0.24)) !important; border-color: #53c5e0 !important; color: #f8fcff !important; }
-#layoutForm .opt-btn-wrap input { margin-right: 0.5rem; }
-
-.tshirt-actions-row { display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; margin-top: 1.1rem; flex-wrap: wrap; }
-.tshirt-btn { height: 46px; min-width: 150px; padding: 0 1.15rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; text-decoration: none; font-size: 0.9rem; font-weight: 700; transition: all 0.2s; }
-.tshirt-btn-secondary { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(83, 197, 224, 0.28) !important; color: #d9e6ef !important; }
-.tshirt-btn-secondary:hover { background: rgba(83, 197, 224, 0.14) !important; border-color: rgba(83, 197, 224, 0.52) !important; color: #fff !important; }
-.tshirt-btn-primary { border: none; background: linear-gradient(135deg, #53c5e0, #32a1c4) !important; color: #fff !important; text-transform: uppercase; cursor: pointer; box-shadow: 0 10px 22px rgba(50, 161, 196, 0.3); }
-.tshirt-btn:active { transform: translateY(1px) scale(0.99); }
-
-@media (max-width: 640px) {
-    #layoutForm .layout-type-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    #layoutForm .layout-type-grid .opt-btn-wrap:last-child { grid-column: 1 / -1; justify-self: center; width: calc(50% - 0.3rem); }
-    .tshirt-actions-row { flex-direction: column; align-items: stretch; }
-    .tshirt-btn { width: 100%; }
-}
+/* Any layout specific styles can go here */
 </style>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

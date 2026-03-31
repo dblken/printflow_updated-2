@@ -26,7 +26,7 @@ if ($order_id <= 0) {
 }
 
 $order_rows = db_query("
-    SELECT o.order_id, o.customer_id, o.status,
+    SELECT o.order_id, o.customer_id, o.status, o.order_type, o.reference_id,
            (SELECT oi.customization_data FROM order_items oi WHERE oi.order_id = o.order_id ORDER BY oi.order_item_id ASC LIMIT 1) AS customization_data,
            (SELECT p.name FROM order_items oi LEFT JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = o.order_id ORDER BY oi.order_item_id ASC LIMIT 1) AS product_name,
            (SELECT oi.order_item_id FROM order_items oi WHERE oi.order_id = o.order_id ORDER BY oi.order_item_id ASC LIMIT 1) AS first_item_id
@@ -47,7 +47,7 @@ if (!in_array((string)$order['status'], ['Completed', 'To Rate', 'Rated'], true)
 }
 
 // Check if already rated in the new reviews table
-$existing = db_query("SELECT id, rating, message, video_path, created_at FROM reviews WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
+$existing = db_query("SELECT id, rating, comment, video_path, created_at FROM reviews WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
 $already_rated = !empty($existing);
 $review_id = $already_rated ? (int)$existing[0]['id'] : 0;
 $existing_rating = $already_rated ? (int)$existing[0]['rating'] : 0;
@@ -136,12 +136,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($error === '') {
                 try {
+                    $ref_id = (int)($order['reference_id'] ?? 0);
+                    $rev_type = ($order['order_type'] === 'product') ? 'product' : 'custom';
+                    
+                    // Fallback for ref_id if it's missing from order (try first order item)
+                    if ($ref_id <= 0) {
+                        $item_ref = db_query("SELECT product_id FROM order_items WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
+                        if (!empty($item_ref)) {
+                            $ref_id = (int)$item_ref[0]['product_id'];
+                        }
+                    }
+
                     // Start transaction if possible (but db_execute is a wrapper, so we'll just do it manually)
                     db_execute(
-                        "INSERT INTO reviews (order_id, customer_id, service_type, rating, message, video_path, created_at)
-                         VALUES (?, ?, ?, ?, ?, ?, NOW())",
-                        'iisiss',
-                        [$order_id, $customer_id, $service_type_label, $rating, $message, $video_path]
+                        "INSERT INTO reviews (order_id, user_id, reference_id, review_type, service_type, rating, comment, video_path, created_at)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                        'iiisssis',
+                        [$order_id, $customer_id, $ref_id, $rev_type, $service_type_label, $rating, $message, $video_path]
                     );
                     
                     $new_review_id = db_query("SELECT LAST_INSERT_ID() as id")[0]['id'];

@@ -66,13 +66,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         }
 
         $notes = $_POST['notes'] ?? null;
-        $order_sql = "INSERT INTO orders (customer_id, branch_id, order_date, total_amount, downpayment_amount, status, payment_status, payment_type, notes) 
-                      VALUES (?, ?, NOW(), ?, ?, 'Pending Review', ?, ?, ?)";
+        
+        // Determine order type based on cart items
+        $order_type = 'product';
+        $reference_id = null;
+        foreach ($cart_items as $item) {
+            if ($reference_id === null && !empty($item['product_id'])) {
+                $reference_id = $item['product_id'];
+            }
+            if (($item['type'] ?? '') === 'Service' || !empty($item['customization'])) {
+                $order_type = 'custom';
+                break;
+            }
+        }
+        
+        $order_sql = "INSERT INTO orders (customer_id, branch_id, reference_id, order_date, total_amount, downpayment_amount, status, payment_status, payment_type, notes, order_type) 
+                      VALUES (?, ?, ?, NOW(), ?, ?, 'Pending Review', ?, ?, ?, ?)";
 
         $payment_method = $_POST['payment_method'] ?? 'pay_later';
         
         // Removed payment_method from query as column doesn't exist
-        $order_id = db_execute($order_sql, 'iiddsss', [$customer_id, $branch_id, $total, $downpayment_amount, $payment_status, $payment_type, $notes]);
+        $order_id = db_execute($order_sql, 'iiiddssss', [$customer_id, $branch_id, $reference_id, $total, $downpayment_amount, $payment_status, $payment_type, $notes, $order_type]);
         
         if ($order_id) {
             // 2. Insert Order Items (design stored as LONGBLOB, never on disk)

@@ -47,13 +47,13 @@ if (mb_strlen($message) > 1000) {
 
 try {
     // Check if review exists
-    $review_check = db_query("SELECT id, customer_id, order_id FROM reviews WHERE id = ? LIMIT 1", 'i', [$review_id]);
+    $review_check = db_query("SELECT id, user_id, order_id FROM reviews WHERE id = ? LIMIT 1", 'i', [$review_id]);
     if (empty($review_check)) {
         echo json_encode(['success' => false, 'error' => 'Review not found.']);
         exit;
     }
 
-    $customer_id = (int)$review_check[0]['customer_id'];
+    $customer_id = (int)$review_check[0]['user_id'];
     $order_id = (int)$review_check[0]['order_id'];
 
     db_execute("

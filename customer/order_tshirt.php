@@ -199,27 +199,79 @@ $use_customer_css = true;
 require_once __DIR__ . '/../includes/header.php';
 
 $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Active'");
+$_svc = db_query("SELECT hero_image FROM services WHERE customer_link LIKE '%order_tshirt%' LIMIT 1");
+$display_img = (!empty($_svc) && !empty($_svc[0]['hero_image'])) ? $_svc[0]['hero_image'] : '';
+if ($display_img !== '' && strpos($display_img, 'http') === false && $display_img[0] !== '/') { $display_img = '/' . ltrim($display_img, '/'); }
 ?>
 
 <div class="min-h-screen py-8">
-    <div class="container mx-auto px-4" style="max-width: 640px;">
-        <h1 class="text-2xl font-bold text-gray-900 mb-6">T-Shirt Printing</h1>
-        <?php if ($error): ?><div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
-        <div class="card">
-            <form action="" method="POST" enctype="multipart/form-data" id="tshirtForm" novalidate>
-                <?php echo csrf_field(); ?>
-                <?php if ($is_edit_mode): ?>
-                    <input type="hidden" name="edit_item" value="<?php echo htmlspecialchars($edit_item_key); ?>">
-                <?php endif; ?>
+    <div class="shopee-layout-container">
+        <!-- Breadcrumb -->
+        <div class="text-sm text-gray-500 mb-6 flex items-center gap-2">
+            <a href="services.php" class="hover:text-blue-600">Services</a>
+            <span>/</span>
+            <span class="font-semibold text-gray-900">T-Shirt Printing</span>
+        </div>
 
-                <!-- Top Notice -->
-                <div class="tshirt-top-notice mb-4">
-                    Please choose whether the shirt will be provided by the shop or by the customer. It is recommended that customers provide their own shirt so they can ensure the correct size and preferred quality for their use.
+        <?php if ($error): ?>
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6"><?php echo htmlspecialchars($error); ?></div>
+        <?php endif; ?>
+
+        <div class="shopee-card">
+            <!-- Left Side: Image -->
+            <div class="shopee-image-section">
+                <div class="sticky top-24">
+                    <div class="shopee-main-image-wrap">
+                        <img src="<?php echo htmlspecialchars($display_img ?: 'https://placehold.co/600x600/f8fafc/0f172a?text=T-Shirt'); ?>" alt="T-Shirt Printing" class="shopee-main-image" onerror="this.src='https://placehold.co/600x600/f8fafc/0f172a?text=T-Shirt'">
+                    </div>
+                    
+                    <div class="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                        <h4 class="text-xs font-bold text-blue-800 uppercase mb-2">Service Note</h4>
+                        <p class="text-xs text-blue-700 leading-relaxed">
+                            Please choose whether the shirt will be provided by the shop or by the customer. It is recommended that customers provide their own shirt so they can ensure the correct size and preferred quality for their use.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Form -->
+            <div class="shopee-form-section">
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">T-Shirt Printing</h1>
+                
+                <?php
+                $stats = service_order_get_page_stats('order_tshirt');
+                $raw_avg = (float)($stats['avg_rating'] ?? 0);
+                $review_count = (int)($stats['review_count'] ?? 0);
+                $sold_count = (int)($stats['sold_count'] ?? 0);
+                $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k' : $sold_count;
+                
+                $_s_name = 'PrintFlow Service';
+                $_s_row = db_query("SELECT name FROM services WHERE customer_link LIKE '%order_tshirt%' LIMIT 1");
+                if(!empty($_s_row)) { $_s_name = $_s_row[0]['name']; }
+                ?>
+                <div class="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+                    <div class="flex items-center gap-1">
+                        <?php for($i=1; $i<=5; $i++): ?>
+                            <svg class="w-4 h-4" style="fill: <?php echo ($i <= round($raw_avg)) ? '#FBBF24' : '#E2E8F0'; ?>;" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <?php endfor; ?>
+                        
+                        <?php if ($review_count > 0): ?>
+                            <a href="reviews.php?service_id=<?php echo $stats['service_id']; ?>" class="text-sm text-gray-500 hover:text-blue-500 hover:underline ml-1 cursor-pointer">(<?php echo number_format($review_count); ?> Reviews)</a>
+                        <?php endif; ?>
+                    </div>
+                    <div class="h-4 w-px bg-gray-200"></div>
+                    <div class="text-sm text-gray-500"><?php echo $sold_display; ?> Sold</div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
-                    <select name="branch_id" class="input-field" required>
+                <form action="" method="POST" enctype="multipart/form-data" id="tshirtForm" novalidate>
+                    <?php echo csrf_field(); ?>
+                    <?php if ($is_edit_mode): ?>
+                        <input type="hidden" name="edit_item" value="<?php echo htmlspecialchars($edit_item_key); ?>">
+                    <?php endif; ?>
+
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Branch *</label>
+                    <select name="branch_id" class="input-field shopee-form-field" required>
                         <option value="" selected disabled>Select Branch</option>
                         <?php foreach($branches as $b): ?>
                             <option value="<?php echo $b['id']; ?>" <?php echo ((string)($b['id']) === (string)($_POST['branch_id'] ?? '')) ? 'selected' : ''; ?>>
@@ -229,575 +281,191 @@ $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Activ
                     </select>
                 </div>
 
-                <!-- 1. Shirt Source (must be first) -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Shirt Source *</label>
-                    <div class="opt-btn-group">
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_source" value="Shop will provide the shirt" required> <span>Shop will provide the shirt</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_source" value="Customer will provide the shirt" required> <span>Customer will provide the shirt</span></label>
-                    </div>
-                    <div id="shop-provides-note" style="display: none; margin-top: 0.75rem; padding: 0.75rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 0.875rem; color: #92400e;">
-                        Additional charges apply since shirt is included. Shirt cost + print cost will be charged.
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Source *</label>
+                    <div class="shopee-opt-group shopee-form-field">
+                        <label class="shopee-opt-btn"><input type="radio" name="shirt_source" value="Shop will provide the shirt" style="display:none;" required> <span>Shop provides shirt</span></label>
+                        <label class="shopee-opt-btn"><input type="radio" name="shirt_source" value="Customer will provide the shirt" style="display:none;" required> <span>Customer provides</span></label>
                     </div>
                 </div>
 
-                <!-- 1b. Design Type -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Design Type *</label>
-                    <div class="opt-btn-group">
-                        <label class="opt-btn-wrap"><input type="radio" name="design_type" value="Logo Only" required> <span>Logo Only</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="design_type" value="Text Only" required> <span>Text Only</span></label>
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Design *</label>
+                    <div class="shopee-opt-group shopee-form-field">
+                        <label class="shopee-opt-btn"><input type="radio" name="design_type" value="Logo Only" style="display:none;" required> <span>Logo Only</span></label>
+                        <label class="shopee-opt-btn"><input type="radio" name="design_type" value="Text Only" style="display:none;" required> <span>Text Only</span></label>
                     </div>
                 </div>
 
-                <!-- 1c. File Upload (Moved here) -->
-                <div class="mb-4" id="upload-section">
-                    <label class="block text-sm font-medium text-gray-700 mb-1" id="upload-label">Upload Design * (JPG, PNG, PDF - max 5MB)</label>
-                    <input type="file" name="design_file" id="design_file" accept=".jpg,.jpeg,.png,.pdf" class="input-field">
-                    <?php if ($is_edit_mode): ?>
-                        <p class="sintra-hint mt-2">Leave empty to keep your current uploaded design.</p>
-                    <?php endif; ?>
+                <div class="shopee-form-row" id="upload-section">
+                    <label class="shopee-form-label">Design *</label>
+                    <div class="shopee-form-field">
+                        <input type="file" name="design_file" id="design_file" accept=".jpg,.jpeg,.png,.pdf" class="input-field">
+                        <?php if ($is_edit_mode): ?>
+                            <p class="text-xs text-blue-500 mt-1 italic">Keep empty to retain current design.</p>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
-                <!-- 1d. Text Design Details (Visible only for Text Only) -->
                 <div id="text-design-section" style="display: none;">
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Text Content *</label>
-                        <input type="text" name="text_content" id="text_content" class="input-field" placeholder="Enter the text to be printed">
+                    <div class="shopee-form-row">
+                        <label class="shopee-form-label">Text *</label>
+                        <input type="text" name="text_content" id="text_content" class="input-field shopee-form-field" placeholder="Content to be printed">
                     </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Print Color * (Required for text designs)</label>
-                        <input type="text" name="print_color" id="print_color" class="input-field" placeholder="e.g. White, Gold, Red">
+                    <div class="shopee-form-row">
+                        <label class="shopee-form-label">Print Color *</label>
+                        <input type="text" name="print_color" id="print_color" class="input-field shopee-form-field" placeholder="e.g. White, Gold">
                     </div>
-                    <div class="mb-4 grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Font Style</label>
-                            <input type="text" name="font_style" id="font_style" class="input-field" placeholder="e.g. Arial, Script">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Font Size</label>
-                            <input type="text" name="font_size" id="font_size" class="input-field" placeholder="e.g. 2 inch, 48px">
+                    <div class="shopee-form-row">
+                        <label class="shopee-form-label">Style/Size</label>
+                        <div class="flex gap-4 shopee-form-field">
+                            <input type="text" name="font_style" id="font_style" class="input-field flex-1" placeholder="Font name">
+                            <input type="text" name="font_size" id="font_size" class="input-field flex-1" placeholder="Size (e.g. 2in)">
                         </div>
                     </div>
-                    <p class="tshirt-top-notice mb-4" style="background: rgba(83, 197, 224, 0.05); border-left: 3px solid #53c5e0; font-size: 0.8rem;">
-                        Not sure about font size or style? You can place your order and message our staff afterward for assistance.
-                    </p>
                 </div>
 
-                <!-- 2. Shirt Type (3×2 grid) -->
-                <div class="mb-4" id="shirt-type-section">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Shirt Type <span id="shirt-type-required-mark">*</span></label>
-                    <div class="option-grid option-grid-3x2">
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_type" value="Crew Neck"> <span>Crew Neck</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_type" value="V-Neck"> <span>V-Neck</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_type" value="Polo"> <span>Polo</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_type" value="Raglan"> <span>Raglan</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_type" value="Long Sleeve"> <span>Long Sleeve</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_type" value="Others"> <span>Others</span></label>
-                    </div>
-                    <div id="shirt-type-other-wrap" style="display: none; margin-top: 0.75rem;">
-                        <input type="text" name="shirt_type_other" id="shirt_type_other" class="input-field" placeholder="Enter custom shirt type">
-                    </div>
-                </div>
-
-                <!-- 3. Shirt Color (3×3, Others centered) -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Shirt Color *</label>
-                    <div class="option-grid option-grid-3x3 option-grid-color">
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Black" required> <span>Black</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="White" required> <span>White</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Red" required> <span>Red</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Blue" required> <span>Blue</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Navy" required> <span>Navy</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="shirt_color" value="Grey" required> <span>Grey</span></label>
-                        <label class="opt-btn-wrap opt-btn-others"><input type="radio" name="shirt_color" value="Other" required> <span>Others</span></label>
-                    </div>
-                    <div id="color-other-wrap" style="display: none; margin-top: 0.75rem;">
-                        <input type="text" name="color_other" id="color_other" class="input-field" placeholder="Enter custom color">
+                <div class="shopee-form-row" id="shirt-type-section">
+                    <label class="shopee-form-label">Shirt Type *</label>
+                    <div class="shopee-form-field">
+                        <div class="shopee-opt-group">
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_type" value="Crew Neck" style="display:none;"> <span>Crew Neck</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_type" value="V-Neck" style="display:none;"> <span>V-Neck</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_type" value="Polo" style="display:none;"> <span>Polo</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_type" value="Raglan" style="display:none;"> <span>Raglan</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_type" value="Long Sleeve" style="display:none;"> <span>Long Sleeve</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_type" value="Others" style="display:none;"> <span>Others</span></label>
+                        </div>
+                        <div id="shirt-type-other-wrap" style="display: none; margin-top: 1rem;">
+                            <input type="text" name="shirt_type_other" id="shirt_type_other" class="input-field" placeholder="Custom shirt type">
+                        </div>
                     </div>
                 </div>
 
-                <!-- 4. Sizes (shown only when Shop provides) -->
-                <div class="mb-4" id="size-section" style="display: none;">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Sizes <span id="size-required-mark">*</span></label>
-                    <div class="option-grid option-grid-3x2">
-                        <label class="opt-btn-wrap"><input type="radio" name="sizes" value="XS"> <span>XS</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="sizes" value="S"> <span>S</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="sizes" value="M"> <span>M</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="sizes" value="L"> <span>L</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="sizes" value="XL"> <span>XL</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="sizes" value="XXL"> <span>XXL</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="sizes" value="XXXL"> <span>XXXL</span></label>
-                        <label class="opt-btn-wrap"><input type="radio" name="sizes" value="Others" id="sizes-others-radio"> <span>Others</span></label>
-                    </div>
-                    <div id="sizes-other-wrap" style="display: none; margin-top: 0.75rem;">
-                        <input type="text" name="sizes_other" id="sizes_other" class="input-field" placeholder="Enter custom size or measurements">
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Shirt Color *</label>
+                    <div class="shopee-form-field">
+                        <div class="shopee-opt-group">
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_color" value="Black" style="display:none;" required> <span>Black</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_color" value="White" style="display:none;" required> <span>White</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_color" value="Red" style="display:none;" required> <span>Red</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_color" value="Blue" style="display:none;" required> <span>Blue</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_color" value="Navy" style="display:none;" required> <span>Navy</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_color" value="Grey" style="display:none;" required> <span>Grey</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="shirt_color" value="Other" style="display:none;" required> <span>Others</span></label>
+                        </div>
+                        <div id="color-other-wrap" style="display: none; margin-top: 1rem;">
+                            <input type="text" name="color_other" id="color_other" class="input-field" placeholder="Custom color">
+                        </div>
                     </div>
                 </div>
 
-                <!-- 5. Print Placement (with hover preview) -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Print Placement *</label>
-                    <div class="placement-grid">
-                        <?php foreach ($placement_options as $name => $img_file): 
-                            $img_url = $img_base . rawurlencode($img_file);
-                        ?>
-                        <label class="placement-card" data-img="<?php echo htmlspecialchars($img_url); ?>" data-name="<?php echo htmlspecialchars($name); ?>">
-                            <input type="radio" name="print_placement" value="<?php echo htmlspecialchars($name); ?>" required>
-                            <div class="placement-img-wrap">
-                                <img src="<?php echo $img_url; ?>" alt="<?php echo htmlspecialchars($name); ?>" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <div class="placement-fallback" style="display:none; width:100%; height:100%; background:#f3f4f6; align-items:center; justify-content:center; font-size:0.7rem; color:#6b7280; text-align:center; padding:0.5rem;"><?php echo htmlspecialchars($name); ?></div>
-                            </div>
-                            <span class="placement-label"><?php echo htmlspecialchars($name); ?></span>
-                        </label>
-                        <?php endforeach; ?>
+                <div class="shopee-form-row" id="size-section" style="display: none;">
+                    <label class="shopee-form-label">Shirt Size *</label>
+                    <div class="shopee-form-field">
+                        <div class="shopee-opt-group">
+                            <label class="shopee-opt-btn"><input type="radio" name="sizes" value="XS" style="display:none;"> <span>XS</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="sizes" value="S" style="display:none;"> <span>S</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="sizes" value="M" style="display:none;"> <span>M</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="sizes" value="L" style="display:none;"> <span>L</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="sizes" value="XL" style="display:none;"> <span>XL</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="sizes" value="XXL" style="display:none;"> <span>XXL</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="sizes" value="XXXL" style="display:none;"> <span>XXXL</span></label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Placement *</label>
+                    <div class="shopee-form-field">
+                        <div class="placement-grid">
+                            <?php foreach ($placement_options as $name => $img_file): 
+                                $img_url = $img_base . rawurlencode($img_file);
+                            ?>
+                            <label class="placement-card" data-img="<?php echo htmlspecialchars($img_url); ?>" data-name="<?php echo htmlspecialchars($name); ?>">
+                                <input type="radio" name="print_placement" value="<?php echo htmlspecialchars($name); ?>" style="display:none;" required>
+                                <div class="placement-img-wrap">
+                                    <img src="<?php echo $img_url; ?>" alt="<?php echo htmlspecialchars($name); ?>" onerror="this.src='https://placehold.co/100x100?text=Placement'">
+                                </div>
+                                <span class="placement-label"><?php echo htmlspecialchars($name); ?></span>
+                            </label>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                 </div>
 
                 <!-- 6. Removed from here -->
 
-                <!-- 7. Lamination + Quantity (One Row) -->
-                <div class="mb-4">
-                    <div class="lam-qty-row">
-                        <div class="lam-qty-lam">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Lamination *</label>
-                            <div class="lam-options">
-                                <label class="opt-btn-wrap lam-opt"><input type="radio" name="lamination" value="With Laminate" required> <span>With Laminate</span></label>
-                                <label class="opt-btn-wrap lam-opt"><input type="radio" name="lamination" value="Without Laminate" required> <span>Without Laminate</span></label>
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Laminate *</label>
+                    <div class="shopee-opt-group shopee-form-field">
+                        <label class="shopee-opt-btn"><input type="radio" name="lamination" value="With Laminate" style="display:none;" required> <span>With Laminate</span></label>
+                        <label class="shopee-opt-btn"><input type="radio" name="lamination" value="Without Laminate" style="display:none;"> <span>Without Laminate</span></label>
+                    </div>
+                </div>
+
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Order Detail *</label>
+                    <div class="shopee-form-field">
+                        <div class="need-qty-row">
+                            <div class="flex-1">
+                                <label class="dim-label">Needed Date</label>
+                                <input type="date" name="needed_date" id="needed_date" class="input-field" value="<?php echo htmlspecialchars($_POST['needed_date'] ?? ''); ?>" required min="<?php echo date('Y-m-d'); ?>">
+                            </div>
+                            <div class="flex-1">
+                                <label class="dim-label">Quantity</label>
+                                <div class="shopee-qty-control">
+                                    <button type="button" onclick="tshirtDecreaseQty()" class="shopee-qty-btn">−</button>
+                                    <input type="number" id="quantity-input" name="quantity" class="shopee-qty-input" min="1" value="<?php echo (int)($_POST['quantity'] ?? ($_GET['qty'] ?? 1)); ?>">
+                                    <button type="button" onclick="tshirtIncreaseQty()" class="shopee-qty-btn">+</button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <div class="need-qty-row">
-                        <div class="need-qty-date">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Needed Date *</label>
-                            <input type="date" name="needed_date" id="needed_date" class="input-field" value="<?php echo htmlspecialchars($_POST['needed_date'] ?? ''); ?>" required min="<?php echo date('Y-m-d'); ?>">
-                        </div>
-                        <div class="lam-qty-qty need-qty-qty">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-                            <div class="qty-control qty-control-shopee">
-                                <button type="button" onclick="tshirtDecreaseQty()" class="qty-btn">−</button>
-                                <input type="number" id="quantity-input" name="quantity" min="1" value="<?php echo (int)($_POST['quantity'] ?? ($_GET['qty'] ?? 1)); ?>">
-                                <button type="button" onclick="tshirtIncreaseQty()" class="qty-btn">+</button>
-                            </div>
-                        </div>
+                <div class="shopee-form-row pt-4">
+                    <label class="shopee-form-label">Notes</label>
+                    <textarea name="notes" rows="3" class="input-field shopee-form-field" placeholder="Any special instructions..." maxlength="500"><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
+                </div>
+
+                <div class="shopee-form-row pt-8">
+                    <div style="width: 130px;"></div>
+                    <div class="flex gap-4 flex-1">
+                        <?php if ($is_edit_mode): ?>
+                            <a href="cart.php" class="shopee-btn-outline" style="flex: 1;">Cancel</a>
+                            <button type="submit" name="action" value="save_changes" class="shopee-btn-primary" style="flex: 1.5;">Save Changes</button>
+                        <?php else: ?>
+                            <a href="<?php echo BASE_URL; ?>/customer/services.php" class="shopee-btn-outline" style="flex: 1;">Back</a>
+                            <button type="submit" name="action" value="add_to_cart" class="shopee-btn-outline" style="width:2.75rem;height:2.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;" title="Add to Cart"><svg style="width:1.25rem;height:1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></button>
+                            <button type="submit" name="action" value="buy_now" id="buyNowBtn" class="shopee-btn-primary" style="flex: 1.5;">Buy Now</button>
+                        <?php endif; ?>
                     </div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                    <textarea name="notes" rows="3" class="input-field" placeholder="Any special instructions..." maxlength="500"><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
-                </div>
-
-                <!-- 7. Buttons - Bottom-right, side-by-side, no icons, same style as other services -->
-                <div class="tshirt-actions-row">
-                    <?php if ($is_edit_mode): ?>
-                        <a href="cart.php" class="tshirt-btn tshirt-btn-secondary">Cancel</a>
-                        <button type="submit" name="action" value="save_changes" id="buyNowBtn" class="tshirt-btn tshirt-btn-primary">Save Changes</button>
-                    <?php else: ?>
-                        <a href="<?php echo BASE_URL; ?>/customer/services.php" class="tshirt-btn tshirt-btn-secondary">Back to Services</a>
-                        <button type="submit" name="action" value="add_to_cart" class="tshirt-btn tshirt-btn-secondary">Add to Cart</button>
-                        <button type="submit" name="action" value="buy_now" id="buyNowBtn" class="tshirt-btn tshirt-btn-primary">Buy Now</button>
-                    <?php endif; ?>
                 </div>
             </form>
         </div>
     </div>
 </div>
+</div>
 
 <style>
-.opt-btn-wrap { padding: 0.65rem 1rem; border: 2px solid #d1d5db; background: #fff; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; color: #374151; transition: all 0.25s ease; }
-.opt-btn-wrap:hover { border-color: #0a2530; background: #f9fafb; }
-.opt-btn-wrap:has(input:checked) { border-color: #0a2530; box-shadow: 0 0 0 2px rgba(10,37,48,0.2); background: rgba(10,37,48,0.03); }
-.opt-btn-wrap input { margin-right: 0.5rem; }
-#tshirtForm input[type="radio"] {
-    accent-color: #53c5e0;
-}
-.opt-btn-group { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-#tshirtForm .opt-btn-group {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-}
-.option-grid { display: grid; gap: 0.5rem; }
-.option-grid-3x2 { grid-template-columns: repeat(3, 1fr); }
-.option-grid-3x3 { grid-template-columns: repeat(3, 1fr); }
-.option-grid-color .opt-btn-others { grid-column: 2; }
-.lam-qty-row { display: flex; gap: 1.5rem; align-items: flex-end; flex-wrap: wrap; }
-.lam-qty-lam { flex: 1; min-width: 0; }
-.lam-qty-qty { flex-shrink: 0; }
-.lam-options { display: flex; flex-wrap: nowrap; gap: 0.5rem; }
-.lam-opt { white-space: nowrap; padding: 0.5rem 0.75rem; font-size: 0.85rem; }
-.qty-control { display: flex; align-items: center; height: 42px; border: 2px solid #d1d5db; border-radius: 8px; background: #fff; overflow: hidden; transition: border-color 0.2s ease; }
-.qty-control:focus-within { border-color: #0a2530; box-shadow: 0 0 0 2px rgba(10,37,48,0.2); }
-.qty-control-shopee { width: 110px; flex-shrink: 0; }
-.qty-btn { flex: 0 0 36px; width: 36px; height: 42px; border: none; background: #f3f4f6; color: #374151; font-weight: 800; font-size: 1.1rem; cursor: pointer; transition: background 0.2s; }
-.qty-btn:hover { background: #e5e7eb; }
-.qty-control input { flex: 1; min-width: 28px; border: none; text-align: center; font-weight: 700; font-size: 0.95rem; outline: none; background: transparent; }
-.tshirt-top-notice { padding: 1rem; background: #f0f9ff; border: 1px solid #bae6fd; border-left: 4px solid #0ea5e9; border-radius: 8px; font-size: 0.875rem; color: #0369a1; line-height: 1.5; }
+/* Service Specific Tweaks */
+.dim-label { font-size: 0.7rem; color: #94a3b8; font-weight: 600; margin-bottom: 4px; display: block; text-transform: uppercase; }
+.need-qty-row { display: flex; gap: 16px; width: 100%; }
 
-.placement-preview-area { width: 100%; max-width: 280px; aspect-ratio: 1; margin: 0 auto 1rem; border-radius: 10px; overflow: hidden; background: #f9fafb; border: 2px solid #e5e7eb; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-.placement-preview-placeholder { font-size: 0.8rem; color: #9ca3af; text-align: center; padding: 1rem; }
-.placement-preview-img { width: 100%; height: 100%; object-fit: contain; transition: opacity 0.2s; }
 .placement-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
-.placement-card { display: flex; flex-direction: column; align-items: center; cursor: pointer; border: 2px solid #d1d5db; border-radius: 8px; padding: 0.5rem; background: #fff; transition: all 0.2s ease; }
-.placement-card:hover { border-color: #0a2530; background: #f9fafb; }
-.placement-card:has(input:checked) { border-color: #0a2530; box-shadow: 0 0 0 2px rgba(10,37,48,0.2); }
-.placement-card input { position: absolute; opacity: 0; pointer-events: none; }
+.placement-card { display: flex; flex-direction: column; align-items: center; cursor: pointer; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem; background: #fff; transition: all 0.2s ease; }
+.placement-card:hover { border-color: #0a2530; background: #f8fafc; }
+.placement-card:has(input:checked) { border-color: #0a2530; background: #f0f9ff; box-shadow: 0 0 0 1px #0a2530; }
 .placement-img-wrap { width: 100%; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: #f3f4f6; position: relative; }
 .placement-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
-.placement-label { font-size: 0.7rem; font-weight: 600; text-align: center; margin-top: 0.5rem; line-height: 1.2; color: #374151; }
+.placement-label { font-size: 0.65rem; font-weight: 600; text-align: center; margin-top: 0.4rem; line-height: 1.2; color: #475569; text-transform: uppercase; }
 
-/* =========================
-   T-shirt form redesign (UI only)
-   ========================= */
-#tshirtForm {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-#tshirtForm .mb-4 {
-    margin-bottom: 0 !important;
-    padding: 1rem;
-    border: 1px solid rgba(83,197,224,.2);
-    border-radius: 12px;
-    background: rgba(255,255,255,.03);
-}
-#tshirtForm label.block {
-    font-size: .95rem !important;
-    font-weight: 700 !important;
-    color: #d9e6ef !important;
-    margin-bottom: .55rem !important;
-}
-#tshirtForm .input-field {
-    min-height: 44px;
-    padding: .72rem .9rem;
-    border-radius: 10px;
-}
-.tshirt-top-notice {
-    font-size: .82rem;
-    color: #9fc6d9;
-    border-left-width: 3px;
-    line-height: 1.6;
-}
-.opt-btn-wrap {
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 500;
-    font-size: .86rem;
-    border-radius: 10px;
-}
-.opt-btn-wrap:has(input:checked) {
-    border-color: #53c5e0;
-    box-shadow: 0 0 0 2px rgba(83,197,224,.25);
-    background: rgba(83,197,224,.12);
-    color: #e8f7fc;
-}
-.option-grid-3x2,
-.option-grid-3x3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: .6rem;
-}
-.lam-qty-row {
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-    flex-wrap: wrap;
-}
-.lam-options {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .6rem;
-    width: 100%;
-}
-.lam-options .lam-opt {
-    width: 100%;
-}
-.lam-qty-lam,
-.lam-qty-qty {
-    display: flex;
-    flex-direction: column;
-    border: 1px solid transparent;
-    border-radius: 10px;
-    padding: .15rem;
-    position: relative;
-}
-.lam-qty-lam {
-    flex: 1;
-    min-width: 100%;
-}
-.lam-qty-qty {
-    flex-shrink: 0;
-}
-.lam-qty-qty .field-error {
-    max-width: 220px;
-}
-.need-qty-row {
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-    flex-wrap: wrap;
-}
-.need-qty-date {
-    flex: 1;
-    min-width: 0;
-}
-.need-qty-qty {
-    flex: 1;
-    min-width: 0;
-}
-.need-qty-qty .qty-control-shopee {
-    width: 100%;
-}
-.need-qty-qty .field-error {
-    display: none !important;
-}
-.placement-preview-area {
-    max-width: 220px;
-    border-radius: 12px;
-    margin-bottom: .8rem;
-}
-.placement-grid {
-    gap: .6rem;
-}
-.placement-card {
-    border-radius: 10px;
-    min-height: 132px;
-}
-.placement-label {
-    font-size: .76rem;
-    font-weight: 500;
-    color: #c0d7e3;
-}
-.tshirt-actions-row {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: .75rem;
-    margin-top: 1.1rem;
-    flex-wrap: wrap;
-}
-.tshirt-btn {
-    height: 46px;
-    min-width: 150px;
-    padding: 0 1.15rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    text-decoration: none;
-    font-size: .9rem;
-    font-weight: 700;
-    transition: all .2s;
-}
-.tshirt-btn-secondary {
-    background: rgba(255,255,255,.06);
-    color: #d9e6ef;
-    border: 1px solid rgba(83,197,224,.28);
-}
-.tshirt-btn-secondary:hover {
-    background: rgba(83,197,224,.12);
-    color: #fff;
-}
-.tshirt-btn-primary {
-    border: none;
-    background: linear-gradient(135deg, #53C5E0, #32a1c4);
-    color: #fff;
-    text-transform: uppercase;
-    letter-spacing: .02em;
-    cursor: pointer;
-    box-shadow: 0 10px 22px rgba(50,161,196,0.3);
-}
-.tshirt-btn:active {
-    transform: translateY(1px) scale(0.99);
+@media (max-width: 640px) {
+    .need-qty-row { flex-direction: column; }
+    .placement-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* Dark theme color harmonization (replace white-heavy controls) */
-#tshirtForm .mb-4 {
-    background: rgba(10, 37, 48, 0.48);
-    border: 1px solid rgba(83, 197, 224, 0.22);
-    backdrop-filter: blur(4px);
-}
-.tshirt-top-notice {
-    background: rgba(9, 46, 60, 0.72) !important;
-    border: 1px solid rgba(83, 197, 224, 0.32) !important;
-    border-left: 3px solid #53c5e0 !important;
-    color: #b9dcea !important;
-}
-.opt-btn-wrap {
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1px solid rgba(83, 197, 224, 0.2) !important;
-    color: #d2e7f1 !important;
-}
-.opt-btn-wrap:hover {
-    background: rgba(83, 197, 224, 0.12) !important;
-    border-color: rgba(83, 197, 224, 0.5) !important;
-    box-shadow: 0 0 0 2px rgba(83, 197, 224, 0.12);
-}
-.opt-btn-wrap:has(input:checked) {
-    background: linear-gradient(135deg, rgba(83, 197, 224, 0.28), rgba(50, 161, 196, 0.24)) !important;
-    border-color: #53c5e0 !important;
-    color: #f8fcff !important;
-    box-shadow: 0 0 0 2px rgba(83, 197, 224, 0.22), 0 8px 18px rgba(11, 42, 56, 0.35);
-}
-
-#tshirtForm .input-field {
-    background: rgba(13, 43, 56, 0.94) !important;
-    border: 1px solid rgba(83, 197, 224, 0.3) !important;
-    color: #eef7fb !important;
-}
-#tshirtForm .input-field::placeholder {
-    color: #a3bdca !important;
-}
-#tshirtForm textarea[name="notes"].input-field {
-    overflow-y: auto;
-    resize: vertical;
-    min-height: 110px;
-    max-height: 220px;
-    max-width: 100%;
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(83, 197, 224, 0.65) rgba(255, 255, 255, 0.08);
-}
-#tshirtForm textarea[name="notes"].input-field::-webkit-scrollbar {
-    width: 10px;
-}
-#tshirtForm textarea[name="notes"].input-field::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 999px;
-}
-#tshirtForm textarea[name="notes"].input-field::-webkit-scrollbar-thumb {
-    background: rgba(83, 197, 224, 0.65);
-    border-radius: 999px;
-    border: 2px solid rgba(10, 37, 48, 0.55);
-}
-#tshirtForm textarea[name="notes"].input-field::-webkit-scrollbar-thumb:hover {
-    background: rgba(83, 197, 224, 0.85);
-}
-#tshirtForm .input-field:focus {
-    background: rgba(255, 255, 255, 0.08) !important;
-    border-color: #53c5e0 !important;
-    box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.16) !important;
-}
-#tshirtForm select.input-field option {
-    background: #0a2530 !important;
-    color: #f8fafc !important;
-}
-#tshirtForm select.input-field option:hover,
-#tshirtForm select.input-field option:focus {
-    background: #53c5e0 !important;
-    color: #06232c !important;
-}
-#tshirtForm select.input-field option:checked {
-    background: #53c5e0 !important;
-    color: #06232c !important;
-}
-#tshirtForm .input-field[type="number"]::-webkit-outer-spin-button,
-#tshirtForm .input-field[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-#tshirtForm .input-field[type="number"] {
-    -moz-appearance: textfield;
-    appearance: textfield;
-}
-#tshirtForm .input-field[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(1) brightness(1.35);
-    opacity: .95;
-    cursor: pointer;
-}
-
-.qty-control {
-    display: flex;
-    align-items: center;
-    height: 44px;
-    background: rgba(13, 43, 56, 0.92) !important;
-    border: 1px solid rgba(83, 197, 224, 0.24) !important;
-    border-radius: 10px;
-    overflow: hidden;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-.qty-control:focus-within {
-    border-color: #53c5e0 !important;
-    box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.16) !important;
-}
-.qty-btn {
-    flex: 0 0 44px;
-    height: 100%;
-    border: none;
-    background: rgba(83, 197, 224, 0.12) !important;
-    color: #d8edf5 !important;
-    font-weight: 800;
-    font-size: 1.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    outline: none;
-}
-.qty-btn:hover {
-    background: rgba(83, 197, 224, 0.28) !important;
-    color: #fff !important;
-}
-.qty-btn:active {
-    background: rgba(83, 197, 224, 0.4) !important;
-}
-.qty-control input {
-    flex: 1;
-    border: none;
-    text-align: center;
-    background: transparent !important;
-    color: #f8fafc !important;
-    font-weight: 700;
-    font-size: 1rem;
-    outline: none;
-    -moz-appearance: textfield;
-}
-#quantity-input::-webkit-outer-spin-button,
-#quantity-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-#quantity-input {
-    -moz-appearance: textfield;
-    appearance: textfield;
-}
-
-.placement-preview-area {
-    background: rgba(255, 255, 255, 0.03) !important;
-    border: 1px solid rgba(83, 197, 224, 0.24) !important;
-}
-.placement-card {
-    background: rgba(255, 255, 255, 0.03) !important;
-    border: 1px solid rgba(83, 197, 224, 0.2) !important;
-}
-.placement-card:hover {
-    background: rgba(83, 197, 224, 0.1) !important;
-    border-color: rgba(83, 197, 224, 0.5) !important;
-}
-.placement-card:has(input:checked) {
-    background: rgba(83, 197, 224, 0.18) !important;
-    border-color: #53c5e0 !important;
-    box-shadow: 0 0 0 2px rgba(83, 197, 224, 0.2), 0 6px 16px rgba(11, 42, 56, 0.28) !important;
-    transform: translateY(-1px);
-}
-.placement-img-wrap {
-    background: rgba(255, 255, 255, 0.06) !important;
-}
-.placement-label {
-    color: #cce2ed !important;
-}
-
-.tshirt-btn-secondary {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(83, 197, 224, 0.28) !important;
-    color: #d9e6ef !important;
-}
 .tshirt-btn-secondary:hover {
     background: rgba(83, 197, 224, 0.14) !important;
     border-color: rgba(83, 197, 224, 0.52) !important;

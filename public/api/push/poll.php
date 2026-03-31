@@ -23,7 +23,7 @@ $since     = isset($_GET['since']) ? (int) $_GET['since'] : (time() - 30);
 // Pull notifications newer than the timestamp
 if ($user_type === 'Customer') {
     $rows = db_query(
-        "SELECT notification_id AS id, message, type, data_id, is_read,
+        "SELECT notification_id AS id, message, type, data_id, is_read, order_type,
                 UNIX_TIMESTAMP(created_at) AS ts
          FROM notifications
          WHERE customer_id = ? AND UNIX_TIMESTAMP(created_at) > ?
@@ -34,7 +34,7 @@ if ($user_type === 'Customer') {
     );
 } else {
     $rows = db_query(
-        "SELECT notification_id AS id, message, type, data_id, is_read,
+        "SELECT notification_id AS id, message, type, data_id, is_read, order_type,
                 UNIX_TIMESTAMP(created_at) AS ts
          FROM notifications
          WHERE user_id = ? AND UNIX_TIMESTAMP(created_at) > ?

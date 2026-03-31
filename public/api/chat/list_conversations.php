@@ -31,14 +31,20 @@ $params = [];
 $types = "";
 
 if ($search !== '') {
-    $search_clause = " AND (o.order_id LIKE ? OR (SELECT mi.message FROM order_messages mi WHERE mi.order_id = o.order_id ORDER BY mi.message_id DESC LIMIT 1) LIKE ? OR (SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(oi.customization_data, '$.service_type')), pi.name, 'Order') FROM order_items oi LEFT JOIN products pi ON oi.product_id = pi.product_id WHERE oi.order_id = o.order_id LIMIT 1) LIKE ?)";
     $like = "%$search%";
-    $params = [$like, $like, $like];
-    $types = "sss";
+    if ($user_type === 'Customer') {
+        $search_clause = " AND (o.order_id LIKE ? OR (SELECT mi.message FROM order_messages mi WHERE mi.order_id = o.order_id ORDER BY mi.message_id DESC LIMIT 1) LIKE ? OR (SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(oi.customization_data, '$.service_type')), pi.name, 'Order') FROM order_items oi LEFT JOIN products pi ON oi.product_id = pi.product_id WHERE oi.order_id = o.order_id LIMIT 1) LIKE ?)";
+        $params = [$like, $like, $like];
+        $types = "sss";
+    } else {
+        $search_clause = " AND (o.order_id LIKE ? OR CONCAT(COALESCE(c.first_name,''), ' ', COALESCE(c.last_name,'')) LIKE ? OR (SELECT mi.message FROM order_messages mi WHERE mi.order_id = o.order_id ORDER BY mi.message_id DESC LIMIT 1) LIKE ? OR (SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(oi.customization_data, '$.service_type')), pi.name, 'Order') FROM order_items oi LEFT JOIN products pi ON oi.product_id = pi.product_id WHERE oi.order_id = o.order_id LIMIT 1) LIKE ?)";
+        $params = [$like, $like, $like, $like];
+        $types = "ssss";
+    }
 }
 
 if ($user_type === 'Customer') {
-    $archive_col = "o.is_archived_customer";
+    $archive_col = "o.is_archived";
     $sql = "
         SELECT o.order_id, o.status, o.order_date, $archive_col as is_archived,
                (SELECT m.message FROM order_messages m WHERE m.order_id = o.order_id ORDER BY m.message_id DESC LIMIT 1) AS last_message,
@@ -56,13 +62,14 @@ if ($user_type === 'Customer') {
     $rows = db_query($sql, $full_types, $full_params);
     if ($rows === false) throw new Exception("Database lookup failed on orders.");
 } else {
-    $archive_col = "o.is_archived_staff";
+    $archive_col = "o.is_archived";
     $has_activity = !empty(db_query("SHOW COLUMNS FROM customers LIKE 'last_activity'"));
     $activity_sel = $has_activity ? "c.last_activity as partner_last_activity," : "NULL as partner_last_activity,";
 
     $sql = "
         SELECT o.order_id, o.status, o.order_date, $archive_col as is_archived,
                TRIM(CONCAT(COALESCE(c.first_name,''), ' ', COALESCE(c.last_name,''))) AS customer_name,
+               c.profile_picture AS customer_avatar,
                $activity_sel
                (SELECT m.message FROM order_messages m WHERE m.order_id = o.order_id ORDER BY m.message_id DESC LIMIT 1) AS last_message,
                (SELECT m.created_at FROM order_messages m WHERE m.order_id = o.order_id ORDER BY m.message_id DESC LIMIT 1) AS last_message_at,
@@ -99,11 +106,17 @@ foreach ($rows ?: [] as $r) {
         $is_online = (time() - $last_active) < 90; // Online if active in last 90s
     }
 
+    $customer_avatar = $r['customer_avatar'] ?? null;
+    if ($customer_avatar && strpos($customer_avatar, '/') === false) {
+        $customer_avatar = 'public/assets/uploads/profiles/' . $customer_avatar;
+    }
+
     $conv = [
         'order_id' => (int)$r['order_id'],
         'status' => $r['status'] ?? '',
         'service_name' => $r['service_name'] ?? 'Order',
         'customer_name' => $customer_name,
+        'customer_avatar' => $customer_avatar,
         'last_message' => $last_msg,
         'last_message_at' => $r['last_message_at'] ?? $r['order_date'] ?? null,
         'unread_count' => (int)($r['unread_count'] ?? 0),

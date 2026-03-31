@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
             // Only proceed if the status is actually changing
             if ($current_status !== $new_status) {
                 // Use the centralized update_order_status logic
-                $success = update_order_status($order_id, $new_status, $staff_id);
+                $success = db_execute("UPDATE orders SET status = ?, updated_at = NOW() WHERE order_id = ?", 'si', [$new_status, $order_id]);
 
                 if ($success) {
                     // Log activity
@@ -105,7 +105,7 @@ if ($payment_status_filter !== '') $active_filters['payment_status'] = $payment_
 if ($min_price_filter !== '') $active_filters['min_price'] = $min_price_filter;
 if ($max_price_filter !== '') $active_filters['max_price'] = $max_price_filter;
 
-$sql_conditions = "";
+$sql_conditions = " AND o.order_type = 'product'";
 $params = [];
 $types = '';
 

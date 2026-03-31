@@ -18,19 +18,10 @@
 
 /* ===== Global overrides for customer pages ===== */
 body.customer-theme {
-    /* Landing-like dark pattern: center glow + subtle grid */
-    background-color: #00151b;
-    background-image:
-        radial-gradient(ellipse at 50% 18%, rgba(83, 197, 224, 0.28) 0%, rgba(83, 197, 224, 0.10) 30%, rgba(0, 21, 27, 0) 62%),
-        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-        linear-gradient(180deg, #00151b 0%, #00232b 100%);
-    background-size: auto, 60px 60px, 60px 60px, auto;
-    background-position: center top, top left, top left, top left;
-    background-attachment: fixed, fixed, fixed, fixed;
-    background-repeat: no-repeat, repeat, repeat, no-repeat;
+    background-color: #ffffff !important;
+    background-image: none !important;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    color: var(--ct-text);
+    color: #1e293b;
 }
 
 /* ===== Header redesign — Landing-style (non-floating) ===== */
@@ -40,8 +31,8 @@ body.customer-theme #main-header {
     width: 100% !important;
     border-radius: 0 !important;
     top: 0 !important;
-    background: transparent !important;
-    backdrop-filter: none !important;
+    background: #0a2530 !important;
+    backdrop-filter: blur(8px) !important;
     border: 0 !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
     box-shadow: none !important;
@@ -62,10 +53,10 @@ body.customer-theme #main-header.sticky-active {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* Page Hero Section - ensure it pushes behind the transparent header */
+/* Page Hero Section - disabled negative margin since header is now solid */
 body.customer-theme [style*="background:#00151b"] {
-    margin-top: -80px; /* Offset the header height */
-    padding-top: calc(80px + 2.75rem) !important;
+    margin-top: 0 !important;
+    padding-top: 2.75rem !important;
 }
 
 /* Keep content above any decorative layers */
@@ -141,8 +132,9 @@ body.customer-theme #main-header button.group:hover {
 
 /* Page content text contrast */
 body.customer-theme h1, 
-body.customer-theme h2 {
-    color: #ffffff !important;
+body.customer-theme h2,
+body.customer-theme h3 {
+    color: #1e293b !important;
 }
 
 /* Ensure notification text is readable */
@@ -227,11 +219,11 @@ body.customer-theme .ct-btn-outline:hover {
 /* ===== Cards ===== */
 body.customer-theme .card,
 body.customer-theme .ct-card {
-    background: rgba(10, 37, 48, 0.72);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(83, 197, 224, 0.22);
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
     border-radius: 1rem;
     padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important;
     transition: box-shadow 0.25s, transform 0.25s;
 }
 
@@ -693,7 +685,7 @@ body.customer-theme #imBody tr:hover {
 body.customer-theme .ct-section-title {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #ffffff;
+    color: #1e293b;
     margin-bottom: 1.5rem;
     text-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
@@ -701,7 +693,7 @@ body.customer-theme .ct-section-title {
 body.customer-theme .ct-page-title {
     font-size: 1.75rem;
     font-weight: 800;
-    color: #ffffff;
+    color: #1e293b;
     margin-bottom: 1.5rem;
     text-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
@@ -813,4 +805,195 @@ body.customer-theme select.input-field {
     body.customer-theme .ct-welcome {
         padding: 1.25rem 1rem;
     }
+}
+
+/* ============================================================
+   Shopee-Style Service Ordering Layout
+   ============================================================ */
+.shopee-layout-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.shopee-card {
+    display: grid;
+    grid-template-columns: 450px 1fr;
+    gap: 40px;
+    background: #ffffff;
+    padding: 24px;
+    border-radius: 4px;
+    box-shadow: 0 1px 1px 0 rgba(0,0,0,.05);
+    margin-bottom: 2rem;
+}
+
+.shopee-image-section {
+    width: 100%;
+}
+
+.shopee-main-image-wrap {
+    width: 100%;
+    aspect-ratio: 1;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shopee-main-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.shopee-form-section {
+    padding-right: 20px;
+}
+
+/* Shopee Form Grid - Row based labels */
+.shopee-form-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px !important;
+}
+
+.shopee-form-label {
+    font-size: 0.875rem;
+    color: #757575 !important;
+    font-weight: 400 !important;
+    margin-bottom: 0px !important;
+    width: 130px;
+    flex-shrink: 0;
+}
+
+.shopee-form-field {
+    flex: 1;
+}
+
+/* Red-accent Primary Button (Shopee Style) */
+.shopee-btn-primary {
+    background: #0a2530 !important;
+    color: #fff !important;
+    border: none !important;
+    height: 48px;
+    padding: 0 20px;
+    font-weight: 500;
+    border-radius: 2px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px;
+}
+
+.shopee-btn-outline {
+    background: rgba(10, 37, 48, 0.08) !important;
+    color: #0a2530 !important;
+    border: 1px solid #0a2530 !important;
+    height: 48px;
+    padding: 0 20px;
+    font-weight: 500;
+    border-radius: 2px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px;
+}
+
+.shopee-btn-primary:hover,
+.shopee-btn-outline:hover {
+    opacity: 0.85;
+}
+
+/* Selection Buttons (Presets/Radios) */
+.shopee-opt-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.shopee-opt-btn {
+    min-height: 40px;
+    min-width: 80px;
+    padding: 0 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    color: #333 !important;
+    font-size: 0.875rem !important;
+    border-radius: 2px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.shopee-opt-btn:hover {
+    border-color: #0a2530 !important;
+    color: #0a2530 !important;
+}
+
+.shopee-opt-btn.active,
+.shopee-opt-btn:has(input:checked) {
+    border-color: #0a2530 !important;
+    color: #0a2530 !important;
+}
+
+/* Corner check icon imitation */
+.shopee-opt-btn.active::after,
+.shopee-opt-btn:has(input:checked)::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    right: -10px;
+    width: 20px;
+    height: 20px;
+    background: #0a2530;
+    transform: rotate(45deg);
+}
+
+.shopee-qty-control {
+    display: flex;
+    align-items: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 2px;
+    width: fit-content;
+}
+
+.shopee-qty-btn {
+    width: 32px;
+    height: 32px;
+    background: #ffffff;
+    border: none;
+    cursor: pointer;
+    color: #555;
+    font-size: 1.25rem;
+}
+
+.shopee-qty-input {
+    width: 60px;
+    height: 32px;
+    border-left: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    text-align: center;
+    color: #333;
+    font-size: 0.875rem;
+    background: #fff;
+    border-top: none;
+    border-bottom: none;
+}
+
+@media (max-width: 1024px) {
+    .shopee-card { grid-template-columns: 1fr; gap: 20px; }
+    .shopee-form-row { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
+    .shopee-form-label { width: auto !important; }
 }

@@ -23,12 +23,7 @@ if (!$order_id) {
     exit();
 }
 
-if ($user_type === 'Customer') {
-    $res = db_execute("UPDATE orders SET is_archived_customer = ? WHERE order_id = ? AND customer_id = ?", 'iii', [$archive, $order_id, $user_id]);
-} else {
-    // Staff/Admin/Manager - usually archive for all staff
-    $res = db_execute("UPDATE orders SET is_archived_staff = ? WHERE order_id = ?", 'ii', [$archive, $order_id]);
-}
+$res = db_execute("UPDATE orders SET is_archived = ? WHERE order_id = ?", 'ii', [$archive, $order_id]);
 
 // Clear accidental output before sending JSON
 ob_end_clean();

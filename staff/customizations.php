@@ -35,7 +35,7 @@ $total_jobs_jobs = db_query(
     $joBranchParams ?: null
 )[0]['count'];
 $total_orders_pending = db_query(
-    "SELECT COUNT(*) as count FROM orders WHERE status IN ('Pending', 'Pending Review', 'Pending Approval', 'For Revision')" . $ordBranchSql,
+    "SELECT COUNT(*) as count FROM orders WHERE order_type = 'custom' AND status IN ('Pending', 'Pending Review', 'Pending Approval', 'For Revision')" . $ordBranchSql,
     $ordBranchTypes ?: null,
     $ordBranchParams ?: null
 )[0]['count'];
@@ -47,7 +47,7 @@ $pending_jobs_jobs = db_query(
     $joBranchParams ?: null
 )[0]['count'];
 $pending_orders = db_query(
-    "SELECT COUNT(*) as count FROM orders WHERE status IN ('Pending', 'Pending Review', 'Pending Approval', 'For Revision')" . $ordBranchSql,
+    "SELECT COUNT(*) as count FROM orders WHERE order_type = 'custom' AND status IN ('Pending', 'Pending Review', 'Pending Approval', 'For Revision')" . $ordBranchSql,
     $ordBranchTypes ?: null,
     $ordBranchParams ?: null
 )[0]['count'];
@@ -64,7 +64,7 @@ $in_production_jobs = db_query(
     $joBranchParams ?: null
 )[0]['count'];
 $in_production_orders = db_query(
-    "SELECT COUNT(*) as count FROM orders WHERE status IN ('Processing', 'In Production', 'Printing', 'Paid – In Process', 'Paid - In Process')" . $ordBranchSql,
+    "SELECT COUNT(*) as count FROM orders WHERE order_type = 'custom' AND status IN ('Processing', 'In Production', 'Printing', 'Paid – In Process', 'Paid - In Process')" . $ordBranchSql,
     $ordBranchTypes ?: null,
     $ordBranchParams ?: null
 )[0]['count'];
@@ -76,7 +76,7 @@ $completed_jobs_jobs = db_query(
     $joBranchParams ?: null
 )[0]['count'];
 $completed_orders = db_query(
-    "SELECT COUNT(*) as count FROM orders WHERE status = 'Completed'" . $ordBranchSql,
+    "SELECT COUNT(*) as count FROM orders WHERE order_type = 'custom' AND status = 'Completed'" . $ordBranchSql,
     $ordBranchTypes ?: null,
     $ordBranchParams ?: null
 )[0]['count'];

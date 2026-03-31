@@ -1,0 +1,8 @@
+ALL REVIEWS:
+ID:1, REF_ID:4, TYPE:custom, LABEL:Decals / Stickers, RATING:5
+ID:2, REF_ID:5, TYPE:custom, LABEL:Glass & Wall Sticker Printing, RATING:4
+ID:3, REF_ID:7, TYPE:custom, LABEL:Reflectorized Signage, RATING:2
+ID:4, REF_ID:3, TYPE:custom, LABEL:T-Shirt Printing, RATING:1
+ID:5, REF_ID:2, TYPE:custom, LABEL:Tarpaulin Printing, RATING:3
+ID:6, REF_ID:2, TYPE:custom, LABEL:Tarpaulin Printing, RATING:4
+ID:7, REF_ID:4, TYPE:custom, LABEL:Sticker Pack, RATING:2

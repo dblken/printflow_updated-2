@@ -1,6 +1,6 @@
 <?php
 /**
- * Customer Products Page
+ * Customer Products Page (Fixed Products Only)
  * PrintFlow - Printing Shop PWA
  */
 
@@ -13,9 +13,14 @@ require_role('Customer');
 $category = $_GET['category'] ?? '';
 $search = $_GET['search'] ?? '';
 
-// Build query — match admin catalog for customers: show all Activated products (fixed + custom).
-// Deactivated / Archived are excluded so only “live” admin rows appear here.
-$sql = "SELECT p.*, (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.product_id AND pv.status = 'Active') as variant_count FROM products p WHERE p.status = 'Activated'";
+// Build query — only show Fixed Products as requested
+$sql = "SELECT p.*, 
+        (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.product_id AND pv.status = 'Active') as variant_count,
+        (SELECT SUM(quantity) FROM order_items oi JOIN orders o ON oi.order_id = o.order_id WHERE oi.product_id = p.product_id AND o.order_type = 'product' AND o.status != 'Cancelled') as sold_count,
+        (SELECT AVG(rating) FROM reviews r WHERE r.reference_id = p.product_id AND r.review_type = 'product') as avg_rating,
+        (SELECT COUNT(*) FROM reviews r WHERE r.reference_id = p.product_id AND r.review_type = 'product') as review_count
+        FROM products p 
+        WHERE p.status = 'Activated' AND (p.product_type = 'fixed' OR p.product_type = '')";
 $params = [];
 $types = '';
 
@@ -39,7 +44,7 @@ $current_page = max(1, (int)($_GET['page'] ?? 1));
 $offset = ($current_page - 1) * $items_per_page;
 
 // Count total items for pagination
-$count_sql = "SELECT COUNT(*) as total FROM products WHERE status = 'Activated'";
+$count_sql = "SELECT COUNT(*) as total FROM products WHERE status = 'Activated' AND (product_type = 'fixed' OR product_type = '')";
 $count_params = [];
 $count_types = '';
 
@@ -72,228 +77,220 @@ $use_customer_css = true;
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<div class="min-h-screen py-8">
+<style>
+    :root {
+        --shopee-orange: #0a2530;
+        --shopee-bg: #ffffff;
+        --shopee-card-bg: #ffffff;
+        --shopee-text: #212121;
+        --shopee-muted: #757575;
+        --shopee-border: rgba(0,0,0,0.09);
+    }
+
+    .shopee-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+    }
+
+    @media (max-width: 640px) {
+        .shopee-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+    }
+
+    .shopee-card {
+        background: var(--shopee-card-bg);
+        border: 1px solid var(--shopee-border);
+        border-radius: 4px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .shopee-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: var(--shopee-orange);
+    }
+
+    .shopee-img {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+    }
+
+    .shopee-body {
+        padding: 10px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .shopee-name {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        height: 2.5rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        color: var(--shopee-text);
+        margin-bottom: 8px;
+    }
+
+    .shopee-category {
+        font-size: 0.75rem;
+        color: var(--shopee-muted);
+        margin-bottom: 5px;
+    }
+
+    .shopee-price-row {
+        margin-top: auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .shopee-price {
+        color: var(--shopee-orange);
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .shopee-sold {
+        font-size: 0.75rem;
+        color: var(--shopee-muted);
+    }
+
+    .shopee-footer {
+        padding: 10px;
+        border-top: 1px solid var(--shopee-border);
+        display: flex;
+        gap: 8px;
+    }
+
+    .shopee-btn {
+        flex: 1;
+        padding: 8px 0;
+        border-radius: 3px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-align: center;
+        text-transform: uppercase;
+        transition: all 0.2s;
+        border: 1px solid var(--shopee-orange);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+    }
+
+    .shopee-btn-cart {
+        background: rgba(10, 37, 48, 0.08);
+        color: var(--shopee-orange);
+    }
+
+    .shopee-btn-buy {
+        background: var(--shopee-orange);
+        color: #fff;
+    }
+
+    .shopee-btn:hover {
+        opacity: 0.9;
+    }
+
+    .rating-stars {
+        color: #ffca11;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin-bottom: 5px;
+    }
+
+    .rating-text {
+        font-size: 0.75rem;
+        color: var(--shopee-muted);
+        margin-left: 5px;
+    }
+</style>
+
+<div class="min-h-screen py-8 bg-white">
     <div class="container mx-auto px-4" style="max-width:1100px;">
-        <h1 class="ct-page-title">Browse Products</h1>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <h1 class="text-2xl font-bold text-gray-800">Fixed Products</h1>
+            <div class="w-full md:w-auto">
+                <form action="" method="GET" class="flex gap-2">
+                    <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search products..." class="flex-grow px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-shopee-orange">
+                    <button type="submit" style="background-color: var(--shopee-orange);" class="text-white px-6 py-2 rounded-lg hover:opacity-90 font-semibold transition-all">Search</button>
+                </form>
+            </div>
+        </div>
 
         <!-- Products Grid -->
         <?php if (empty($products)): ?>
-            <div class="ct-empty">
-                <div class="ct-empty-icon">📦</div>
-                <p>No products found</p>
+            <div class="bg-white rounded-lg p-12 text-center shadow-sm">
+                <div class="text-6xl mb-4">📦</div>
+                <p class="text-gray-500 text-lg">No products found.</p>
+                <a href="products.php" class="text-shopee-orange mt-4 inline-block hover:underline font-semibold">Browse all products</a>
             </div>
         <?php else: ?>
-            <div class="ct-product-grid">
+            <div class="shopee-grid">
                 <?php foreach ($products as $product): 
-                    // Prefer admin-uploaded photo_path, then legacy product_image, then files on disk
-                    $display_img = "";
-                    if (!empty($product['photo_path'])) {
-                        $display_img = $product['photo_path'];
-                        if ($display_img !== '' && $display_img[0] !== '/') {
-                            $display_img = '/' . ltrim($display_img, '/');
-                        }
-                    } elseif (!empty($product['product_image'])) {
-                        $display_img = $product['product_image'];
-                    } else {
-                        // Fall back to old method of checking public/images/products directory
-                        $img_path = "../public/images/products/product_" . $product['product_id'];
-                        if (file_exists($img_path . ".jpg")) {
-                            $display_img = "/printflow/public/images/products/product_" . $product['product_id'] . ".jpg";
-                        } elseif (file_exists($img_path . ".png")) {
-                            $display_img = "/printflow/public/images/products/product_" . $product['product_id'] . ".png";
-                        }
-                    }
-                    if (!$display_img) $display_img = "/printflow/public/assets/images/services/default.png";
-
-                    $order_link = "order_create.php?product_id=" . $product['product_id'];
-                    $esc_name = addslashes($product['name']);
-                    $esc_cat = addslashes($product['category']);
-                    $esc_img = addslashes($display_img);
-                    $esc_link = addslashes($order_link);
-                    $formatted_price = format_currency($product['price']);
-                    $stock_count = (int)$product['stock_quantity'];
-                    $has_variants = (int)($product['variant_count'] ?? 0) > 0;
-                    $ptype = strtolower(trim((string)($product['product_type'] ?? '')));
-                    $fixed_types = ['fixed', 'fixed product', 'product'];
-                    $is_fixed_product = ($ptype === '' || in_array($ptype, $fixed_types, true));
+                    $display_img = $product['photo_path'] ?: $product['product_image'] ?: "/printflow/public/assets/images/services/default.png";
+                    if ($display_img[0] !== '/' && strpos($display_img, 'http') === false) $display_img = '/' . $display_img;
+                    
+                    $sold_count = (int)$product['sold_count'];
+                    $avg_rating = (float)$product['avg_rating'];
+                    $review_count = (int)$product['review_count'];
                 ?>
-                    <div class="ct-product-card" onclick="openProductModal('<?php echo $esc_name; ?>', '<?php echo $esc_cat; ?>', '<?php echo $esc_img; ?>', '<?php echo $esc_link; ?>', <?php echo $product['price']; ?>, <?php echo $stock_count; ?>)" style="cursor: pointer;">
-                        <div class="ct-product-img">
-                            <div class="ct-product-img-inner">
-                                <img src="<?php echo $display_img; ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" style="width:100%; height:100%; object-fit:cover; border-radius:0.5rem;">
+                    <div class="shopee-card" onclick="window.location.href='order_create.php?product_id=<?php echo $product['product_id']; ?>'">
+                        <img src="<?php echo htmlspecialchars($display_img); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="shopee-img">
+                        <div class="shopee-body">
+                            <span class="shopee-category"><?php echo htmlspecialchars($product['category']); ?></span>
+                            <h3 class="shopee-name"><?php echo htmlspecialchars($product['name']); ?></h3>
+                            
+                            <div class="rating-stars">
+                                <?php for($i=1; $i<=5; $i++): ?>
+                                    <svg style="width: 14px; height: 14px;" fill="<?php echo ($i <= round($avg_rating)) ? '#ffca11' : '#e5e7eb'; ?>" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                    </svg>
+                                <?php endfor; ?>
+                                <span class="rating-text"><?php echo $review_count > 0 ? "($review_count)" : ''; ?></span>
+                                <span style="margin-left: auto; font-size: 0.75rem; color: var(--shopee-muted);"><?php echo $sold_count; ?> sold</span>
+                            </div>
+
+                            <div class="shopee-price-row mt-2">
+                                <span class="shopee-price"><?php echo format_currency($product['price']); ?></span>
                             </div>
                         </div>
-                        <div class="ct-product-body" <?php echo ($product['category'] === 'Decals & Stickers') ? 'style="text-align: center;"' : ''; ?>>
-                            <?php if ($product['category'] !== 'Decals & Stickers'): ?>
-                                <span class="ct-product-category"><?php echo htmlspecialchars($product['category']); ?></span>
-                            <?php endif; ?>
-                            
-                            <h3 class="ct-product-name" <?php echo ($product['category'] === 'Decals & Stickers') ? 'style="margin-bottom: 1.5rem; height: auto; font-weight: 700; font-size: 1.1rem;"' : ''; ?>><?php echo htmlspecialchars($product['name']); ?></h3>
-                            
-                            <?php if ($product['category'] !== 'Decals & Stickers'): ?>
-                                <p class="ct-product-price"><?php echo format_currency($product['price']); ?></p>
-                            <?php endif; ?>
-
-                            <div class="ct-product-actions" <?php echo ($product['category'] === 'Decals & Stickers') ? 'style="display: flex; justify-content: center;"' : ''; ?>>
-                                <?php if ($product['category'] !== 'Decals & Stickers'): ?>
-                                    <div style="display:flex; align-items:center;">
-                                        <?php if ($product['stock_quantity'] > 0): ?>
-                                            <button 
-                                                title="Add to Cart" 
-                                                onclick="event.stopPropagation(); <?php echo !$is_fixed_product ? "this.closest('.ct-product-card').click();" : "window.location.href='cart_add.php?product_id=" . (int)$product['product_id'] . "';"; ?>"
-                                                style="background:none; border:none; padding:8px; cursor:pointer; color:#4F46E5; display:flex; align-items:center; justify-content:center; border-radius:8px; transition:all 0.2s; background: rgba(79, 70, 229, 0.05);"
-                                                onmouseover="this.style.background='rgba(79, 70, 229, 0.1)'; this.style.transform='scale(1.1)'"
-                                                onmouseout="this.style.background='rgba(79, 70, 229, 0.05)'; this.style.transform='scale(1)'"
-                                            >
-                                                <?php if (!$is_fixed_product || $has_variants): ?>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" style="width:24px; height:24px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                                                    </svg>
-                                                <?php else: ?>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" style="width:24px; height:24px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                                                    </svg>
-                                                <?php endif; ?>
-                                            </button>
-                                        <?php else: ?>
-                                            <div style="padding:8px; color:#cbd5e1; cursor:not-allowed;">
-                                                <svg xmlns="http://www.w3.org/2000/svg" style="width:24px; height:24px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                                                </svg>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <a href="<?php echo $order_link; ?>" 
-                                   onclick="event.stopPropagation();" 
-                                   class="ct-view-product-btn" 
-                                   style="width: 100%; text-align: center; text-decoration: none;">
-                                    BUY NOW
-                                </a>
-                            </div>
+                        <div class="shopee-footer" onclick="event.stopPropagation()">
+                            <button onclick="addToCartDirect(<?php echo $product['product_id']; ?>)" class="shopee-btn shopee-btn-cart" title="Add to Cart">
+                                <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            </button>
+                            <a href="order_create.php?product_id=<?php echo $product['product_id']; ?>&buy_now=1" class="shopee-btn shopee-btn-buy">Buy Now</a>
                         </div>
                     </div>
                 <?php endforeach; ?>
             </div>
 
             <!-- Pagination -->
-            <div class="mt-8">
+            <div class="mt-12 flex justify-center">
                 <?php echo get_pagination_links($current_page, $total_pages, ['category' => $category, 'search' => $search]); ?>
             </div>
         <?php endif; ?>
     </div>
 </div>
 
-<!-- Product Detail Modal -->
-<div id="product-modal" style="display: none; position: fixed; inset: 0; align-items: center; justify-content: center; z-index: 9999999; padding: 1.5rem; transition: opacity 0.2s ease;">
-    <!-- Backdrop (Soft dark tint to highlight modal) -->
-    <div onclick="closeProductModal()" style="position: absolute; inset: 0; background-color: rgba(0, 0, 0, 0.45);"></div>
-    
-    <!-- Modal Content (Wider fixed size with internal scroll) -->
-    <div id="product-modal-content" style="position: relative; background: linear-gradient(165deg, rgba(10,37,48,0.96), rgba(7,26,34,0.97)); border: 1px solid rgba(83,197,224,0.22); border-radius: 1.5rem; width: 750px; max-width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); transform: translateY(20px); transition: all 0.3s ease;">
-        
-        <style>
-            /* Modal Internal Scrollbar */
-            #product-modal-scroll-body::-webkit-scrollbar { width: 6px; }
-            #product-modal-scroll-body::-webkit-scrollbar-track { background: transparent; }
-            #product-modal-scroll-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-            #product-modal-scroll-body::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
-        </style>
-        
-        <!-- Close Button -->
-        <button onclick="closeProductModal()" style="position: absolute; top: 1rem; right: 1rem; z-index: 100; padding: 0.5rem; background: rgba(15,34,45,0.95); border-radius: 9999px; border: 1px solid rgba(83,197,224,0.3); cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.22); display: flex; align-items: center; justify-content: center;">
-            <svg style="width: 1.5rem; height: 1.5rem; color: #cdebf5;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-        </button>
-
-        <!-- Scrollable Body Section -->
-        <div id="product-modal-scroll-body" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column;">
-            <!-- Image Section (Matched Aspect Ratio) -->
-            <div style="width: 100%; height: 420px; position: relative; background: #f3f4f6; flex-shrink: 0;">
-                <img id="modal-img" src="" alt="" style="width: 100%; height: 100%; object-fit: cover;">
-                <div style="position: absolute; top: 1.25rem; left: 1.25rem; z-index: 10;">
-                    <span id="modal-category" style="padding: 0.35rem 0.85rem; background: #ffffff; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; border-radius: 0.5rem; color: #4F46E5; box-shadow: 0 4px 6px rgba(0,0,0,0.1); letter-spacing: 0.05em;">Category</span>
-                </div>
-            </div>
-
-            <!-- Info Section (Same as Card Body) -->
-            <div style="padding: 2.25rem; display: flex; flex-direction: column; background: rgba(7,26,34,0.78);">
-                <h2 id="modal-name" style="font-size: 1.75rem; font-weight: 800; color: #f8fafc; margin: 0 0 0.85rem 0; line-height: 1.2;">Product Name</h2>
-                
-                <div id="modal-price-container" style="margin-bottom: 1.25rem;">
-                    <p id="modal-price" style="font-size: 1.5rem; font-weight: 800; color: #9be2f3; margin: 0;"></p>
-                    <div id="modal-stock" style="margin-top: 0.5rem; font-size: 0.85rem; font-weight: 600;"></div>
-                </div>
-
-                <p style="color: #bcd2df; margin-bottom: 2rem; line-height: 1.7; font-size: 0.95rem;">
-                    Select this product and proceed to place your order. For custom designs and sizes, visit our Services page.
-                </p>
-
-                <div style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(83,197,224,0.16);">
-                    <a id="modal-action-btn" href="#" style="display: flex; align-items: center; justify-content: center; padding: 1.15rem 2rem; background: linear-gradient(135deg, #53C5E0, #32a1c4); color: #ffffff; font-weight: 700; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.14); text-decoration: none; transition: all 0.2s; box-shadow: 0 10px 22px rgba(50,161,196,0.30); font-size: 1rem;">
-                        BUY NOW
-                        <svg style="width: 1.25rem; height: 1.25rem; margin-left: 0.75rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-function openProductModal(name, category, img, link, price, stock) {
-    document.getElementById('modal-name').textContent = name || '';
-    document.getElementById('modal-category').textContent = category || '';
-    document.getElementById('modal-img').src = img || '';
-    document.getElementById('modal-action-btn').href = link || '#';
-    
-    // Format price correctly
-    const formattedPrice = new Intl.NumberFormat('en-PH', {
-        style: 'currency',
-        currency: 'PHP'
-    }).format(price);
-    
-    document.getElementById('modal-price').textContent = formattedPrice;
-    
-    const stockEl = document.getElementById('modal-stock');
-    if (stock > 0) {
-        stockEl.innerHTML = '<span style="color: #10B981;">✓ In Stock (' + stock + ' available)</span>';
-    } else {
-        stockEl.innerHTML = '<span style="color: #EF4444;">✕ Out of Stock</span>';
-    }
-    
-    const modal = document.getElementById('product-modal');
-    const content = document.getElementById('product-modal-content');
-    
-    modal.style.display = 'flex';
-    void modal.offsetWidth;
-    
-    modal.style.opacity = '1';
-    modal.style.pointerEvents = 'auto';
-    content.style.transform = 'translateY(0)';
-    
-    document.body.style.overflow = 'hidden';
-}
-
-function closeProductModal() {
-    const modal = document.getElementById('product-modal');
-    const content = document.getElementById('product-modal-content');
-    
-    modal.style.opacity = '0';
-    modal.style.pointerEvents = 'none';
-    content.style.transform = 'translateY(20px)';
-    
-    setTimeout(() => {
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-    }, 300);
-}
-</script>
-
 <script>
 var PF_CSRF_TOKEN = '<?php echo generate_csrf_token(); ?>';
 
-async function addToCart(productId, fallbackLink) {
+async function addToCartDirect(productId) {
     try {
         const response = await fetch('api_cart.php', {
             method: 'POST',
@@ -306,107 +303,51 @@ async function addToCart(productId, fallbackLink) {
             })
         });
 
-        let data = null;
-        try {
-            data = await response.json();
-        } catch (e) {
-            const txt = await response.text();
-            throw new Error(txt || 'Invalid API response');
-        }
-
-        if (!response.ok) {
-            throw new Error((data && data.message) ? data.message : ('HTTP ' + response.status));
-        }
+        const data = await response.json();
 
         if (data.success) {
-            updateCartBadge(data.cart_count);
-            await refreshCartCount();
-            window.location.href = 'cart.php';
+            if (window.updateCartBadge) updateCartBadge(data.cart_count);
+            showToast('Added to cart!');
         } else {
-            const msg = (data && data.message) ? String(data.message) : '';
-            const needsConfig = msg.toLowerCase().includes('customization') || msg.toLowerCase().includes('variant');
-            if (needsConfig && fallbackLink) {
-                window.location.href = fallbackLink;
-                return;
-            }
-            alert(msg || 'Failed to add to cart');
+            alert(data.message || 'Failed to add to cart');
         }
     } catch (err) {
         console.error('Cart Error:', err);
-        if (fallbackLink) {
-            window.location.href = fallbackLink;
-        }
-    }
-}
-
-async function refreshCartCount() {
-    try {
-        const response = await fetch('api_cart.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'get_count',
-                csrf_token: PF_CSRF_TOKEN
-            })
-        });
-        const data = await response.json();
-        if (data && data.success) updateCartBadge(data.cart_count || 0);
-    } catch (e) {
-        // Keep silent; badge update already attempted from add response.
-    }
-}
-
-function updateCartBadge(count) {
-    const badge = document.getElementById('cart-count-badge');
-    if (!badge) return;
-    
-    if (count > 0) {
-        badge.textContent = count > 99 ? '99+' : count;
-        badge.style.display = 'flex';
-        // Add a little pop animation
-        badge.animate([
-            { transform: 'scale(1)' },
-            { transform: 'scale(1.3)' },
-            { transform: 'scale(1)' }
-        ], { duration: 300 });
-    } else {
-        badge.style.display = 'none';
+        alert('An error occurred. Please try again.');
     }
 }
 
 function showToast(msg) {
-    let toast = document.getElementById('pf-toast');
+    let toast = document.getElementById('shopee-toast');
     if (!toast) {
         toast = document.createElement('div');
-        toast.id = 'pf-toast';
+        toast.id = 'shopee-toast';
         document.body.appendChild(toast);
     }
     
     toast.textContent = msg;
     toast.style.cssText = `
         position: fixed;
-        bottom: 2rem;
+        bottom: 5rem;
         left: 50%;
         transform: translateX(-50%);
-        background: #1e293b;
+        background: rgba(0,0,0,0.85);
         color: white;
-        padding: 0.75rem 1.5rem;
-        border-radius: 9999px;
-        font-weight: 600;
-        font-size: 0.875rem;
-        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-        z-index: 1000;
-        transition: all 0.3s;
-        opacity: 0;
+        padding: 12px 24px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        z-index: 10000;
+        transition: opacity 0.3s;
+        pointer-events: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     `;
     
-    setTimeout(() => toast.style.opacity = '1', 10);
+    toast.style.opacity = '1';
     setTimeout(() => {
         toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 300);
-    }, 2000);
+    }, 2500);
 }
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
-

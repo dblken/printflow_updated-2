@@ -274,16 +274,21 @@ $use_customer_css = true;
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<div class="min-h-screen py-8 order-create-page" x-data="orderModal">
-    <div class="container mx-auto px-4" style="max-width:800px;">
-        <a href="products.php" class="back-link" style="display:inline-flex; align-items:center; gap:6px; color:#6b7280; margin-bottom:1rem; text-decoration:none;">← Back to Products</a>
+<div class="min-h-screen py-8 bg-gray-50" x-data="orderModal">
+    <div class="shopee-layout-container">
+        <!-- Breadcrumb -->
+        <div class="text-sm text-gray-500 mb-6 flex items-center gap-2">
+            <a href="products.php" class="hover:text-blue-600">Products</a>
+            <span>/</span>
+            <span class="font-semibold text-gray-900"><?php echo htmlspecialchars($product['name']); ?></span>
+        </div>
 
         <?php if ($cancel_count >= 3 && !$is_restricted): ?>
-            <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 1.25rem; margin-bottom: 2rem; display: flex; gap: 0.75rem; align-items: flex-start;">
-                <span style="font-size: 1.5rem;">⚠️</span>
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex gap-3 items-start">
+                <span class="text-2xl">⚠️</span>
                 <div>
-                    <h3 style="color: #92400e; font-weight: 700; font-size: 0.95rem; margin-bottom: 0.25rem;">Shopping Experience Warning</h3>
-                    <p style="color: #b45309; font-size: 0.85rem; line-height: 1.5;">
+                    <h3 class="text-yellow-800 font-bold text-sm mb-1">Shopping Experience Warning</h3>
+                    <p class="text-yellow-700 text-xs leading-relaxed">
                         You have <strong><?php echo $cancel_count; ?></strong> recent cancellations. 
                         <?php if ($cancel_count >= 4): ?>
                             Because you have 4 or more cancellations, <strong>'Pay Later' orders will require a 50% downpayment</strong> to proceed.
@@ -296,81 +301,83 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         <?php endif; ?>
 
-
-
-        <div class="card oc-product-card">
-            <!-- Product Image Area -->
-            <div class="oc-product-media">
-                <?php 
-                $display_img = "";
-                
-                // 1. Try photo_path first (new method)
-                if (!empty($product['photo_path'])) {
-                    $display_img = $product['photo_path'];
-                }
-                // 2. Try product_image column
-                elseif (!empty($product['product_image']) && file_exists(__DIR__ . "/../" . $product['product_image'])) {
-                    $display_img = "/printflow/" . ltrim($product['product_image'], '/');
-                }
-                // 3. Try default image path based on product_id
-                else {
-                    $img_link = "/printflow/public/images/products/product_" . $product['product_id'];
-                    $img_path = __DIR__ . "/../public/images/products/product_" . $product['product_id'];
-                    if (file_exists($img_path . ".jpg")) {
-                        $display_img = $img_link . ".jpg";
-                    } elseif (file_exists($img_path . ".png")) {
-                        $display_img = $img_link . ".png";
-                    }
-                }
-                
-                if ($display_img): ?>
-                    <img src="<?php echo htmlspecialchars($display_img); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="oc-product-media-img">
-                <?php else: ?>
-                    <span style="font-size:5rem;">📦</span>
-                <?php endif; ?>
-            </div>
-
-            <!-- Product Details -->
-            <div class="oc-product-info">
-                <h1 class="ct-page-title oc-product-title"><?php echo htmlspecialchars($product['name']); ?></h1>
-                
-                <div class="oc-product-price">
-                    <?php echo format_currency($product['price']); ?>
-                </div>
-
-                <div class="oc-product-desc">
-                    <?php echo nl2br(htmlspecialchars($product['description'])); ?>
-                </div>
-                
-                <?php if ($product['stock_quantity'] <= 0): ?>
-                    <div style="padding:1rem; background:#fee2e2; color:#991b1b; border-radius:8px; text-align:center; font-weight:600; margin-top:2rem;">
-                        Out of Stock
+        <div class="shopee-card">
+            <!-- Left Side: Image -->
+            <div class="shopee-image-section">
+                <div class="sticky top-24">
+                    <div class="shopee-main-image-wrap">
+                        <?php 
+                        $display_img = "";
+                        // 1. Try photo_path first
+                        if (!empty($product['photo_path'])) {
+                            $display_img = $product['photo_path'];
+                        }
+                        // 2. Try product_image column
+                        elseif (!empty($product['product_image']) && file_exists(__DIR__ . "/../" . $product['product_image'])) {
+                            $display_img = "/printflow/" . ltrim($product['product_image'], '/');
+                        }
+                        // 3. Try default image path
+                        else {
+                            $img_link = "/printflow/public/images/products/product_" . $product['product_id'];
+                            $img_path = __DIR__ . "/../public/images/products/product_" . $product['product_id'];
+                            if (file_exists($img_path . ".jpg")) {
+                                $display_img = $img_link . ".jpg";
+                            } elseif (file_exists($img_path . ".png")) {
+                                $display_img = $img_link . ".png";
+                            }
+                        }
+                        
+                        if ($display_img): ?>
+                            <img src="<?php echo htmlspecialchars($display_img); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="shopee-main-image">
+                        <?php else: ?>
+                            <div class="w-full h-full flex items-center justify-center bg-gray-50 text-5xl">📦</div>
+                        <?php endif; ?>
                     </div>
-                <?php endif; ?>
+                </div>
             </div>
-        </div>
 
-        <?php if ($product['stock_quantity'] > 0): ?>
-        <!-- Full-Page Order Form -->
-        <div class="card" style="margin-top: 2rem; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb; background:white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-            <div class="flex flex-col">
-                <!-- Form Header -->
-                <div style="padding:1.5rem 2rem; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; background:white;">
-                    <div>
-                        <h2 style="font-size:1.25rem; font-weight:800; color:black; margin:0; text-transform:uppercase; letter-spacing:0.05em;">Product Customization</h2>
-                        <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
-                            <span style="font-size:0.75rem; font-weight:800; color:white; background:black; padding:2px 8px; border-radius:0;" x-text="'STEP ' + step"></span>
-                            <p style="font-size:0.875rem; color:#64748b; margin:0; font-weight:600; text-transform:uppercase;" 
-                               x-text="(productCategory === 'Sintraboard & Standees' || productCategory === 'Sintraboard Flat') ? 
-                                       (step==1?'Board Details':step==2?'Design Upload':step==3?'Stand & Finishing':'Final Review') : 
-                                       (productCategory === 'T-Shirts') ? 
-                                       (step==1?'Shirt Details':step==2?'Printing Details':step==3?'Design Upload':'Final Review') : 
-                                       (productCategory === 'Tarpaulin') ? 
-                                       (step==1?'Size & Material':step==2?'Finishing Options':step==3?'Design Details':'Final Review') : 
-                                       (step==1?'Vehicle Details':step==2?'Design Upload':step==3?'Size & Options':'Final Review')"></p>
+            <!-- Right Side: Product Details & Form -->
+            <div class="shopee-form-section">
+                <!-- Product Details Header -->
+                <div class="mb-6 pb-6 border-b border-gray-100">
+                    <h1 class="text-2xl font-bold text-gray-900 mb-2"><?php echo htmlspecialchars($product['name']); ?></h1>
+                    
+                    <div class="text-3xl font-bold text-blue-600 mb-4">
+                        <?php echo format_currency($product['price']); ?>
+                    </div>
+
+                    <div class="text-sm text-gray-600 leading-relaxed mb-4">
+                        <?php echo nl2br(htmlspecialchars($product['description'])); ?>
+                    </div>
+                    
+                    <?php if ($product['stock_quantity'] <= 0): ?>
+                        <div class="p-3 bg-red-50 text-red-700 rounded-lg text-center font-bold">
+                            Out of Stock
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <?php if ($product['stock_quantity'] > 0): ?>
+                
+                <!-- Multi-Step Form Wrapper -->
+                <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <!-- Form Header (Steps) -->
+                    <div class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-900 m-0 uppercase tracking-wide">Product Customization</h2>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="bg-gray-900 text-white text-xs font-bold px-2 py-0.5 rounded" x-text="'STEP ' + step"></span>
+                                <p class="text-sm text-gray-500 font-semibold uppercase m-0" 
+                                   x-text="(productCategory === 'Sintraboard & Standees' || productCategory === 'Sintraboard Flat') ? 
+                                           (step==1?'Board Details':step==2?'Design Upload':step==3?'Stand & Finishing':'Final Review') : 
+                                           (productCategory === 'T-Shirts') ? 
+                                           (step==1?'Shirt Details':step==2?'Printing Details':step==3?'Design Upload':'Final Review') : 
+                                           (productCategory === 'Tarpaulin') ? 
+                                           (step==1?'Size & Material':step==2?'Finishing Options':step==3?'Design Details':'Final Review') : 
+                                           (step==1?'Vehicle Details':step==2?'Design Upload':step==3?'Size & Options':'Final Review')"></p>
+                            </div>
                         </div>
                     </div>
-                </div>
 
                 <div style="height:4px; width:100%; background:#f1f5f9; display:flex;">
                     <div :style="'width: ' + (step/4*100) + '%; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);'" style="height:100%; background:black;"></div>
@@ -905,37 +912,35 @@ require_once __DIR__ . '/../includes/header.php';
                                     </div>
 
                                     <!-- Modal Footer -->
-                                    <div style="padding:1.5rem 2rem; border-top:1px solid #e5e7eb; background:white; display:flex; gap:0.75rem; flex-shrink:0;">
+                                    <div class="p-6 border-t border-gray-100 bg-gray-50 flex gap-4">
                                         <button type="button" 
                                                 x-show="step !== 1" 
                                                 @click="if(step > 1) step = step - 1" 
-                                                style="flex:1; padding:0.875rem; border-radius:0; font-weight:800; font-size:0.85rem; text-transform:uppercase; background:white; border:2px solid #0a2530; color:#0a2530; cursor:pointer; transition:all 0.2s;"
-                                                onmouseover="this.style.background='#0a2530'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#0a2530';">
+                                                class="shopee-btn-outline" style="flex:1;">
                                             Back
                                         </button>
                                         
                                         <button type="button" 
                                                 x-show="step !== 4" 
                                                 @click="validateStepForward()" 
-                                                style="flex:2; padding:0.875rem; border-radius:0; font-weight:800; font-size:0.85rem; text-transform:uppercase; background:#0a2530; border:2px solid #0a2530; color:white; cursor:pointer; transition:all 0.2s;"
-                                                onmouseover="this.style.background='white'; this.style.color='#0a2530';" onmouseout="this.style.background='#0a2530'; this.style.color='white';">
+                                                class="shopee-btn-primary" style="flex:2;">
                                             Next Step
                                         </button>
-                                        <div x-show="step === 4" style="flex:2; display:flex; gap:0.75rem; width:100%; justify-content:flex-end; align-items:center;">
-                                            <a href="<?php echo isset($base_url) ? $base_url : '/printflow'; ?>/customer/services.php" style="height: 48px; min-width: 140px; padding: 0 1.25rem; display: inline-flex; align-items: center; justify-content: center; background: #f8fafc; color: #0f172a; font-weight: 700; font-size: 0.9rem; border-radius: 10px; border: 1px solid #cbd5e1; text-decoration: none; transition: all 0.2s;">Back to Services</a>
-                                            <button type="submit" name="action" value="add_to_cart" @click="checkFinalValidation($event)" style="height: 48px; min-width: 140px; padding: 0 1.25rem; background: #f8fafc; color: #0f172a; font-weight: 700; font-size: 0.9rem; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer; transition: all 0.2s;">
-                                                Add to Cart
-                                            </button>
-                                            <button type="submit" name="action" value="buy_now" @click="checkFinalValidation($event)" style="height: 48px; min-width: 140px; padding: 0 1.25rem; background: #0a2530; color: #ffffff; font-weight: 800; font-size: 0.9rem; border-radius: 10px; border: none; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.02em;">
+
+                                        <div x-show="step === 4" style="flex:2; display:flex; gap:0.75rem; width:100%; justify-content:flex-end;">
+                                            <a href="<?php echo isset($base_url) ? $base_url : '/printflow'; ?>/customer/products.php" class="shopee-btn-outline flex-1 text-center decoration-none">Back to Products</a>
+                                            <button type="submit" name="action" value="add_to_cart" @click="checkFinalValidation($event)" class="shopee-btn-outline" style="width:2.75rem;height:2.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;" title="Add to Cart"><svg style="width:1.25rem;height:1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></button>
+                                            <button type="submit" name="action" value="buy_now" @click="checkFinalValidation($event)" class="shopee-btn-primary flex-1">
                                                 Buy Now
                                             </button>
                                         </div>
                                     </div>
                                 </form>
-                            </div> <!-- .flex-col -->
-                        </div> <!-- .card -->
-                    <?php endif; ?>
-                </div> <!-- .container -->
+                </div> <!-- .bg-white wrapper -->
+                <?php endif; ?>
+            </div> <!-- .shopee-form-section -->
+        </div> <!-- .shopee-card -->
+    </div> <!-- .shopee-layout-container -->
 </div> <!-- x-data="orderModal" -->
 
 <style>
@@ -951,168 +956,6 @@ require_once __DIR__ . '/../includes/header.php';
         clip: rect(0, 0, 0, 0);
         white-space: nowrap;
         border-width: 0;
-    }
-
-    /* Theme alignment for order create page (UI only, no logic changes) */
-    .order-create-page {
-        color: #d9e6ef;
-    }
-    .order-create-page .oc-product-card {
-        display: grid !important;
-        grid-template-columns: minmax(200px, 40%) minmax(0, 60%);
-        gap: 1.15rem;
-        padding: 1rem !important;
-        align-items: stretch;
-    }
-    .order-create-page .oc-product-media {
-        background: linear-gradient(145deg, rgba(83,197,224,0.08), rgba(0,21,27,0.48));
-        border-radius: 12px;
-        border: 1px solid rgba(83,197,224,0.18);
-        min-height: 220px;
-        max-height: 240px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-    }
-    .order-create-page .oc-product-media-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    .order-create-page .oc-product-info {
-        padding: .2rem 0;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-    .order-create-page .oc-product-title {
-        margin: 0 0 .55rem 0 !important;
-        font-size: 1.38rem !important;
-        line-height: 1.2;
-    }
-    .order-create-page .oc-product-price {
-        font-size: 1.55rem;
-        font-weight: 800;
-        color: #9be2f3 !important;
-        margin-bottom: .7rem;
-        line-height: 1.15;
-    }
-    .order-create-page .oc-product-desc {
-        margin: 0;
-        color: #bfd3df !important;
-        line-height: 1.5;
-        font-size: .9rem;
-    }
-    .order-create-page .back-link {
-        color: #a9c6d6 !important;
-        font-weight: 600;
-    }
-    .order-create-page .card {
-        background: linear-gradient(165deg, rgba(10, 37, 48, 0.9), rgba(7, 26, 34, 0.93)) !important;
-        border: 1px solid rgba(83, 197, 224, 0.2) !important;
-        border-radius: 14px !important;
-        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35) !important;
-    }
-    .order-create-page .ct-page-title {
-        color: #f8fafc !important;
-    }
-    .order-create-page .input-field {
-        background: rgba(255, 255, 255, 0.05) !important;
-        color: #f8fafc !important;
-        border: 1px solid rgba(83, 197, 224, 0.28) !important;
-        border-radius: 10px !important;
-    }
-    .order-create-page .input-field::placeholder {
-        color: #9eb4c3 !important;
-    }
-    .order-create-page .input-field:focus {
-        border-color: rgba(83, 197, 224, 0.75) !important;
-        box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.16) !important;
-    }
-    .order-create-page select.input-field option {
-        background: #0a2530 !important;
-        color: #f8fafc !important;
-    }
-
-    /* Normalize old light inline blocks */
-    .order-create-page [style*="background:#f9fafb"],
-    .order-create-page [style*="background: #f9fafb"],
-    .order-create-page [style*="background:white"],
-    .order-create-page [style*="background: white"] {
-        background: rgba(255, 255, 255, 0.03) !important;
-        border-color: rgba(83, 197, 224, 0.2) !important;
-    }
-    .order-create-page [style*="color:black"],
-    .order-create-page [style*="color: black"],
-    .order-create-page [style*="color:#1f2937"],
-    .order-create-page [style*="color: #1f2937"],
-    .order-create-page [style*="color:#111827"],
-    .order-create-page [style*="color: #111827"],
-    .order-create-page [style*="color:#4b5563"],
-    .order-create-page [style*="color: #4b5563"] {
-        color: #d9e6ef !important;
-    }
-    .order-create-page [style*="color:#6b7280"],
-    .order-create-page [style*="color: #6b7280"],
-    .order-create-page [style*="color:#64748b"],
-    .order-create-page [style*="color: #64748b"] {
-        color: #9eb4c3 !important;
-    }
-    .order-create-page [style*="border:1px solid #d1d5db"],
-    .order-create-page [style*="border: 1px solid #d1d5db"],
-    .order-create-page [style*="border:1px solid #e5e7eb"],
-    .order-create-page [style*="border: 1px solid #e5e7eb"],
-    .order-create-page [style*="border:2px solid #e5e7eb"],
-    .order-create-page [style*="border: 2px solid #e5e7eb"] {
-        border-color: rgba(83, 197, 224, 0.25) !important;
-    }
-
-    .order-create-page [style*="background:#0a2530"],
-    .order-create-page [style*="background: #0a2530"],
-    .order-create-page [style*="background:black"],
-    .order-create-page [style*="background: black"] {
-        background: linear-gradient(135deg, #53c5e0, #32a1c4) !important;
-        border-color: rgba(255, 255, 255, 0.15) !important;
-        color: #ffffff !important;
-    }
-    .order-create-page button,
-    .order-create-page [type="submit"],
-    .order-create-page [type="button"] {
-        border-radius: 10px !important;
-    }
-
-    @media (max-width: 900px) {
-        .order-create-page .oc-product-card {
-            grid-template-columns: 1fr !important;
-            gap: .85rem;
-        }
-        .order-create-page .oc-product-media {
-            min-height: 180px;
-            max-height: 220px;
-        }
-        .order-create-page .oc-product-title {
-            font-size: 1.2rem !important;
-        }
-        .order-create-page .oc-product-price {
-            font-size: 1.25rem;
-            margin-bottom: .5rem;
-        }
-        .order-create-page .card[style*="grid-template-columns: 1fr 1fr"] {
-            grid-template-columns: 1fr !important;
-        }
-        .order-create-page [style*="display:grid; grid-template-columns:1fr 1fr"] {
-            grid-template-columns: 1fr !important;
-        }
-        .order-create-page [style*="display:grid; grid-template-columns:1fr 1fr 1fr"] {
-            grid-template-columns: 1fr !important;
-        }
-        .order-create-page [style*="padding:2rem"] {
-            padding: 1rem !important;
-        }
-        .order-create-page [style*="padding:1.5rem 2rem"] {
-            padding: 1rem !important;
-        }
     }
 </style>
 

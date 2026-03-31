@@ -140,6 +140,9 @@ $use_customer_css = true;
 require_once __DIR__ . '/../includes/header.php';
 
 $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Active'");
+$_svc = db_query("SELECT hero_image FROM services WHERE customer_link LIKE '%order_sintraboard%' LIMIT 1");
+$display_img = (!empty($_svc) && !empty($_svc[0]['hero_image'])) ? $_svc[0]['hero_image'] : '';
+if ($display_img !== '' && strpos($display_img, 'http') === false && $display_img[0] !== '/') { $display_img = '/' . ltrim($display_img, '/'); }
 $qty_default = (int)($_GET['qty'] ?? 1);
 $qty_default = max(1, min(999, $qty_default));
 $sel_type = $_POST['sintra_type'] ?? $_GET['sintra_type'] ?? '';
@@ -154,17 +157,64 @@ if (!empty($_POST['dimensions']) && preg_match('/^(\d+(?:\.\d+)?)\s*[x×]\s*(\d+
     $other_h = $sintra_dim_m[2];
 }
 ?>
-<div class="min-h-screen py-8 sintra-order-page">
-    <div class="container mx-auto px-4" style="max-width: 640px;">
-        <h1 class="text-2xl font-bold mb-6 sintra-page-title">Sintraboard Standees</h1>
-        <?php if ($error): ?><div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
-        <div class="card sintra-order-card">
-            <form method="POST" enctype="multipart/form-data" id="sintraForm" class="sintra-order-form" novalidate>
-                <?php echo csrf_field(); ?>
+<div class="min-h-screen py-8">
+    <div class="shopee-layout-container">
+        <!-- Breadcrumb -->
+        <div class="text-sm text-gray-500 mb-6 flex items-center gap-2">
+            <a href="services.php" class="hover:text-blue-600">Services</a>
+            <span>/</span>
+            <span class="font-semibold text-gray-900">Sintraboard & Standees</span>
+        </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
-                    <select name="branch_id" id="sintra_branch_id" class="input-field" required>
+        <?php if ($error): ?>
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6"><?php echo htmlspecialchars($error); ?></div>
+        <?php endif; ?>
+
+        <div class="shopee-card">
+            <!-- Left Side: Image -->
+            <div class="shopee-image-section">
+                <div class="sticky top-24">
+                    <div class="shopee-main-image-wrap">
+                        <img src="<?php echo htmlspecialchars($display_img ?: 'https://placehold.co/600x600/f8fafc/0f172a?text=Sintraboard'); ?>" alt="Sintraboard & Standees" class="shopee-main-image" onerror="this.src='https://placehold.co/600x600/f8fafc/0f172a?text=Sintraboard'">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Form -->
+            <div class="shopee-form-section">
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Sintraboard & Standees</h1>
+                
+                <?php
+                $stats = service_order_get_page_stats('order_sintraboard');
+                $raw_avg = (float)($stats['avg_rating'] ?? 0);
+                $review_count = (int)($stats['review_count'] ?? 0);
+                $sold_count = (int)($stats['sold_count'] ?? 0);
+                $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k' : $sold_count;
+                
+                $_s_name = 'PrintFlow Service';
+                $_s_row = db_query("SELECT name FROM services WHERE customer_link LIKE '%order_sintraboard%' LIMIT 1");
+                if(!empty($_s_row)) { $_s_name = $_s_row[0]['name']; }
+                ?>
+                <div class="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+                    <div class="flex items-center gap-1">
+                        <?php for($i=1; $i<=5; $i++): ?>
+                            <svg class="w-4 h-4" style="fill: <?php echo ($i <= round($raw_avg)) ? '#FBBF24' : '#E2E8F0'; ?>;" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <?php endfor; ?>
+                        
+                        <?php if ($review_count > 0): ?>
+                            <a href="reviews.php?service_id=<?php echo $stats['service_id']; ?>" class="text-sm text-gray-500 hover:text-blue-500 hover:underline ml-1 cursor-pointer">(<?php echo number_format($review_count); ?> Reviews)</a>
+                        <?php endif; ?>
+                    </div>
+                    <div class="h-4 w-px bg-gray-200"></div>
+                    <div class="text-sm text-gray-500"><?php echo $sold_display; ?> Sold</div>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" id="sintraForm" novalidate>
+                    <?php echo csrf_field(); ?>
+
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Branch *</label>
+                    <select name="branch_id" id="sintra_branch_id" class="input-field shopee-form-field" required>
                         <?php $branch_post = $_POST['branch_id'] ?? ''; ?>
                         <option value="" disabled <?php echo ($branch_post === '' || $branch_post === null) ? 'selected' : ''; ?>>Select Branch</option>
                         <?php foreach ($branches as $b): ?>
@@ -175,9 +225,9 @@ if (!empty($_POST['dimensions']) && preg_match('/^(\d+(?:\.\d+)?)\s*[x×]\s*(\d+
                     </select>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Sintraboard Type <span class="sintra-req-mark">*</span></label>
-                    <div class="option-grid option-grid-3x2">
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Type *</label>
+                    <div class="shopee-opt-group shopee-form-field">
                         <?php
                         $types = ['Flat Type', '2D Type (with Frame)', 'Standee (Back Stand Support)'];
                         $type_info = [
@@ -188,134 +238,143 @@ if (!empty($_POST['dimensions']) && preg_match('/^(\d+(?:\.\d+)?)\s*[x×]\s*(\d+
                         foreach ($types as $t):
                             $checked = ($sel_type === $t) ? 'checked' : '';
                         ?>
-                        <label class="opt-btn-wrap sintra-type-row" data-info-title="<?php echo htmlspecialchars($t); ?>" data-info-body="<?php echo htmlspecialchars($type_info[$t] ?? ''); ?>">
-                            <input type="radio" name="sintra_type" value="<?php echo htmlspecialchars($t); ?>" <?php echo $checked; ?> onchange="sintraUpdateOptionVisuals(this)">
+                        <label class="shopee-opt-btn sintra-type-row" data-info-title="<?php echo htmlspecialchars($t); ?>" data-info-body="<?php echo htmlspecialchars($type_info[$t] ?? ''); ?>">
+                            <input type="radio" name="sintra_type" value="<?php echo htmlspecialchars($t); ?>" style="display:none;" <?php echo $checked; ?> onchange="sintraUpdateOptionVisuals(this)">
                             <span><?php echo htmlspecialchars($t); ?></span>
                         </label>
                         <?php endforeach; ?>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Dimensions <span class="sintra-req-mark">*</span></label>
-                    <p class="sintra-hint mb-2">Select a preset or enter custom size.</p>
-                    <div class="option-grid option-grid-3x2 sintra-dim-grid">
-                        <?php foreach ($dimension_presets as $label => $d): ?>
-                        <label class="opt-btn-wrap sintra-dim-btn" data-w="<?php echo $d['w']; ?>" data-h="<?php echo $d['h']; ?>">
-                            <input type="radio" name="dimension_preset" value="<?php echo htmlspecialchars($label); ?>" onchange="sintraSelectDimension('<?php echo htmlspecialchars($label); ?>', <?php echo $d['w']; ?>, <?php echo $d['h']; ?>)">
-                            <span><?php echo htmlspecialchars($label); ?> in</span>
-                        </label>
-                        <?php endforeach; ?>
-                        <label class="opt-btn-wrap sintra-dim-btn opt-btn-others" data-others="1">
-                            <input type="radio" name="dimension_preset" value="Others" onchange="sintraSelectDimensionOthers()">
-                            <span>Others</span>
-                        </label>
-                    </div>
-                    <input type="hidden" name="dimensions" id="sintra_dimensions" value="<?php echo htmlspecialchars($_POST['dimensions'] ?? ''); ?>">
-                    <div id="sintraDimOthersWrap" class="sintra-dim-others-wrap" style="display: none;">
-                        <div class="sintra-dim-others-row">
-                            <div class="sintra-dim-others-field">
-                                <label class="sintra-dim-others-label" for="sintra_dim_other_w">WIDTH <span class="sintra-dim-others-unit"><?php echo $sel_unit === 'ft' ? '(FT)' : ($sel_unit === 'in' ? '(IN)' : ''); ?></span></label>
-                                <input type="text" id="sintra_dim_other_w" class="input-field sintra-dim-others-input" inputmode="decimal" placeholder="e.g. 10" value="<?php echo htmlspecialchars($other_w); ?>" autocomplete="off" oninput="sintraSyncDimOthers()">
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Dimensions *</label>
+                    <div class="shopee-form-field">
+                        <div class="shopee-opt-group mb-3">
+                            <?php foreach ($dimension_presets as $label => $d): ?>
+                            <label class="shopee-opt-btn sintra-dim-btn" data-w="<?php echo $d['w']; ?>" data-h="<?php echo $d['h']; ?>">
+                                <input type="radio" name="dimension_preset" value="<?php echo htmlspecialchars($label); ?>" style="display:none;" onchange="sintraSelectDimension('<?php echo htmlspecialchars($label); ?>', <?php echo $d['w']; ?>, <?php echo $d['h']; ?>)">
+                                <span><?php echo htmlspecialchars($label); ?> in</span>
+                            </label>
+                            <?php endforeach; ?>
+                            <label class="shopee-opt-btn sintra-dim-btn" data-others="1">
+                                <input type="radio" name="dimension_preset" value="Others" style="display:none;" onchange="sintraSelectDimensionOthers()">
+                                <span>Others</span>
+                            </label>
+                        </div>
+                        <input type="hidden" name="dimensions" id="sintra_dimensions" value="<?php echo htmlspecialchars($_POST['dimensions'] ?? ''); ?>">
+                        
+                        <div id="sintraDimOthersWrap" class="shopee-form-row" style="display: none; border-top: 1px dashed #eee; padding-top: 1rem; margin-top: 1rem;">
+                            <div class="flex-1">
+                                <label class="dim-label">Width <span class="sintra-dim-others-unit"></span></label>
+                                <input type="text" id="sintra_dim_other_w" class="input-field" inputmode="decimal" placeholder="e.g. 10" value="<?php echo htmlspecialchars($other_w); ?>" oninput="sintraSyncDimOthers()">
                             </div>
-                            <span class="sintra-dim-others-x" aria-hidden="true">×</span>
-                            <div class="sintra-dim-others-field">
-                                <label class="sintra-dim-others-label" for="sintra_dim_other_h">HEIGHT <span class="sintra-dim-others-unit"><?php echo $sel_unit === 'ft' ? '(FT)' : ($sel_unit === 'in' ? '(IN)' : ''); ?></span></label>
-                                <input type="text" id="sintra_dim_other_h" class="input-field sintra-dim-others-input" inputmode="decimal" placeholder="e.g. 12" value="<?php echo htmlspecialchars($other_h); ?>" autocomplete="off" oninput="sintraSyncDimOthers()">
+                            <div class="dim-sep" style="height:44px; display:flex; align-items:center;">×</div>
+                            <div class="flex-1">
+                                <label class="dim-label">Height <span class="sintra-dim-others-unit"></span></label>
+                                <input type="text" id="sintra_dim_other_h" class="input-field" inputmode="decimal" placeholder="e.g. 12" value="<?php echo htmlspecialchars($other_h); ?>" oninput="sintraSyncDimOthers()">
                             </div>
                         </div>
-                    </div>
-                    <div class="mt-3">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Unit <span class="sintra-req-mark">*</span></label>
-                        <div class="opt-btn-group">
-                            <label class="opt-btn-wrap">
-                                <input type="radio" name="unit" value="in" required <?php echo $sel_unit === 'in' ? 'checked' : ''; ?> onchange="sintraUpdateOptionVisuals(this)">
-                                <span>Inches (in)</span>
-                            </label>
-                            <label class="opt-btn-wrap">
-                                <input type="radio" name="unit" value="ft" <?php echo $sel_unit === 'ft' ? 'checked' : ''; ?> onchange="sintraUpdateOptionVisuals(this)">
-                                <span>Feet (ft)</span>
-                            </label>
+
+                        <div class="mt-4">
+                            <label class="dim-label mb-2">Select Unit</label>
+                            <div class="shopee-opt-group">
+                                <label class="shopee-opt-btn">
+                                    <input type="radio" name="unit" value="in" required <?php echo $sel_unit === 'in' ? 'checked' : ''; ?> style="display:none;" onchange="sintraUpdateOptionVisuals(this)">
+                                    <span>Inches (in)</span>
+                                </label>
+                                <label class="shopee-opt-btn">
+                                    <input type="radio" name="unit" value="ft" <?php echo $sel_unit === 'ft' ? 'checked' : ''; ?> style="display:none;" onchange="sintraUpdateOptionVisuals(this)">
+                                    <span>Feet (ft)</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Lamination <span class="sintra-req-mark">*</span></label>
-                    <div class="opt-btn-group">
-                        <label class="opt-btn-wrap">
-                            <input type="radio" name="lamination" value="With Lamination" required <?php echo $sel_lamination === 'With Lamination' ? 'checked' : ''; ?> onchange="sintraUpdateOptionVisuals(this)">
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Laminate *</label>
+                    <div class="shopee-opt-group shopee-form-field">
+                        <label class="shopee-opt-btn">
+                            <input type="radio" name="lamination" value="With Lamination" required <?php echo $sel_lamination === 'With Lamination' ? 'checked' : ''; ?> style="display:none;" onchange="sintraUpdateOptionVisuals(this)">
                             <span>With Lamination</span>
                         </label>
-                        <label class="opt-btn-wrap">
-                            <input type="radio" name="lamination" value="Without Lamination" <?php echo $sel_lamination === 'Without Lamination' ? 'checked' : ''; ?> onchange="sintraUpdateOptionVisuals(this)">
+                        <label class="shopee-opt-btn">
+                            <input type="radio" name="lamination" value="Without Lamination" <?php echo $sel_lamination === 'Without Lamination' ? 'checked' : ''; ?> style="display:none;" onchange="sintraUpdateOptionVisuals(this)">
                             <span>Without Lamination</span>
                         </label>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Layout <span class="sintra-req-mark">*</span></label>
-                    <div class="opt-btn-group">
-                        <label class="opt-btn-wrap">
-                            <input type="radio" name="layout" value="With Layout" required <?php echo $sel_layout === 'With Layout' ? 'checked' : ''; ?> onchange="sintraUpdateOptionVisuals(this)">
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Layout *</label>
+                    <div class="shopee-opt-group shopee-form-field">
+                        <label class="shopee-opt-btn">
+                            <input type="radio" name="layout" value="With Layout" required <?php echo $sel_layout === 'With Layout' ? 'checked' : ''; ?> style="display:none;" onchange="sintraUpdateOptionVisuals(this)">
                             <span>With Layout</span>
                         </label>
-                        <label class="opt-btn-wrap">
-                            <input type="radio" name="layout" value="Without Layout" <?php echo $sel_layout === 'Without Layout' ? 'checked' : ''; ?> onchange="sintraUpdateOptionVisuals(this)">
+                        <label class="shopee-opt-btn">
+                            <input type="radio" name="layout" value="Without Layout" <?php echo $sel_layout === 'Without Layout' ? 'checked' : ''; ?> style="display:none;" onchange="sintraUpdateOptionVisuals(this)">
                             <span>Without Layout</span>
                         </label>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Thickness <span class="sintra-req-mark">*</span></label>
-                    <div class="opt-btn-group opt-btn-group-sintra-3">
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Thickness *</label>
+                    <div class="shopee-opt-group shopee-form-field">
                         <?php foreach (['3mm', '5mm', '10mm'] as $ti => $th): ?>
-                        <label class="opt-btn-wrap">
-                            <input type="radio" name="thickness" value="<?php echo htmlspecialchars($th); ?>" <?php echo $ti === 0 ? 'required' : ''; ?> <?php echo $sel_thickness === $th ? 'checked' : ''; ?> onchange="sintraUpdateOptionVisuals(this)">
+                        <label class="shopee-opt-btn">
+                            <input type="radio" name="thickness" value="<?php echo htmlspecialchars($th); ?>" style="display:none;" <?php echo $ti === 0 ? 'required' : ''; ?> <?php echo $sel_thickness === $th ? 'checked' : ''; ?> onchange="sintraUpdateOptionVisuals(this)">
                             <span><?php echo htmlspecialchars($th); ?></span>
                         </label>
                         <?php endforeach; ?>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Upload Design * (JPG, PNG, PDF - max 5MB)</label>
-                    <input type="file" name="design_file" id="sintra_design_file" accept=".jpg,.jpeg,.png,.pdf" class="input-field" required>
+                <div class="shopee-form-row">
+                    <label class="shopee-form-label">Design *</label>
+                    <input type="file" name="design_file" id="sintra_design_file" accept=".jpg,.jpeg,.png,.pdf" class="input-field shopee-form-field" required>
                 </div>
 
-                <div class="mb-4" id="sintra-need-qty-card">
-                    <div class="need-qty-row">
-                        <div class="need-qty-date">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Needed Date <span class="sintra-req-mark">*</span></label>
-                            <input type="date" name="needed_date" id="sintra_needed_date" class="input-field" value="<?php echo htmlspecialchars($_POST['needed_date'] ?? ''); ?>" required min="<?php echo date('Y-m-d'); ?>">
-                        </div>
-                        <div class="lam-qty-qty need-qty-qty">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Quantity <span class="sintra-req-mark">*</span></label>
-                            <div class="qty-control qty-control-shopee">
-                                <button type="button" onclick="sintraQtyDown()" class="qty-btn">−</button>
-                                <input type="number" name="quantity" id="sintra_quantity" min="1" max="999" value="<?php echo (int)($_POST['quantity'] ?? $qty_default); ?>" oninput="sintraQtyClamp()">
-                                <button type="button" onclick="sintraQtyUp()" class="qty-btn">+</button>
+                <div class="shopee-form-row" id="sintra-need-qty-card">
+                    <label class="shopee-form-label">Order Detail *</label>
+                    <div class="shopee-form-field">
+                        <div class="need-qty-row">
+                            <div class="flex-1">
+                                <label class="dim-label">Needed Date</label>
+                                <input type="date" name="needed_date" id="sintra_needed_date" class="input-field" value="<?php echo htmlspecialchars($_POST['needed_date'] ?? ''); ?>" required min="<?php echo date('Y-m-d'); ?>">
+                            </div>
+                            <div class="flex-1">
+                                <label class="dim-label">Quantity</label>
+                                <div class="shopee-qty-control">
+                                    <button type="button" onclick="sintraQtyDown()" class="shopee-qty-btn">−</button>
+                                    <input type="number" name="quantity" id="sintra_quantity" class="shopee-qty-input" min="1" max="999" value="<?php echo (int)($_POST['quantity'] ?? $qty_default); ?>" oninput="sintraQtyClamp()">
+                                    <button type="button" onclick="sintraQtyUp()" class="shopee-qty-btn">+</button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                    <textarea name="notes" rows="3" class="input-field" placeholder="Any special requests?" maxlength="500"><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
+                <div class="shopee-form-row pt-4">
+                    <label class="shopee-form-label">Notes</label>
+                    <textarea name="notes" rows="3" class="input-field shopee-form-field" placeholder="Any special requests?" maxlength="500"><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
                 </div>
 
-                <div class="tshirt-actions-row">
-                    <a href="<?php echo BASE_URL; ?>/customer/services.php" class="tshirt-btn tshirt-btn-secondary">Back to Services</a>
-                    <button type="submit" name="action" value="add_to_cart" class="tshirt-btn tshirt-btn-secondary">Add to Cart</button>
-                    <button type="submit" name="action" value="buy_now" class="tshirt-btn tshirt-btn-primary">Buy Now</button>
+                <div class="shopee-form-row pt-8">
+                    <div style="width: 130px;"></div>
+                    <div class="flex gap-4 flex-1">
+                        <a href="<?php echo BASE_URL; ?>/customer/services.php" class="shopee-btn-outline" style="flex: 1;">Back</a>
+                        <button type="submit" name="action" value="add_to_cart" class="shopee-btn-outline" style="width:2.75rem;height:2.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;" title="Add to Cart"><svg style="width:1.25rem;height:1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></button>
+                        <button type="submit" name="action" value="buy_now" class="shopee-btn-primary" style="flex: 1.5;">Buy Now</button>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
 </div>
+</div>
+
 
 <div id="sintraTypeInfoModal" class="sintra-info-modal" style="display:none;">
     <div class="sintra-info-modal-backdrop" onclick="sintraCloseInfoModal()"></div>
@@ -439,7 +498,7 @@ function sintraUpdateOthersUnitLabels() {
 function sintraUpdateOptionVisuals(input) {
     const name = input.name;
     document.querySelectorAll('#sintraForm input[name="' + name + '"]').forEach(function(r) {
-        const wrap = r.closest('.opt-btn-wrap');
+        const wrap = r.closest('.shopee-opt-btn');
         if (wrap) { wrap.classList.remove('active'); if (r.checked) wrap.classList.add('active'); }
     });
     if (input && input.name === 'unit') sintraUpdateOthersUnitLabels();
@@ -563,421 +622,30 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-/* ——— Aligned with customer/order_tshirt.php form shell & dark controls ——— */
-.sintra-order-page .sintra-page-title {
-    color: #eaf6fb !important;
-}
-.sintra-order-card.card {
-    background: rgba(10, 37, 48, 0.55);
-    border: 1px solid rgba(83, 197, 224, 0.22);
-    border-radius: 1.25rem;
-    box-shadow: 0 12px 40px rgba(2, 12, 18, 0.35);
-}
-.field-error {
-    margin-top: 0.4rem;
-    font-size: 0.75rem;
-    color: #fca5a5;
-    line-height: 1.3;
-    display: block;
-    width: 100%;
-}
-#sintraForm .mb-4.is-invalid {
-    border-color: rgba(239, 68, 68, 0.35) !important;
-    box-shadow: none !important;
-}
-#sintraForm .mb-4.is-invalid .input-field,
-#sintraForm .mb-4.is-invalid .qty-control {
-    border-color: rgba(239, 68, 68, 0.55) !important;
-}
-#sintraForm .mb-4.is-invalid .opt-btn-wrap {
-    border-color: rgba(239, 68, 68, 0.45) !important;
-}
-.sintra-req-mark {
-    color: #eaf6fb;
-}
-#sintraForm.sintra-order-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    color-scheme: dark;
-}
-#sintraForm .mb-4 {
-    margin-bottom: 0 !important;
-    padding: 1rem;
-    background: rgba(10, 37, 48, 0.48);
-    border: 1px solid rgba(83, 197, 224, 0.22);
-    border-radius: 12px;
-    backdrop-filter: blur(4px);
-}
-#sintraForm label.block {
-    font-size: 0.95rem !important;
-    font-weight: 700 !important;
-    color: #d9e6ef !important;
-    margin-bottom: 0.55rem !important;
-}
-.sintra-hint {
-    font-size: 0.75rem;
-    color: #9fc6d9 !important;
-}
-#sintraForm .input-field {
-    min-height: 44px;
-    padding: 0.72rem 0.9rem;
-    border-radius: 10px;
-    font-size: 0.95rem;
-    width: 100%;
-    box-sizing: border-box;
-    background: rgba(13, 43, 56, 0.92) !important;
-    border: 1px solid rgba(83, 197, 224, 0.26) !important;
-    color: #e9f6fb !important;
-    box-shadow: none !important;
-    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-}
-#sintraForm .input-field::placeholder {
-    color: #a9c1cd !important;
-}
-#sintraForm textarea[name="notes"].input-field {
-    overflow-y: auto;
-    resize: vertical;
-    min-height: 110px;
-    max-height: 220px;
-    max-width: 100%;
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(83, 197, 224, 0.65) rgba(255, 255, 255, 0.08);
-}
-#sintraForm textarea[name="notes"].input-field::-webkit-scrollbar {
-    width: 10px;
-}
-#sintraForm textarea[name="notes"].input-field::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 999px;
-}
-#sintraForm textarea[name="notes"].input-field::-webkit-scrollbar-thumb {
-    background: rgba(83, 197, 224, 0.65);
-    border-radius: 999px;
-    border: 2px solid rgba(10, 37, 48, 0.55);
-}
-#sintraForm textarea[name="notes"].input-field::-webkit-scrollbar-thumb:hover {
-    background: rgba(83, 197, 224, 0.85);
-}
-#sintraForm .input-field:focus,
-#sintraForm .input-field:focus-visible {
-    background: rgba(16, 52, 67, 0.98) !important;
-    border-color: #53c5e0 !important;
-    box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.16) !important;
-    outline: none !important;
-}
-#sintraForm select.input-field option {
-    background: #0a2530 !important;
-    color: #f8fafc !important;
-}
-#sintraForm input[type="radio"] {
-    accent-color: #53c5e0;
-}
-#sintraForm .opt-btn-wrap input {
-    margin-right: 0.5rem;
-}
-#sintraForm .option-grid {
-    display: grid;
-    gap: 0.5rem;
-    width: 100%;
-}
-#sintraForm .option-grid-3x2 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.6rem;
-}
-#sintraForm .sintra-dim-grid .opt-btn-others {
-    grid-column: 2;
-}
-.sintra-dim-others-wrap {
-    margin-top: 0.75rem;
-}
-.sintra-dim-others-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 0.75rem;
-    flex-wrap: nowrap;
-}
-.sintra-dim-others-field {
-    flex: 1;
-    min-width: 0;
-}
-.sintra-dim-others-label {
-    display: block;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    color: #9fc6d9 !important;
-    text-transform: uppercase;
-    margin-bottom: 0.45rem;
-}
-.sintra-dim-others-unit {
-    font-weight: 700;
-    color: #c5dfe9;
-}
-.sintra-dim-others-x {
-    flex: 0 0 auto;
-    padding-bottom: 0.72rem;
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: #d2e7f1;
-    line-height: 1;
-    user-select: none;
-}
-.sintra-dim-others-input {
-    width: 100%;
-    box-sizing: border-box;
-}
-@media (max-width: 480px) {
-    .sintra-dim-others-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .sintra-dim-others-x {
-        align-self: center;
-        padding: 0.35rem 0;
-    }
-}
-#sintraForm .opt-btn-group {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.6rem;
-    width: 100%;
-}
-#sintraForm .opt-btn-group-sintra-3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-#sintraForm .opt-btn-wrap {
-    min-height: 44px;
-    padding: 0.65rem 0.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 0.86rem;
-    text-align: center;
-    line-height: 1.25;
-    box-sizing: border-box;
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1px solid rgba(83, 197, 224, 0.2) !important;
-    color: #d2e7f1 !important;
-    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
-}
-#sintraForm .opt-btn-wrap:hover {
-    background: rgba(83, 197, 224, 0.12) !important;
-    border-color: rgba(83, 197, 224, 0.5) !important;
-    box-shadow: 0 0 0 2px rgba(83, 197, 224, 0.12);
-}
-#sintraForm .opt-btn-wrap:has(input:checked),
-#sintraForm .opt-btn-wrap.active {
-    background: linear-gradient(135deg, rgba(83, 197, 224, 0.28), rgba(50, 161, 196, 0.24)) !important;
-    border-color: #53c5e0 !important;
-    color: #f8fcff !important;
-    box-shadow: 0 0 0 2px rgba(83, 197, 224, 0.22), 0 8px 18px rgba(11, 42, 56, 0.35);
-}
-.sintra-preview-img {
-    max-width: 200px;
-    max-height: 150px;
-    border-radius: 8px;
-    border: 1px solid rgba(83, 197, 224, 0.35);
-    object-fit: contain;
-}
-#sintraForm .need-qty-row {
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-    flex-wrap: wrap;
-}
-#sintraForm .need-qty-date {
-    flex: 1;
-    min-width: 0;
-}
-#sintraForm .need-qty-qty {
-    flex: 1;
-    min-width: 0;
-}
-#sintraForm .need-qty-qty .qty-control-shopee {
-    width: 100%;
-    max-width: none;
-}
-#sintraForm .qty-control {
-    display: flex;
-    align-items: center;
-    height: 42px;
-    border-radius: 10px;
-    overflow: hidden;
-    box-sizing: border-box;
-    background: rgba(13, 43, 56, 0.92) !important;
-    border: 1px solid rgba(83, 197, 224, 0.24) !important;
-}
-#sintraForm .qty-control:focus-within {
-    border-color: #53c5e0 !important;
-    box-shadow: 0 0 0 2px rgba(83, 197, 224, 0.16);
-}
-#sintraForm .qty-btn {
-    flex: 0 0 36px;
-    width: 36px;
-    height: 42px;
-    border: none;
-    background: rgba(83, 197, 224, 0.12) !important;
-    color: #d8edf5 !important;
-    font-weight: 800;
-    font-size: 1.1rem;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-#sintraForm .qty-btn:hover {
-    background: rgba(83, 197, 224, 0.22) !important;
-}
-#sintraForm .qty-control input {
-    flex: 1;
-    min-width: 36px;
-    border: none;
-    text-align: center;
-    font-weight: 700;
-    font-size: 0.95rem;
-    outline: none;
-    background: transparent !important;
-    color: #f8fafc !important;
-    height: 42px;
+/* Service Specific Tweaks */
+.dim-label { font-size: 0.7rem; color: #94a3b8; font-weight: 600; margin-bottom: 4px; display: block; text-transform: uppercase; }
+.need-qty-row { display: flex; gap: 16px; width: 100%; }
+.dim-sep { height: 44px; display: flex; align-items: center; color: #cbd5e1; font-weight: bold; }
+
+@media (max-width: 640px) {
+    .need-qty-row { flex-direction: column; }
 }
 #sintra_quantity::-webkit-outer-spin-button,
-#sintra_quantity::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-#sintra_quantity {
-    -moz-appearance: textfield;
-    appearance: textfield;
-}
-.tshirt-actions-row {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 1.1rem;
-    flex-wrap: wrap;
-}
-.tshirt-btn {
-    height: 46px;
-    min-width: 150px;
-    padding: 0 1.15rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    text-decoration: none;
-    font-size: 0.9rem;
-    font-weight: 700;
-    transition: all 0.2s;
-    box-sizing: border-box;
-}
-.tshirt-btn-secondary {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(83, 197, 224, 0.28) !important;
-    color: #d9e6ef !important;
-}
-.tshirt-btn-secondary:hover {
-    background: rgba(83, 197, 224, 0.14) !important;
-    border-color: rgba(83, 197, 224, 0.52) !important;
-    color: #fff !important;
-}
-.tshirt-btn-primary {
-    border: none;
-    background: linear-gradient(135deg, #53c5e0, #32a1c4) !important;
-    color: #fff !important;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    box-shadow: 0 10px 22px rgba(50, 161, 196, 0.3);
-}
-.tshirt-btn:active {
-    transform: translateY(1px) scale(0.99);
-}
-.sintra-info-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 100000;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-}
-.sintra-info-modal-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(2, 12, 18, 0.62);
-}
-.sintra-info-modal-card {
-    position: relative;
-    width: 100%;
-    max-width: 520px;
-    background: rgba(10, 37, 48, 0.97);
-    border: 1px solid rgba(83, 197, 224, 0.3);
-    border-radius: 14px;
-    padding: 1.2rem 1.25rem 1.1rem;
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
-}
-.sintra-info-modal-close {
-    position: absolute;
-    top: 0.65rem;
-    right: 0.7rem;
-    width: 30px;
-    height: 30px;
-    border-radius: 999px;
-    border: 1px solid rgba(83, 197, 224, 0.35);
-    background: rgba(255, 255, 255, 0.06);
-    color: #d8edf5;
-    font-size: 1.1rem;
-    line-height: 1;
-    cursor: pointer;
-}
-.sintra-info-modal-title {
-    margin: 0 2rem 0.6rem 0;
-    color: #eaf6fb;
-    font-size: 1.05rem;
-    font-weight: 800;
-}
-.sintra-info-modal-body {
-    margin: 0;
-    color: #b9d4df;
-    line-height: 1.55;
-    font-size: 0.92rem;
-}
+#sintra_quantity::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+#sintra_quantity { -moz-appearance: textfield; appearance: textfield; }
+
+.sintra-info-modal { position: fixed; inset: 0; z-index: 100000; display:none; align-items: center; justify-content: center; padding: 1rem; }
+.sintra-info-modal[style*="flex"] { display: flex !important; }
+.sintra-info-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
+.sintra-info-modal-card { position: relative; width: 100%; max-width: 520px; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1.5rem; box-shadow: 0 18px 40px rgba(0,0,0,0.12); }
+.sintra-info-modal-close { position: absolute; top: 0.75rem; right: 0.75rem; width: 30px; height: 30px; border-radius: 999px; border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; font-size: 1.1rem; cursor: pointer; display:flex; align-items:center; justify-content:center; }
+.sintra-info-modal-close:hover { background: #f1f5f9; }
+.sintra-info-modal-title { margin: 0 2rem 0.6rem 0; color: #0f172a; font-size: 1.05rem; font-weight: 800; }
+.sintra-info-modal-body { margin: 0; color: #475569; line-height: 1.6; font-size: 0.92rem; }
+
 @media (max-width: 640px) {
-    #sintraForm .opt-btn-group {
-        grid-template-columns: 1fr;
-    }
-    #sintraForm .opt-btn-group-sintra-3 {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-    #sintraForm .option-grid-3x2 {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    #sintraForm .sintra-dim-grid .opt-btn-others {
-        grid-column: 1 / -1;
-        justify-self: center;
-        width: calc(50% - 0.3rem);
-        max-width: 100%;
-    }
-    #sintraForm .need-qty-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    #sintraForm .need-qty-qty {
-        width: 100%;
-    }
-    #sintraForm .need-qty-qty .qty-control-shopee {
-        width: 100%;
-    }
-    .tshirt-actions-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .tshirt-btn {
-        width: 100%;
-    }
+    .tshirt-actions-row { flex-direction: column; align-items: stretch; }
 }
 </style>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
+

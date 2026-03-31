@@ -90,11 +90,21 @@ try {
     $branch_id = (int)($_SESSION['branch_id'] ?? 1);
     if ($branch_id < 1) $branch_id = 1;
 
+    // Determine order_type based on items (if any has customization, map to custom)
+    $order_type = 'product';
+    $reference_id = $items[0]['id'] ?? null;
+    foreach ($items as $item) {
+        if (!empty($item['customization'])) {
+            $order_type = 'custom';
+            break;
+        }
+    }
+
     $order_result = db_execute(
-        "INSERT INTO orders (customer_id, branch_id, total_amount, amount_paid, status, payment_status, payment_method, payment_reference, order_date, updated_at) 
-         VALUES (?, ?, ?, ?, 'Completed', 'Paid', ?, ?, NOW(), NOW())",
-        'iiddss',
-        [$customer_id, $branch_id, $total_amount, $total_amount, $payment_method, $reference_number]
+        "INSERT INTO orders (customer_id, branch_id, reference_id, total_amount, amount_paid, status, payment_status, payment_method, payment_reference, order_date, updated_at, order_type) 
+         VALUES (?, ?, ?, ?, ?, 'Completed', 'Paid', ?, ?, NOW(), NOW(), ?)",
+        'iiiddsss',
+        [$customer_id, $branch_id, $reference_id, $total_amount, $total_amount, $payment_method, $reference_number, $order_type]
     );
 
     if (!$order_result) {

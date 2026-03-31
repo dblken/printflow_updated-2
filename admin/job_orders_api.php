@@ -60,6 +60,9 @@ try {
                 $sql .= " AND jo.customer_id = ?";
                 $params[] = (int)$_GET['customer_id']; $types .= 'i';
             }
+            
+            // Only fetch job orders that are customizations (if they are linked to an order, the order must not be purely a 'product')
+            $sql .= " AND (jo.order_id IS NULL OR (SELECT o_sub.order_type FROM orders o_sub WHERE o_sub.order_id = jo.order_id) = 'custom')";
             if ($joStaffBranch !== null) {
                 $sql .= " AND COALESCE(jo.branch_id, (SELECT o2.branch_id FROM orders o2 WHERE o2.order_id = jo.order_id LIMIT 1)) = ?";
                 $params[] = $joStaffBranch;
@@ -244,7 +247,7 @@ try {
                     LEFT JOIN order_items oi ON o.order_id = oi.order_id
                     LEFT JOIN products p ON oi.product_id = p.product_id
                     LEFT JOIN customers c ON o.customer_id = c.customer_id
-                    WHERE o.status IN (
+                    WHERE o.order_type = 'custom' AND o.status IN (
                         'Pending', 'Pending Review', 'Pending Approval', 'For Revision',
                         'Approved', 'Design Approved',
                         'To Pay', 'Downpayment Submitted', 'Pending Verification', 'To Verify',

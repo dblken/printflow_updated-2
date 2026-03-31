@@ -258,3 +258,33 @@ function service_order_ensure_tables() {
 
     $done = true;
 }
+
+/**
+ * Fetch real-time sold amount, average rating, and review count for a specific service page.
+ * Uses the customer_link (e.g., 'order_stickers') to find the correct service.
+ */
+function service_order_get_page_stats($keyword) {
+    if (empty($keyword)) return ['sold_count' => 0, 'avg_rating' => 0, 'review_count' => 0];
+    
+    // Exact exclusion rules to prevent "order_glass_stickers" from overriding "order_stickers"
+    $exclude = "AND customer_link NOT LIKE '%order_glass_stickers%' AND customer_link NOT LIKE '%order_transparent%' AND customer_link NOT LIKE '%order_reflectorized%'";
+    if (strpos($keyword, 'order_glass') !== false || strpos($keyword, 'order_transparent') !== false || strpos($keyword, 'order_reflectorized') !== false) {
+        $exclude = ""; 
+    }
+    
+    $row = db_query("SELECT service_id, name FROM services WHERE customer_link LIKE '%" . db_escape($keyword) . "%' $exclude LIMIT 1");
+    if (empty($row)) return ['sold_count' => 0, 'avg_rating' => 0, 'review_count' => 0];
+    
+    $s_id = (int)$row[0]['service_id'];
+    $s_name = $row[0]['name'];
+    
+    $stats = db_query("SELECT 
+        (SELECT COUNT(*) FROM job_orders jo WHERE (jo.service_type LIKE CONCAT('%', ?, '%') OR jo.service_type = ?) AND jo.status != 'CANCELLED') as sold_count,
+        (SELECT AVG(rating) FROM reviews r WHERE r.reference_id = ? AND r.review_type = 'custom') as avg_rating,
+        (SELECT COUNT(*) FROM reviews r WHERE r.reference_id = ? AND r.review_type = 'custom') as review_count
+    ", 'ssii', [$s_name, $s_name, $s_id, $s_id]);
+    
+    $res = $stats[0] ?? ['sold_count' => 0, 'avg_rating' => 0, 'review_count' => 0];
+    $res['service_id'] = $s_id;
+    return $res;
+}

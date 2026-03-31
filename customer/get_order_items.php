@@ -20,7 +20,13 @@ if (!$order_id) {
 }
 
 // Verify order belongs to this customer
-$order_result = db_query("SELECT * FROM orders WHERE order_id = ? AND customer_id = ?", 'ii', [$order_id, $customer_id]);
+$order_result = db_query("
+    SELECT o.*, b.branch_name 
+    FROM orders o 
+    LEFT JOIN branches b ON o.branch_id = b.id 
+    WHERE o.order_id = ? AND o.customer_id = ?
+", 'ii', [$order_id, $customer_id]);
+
 if (empty($order_result)) {
     echo json_encode(['error' => 'Order not found']);
     exit;
@@ -126,13 +132,13 @@ if (!$can_cancel && !in_array($order['status'], ['Cancelled', 'Completed'])) {
 // Rating details
 $rating_data = null;
 if (in_array($order['status'], ['Completed', 'To Rate', 'Rated'], true)) {
-    $rating_res = db_query("SELECT * FROM ratings WHERE order_id = ?", 'i', [$order_id]);
+    $rating_res = db_query("SELECT * FROM reviews WHERE order_id = ?", 'i', [$order_id]);
     if (!empty($rating_res)) {
         $r = $rating_res[0];
         $rating_data = [
             'rating' => (int)$r['rating'],
             'comment' => $r['comment'] ?? '',
-            'image_url' => !empty($r['image']) ? $r['image'] : null,
+            'image_url' => null, // Multiple images handled by review_images table
             'created_at' => format_datetime($r['created_at'])
         ];
     }
@@ -144,6 +150,8 @@ echo json_encode([
     'total_amount'     => format_currency($order['total_amount']),
     'status'           => $order['status'],
     'payment_status'   => $order['payment_status'],
+    'payment_method'   => $order['payment_method'] ?? 'Not Specified',
+    'branch_name'      => $order['branch_name'] ?? 'Not Specified',
     'estimated_comp'   => ($order['estimated_completion'] ?? null) ? format_date($order['estimated_completion']) : 'Waiting for confirmation from the shop',
     'notes'            => $order['notes'] ?? '',
     'cancelled_by'     => $order['cancelled_by'] ?? '',
@@ -157,4 +165,3 @@ echo json_encode([
     'rating_data'      => $rating_data,
     'csrf_token'       => generate_csrf_token()
 ]);
-

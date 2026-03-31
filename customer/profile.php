@@ -224,505 +224,426 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <style>
-/* ── Profile Page Brand-Aligned Refinement ─── */
+/* ── Modern Profile Page (Refactored to Project Specs) ─── */
 :root {
-    --pf-bg-primary: #030d11;
-    --pf-bg-secondary: #0a1f26;
+    --pf-primary: #030d11;
+    --pf-secondary: #0a1f26;
     --pf-accent: #53c5e0;
     --pf-accent-hover: #32a1c4;
-    --pf-text-main: #eaf6fb;
-    --pf-text-muted: #9fc4d4;
-    --pf-border: rgba(83, 197, 224, 0.15);
+    --pf-text-main: #030d11; /* Changed to dark for the white container as requested */
+    --pf-text-muted: #64748b;
+    --pf-border: #e2e8f0;
+    --pf-card-bg: #ffffff;
 }
 
-.profile-page-wrap {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 3rem 1.5rem 5rem;
+/* 1. SINGLE MAIN CONTAINER */
+.profile-container {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 2.5rem;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    overflow: hidden; /* Prevent overflow */
+    box-sizing: border-box;
 }
-.profile-page-title {
-    font-size: 2.25rem;
-    font-weight: 800;
-    color: var(--pf-text-main);
-    margin-bottom: 2.5rem;
-    letter-spacing: -0.03em;
-}
-.profile-layout {
+
+/* 2. LAYOUT STRUCTURE (GRID / FLEX) */
+.profile-grid {
     display: grid;
-    grid-template-columns: 320px 1fr;
-    gap: 3rem;
+    grid-template-columns: 280px 1fr;
+    gap: 2.5rem;
     align-items: start;
 }
-@media (max-width: 1024px) {
-    .profile-layout { grid-template-columns: 1fr; gap: 2rem; }
+
+/* 📱 Responsiveness (Tablet: 992px) */
+@media (max-width: 992px) {
+    .profile-grid { grid-template-columns: 1fr; gap: 2rem; }
+    .profile-container { margin: 20px; padding: 1.5rem; }
 }
 
-/* ─ Sidebar ─ */
+/* ─ SIDEBAR (LEFT SIDE) ─ */
 .profile-sidebar {
     position: sticky;
-    top: 100px;
+    top: 20px;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
 }
-.profile-sidebar-card {
-    background: var(--pf-bg-secondary);
-    border-radius: 20px;
-    padding: 2.5rem 2rem;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    border: 1px solid var(--pf-border);
+
+.sidebar-content {
     text-align: center;
+    padding: 1.5rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid var(--pf-border);
 }
+
 .profile-avatar-wrap {
     position: relative;
     display: inline-block;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
 }
+
 .profile-avatar-ring {
-    width: 120px;
-    height: 120px;
+    width: 130px; height: 130px;
     border-radius: 50%;
     overflow: hidden;
-    border: 1px solid var(--pf-border);
-    background: rgba(255,255,255,0.03);
-    display: flex; align-items: center; justify-content: center;
+    background: #fff;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     margin: 0 auto;
-    transition: all 0.3s ease;
 }
-.profile-avatar-ring img {
-    width: 100%; height: 100%; object-fit: cover;
-}
+
+.profile-avatar-ring img { width: 100%; height: 100%; object-fit: cover; }
+
 .profile-avatar-edit-btn {
     position: absolute;
-    bottom: 2px; right: 2px;
-    width: 36px; height: 36px;
+    bottom: 5px; right: 5px;
+    width: 32px; height: 32px;
     border-radius: 50%;
     background: var(--pf-accent);
     color: #fff;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    transition: all 0.2s;
-    border: 2px solid var(--pf-bg-secondary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    border: 2px solid #fff;
 }
-.profile-avatar-edit-btn:hover { background: var(--pf-accent-hover); transform: scale(1.05); }
 
 .profile-user-name {
-    font-size: 1.35rem;
-    font-weight: 700;
-    color: var(--pf-text-main);
-    margin-bottom: 6px;
+    font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.25rem;
 }
+
 .profile-user-email {
-    font-size: 0.9rem;
-    color: var(--pf-text-muted);
-    word-break: break-all;
+    font-size: 0.875rem; color: #64748b; margin-bottom: 1rem; word-break: break-all;
 }
 
-.profile-nav-card {
-    background: var(--pf-bg-secondary);
-    border-radius: 20px;
-    padding: 0.75rem;
-    border: 1px solid var(--pf-border);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-}
-.profile-nav-list {
-    list-style: none;
-    padding: 0; margin: 0;
-}
-.profile-nav-item a {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--pf-text-muted);
-    text-decoration: none;
-    transition: all 0.2s;
-}
-.profile-nav-item a:hover {
-    background: rgba(255,255,255,0.03);
-    color: var(--pf-text-main);
-}
-.profile-nav-item a.active {
-    background: rgba(83, 197, 224, 0.1);
-    color: var(--pf-accent);
+.profile-info-pill {
+    display: flex; justify-content: space-between; padding: 0.75rem 0;
+    border-top: 1px solid #e2e8f0; font-size: 0.813rem;
 }
 
-/* ─ Cards ─ */
-.pf-card {
-    background: var(--pf-bg-secondary);
-    border-radius: 20px;
-    padding: 3rem;
-    box-shadow: 0 4px 30px rgba(0,0,0,0.2);
-    border: 1px solid var(--pf-border);
-    margin-bottom: 2.5rem;
+/* ─ MAIN CONTENT (RIGHT SIDE) ─ */
+.profile-main-content {
+    display: flex; flex-direction: column; gap: 2rem;
 }
-@media (max-width: 640px) {
-    .pf-card { padding: 1.5rem; }
+
+.profile-card {
+    background: #fff;
+    padding: 0; /* padding handled in card inner */
+    transition: all 0.3s ease;
 }
-.pf-card-header {
-    display: flex;
-    align-items: center;
+
+.profile-card:hover {
+    transform: translateY(-2px);
+}
+
+.profile-card-title {
+    font-size: 1.125rem; font-weight: 700; color: #0f172a; 
+    margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;
+}
+
+/* ─ FORM LAYOUT & ELEMENTS ─ */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.25rem;
-    padding-bottom: 1.5rem;
-    margin-bottom: 2.5rem;
-    border-bottom: 1px solid var(--pf-border);
-}
-.pf-card-icon {
-    width: 48px; height: 48px;
-    border-radius: 14px;
-    background: rgba(255,255,255,0.03);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--pf-accent);
-    border: 1px solid var(--pf-border);
-}
-.pf-card-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--pf-text-main);
-}
-.pf-card-subtitle {
-    font-size: 0.9rem;
-    color: var(--pf-text-muted);
-    margin-top: 4px;
+    box-sizing: border-box;
 }
 
-/* ─ Form elements ─ */
-.pf-label {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--pf-text-muted);
-    margin-bottom: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+/* 📱 Mobile: 576px */
+@media (max-width: 576px) {
+    .form-grid { grid-template-columns: 1fr; }
 }
-.pf-input {
+
+.pf-field-group {
     width: 100%;
-    padding: 14px 18px;
-    border: 1px solid var(--pf-border);
-    border-radius: 12px;
-    font-size: 1rem;
-    color: var(--pf-text-main);
-    background: rgba(0, 0, 0, 0.15);
-    transition: all 0.2s;
 }
+
+.pf-label {
+    display: block; font-size: 0.75rem; font-weight: 700; 
+    color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.025em;
+}
+
+.pf-input {
+    width: 100%; padding: 12px 14px;
+    border: 1px solid #cbd5e1; border-radius: 8px;
+    font-size: 0.95rem; color: #1e293b; background: #fff;
+    box-sizing: border-box; transition: 0.2s;
+}
+
 .pf-input:focus {
-    outline: none;
-    border-color: var(--pf-accent);
-    background: rgba(0,0,0,0.25);
-    box-shadow: 0 0 0 4px rgba(83, 197, 224, 0.15);
+    outline: none; border-color: var(--pf-accent); box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.1);
 }
-.pf-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .pf-btn-primary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 14px 36px;
-    background: var(--pf-accent);
-    color: #030d11;
-    font-size: 1rem;
-    font-weight: 800;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: none;
+    padding: 12px 24px; border-radius: 8px; border: none;
+    background: var(--pf-accent); color: #fff; font-weight: 700;
+    cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px;
 }
+
 .pf-btn-primary:hover { background: var(--pf-accent-hover); transform: translateY(-1px); }
-.pf-btn-primary:active { transform: translateY(0); }
 
-.pf-alert {
-    padding: 16px 20px;
-    border-radius: 12px;
-    margin-bottom: 2rem;
-    font-weight: 500;
+/* Quick Actions Nav */
+.profile-nav-card {
+    background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 0.5rem;
 }
-.pf-alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171; }
-.pf-alert-success { background: rgba(83, 197, 224, 0.1); border: 1px solid rgba(83, 197, 224, 0.2); color: #53c5e0; }
+.profile-nav-list { list-style: none; padding: 0; margin: 0; }
+.profile-nav-item a {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border-radius: 8px; font-weight: 600; color: #64748b; text-decoration: none; transition: 0.2s;
+}
+.profile-nav-item a:hover { background: #fff; color: var(--pf-accent); }
+.profile-nav-item a.active { background: #fff; color: var(--pf-accent); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 
-.live-indicator { font-size: 0.75rem; margin-top: 6px; min-height: 1.2rem; }
-.live-indicator.error { color: #f87171; font-weight: 600; }
-.live-indicator .hint { color: var(--pf-text-muted); opacity: 0.7; }
-#pw-checklist li { color: var(--pf-text-muted); font-size: 0.75rem; }
-#pw-checklist li.ok { color: #4ade80; }
-#pw-checklist li.fail { opacity: 0.6; }
+/* Alerts */
+.pf-alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 2rem; border-left: 4px solid transparent; }
+.pf-alert-error { background: #fef2f2; color: #b91c1c; border-left-color: #ef4444; }
+.pf-alert-success { background: #f0fdf4; color: #15803d; border-left-color: #22c55e; }
 
-/* ── Overriding some legacy stuff ── */
-.req { color: #f87171; margin-left: 2px; }
-.addr-select-wrap select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.25rem; }
+.live-indicator { font-size: 0.75rem; margin-top: 4px; min-height: 1.25rem; transition: 0.2s; }
+.live-indicator.error { color: #dc2626; font-weight: 600; }
 </style>
 
-<div class="min-h-screen py-8">
-  <div class="profile-page-wrap">
-    <h1 class="profile-page-title">My Profile</h1>
+<div class="min-h-screen py-10" style="background: #f1f5f9;">
+    <div class="profile-container">
 
-    <?php if ($error): ?>
-    <div class="pf-alert pf-alert-error" style="margin-bottom:1.5rem;">
-        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10" stroke-width="2"/><path d="M12 8v4m0 4h.01" stroke-width="2" stroke-linecap="round"/></svg>
-        <?php echo htmlspecialchars($error); ?>
-    </div>
-    <?php endif; ?>
-    <?php if ($success): ?>
-    <div class="pf-alert pf-alert-success" style="margin-bottom:1.5rem;">
-        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-        <?php echo htmlspecialchars($success); ?>
-    </div>
-    <?php endif; ?>
-
-    <div class="profile-layout">
-
-      <!-- ── SIDEBAR ── -->
-      <aside class="profile-sidebar">
-        <!-- Avatar card -->
-        <div class="profile-sidebar-card">
-          <div class="profile-avatar-wrap">
-            <div class="profile-avatar-ring">
-              <?php if (!empty($customer['profile_picture'])): ?>
-                <img src="/printflow/public/assets/uploads/profiles/<?php echo htmlspecialchars($customer['profile_picture']); ?>?t=<?php echo time(); ?>" alt="Avatar" id="profile-preview">
-              <?php else: ?>
-                <svg width="46" height="46" fill="none" stroke="#94a3b8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                <img src="" alt="Profile" style="display:none;width:100%;height:100%;object-fit:cover;" id="profile-preview">
-              <?php endif; ?>
-            </div>
-            <label for="profile_picture" class="profile-avatar-edit-btn" title="Change photo">
-              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            </label>
-          </div>
-          <div class="profile-user-name"><?php echo htmlspecialchars(trim($customer['first_name'] . ' ' . $customer['last_name'])); ?></div>
-          <div class="profile-user-email"><?php echo htmlspecialchars($customer['email']); ?></div>
-          <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--pf-border);font-size:0.85rem;color:var(--pf-text-muted);">
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span>Joined</span><span style="color:var(--pf-text-main);font-weight:600;"><?php echo isset($customer['created_at']) ? date('M Y', strtotime($customer['created_at'])) : 'Account member'; ?></span></div>
-            <div style="display:flex;justify-content:space-between;"><span>Account</span><span style="color:#4ade80;font-weight:700;">Verified</span></div>
-          </div>
+        <?php if ($error): ?>
+        <div class="pf-alert pf-alert-error">
+            <strong>Error:</strong> <?php echo htmlspecialchars($error); ?>
         </div>
-        <!-- Nav -->
-        <div class="profile-nav-card">
-          <ul class="profile-nav-list">
-            <li class="profile-nav-item"><a href="#section-profile" class="active">
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-              Profile Info
-            </a></li>
-            <li class="profile-nav-item"><a href="#section-address">
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-              Address
-            </a></li>
-            <li class="profile-nav-item"><a href="#section-password">
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-              Security
-            </a></li>
-          </ul>
+        <?php endif; ?>
+        
+        <?php if ($success): ?>
+        <div class="pf-alert pf-alert-success">
+            <strong>Success:</strong> <?php echo htmlspecialchars($success); ?>
         </div>
-      </aside>
+        <?php endif; ?>
 
-      <!-- ── MAIN CONTENT ── -->
-      <div>
-
-        <!-- Profile Information card -->
-        <div class="pf-card" id="section-profile">
-          <div class="pf-card-header">
-            <div class="pf-card-icon">
-              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-            </div>
-            <div>
-              <div class="pf-card-title">Personal Details</div>
-              <div class="pf-card-subtitle">Manage your identity and contact info</div>
-            </div>
-          </div>
-
-          <form method="POST" action="" enctype="multipart/form-data">
-            <?php echo csrf_field(); ?>
-            <input type="hidden" name="update_profile" value="1">
-            <input type="file" id="profile_picture" name="profile_picture" class="hidden" accept="image/*" style="display:none;"
-                   onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const p=document.getElementById('profile-preview');p.src=e.target.result;p.style.display='block';const ph=document.getElementById('profile-placeholder');if(ph)ph.style.display='none';};r.readAsDataURL(f);}">
-            <div style="display:none;" id="profile-placeholder"></div>
-
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-bottom:1.5rem;">
-              <div>
-                <label for="first_name" class="pf-label">First Name<span class="req">*</span></label>
-                <input type="text" id="first_name" name="first_name" class="pf-input input-field validate-advanced-name" placeholder="First Name" required value="<?php echo htmlspecialchars($customer['first_name']); ?>" maxlength="50">
-                <div class="live-indicator" data-for="first_name"></div>
-              </div>
-              <div>
-                <label for="middle_name" class="pf-label">Middle Name</label>
-                <input type="text" id="middle_name" name="middle_name" class="pf-input input-field validate-advanced-name" placeholder="Middle Name" value="<?php echo htmlspecialchars($customer['middle_name'] ?? ''); ?>" maxlength="50">
-                <div class="live-indicator" data-for="middle_name"></div>
-              </div>
-              <div>
-                <label for="last_name" class="pf-label">Last Name<span class="req">*</span></label>
-                <input type="text" id="last_name" name="last_name" class="pf-input input-field validate-advanced-name" placeholder="Last Name" required value="<?php echo htmlspecialchars($customer['last_name']); ?>" maxlength="50">
-                <div class="live-indicator" data-for="last_name"></div>
-              </div>
-            </div>
-
-            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1.25rem;margin-bottom:1.75rem;">
-              <div>
-                <label for="email" class="pf-label">Email Address</label>
-                <input type="email" id="email" class="pf-input input-field" placeholder="Email" value="<?php echo htmlspecialchars($customer['email']); ?>" disabled>
-                <div style="font-size:0.72rem;color:#94a3b8;margin-top:4px;">Email cannot be changed</div>
-              </div>
-              <div>
-                <label for="contact_number" class="pf-label">Contact Number<span class="req">*</span></label>
-                <input type="tel" id="contact_number" name="contact_number" class="pf-input input-field validate-advanced-contact" placeholder="+639XXXXXXXXX" value="<?php echo htmlspecialchars($customer['contact_number'] ?? ''); ?>" maxlength="13" required>
-                <div class="live-indicator" data-for="contact_number"></div>
-              </div>
-              <div>
-                <label for="dob" class="pf-label">Date of Birth</label>
-                <input type="date" id="dob" name="dob" class="pf-input input-field validate-advanced-dob" value="<?php echo htmlspecialchars($customer['dob'] ?? ''); ?>" max="<?php echo $max_birthday; ?>">
-                <div class="live-indicator" data-for="dob"></div>
-              </div>
-              <div>
-                <label for="gender" class="pf-label">Gender</label>
-                <select id="gender" name="gender" class="pf-input input-field">
-                  <option value="">Select Gender</option>
-                  <option value="Male" <?php echo ($customer['gender'] ?? '') === 'Male' ? 'selected' : ''; ?>>Male</option>
-                  <option value="Female" <?php echo ($customer['gender'] ?? '') === 'Female' ? 'selected' : ''; ?>>Female</option>
-                  <option value="Other" <?php echo ($customer['gender'] ?? '') === 'Other' ? 'selected' : ''; ?>>Other</option>
-                </select>
-              </div>
-            </div>
-
-            <div style="display:flex;justify-content:flex-end;">
-              <button type="submit" id="btn-update-profile" class="pf-btn-primary">
-                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                Save Profile
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Address card -->
-        <div class="pf-card" id="section-address">
-          <div class="pf-card-header">
-            <div class="pf-card-icon">
-              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            </div>
-            <div>
-              <div class="pf-card-title">Default Address</div>
-              <div class="pf-card-subtitle">Used for delivery estimations</div>
-            </div>
-          </div>
-
-          <form method="POST" action="" id="address-form">
-            <?php echo csrf_field(); ?>
-            <input type="hidden" name="update_address" value="1">
-            <div id="addr-alert" style="display:none;padding:12px 16px;border-radius:10px;margin-bottom:1.25rem;font-size:0.875rem;font-weight:500;"></div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
-              <div>
-                <label class="pf-label" for="addr_region">Region</label>
-                <div class="addr-select-wrap">
-                  <select id="addr_region" name="region" class="pf-input input-field addr-select" data-level="region">
-                    <option value="">— Select Region —</option>
-                  </select>
-                  <span class="addr-spinner" id="spin_region"></span>
+        <div class="profile-grid">
+            <!-- ── SIDEBAR (LEFT SIDE) ── -->
+            <aside class="profile-sidebar">
+                <div class="sidebar-content">
+                    <div class="profile-avatar-wrap">
+                        <div class="profile-avatar-ring">
+                            <?php if (!empty($customer['profile_picture'])): ?>
+                                <img src="/printflow/public/assets/uploads/profiles/<?php echo htmlspecialchars($customer['profile_picture']); ?>?t=<?php echo time(); ?>" alt="Avatar" id="profile-preview">
+                            <?php else: ?>
+                                <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f1f5f9;">
+                                    <svg width="48" height="48" fill="none" stroke="#94a3b8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                </div>
+                                <img src="" alt="Profile" style="display:none;width:100%;height:100%;object-fit:cover;" id="profile-preview">
+                            <?php endif; ?>
+                        </div>
+                        <label for="profile_picture" class="profile-avatar-edit-btn" title="Change photo">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        </label>
+                    </div>
+                    <div class="profile-user-name"><?php echo htmlspecialchars(trim($customer['first_name'] . ' ' . $customer['last_name'])); ?></div>
+                    <div class="profile-user-email"><?php echo htmlspecialchars($customer['email']); ?></div>
+                    
+                    <div style="margin-top: 1rem;">
+                        <div class="profile-info-pill">
+                            <span>Since</span>
+                            <span style="font-weight:700;color:#0f172a;"><?php echo isset($customer['created_at']) ? date('M Y', strtotime($customer['created_at'])) : '2026'; ?></span>
+                        </div>
+                        <div class="profile-info-pill" style="border-bottom: none;">
+                            <span>Status</span>
+                            <span style="font-weight:700;color:#16a34a;">Verified</span>
+                        </div>
+                    </div>
                 </div>
-              </div>
-              <div>
-                <label class="pf-label" for="addr_province">Province</label>
-                <div class="addr-select-wrap">
-                  <select id="addr_province" name="province" class="pf-input input-field addr-select" data-level="province" disabled>
-                    <option value="">— Select Province —</option>
-                  </select>
-                  <span class="addr-spinner" id="spin_province"></span>
+
+                <nav class="profile-nav-card">
+                    <ul class="profile-nav-list">
+                        <li class="profile-nav-item"><a href="#section-profile" class="active">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                            Profile Info
+                        </a></li>
+                        <li class="profile-nav-item"><a href="#section-address">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            Address Book
+                        </a></li>
+                        <li class="profile-nav-item"><a href="#section-password">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            Security
+                        </a></li>
+                    </ul>
+                </nav>
+            </aside>
+
+            <!-- ── MAIN CONTENT (RIGHT SIDE) ── -->
+            <div class="profile-main-content">
+
+                <!-- Personal Information -->
+                <div class="profile-card" id="section-profile">
+                    <h3 class="profile-card-title">Personal Information</h3>
+                    
+                    <form method="POST" action="" enctype="multipart/form-data">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="update_profile" value="1">
+                        <input type="file" id="profile_picture" name="profile_picture" class="hidden" accept="image/*" style="display:none;"
+                               onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const p=document.getElementById('profile-preview');p.src=e.target.result;p.style.display='block';};r.readAsDataURL(f);}">
+
+                        <div class="form-grid">
+                            <div class="pf-field-group">
+                                <label for="first_name" class="pf-label">First Name</label>
+                                <input type="text" id="first_name" name="first_name" class="pf-input validate-advanced-name" required value="<?php echo htmlspecialchars($customer['first_name']); ?>" maxlength="50">
+                                <div class="live-indicator" data-for="first_name"></div>
+                            </div>
+                            <div class="pf-field-group">
+                                <label for="middle_name" class="pf-label">Middle Name</label>
+                                <input type="text" id="middle_name" name="middle_name" class="pf-input validate-advanced-name" value="<?php echo htmlspecialchars($customer['middle_name'] ?? ''); ?>" maxlength="50">
+                                <div class="live-indicator" data-for="middle_name"></div>
+                            </div>
+                            <div class="pf-field-group">
+                                <label for="last_name" class="pf-label">Last Name</label>
+                                <input type="text" id="last_name" name="last_name" class="pf-input validate-advanced-name" required value="<?php echo htmlspecialchars($customer['last_name']); ?>" maxlength="50">
+                                <div class="live-indicator" data-for="last_name"></div>
+                            </div>
+                            <div class="pf-field-group">
+                                <label class="pf-label">Email Address (Locked)</label>
+                                <input type="email" class="pf-input" style="background:#f1f5f9; cursor:not-allowed;" value="<?php echo htmlspecialchars($customer['email']); ?>" readonly>
+                            </div>
+                            <div class="pf-field-group">
+                                <label for="contact_number" class="pf-label">Contact Number</label>
+                                <input type="tel" id="contact_number" name="contact_number" class="pf-input validate-advanced-contact" placeholder="+639XXXXXXXXX" value="<?php echo htmlspecialchars($customer['contact_number'] ?? ''); ?>" maxlength="13" required>
+                                <div class="live-indicator" data-for="contact_number"></div>
+                            </div>
+                            <div class="pf-field-group">
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                    <div>
+                                        <label for="dob" class="pf-label">Birthday</label>
+                                        <input type="date" id="dob" name="dob" class="pf-input validate-advanced-dob" value="<?php echo htmlspecialchars($customer['dob'] ?? ''); ?>" max="<?php echo $max_birthday; ?>">
+                                        <div class="live-indicator" data-for="dob"></div>
+                                    </div>
+                                    <div>
+                                        <label for="gender" class="pf-label">Gender</label>
+                                        <select id="gender" name="gender" class="pf-input">
+                                            <option value="">Select</option>
+                                            <option value="Male" <?php echo ($customer['gender'] ?? '') === 'Male' ? 'selected' : ''; ?>>Male</option>
+                                            <option value="Female" <?php echo ($customer['gender'] ?? '') === 'Female' ? 'selected' : ''; ?>>Female</option>
+                                            <option value="Other" <?php echo ($customer['gender'] ?? '') === 'Other' ? 'selected' : ''; ?>>Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+                            <button type="submit" id="btn-update-profile" class="pf-btn-primary">Save Changes</button>
+                        </div>
+                    </form>
                 </div>
-              </div>
-              <div>
-                <label class="pf-label" for="addr_city">City / Municipality</label>
-                <div class="addr-select-wrap">
-                  <select id="addr_city" name="city" class="pf-input input-field addr-select" data-level="city" disabled>
-                    <option value="">— Select City / Municipality —</option>
-                  </select>
-                  <span class="addr-spinner" id="spin_city"></span>
+
+                <!-- Address Section -->
+                <div class="profile-card" id="section-address" style="padding-top: 2rem; border-top: 1px solid #e2e8f0;">
+                    <h3 class="profile-card-title">Address & Delivery</h3>
+                    
+                    <form method="POST" action="" id="address-form">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="update_address" value="1">
+                        
+                        <div class="form-grid">
+                            <div class="pf-field-group">
+                                <label class="pf-label" for="addr_region">Region</label>
+                                <div class="addr-select-wrap">
+                                    <select id="addr_region" name="region" class="pf-input addr-select" data-level="region">
+                                        <option value="">— Select Region —</option>
+                                    </select>
+                                    <span class="addr-spinner" id="spin_region"></span>
+                                </div>
+                            </div>
+                            <div class="pf-field-group">
+                                <label class="pf-label" for="addr_province">Province</label>
+                                <div class="addr-select-wrap">
+                                    <select id="addr_province" name="province" class="pf-input addr-select" data-level="province" disabled>
+                                        <option value="">— Select Province —</option>
+                                    </select>
+                                    <span class="addr-spinner" id="spin_province"></span>
+                                </div>
+                            </div>
+                            <div class="pf-field-group">
+                                <label class="pf-label" for="addr_city">City / Municipality</label>
+                                <div class="addr-select-wrap">
+                                    <select id="addr_city" name="city" class="pf-input addr-select" data-level="city" disabled>
+                                        <option value="">— Select City / Municipality —</option>
+                                    </select>
+                                    <span class="addr-spinner" id="spin_city"></span>
+                                </div>
+                            </div>
+                            <div class="pf-field-group">
+                                <label class="pf-label" for="addr_barangay">Barangay</label>
+                                <div class="addr-select-wrap">
+                                    <select id="addr_barangay" name="barangay" class="pf-input addr-select" data-level="barangay" disabled>
+                                        <option value="">— Select Barangay —</option>
+                                    </select>
+                                    <span class="addr-spinner" id="spin_barangay"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 1.25rem;">
+                            <label class="pf-label" for="addr_street">Street Name, House No., Building Info</label>
+                            <input type="text" id="addr_street" name="street_address" class="pf-input" placeholder="e.g. #123 Sampaguita st., Phase 2" value="<?php echo htmlspecialchars($customer['street_address'] ?? ''); ?>">
+                        </div>
+
+                        <div id="addr-preview" style="display:none; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem; margin-top:1.5rem; font-size:0.875rem;">
+                            <span style="color:#64748b; font-weight:600; display:block; margin-bottom:4px;">Delivery Summary</span>
+                            <div id="addr-preview-text" style="color:#0f172a; line-height:1.4;"></div>
+                        </div>
+
+                        <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+                            <button type="submit" class="pf-btn-primary">Update Address</button>
+                        </div>
+                    </form>
                 </div>
-              </div>
-              <div>
-                <label class="pf-label" for="addr_barangay">Barangay</label>
-                <div class="addr-select-wrap">
-                  <select id="addr_barangay" name="barangay" class="pf-input input-field addr-select" data-level="barangay" disabled>
-                    <option value="">— Select Barangay —</option>
-                  </select>
-                  <span class="addr-spinner" id="spin_barangay"></span>
+
+                <!-- Security Section -->
+                <div class="profile-card" id="section-password" style="padding-top: 2rem; border-top: 1px solid #e2e8f0;">
+                    <h3 class="profile-card-title">Security & Password</h3>
+                    
+                    <form method="POST" action="">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="change_password" value="1">
+
+                        <div class="form-grid">
+                            <div class="pf-field-group">
+                                <label for="current_password" class="pf-label">Current Password</label>
+                                <input type="password" id="current_password" name="current_password" class="pf-input" placeholder="Enter current password" required>
+                            </div>
+                            <div class="pf-field-group">
+                                <!-- empty column for alignment or extra info -->
+                                <div style="font-size:0.813rem; color:#64748b; padding-top:2rem;">
+                                    Confirm your identity to make security changes.
+                                </div>
+                            </div>
+                            <div class="pf-field-group">
+                                <label for="new_password" class="pf-label">New Password</label>
+                                <input type="password" id="new_password" name="new_password" class="pf-input" placeholder="8+ characters" required minlength="8">
+                                <ul id="pw-checklist" style="list-style:none; padding:10px 0 0; margin:0; display:flex; flex-wrap:wrap; gap:6px;">
+                                    <li id="pw-rule-len" style="font-size:0.625rem; padding:3px 8px; background:#f1f5f9; border-radius:4px; color:#94a3b8;">8+ chars</li>
+                                    <li id="pw-rule-upper" style="font-size:0.625rem; padding:3px 8px; background:#f1f5f9; border-radius:4px; color:#94a3b8;">Uppercase</li>
+                                    <li id="pw-rule-num" style="font-size:0.625rem; padding:3px 8px; background:#f1f5f9; border-radius:4px; color:#94a3b8;">Number</li>
+                                </ul>
+                            </div>
+                            <div class="pf-field-group">
+                                <label for="confirm_password" class="pf-label">Confirm New Password</label>
+                                <input type="password" id="confirm_password" name="confirm_password" class="pf-input" placeholder="Repeat new password" required minlength="8">
+                                <p id="pw-match-indicator" style="font-size:0.75rem; margin-top:6px; font-weight:600;"></p>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+                            <button type="submit" class="pf-btn-primary">Update Password</button>
+                        </div>
+                    </form>
                 </div>
-              </div>
-            </div>
 
-            <div style="margin-bottom:1.25rem;">
-              <label class="pf-label" for="addr_street">House No. / Lot / Block / Street</label>
-              <input type="text" id="addr_street" name="street_address" class="pf-input input-field"
-                     placeholder="e.g. 123 Sampaguita St., Brgy. Poblacion"
-                     value="<?php echo htmlspecialchars($customer['street_address'] ?? ''); ?>">
-            </div>
-
-            <div id="addr-preview" style="display:none;background:rgba(83,197,224,0.05);border:1px solid rgba(83,197,224,0.2);border-radius:12px;padding:16px;margin-bottom:1.5rem;font-size:0.9rem;color:var(--pf-text-main);">
-              <strong>Delivery Destination:</strong> <span id="addr-preview-text" style="color:var(--pf-accent);"></span>
-            </div>
-
-            <div style="display:flex;justify-content:flex-end;">
-              <button type="submit" class="pf-btn-primary">
-                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                Save Address
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Change Password card -->
-        <div class="pf-card" id="section-password">
-          <div class="pf-card-header">
-            <div class="pf-card-icon">
-              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-            </div>
-            <div>
-              <div class="pf-card-title">Security Settings</div>
-              <div class="pf-card-subtitle">Keep your account guarded</div>
-            </div>
-          </div>
-
-          <form method="POST" action="">
-            <?php echo csrf_field(); ?>
-            <input type="hidden" name="change_password" value="1">
-
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-bottom:1.75rem;">
-              <div>
-                <label for="current_password" class="pf-label">Current Password<span class="req">*</span></label>
-                <input type="password" id="current_password" name="current_password" class="pf-input input-field" placeholder="••••••••" required>
-              </div>
-              <div>
-                <label for="new_password" class="pf-label">New Password<span class="req">*</span></label>
-                <input type="password" id="new_password" name="new_password" class="pf-input input-field" placeholder="••••••••" required minlength="8">
-                <ul id="pw-checklist" style="display:none;">
-                  <li id="pw-rule-len" class="fail"><span class="ck">✗</span> 8–64 chars</li>
-                  <li id="pw-rule-upper" class="fail"><span class="ck">✗</span> Uppercase</li>
-                  <li id="pw-rule-lower" class="fail"><span class="ck">✗</span> Lowercase</li>
-                  <li id="pw-rule-num" class="fail"><span class="ck">✗</span> Number</li>
-                  <li id="pw-rule-spec" class="fail"><span class="ck">✗</span> Special char</li>
-                </ul>
-              </div>
-              <div>
-                <label for="confirm_password" class="pf-label">Confirm Password<span class="req">*</span></label>
-                <input type="password" id="confirm_password" name="confirm_password" class="pf-input input-field" placeholder="••••••••" required minlength="8">
-                <p class="text-[11px] font-bold mt-2" id="pw-match-indicator" style="font-size:0.72rem;margin-top:4px;"></p>
-              </div>
-            </div>
-
-            <div style="display:flex;justify-content:flex-end;">
-              <button type="submit" class="pf-btn-primary">
-                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                Change Password
-              </button>
-            </div>
-          </form>
-        </div>
-
-      </div><!-- /main -->
-    </div><!-- /layout -->
-  </div><!-- /wrap -->
-</div>
+            </div><!-- /main -->
+        </div><!-- /profile-grid -->
+    </div><!-- /profile-container -->
+</div><!-- /min-h-screen -->
 
 <style>
 /* ── password checklist styles already in page head ── */

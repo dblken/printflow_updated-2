@@ -59,9 +59,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_order'])) {
 
                 $notes = $item['customization']['notes'] ?? $item['customization']['additional_notes'] ?? null;
                 $branch_id = $item['branch_id'] ?? null;
-                $order_sql = "INSERT INTO orders (customer_id, branch_id, order_date, total_amount, downpayment_amount, status, payment_status, payment_type, notes)
-                              VALUES (?, ?, NOW(), ?, ?, 'Pending Review', ?, ?, ?)";
-                $order_id  = db_execute($order_sql, 'iiddsss', [$customer_id, $branch_id, $subtotal, $downpayment_amount, $payment_status, $payment_type, $notes]);
+                
+                $order_type = 'product';
+                $reference_id = $item['product_id'] ?? null;
+                if (($item['type'] ?? '') === 'Service' || !empty($item['customization'])) {
+                    $order_type = 'custom';
+                }
+                
+                $order_sql = "INSERT INTO orders (customer_id, branch_id, reference_id, order_date, total_amount, downpayment_amount, status, payment_status, payment_type, notes, order_type)
+                              VALUES (?, ?, ?, NOW(), ?, ?, 'Pending Review', ?, ?, ?, ?)";
+                $order_id  = db_execute($order_sql, 'iiiddssss', [$customer_id, $branch_id, $reference_id, $subtotal, $downpayment_amount, $payment_status, $payment_type, $notes, $order_type]);
 
                 if ($order_id) {
                     $custom = $item['customization'] ?? [];

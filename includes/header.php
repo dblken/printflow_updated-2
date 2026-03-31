@@ -62,7 +62,7 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
     <?php endif; ?>
 
     <!-- Core Libraries (Turbo & Alpine) -->
-    <script src="https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.13/dist/turbo.es2017-umd.js" defer></script>
+    <script src="<?php echo $asset_base; ?>/assets/js/turbo.min.js" defer></script>
     <script src="<?php echo $asset_base; ?>/assets/js/alpine.min.js" defer></script>
     <script src="<?php echo $asset_base; ?>/assets/js/alpine-init-helper.js"></script>
     <script src="<?php echo $asset_base; ?>/assets/js/turbo-init.js" defer></script>
@@ -73,7 +73,7 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
         a:hover { text-decoration: none; }
         body { margin: 0; background: #f9fafb; color: #111827; font-family: Inter, system-ui, sans-serif; }
         /* Internal pages: landing-like transparent header by default */
-        body:not(.lp-page) #main-header { background: transparent !important; box-shadow: none !important; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.10); }
+        body:not(.lp-page) #main-header { box-shadow: none !important; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.10); }
         
         /* Transparent hero nav for landing page only */
         body.lp-page #main-header.lp-hero-nav:not(.sticky-active) { background: transparent !important; border-bottom-color: rgba(255,255,255,0.1) !important; box-shadow: none !important; }
