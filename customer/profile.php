@@ -9,6 +9,115 @@ require_once __DIR__ . '/../includes/functions.php';
 
 require_role('Customer');
 
+// Handle address API requests inline (same as admin profile)
+if (isset($_GET['address_action'])) {
+    header('Content-Type: application/json');
+    header('Cache-Control: public, max-age=86400'); // Cache for 24 hours
+
+    $fetchJson = static function (string $url): array {
+        $cacheDir = sys_get_temp_dir() . '/psgc_cache';
+        if (!is_dir($cacheDir)) @mkdir($cacheDir, 0755, true);
+        
+        $cachePath = $cacheDir . '/' . md5($url) . '.json';
+        
+        // Check cache first (24 hour cache)
+        if (file_exists($cachePath) && (time() - filemtime($cachePath) < 86400)) {
+            $cached = file_get_contents($cachePath);
+            if ($cached) return json_decode($cached, true);
+        }
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_HTTPHEADER => ['Accept: application/json']
+            ]);
+            $body = curl_exec($ch);
+            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err = curl_error($ch);
+            curl_close($ch);
+            if ($body === false || $httpCode >= 400) {
+                throw new RuntimeException($err ?: ('Address data request failed (' . $httpCode . ')'));
+            }
+        } else {
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'header' => "Accept: application/json\r\n",
+                    'timeout' => 10,
+                ]
+            ]);
+            $body = @file_get_contents($url, false, $context);
+            if ($body === false) {
+                throw new RuntimeException('Unable to fetch address data.');
+            }
+        }
+
+        $decoded = json_decode($body, true);
+        if (!is_array($decoded)) {
+            throw new RuntimeException('Invalid address dataset response.');
+        }
+        
+        @file_put_contents($cachePath, $body);
+        return $decoded;
+    };
+
+    try {
+        $base = 'https://psgc.gitlab.io/api';
+        $action = $_GET['address_action'] ?? '';
+
+        if ($action === 'provinces') {
+            $rows = $fetchJson($base . '/provinces/');
+            $data = array_map(static fn($r) => [
+                'code' => (string)($r['code'] ?? ''),
+                'name' => (string)($r['name'] ?? ''),
+            ], $rows);
+            usort($data, static fn($a, $b) => strcasecmp($a['name'], $b['name']));
+            echo json_encode(['success' => true, 'data' => $data]);
+            exit;
+        }
+
+        if ($action === 'cities') {
+            $provinceCode = preg_replace('/[^0-9]/', '', (string)($_GET['province_code'] ?? ''));
+            if ($provinceCode === '') {
+                throw new RuntimeException('Province code is required.');
+            }
+            $rows = $fetchJson($base . '/provinces/' . rawurlencode($provinceCode) . '/cities-municipalities/');
+            $data = array_map(static fn($r) => [
+                'code' => (string)($r['code'] ?? ''),
+                'name' => (string)($r['name'] ?? ''),
+            ], $rows);
+            usort($data, static fn($a, $b) => strcasecmp($a['name'], $b['name']));
+            echo json_encode(['success' => true, 'data' => $data]);
+            exit;
+        }
+
+        if ($action === 'barangays') {
+            $cityCode = preg_replace('/[^0-9]/', '', (string)($_GET['city_code'] ?? ''));
+            if ($cityCode === '') {
+                throw new RuntimeException('City/Municipality code is required.');
+            }
+            $rows = $fetchJson($base . '/cities-municipalities/' . rawurlencode($cityCode) . '/barangays/');
+            $data = array_map(static fn($r) => [
+                'code' => (string)($r['code'] ?? ''),
+                'name' => (string)($r['name'] ?? ''),
+            ], $rows);
+            usort($data, static fn($a, $b) => strcasecmp($a['name'], $b['name']));
+            echo json_encode(['success' => true, 'data' => $data]);
+            exit;
+        }
+
+        throw new RuntimeException('Invalid address action.');
+    } catch (Throwable $e) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit;
+    }
+}
+
 $customer_id = get_user_id();
 $error = '';
 $success = '';
@@ -216,6 +325,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     }
 }
 
+// Ensure ID verification columns exist
+global $conn;
+if (empty(db_query("SHOW COLUMNS FROM customers LIKE 'id_status'"))) {
+    $conn->query("ALTER TABLE customers ADD COLUMN id_image VARCHAR(255) DEFAULT NULL, ADD COLUMN id_type VARCHAR(100) DEFAULT NULL, ADD COLUMN id_status ENUM('None','Pending','Verified','Rejected') DEFAULT 'None', ADD COLUMN id_reject_reason VARCHAR(255) DEFAULT NULL");
+}
+
+// Handle ID upload
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_id'])) {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid request.';
+    } elseif (empty($_FILES['id_image']['tmp_name']) || $_FILES['id_image']['error'] !== UPLOAD_ERR_OK) {
+        $error = 'Please select an ID image to upload.';
+    } else {
+        $finfo2 = new finfo(FILEINFO_MIME_TYPE);
+        $mime2 = $finfo2->file($_FILES['id_image']['tmp_name']);
+        if (!in_array($mime2, ['image/jpeg','image/png','image/webp'])) {
+            $error = 'ID image must be JPG, PNG, or WEBP.';
+        } elseif ($_FILES['id_image']['size'] > 5 * 1024 * 1024) {
+            $error = 'ID image must be under 5MB.';
+        } else {
+            $id_type = sanitize($_POST['id_type'] ?? '');
+            if (empty($id_type)) {
+                $error = 'Please select an ID type.';
+            } else {
+                $ext2 = pathinfo($_FILES['id_image']['name'], PATHINFO_EXTENSION);
+                $fname2 = 'id_customer_' . $customer_id . '_' . time() . '.' . $ext2;
+                $id_dir = __DIR__ . '/../uploads/ids/';
+                if (!is_dir($id_dir)) mkdir($id_dir, 0755, true);
+                if (move_uploaded_file($_FILES['id_image']['tmp_name'], $id_dir . $fname2)) {
+                    db_execute("UPDATE customers SET id_image=?, id_type=?, id_status='Pending', id_reject_reason=NULL WHERE customer_id=?", 'ssi', [$fname2, $id_type, $customer_id]);
+                    $success = 'ID submitted for verification. We will review it shortly.';
+                    $customer = db_query("SELECT * FROM customers WHERE customer_id=?", 'i', [$customer_id])[0];
+                } else {
+                    $error = 'Failed to upload ID image.';
+                }
+            }
+        }
+    }
+}
+
 $max_birthday = date('Y-m-d', strtotime('-13 years'));
 
 $page_title = 'My Profile - PrintFlow';
@@ -238,7 +387,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 /* 1. SINGLE MAIN CONTAINER */
 .profile-container {
-    max-width: 1200px;
+    max-width: 1100px;
     margin: 40px auto;
     padding: 2.5rem;
     background: #fff;
@@ -312,10 +461,12 @@ require_once __DIR__ . '/../includes/header.php';
 
 .profile-user-name {
     font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.25rem;
+    word-wrap: break-word; overflow-wrap: break-word; word-break: break-word;
 }
 
 .profile-user-email {
-    font-size: 0.875rem; color: #64748b; margin-bottom: 1rem; word-break: break-all;
+    font-size: 0.875rem; color: #64748b; margin-bottom: 1rem; 
+    word-wrap: break-word; overflow-wrap: break-word; word-break: break-all;
 }
 
 .profile-info-pill {
@@ -377,12 +528,26 @@ require_once __DIR__ . '/../includes/header.php';
 }
 
 .pf-btn-primary {
-    padding: 12px 24px; border-radius: 8px; border: none;
-    background: var(--pf-accent); color: #fff; font-weight: 700;
-    cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 24px;
+    border-radius: 3px;
+    border: none;
+    background: #0a2530;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    text-decoration: none;
 }
 
-.pf-btn-primary:hover { background: var(--pf-accent-hover); transform: translateY(-1px); }
+.pf-btn-primary:hover {
+    opacity: 0.9;
+}
 
 /* Quick Actions Nav */
 .profile-nav-card {
@@ -449,27 +614,17 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                         <div class="profile-info-pill" style="border-bottom: none;">
                             <span>Status</span>
-                            <span style="font-weight:700;color:#16a34a;">Verified</span>
+                            <?php
+                            $id_st = $customer['id_status'] ?? 'None';
+                            $st_color = $id_st==='Verified' ? '#16a34a' : ($id_st==='Pending' ? '#b45309' : ($id_st==='Rejected' ? '#b91c1c' : '#64748b'));
+                            $st_label = $id_st==='Verified' ? 'ID Verified' : ($id_st==='Pending' ? 'Pending Review' : ($id_st==='Rejected' ? 'ID Rejected' : 'Unverified'));
+                            ?>
+                            <span style="font-weight:700;color:<?php echo $st_color;?>"><?php echo $st_label; ?></span>
                         </div>
                     </div>
                 </div>
 
-                <nav class="profile-nav-card">
-                    <ul class="profile-nav-list">
-                        <li class="profile-nav-item"><a href="#section-profile" class="active">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                            Profile Info
-                        </a></li>
-                        <li class="profile-nav-item"><a href="#section-address">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            Address Book
-                        </a></li>
-                        <li class="profile-nav-item"><a href="#section-password">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                            Security
-                        </a></li>
-                    </ul>
-                </nav>
+
             </aside>
 
             <!-- ── MAIN CONTENT (RIGHT SIDE) ── -->
@@ -544,27 +699,18 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="update_address" value="1">
                         
-                        <div class="form-grid">
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;">
                             <div class="pf-field-group">
-                                <label class="pf-label" for="addr_region">Region</label>
+                                <label class="pf-label" for="addr_province">Province *</label>
                                 <div class="addr-select-wrap">
-                                    <select id="addr_region" name="region" class="pf-input addr-select" data-level="region">
-                                        <option value="">— Select Region —</option>
-                                    </select>
-                                    <span class="addr-spinner" id="spin_region"></span>
-                                </div>
-                            </div>
-                            <div class="pf-field-group">
-                                <label class="pf-label" for="addr_province">Province</label>
-                                <div class="addr-select-wrap">
-                                    <select id="addr_province" name="province" class="pf-input addr-select" data-level="province" disabled>
+                                    <select id="addr_province" name="province" class="pf-input addr-select" data-level="province">
                                         <option value="">— Select Province —</option>
                                     </select>
                                     <span class="addr-spinner" id="spin_province"></span>
                                 </div>
                             </div>
                             <div class="pf-field-group">
-                                <label class="pf-label" for="addr_city">City / Municipality</label>
+                                <label class="pf-label" for="addr_city">City / Municipality *</label>
                                 <div class="addr-select-wrap">
                                     <select id="addr_city" name="city" class="pf-input addr-select" data-level="city" disabled>
                                         <option value="">— Select City / Municipality —</option>
@@ -573,7 +719,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 </div>
                             </div>
                             <div class="pf-field-group">
-                                <label class="pf-label" for="addr_barangay">Barangay</label>
+                                <label class="pf-label" for="addr_barangay">Barangay *</label>
                                 <div class="addr-select-wrap">
                                     <select id="addr_barangay" name="barangay" class="pf-input addr-select" data-level="barangay" disabled>
                                         <option value="">— Select Barangay —</option>
@@ -603,14 +749,20 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="profile-card" id="section-password" style="padding-top: 2rem; border-top: 1px solid #e2e8f0;">
                     <h3 class="profile-card-title">Security & Password</h3>
                     
-                    <form method="POST" action="">
+                    <form method="POST" action="" novalidate>
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="change_password" value="1">
 
                         <div class="form-grid">
-                            <div class="pf-field-group">
+                            <div class="pf-field-group" id="group_current_password">
                                 <label for="current_password" class="pf-label">Current Password</label>
-                                <input type="password" id="current_password" name="current_password" class="pf-input" placeholder="Enter current password" required>
+                                <div class="password-wrapper">
+                                    <input type="password" id="current_password" name="current_password" class="pf-input" placeholder="Enter current password">
+                                    <button type="button" class="password-toggle" onclick="togglePassword('current_password', this)">
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    </button>
+                                </div>
+                                <div class="error-message" id="error_current_password">Current password is required.</div>
                             </div>
                             <div class="pf-field-group">
                                 <!-- empty column for alignment or extra info -->
@@ -618,19 +770,25 @@ require_once __DIR__ . '/../includes/header.php';
                                     Confirm your identity to make security changes.
                                 </div>
                             </div>
-                            <div class="pf-field-group">
+                            <div class="pf-field-group" id="group_new_password">
                                 <label for="new_password" class="pf-label">New Password</label>
-                                <input type="password" id="new_password" name="new_password" class="pf-input" placeholder="8+ characters" required minlength="8">
-                                <ul id="pw-checklist" style="list-style:none; padding:10px 0 0; margin:0; display:flex; flex-wrap:wrap; gap:6px;">
-                                    <li id="pw-rule-len" style="font-size:0.625rem; padding:3px 8px; background:#f1f5f9; border-radius:4px; color:#94a3b8;">8+ chars</li>
-                                    <li id="pw-rule-upper" style="font-size:0.625rem; padding:3px 8px; background:#f1f5f9; border-radius:4px; color:#94a3b8;">Uppercase</li>
-                                    <li id="pw-rule-num" style="font-size:0.625rem; padding:3px 8px; background:#f1f5f9; border-radius:4px; color:#94a3b8;">Number</li>
-                                </ul>
+                                <div class="password-wrapper">
+                                    <input type="password" id="new_password" name="new_password" class="pf-input" placeholder="8+ characters" minlength="8">
+                                    <button type="button" class="password-toggle" onclick="togglePassword('new_password', this)">
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    </button>
+                                </div>
+                                <div class="error-message" id="error_new_password">Invalid password format.</div>
                             </div>
-                            <div class="pf-field-group">
+                            <div class="pf-field-group" id="group_confirm_password">
                                 <label for="confirm_password" class="pf-label">Confirm New Password</label>
-                                <input type="password" id="confirm_password" name="confirm_password" class="pf-input" placeholder="Repeat new password" required minlength="8">
-                                <p id="pw-match-indicator" style="font-size:0.75rem; margin-top:6px; font-weight:600;"></p>
+                                <div class="password-wrapper">
+                                    <input type="password" id="confirm_password" name="confirm_password" class="pf-input" placeholder="Repeat new password" minlength="8">
+                                    <button type="button" class="password-toggle" onclick="togglePassword('confirm_password', this)">
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    </button>
+                                </div>
+                                <div class="error-message" id="error_confirm_password">Passwords do not match.</div>
                             </div>
                         </div>
 
@@ -638,6 +796,80 @@ require_once __DIR__ . '/../includes/header.php';
                             <button type="submit" class="pf-btn-primary">Update Password</button>
                         </div>
                     </form>
+                </div>
+
+                <!-- ID Verification Section -->
+                <?php
+                $id_status = $customer['id_status'] ?? 'None';
+                $id_type   = $customer['id_type'] ?? '';
+                $id_image  = $customer['id_image'] ?? '';
+                $id_reject = $customer['id_reject_reason'] ?? '';
+                $status_colors = [
+                    'None'     => ['#64748b','#f1f5f9','Not Submitted'],
+                    'Pending'  => ['#b45309','#fffbeb','Under Review'],
+                    'Verified' => ['#15803d','#f0fdf4','Verified ✓'],
+                    'Rejected' => ['#b91c1c','#fef2f2','Rejected'],
+                ];
+                [$sc,$sbg,$slabel] = $status_colors[$id_status] ?? $status_colors['None'];
+                ?>
+                <div class="profile-card" id="section-id" style="padding-top:2rem;border-top:1px solid #e2e8f0;">
+                    <h3 class="profile-card-title">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0"/></svg>
+                        ID Verification
+                        <span style="font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:99px;background:<?php echo $sbg;?>;color:<?php echo $sc;?>;margin-left:8px;"><?php echo $slabel; ?></span>
+                    </h3>
+
+                    <?php if ($id_status === 'Rejected'): ?>
+                    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin-bottom:1.25rem;font-size:0.875rem;color:#b91c1c;">
+                        <strong>Rejected:</strong> <?php echo htmlspecialchars($id_reject ?: 'Your ID was rejected. Please resubmit a clearer photo.'); ?>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if ($id_status === 'Verified'): ?>
+                    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;font-size:0.9rem;color:#15803d;">
+                        <strong>✓ Your identity has been verified.</strong> You can now place orders.
+                    </div>
+                    <?php else: ?>
+                    <p style="font-size:0.875rem;color:#64748b;margin-bottom:1.25rem;">Upload a valid government-issued ID to verify your identity before placing orders.</p>
+
+                    <?php if (!empty($id_image) && $id_status === 'Pending'): ?>
+                    <div style="margin-bottom:1.25rem;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:0.875rem;color:#92400e;">
+                        ⏳ Your ID is currently under review. We'll notify you once it's approved.
+                    </div>
+                    <?php endif; ?>
+
+                    <form method="POST" enctype="multipart/form-data">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="upload_id" value="1">
+                        <div class="form-grid">
+                            <div class="pf-field-group">
+                                <label class="pf-label">ID Type *</label>
+                                <select name="id_type" class="pf-input" required>
+                                    <option value="">— Select ID Type —</option>
+                                    <?php foreach (['Philippine Passport','Driver\'s License','SSS ID','PhilHealth ID','Postal ID','Voter\'s ID','PRC ID','National ID (PhilSys)','UMID','Senior Citizen ID','PWD ID','Barangay ID'] as $idt): ?>
+                                    <option value="<?php echo htmlspecialchars($idt); ?>" <?php echo $id_type===$idt?'selected':''; ?>><?php echo htmlspecialchars($idt); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="pf-field-group">
+                                <label class="pf-label">ID Photo * <span style="font-weight:400;color:#94a3b8;">(JPG/PNG, max 5MB)</span></label>
+                                <input type="file" name="id_image" accept="image/jpeg,image/png,image/webp" class="pf-input" style="padding:8px;" required onchange="previewIdImage(this)">
+                            </div>
+                        </div>
+                        <div id="id-preview-wrap" style="display:none;margin-top:1rem;">
+                            <img id="id-preview-img" src="" style="max-height:180px;border-radius:8px;border:1px solid #e2e8f0;">
+                        </div>
+                        <?php if (!empty($id_image)): ?>
+                        <div style="margin-top:1rem;">
+                            <p style="font-size:0.75rem;color:#64748b;margin-bottom:6px;">Previously submitted:</p>
+                            <img src="/printflow/uploads/ids/<?php echo htmlspecialchars($id_image); ?>" style="max-height:140px;border-radius:8px;border:1px solid #e2e8f0;">
+                        </div>
+                        <?php endif; ?>
+                        <div style="margin-top:1.5rem;display:flex;justify-content:flex-end;">
+                            <button type="submit" class="pf-btn-primary"><?php echo $id_status==='Rejected'?'Resubmit ID':'Submit ID for Verification'; ?></button>
+                        </div>
+                    </form>
+                    <?php endif; ?>
                 </div>
 
             </div><!-- /main -->
@@ -709,27 +941,85 @@ require_once __DIR__ . '/../includes/header.php';
 .live-indicator .hint { color: #6b7280; font-weight: 400; }
 .input-field.input-valid { border-color: #16a34a; box-shadow: 0 0 0 1px rgba(22,163,74,0.3); }
 .input-field.input-error { border-color: #dc2626; box-shadow: 0 0 0 1px rgba(220,38,38,0.3); }
+
+/* Password validation */
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.password-wrapper input {
+    padding-right: 45px !important;
+    width: 100%;
+}
+/* Hide browser default password toggle */
+.password-wrapper input::-ms-reveal,
+.password-wrapper input::-ms-clear {
+    display: none;
+}
+.password-wrapper input::-webkit-credentials-auto-fill-button,
+.password-wrapper input::-webkit-contacts-auto-fill-button {
+    visibility: hidden;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+}
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    transition: color 0.2s;
+    z-index: 10;
+    outline: none;
+}
+.password-toggle:focus {
+    outline: none;
+    border: none;
+}
+.password-toggle:hover {
+    color: #53C5E0;
+}
+.pf-field-group.is-invalid .pf-input {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2;
+}
+.error-message {
+    color: #ef4444;
+    font-size: 11px;
+    margin-top: 4px;
+    display: none;
+    font-weight: 500;
+}
+.pf-field-group.is-invalid .error-message {
+    display: block;
+}
 </style>
 
 <script>
 (function () {
     // ── Saved values from PHP (for pre-selection) ──
     const SAVED = {
-        region:        <?php echo json_encode($customer['region']   ?? null); ?>,
-        province:      <?php echo json_encode($customer['province'] ?? null); ?>,
+        province:      <?php echo json_encode($customer['province']   ?? null); ?>,
         city:          <?php echo json_encode($customer['city']     ?? null); ?>,
         barangay:      <?php echo json_encode($customer['barangay'] ?? null); ?>,
     };
 
-    const API = '/printflow/customer/api_address.php';
+    const API = 'profile.php';
 
-    const selRegion   = document.getElementById('addr_region');
     const selProvince = document.getElementById('addr_province');
     const selCity     = document.getElementById('addr_city');
     const selBarangay = document.getElementById('addr_barangay');
 
     const spinOf = {
-        region:   document.getElementById('spin_region'),
         province: document.getElementById('spin_province'),
         city:     document.getElementById('spin_city'),
         barangay: document.getElementById('spin_barangay'),
@@ -781,12 +1071,24 @@ require_once __DIR__ . '/../includes/header.php';
 
     // ── Update address preview box ──
     function updatePreview() {
-        const parts = [
-            selBarangay.value, selCity.value,
-            selProvince.value, selRegion.value
-        ].filter(Boolean);
-        const street = document.getElementById('addr_street').value.trim();
-        if (street) parts.unshift(street);
+        const addressLineInput = document.getElementById('addr_street');
+        const barangaySelect = selBarangay;
+        const citySelect = selCity;
+        const provinceSelect = selProvince;
+        const addressPreview = preview;
+        
+        if (!addressLineInput || !barangaySelect || !citySelect || !provinceSelect || !addressPreview) return;
+        var parts = [];
+        var line = addressLineInput.value.trim();
+        var barangay = barangaySelect.value.trim();
+        var city = citySelect.value.trim();
+        var province = provinceSelect.value.trim();
+
+        if (line) parts.push(line);
+        if (barangay) parts.push('Brgy. ' + barangay);
+        if (city) parts.push(city);
+        if (province) parts.push(province);
+        parts.push('Philippines');
 
         if (parts.length > 1) {
             previewText.textContent = parts.join(', ');
@@ -796,58 +1098,48 @@ require_once __DIR__ . '/../includes/header.php';
         }
     }
 
-    // ── FETCH regions ──
-    async function loadRegions() {
-        spin('region', true);
-        selRegion.disabled = true;
-        try {
-            const res  = await fetch(`${API}?action=regions`);
-            const data = await res.json();
-            if (data.success) {
-                populate(selRegion, data.data, '— Select Region —', SAVED.region, 'region');
-                selRegion.disabled = false;
-                // Auto-cascade if a saved region exists
-                if (SAVED.region && selectedCode(selRegion)) {
-                    await loadProvinces(selectedCode(selRegion), true);
-                }
-            }
-        } catch(e) { console.error('Addr: regions', e); }
-        spin('region', false);
-    }
-
     // ── FETCH provinces ──
-    async function loadProvinces(regionCode, auto) {
+    async function loadProvinces() {
         spin('province', true);
-        reset(selCity,     '— Select City / Municipality —');
-        reset(selBarangay, '— Select Barangay —');
+        selProvince.disabled = true;
+        selProvince.innerHTML = '<option value="">Loading provinces...</option>';
         try {
-            const res  = await fetch(`${API}?action=provinces&region=${regionCode}`);
+            const res  = await fetch(`${API}?address_action=provinces`);
             const data = await res.json();
             if (data.success) {
-                populate(selProvince, data.data, '— Select Province —', auto ? SAVED.province : null, 'province');
-                if (auto && SAVED.province && selectedCode(selProvince)) {
+                populate(selProvince, data.data, '— Select Province —', SAVED.province, 'province');
+                selProvince.disabled = false;
+                if (SAVED.province && selectedCode(selProvince)) {
                     await loadCities(selectedCode(selProvince), true);
                 }
             }
-        } catch(e) { console.error('Addr: provinces', e); }
+        } catch(e) { 
+            console.error('Addr: provinces', e); 
+            selProvince.innerHTML = '<option value="">Failed to load provinces</option>';
+        }
         spin('province', false);
-        updatePreview();
     }
 
     // ── FETCH cities ──
     async function loadCities(provinceCode, auto) {
         spin('city', true);
+        selCity.innerHTML = '<option value="">Loading cities...</option>';
+        selCity.disabled = true;
         reset(selBarangay, '— Select Barangay —');
         try {
-            const res  = await fetch(`${API}?action=cities&province=${provinceCode}`);
+            const res  = await fetch(`${API}?address_action=cities&province_code=${provinceCode}`);
             const data = await res.json();
             if (data.success) {
                 populate(selCity, data.data, '— Select City / Municipality —', auto ? SAVED.city : null, 'city');
+                selCity.disabled = false;
                 if (auto && SAVED.city && selectedCode(selCity)) {
                     await loadBarangays(selectedCode(selCity), true);
                 }
             }
-        } catch(e) { console.error('Addr: cities', e); }
+        } catch(e) { 
+            console.error('Addr: cities', e); 
+            selCity.innerHTML = '<option value="">Failed to load cities</option>';
+        }
         spin('city', false);
         updatePreview();
     }
@@ -855,26 +1147,22 @@ require_once __DIR__ . '/../includes/header.php';
     // ── FETCH barangays ──
     async function loadBarangays(cityCode, auto) {
         spin('barangay', true);
+        selBarangay.innerHTML = '<option value="">Loading barangays...</option>';
+        selBarangay.disabled = true;
         try {
-            const res  = await fetch(`${API}?action=barangays&city=${cityCode}`);
+            const res  = await fetch(`${API}?address_action=barangays&city_code=${cityCode}`);
             const data = await res.json();
             if (data.success) {
                 populate(selBarangay, data.data, '— Select Barangay —', auto ? SAVED.barangay : null, 'barangay');
+                selBarangay.disabled = false;
             }
-        } catch(e) { console.error('Addr: barangays', e); }
+        } catch(e) { 
+            console.error('Addr: barangays', e); 
+            selBarangay.innerHTML = '<option value="">Failed to load barangays</option>';
+        }
         spin('barangay', false);
         updatePreview();
     }
-
-    // ── Event: Region changed ──
-    selRegion.addEventListener('change', function () {
-        reset(selProvince, '— Select Province —');
-        reset(selCity,     '— Select City / Municipality —');
-        reset(selBarangay, '— Select Barangay —');
-        updatePreview();
-        const code = selectedCode(this);
-        if (code) loadProvinces(code, false);
-    });
 
     // ── Event: Province changed ──
     selProvince.addEventListener('change', function () {
@@ -899,8 +1187,8 @@ require_once __DIR__ . '/../includes/header.php';
     // ── Event: Street changed ──
     document.getElementById('addr_street').addEventListener('input', updatePreview);
 
-    // ── Boot: load all regions on page load ──
-    loadRegions();
+    // ── Boot: load all provinces on page load ──
+    loadProvinces();
 })();
 </script>
 
@@ -1154,10 +1442,150 @@ require_once __DIR__ . '/../includes/header.php';
         });
     }
 
-    // Password fields (keeping existing logic but integrating with indicators if needed)
-    // [Existing password logic continues below...]
-})();
-</script>
+    // Password validation
+    const passwordForm = document.querySelector('form[action=""]');
+    const passwordFieldIds = ['current_password', 'new_password', 'confirm_password'];
+    const passwordTouched = { current_password: false, new_password: false, confirm_password: false };
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+    const passwordValidators = {
+        new_password: (val) => {
+            if (!val) return "New password is required.";
+            if (val.length < 8) return "Password must be at least 8 characters.";
+            if (val.length > 100) return "Password must be at most 100 characters.";
+            if (!/[A-Z]/.test(val)) return "Password must have an uppercase letter.";
+            if (!/[a-z]/.test(val)) return "Password must have a lowercase letter.";
+            if (!/[0-9]/.test(val)) return "Password must have a number.";
+            if (!/[^A-Za-z0-9]/.test(val)) return "Password must have a special character.";
+            if (/\s/.test(val)) return "Password must not contain spaces.";
+            return null;
+        }
+    };
+
+    function clearPasswordValidationState(id) {
+        const group = document.getElementById('group_' + id);
+        if (!group) return;
+        group.classList.remove('is-invalid');
+    }
+
+    function validatePasswordField(id, validator, options = {}) {
+        const input = document.getElementById(id);
+        const group = document.getElementById('group_' + id);
+        const error = document.getElementById('error_' + id);
+        if (!input || !group || !error) return true;
+
+        const val = input.value || '';
+        const trimmed = val.trim();
+
+        if (options.skipEmpty && trimmed === '') {
+            clearPasswordValidationState(id);
+            return true;
+        }
+        if (options.onlyWhenTouched && !options.isTouched) {
+            clearPasswordValidationState(id);
+            return false;
+        }
+
+        const errorMessage = validator(trimmed);
+        if (errorMessage) {
+            group.classList.add('is-invalid');
+            error.textContent = errorMessage;
+            return false;
+        }
+
+        group.classList.remove('is-invalid');
+        return true;
+    }
+
+    function checkPassword(force = false) {
+        const current = document.getElementById('current_password');
+        const newPass = document.getElementById('new_password');
+        const confirm = document.getElementById('confirm_password');
+        if (!current || !newPass || !confirm) return;
+
+        const hasAnyInput = (current.value + newPass.value + confirm.value).trim().length > 0;
+        const mustValidate = force || hasAnyInput || Object.values(passwordTouched).some(Boolean);
+
+        if (!mustValidate) {
+            passwordFieldIds.forEach(clearPasswordValidationState);
+            return;
+        }
+
+        const currentValid = validatePasswordField('current_password', (val) => !val ? 'Current password is required.' : null, {
+            onlyWhenTouched: !force,
+            isTouched: passwordTouched.current_password || current.value.length > 0
+        });
+
+        const nValid = validatePasswordField('new_password', passwordValidators.new_password, {
+            onlyWhenTouched: !force,
+            isTouched: passwordTouched.new_password || newPass.value.length > 0
+        });
+
+        const cGroup = document.getElementById('group_confirm_password');
+        const cError = document.getElementById('error_confirm_password');
+        if (!cGroup || !cError) return;
+
+        let confirmValid = false;
+        if (!force && !passwordTouched.confirm_password && confirm.value === '') {
+            clearPasswordValidationState('confirm_password');
+        } else if (!confirm.value) {
+            cGroup.classList.add('is-invalid');
+            cError.textContent = "Confirm new password is required.";
+        } else if (confirm.value !== newPass.value) {
+            cGroup.classList.add('is-invalid');
+            cError.textContent = "Passwords do not match.";
+        } else {
+            cGroup.classList.remove('is-invalid');
+            confirmValid = true;
+        }
+    }
+
+    // Attach password field listeners
+    passwordFieldIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', () => { passwordTouched[id] = true; checkPassword(); });
+        el.addEventListener('blur', () => { passwordTouched[id] = true; checkPassword(); });
+    });
+
+    // Password form submit validation
+    const passwordFormEl = document.querySelector('form input[name="change_password"]')?.closest('form');
+    if (passwordFormEl) {
+        passwordFormEl.addEventListener('submit', function(e) {
+            checkPassword(true);
+            const hasErrors = passwordFieldIds.some(id => {
+                const group = document.getElementById('group_' + id);
+                return group && group.classList.contains('is-invalid');
+            });
+            if (hasErrors) {
+                e.preventDefault();
+            }
+        });
+    }
+
+    checkPassword(false);
+
+    // Password toggle function
+    window.togglePassword = function(fieldId, button) {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        
+        if (field.type === 'password') {
+            field.type = 'text';
+            button.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>';
+        } else {
+            field.type = 'password';
+            button.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>';
+        }
+    };
+})();
+function previewIdImage(input) {
+    const wrap = document.getElementById('id-preview-wrap');
+    const img  = document.getElementById('id-preview-img');
+    if (input.files && input.files[0]) {
+        const r = new FileReader();
+        r.onload = e => { img.src = e.target.result; wrap.style.display = 'block'; };
+        r.readAsDataURL(input.files[0]);
+    }
+}
+</script>
 

@@ -22,19 +22,19 @@ if ($service_id > 0) {
 }
 
 $sql = "
-    SELECT r.id, r.order_id, r.rating, r.comment as message, r.video_path, r.created_at, r.service_type,
+    SELECT r.id, r.order_id, r.rating, r.message, r.video_path, r.created_at, r.service_type,
            COALESCE(c.first_name, u.first_name) as first_name,
            COALESCE(c.last_name, u.last_name) as last_name
     FROM reviews r
-    LEFT JOIN customers c ON c.customer_id = r.user_id
-    LEFT JOIN users u ON u.user_id = r.user_id
+    LEFT JOIN customers c ON c.customer_id = r.customer_id
+    LEFT JOIN users u ON u.user_id = r.customer_id
     WHERE 1=1
 ";
 $params = [];
 $types = '';
 
 if ($service_id > 0) {
-    $sql .= " AND r.reference_id = ? AND r.review_type = 'custom'";
+    $sql .= " AND r.service_type COLLATE utf8mb4_unicode_ci IN (SELECT name COLLATE utf8mb4_unicode_ci FROM services WHERE service_id = ?)";
     $params[] = $service_id;
     $types .= 'i';
 } elseif (!empty($display_service)) {
@@ -62,6 +62,18 @@ if (!empty($reviews_list)) {
     $rcount = count($reviews_list);
 }
 
+// Ensure helpful table exists
+global $conn;
+$conn->query("CREATE TABLE IF NOT EXISTS review_helpful (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    review_id INT NOT NULL,
+    user_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_review_user (review_id, user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+$current_user_id = is_logged_in() ? get_user_id() : 0;
+
 // Fetch images and replies for all shown reviews
 $reviews_final = [];
 foreach ($reviews_list as $r) {
@@ -74,7 +86,13 @@ foreach ($reviews_list as $r) {
         WHERE rr.review_id = ?
         ORDER BY rr.created_at ASC
     ", 'i', [$rid]) ?: [];
-    
+    $helpful_count = db_query("SELECT COUNT(*) as cnt FROM review_helpful WHERE review_id = ?", 'i', [$rid]);
+    $r['helpful_count'] = (int)($helpful_count[0]['cnt'] ?? 0);
+    $r['helpful_voted'] = false;
+    if ($current_user_id > 0) {
+        $voted = db_query("SELECT id FROM review_helpful WHERE review_id = ? AND user_id = ?", 'ii', [$rid, $current_user_id]);
+        $r['helpful_voted'] = !empty($voted);
+    }
     $r['images'] = $images;
     $r['replies'] = $replies;
     $reviews_final[] = $r;
@@ -125,6 +143,12 @@ require_once __DIR__ . '/../includes/header.php';
 .rv-modal img { max-width: 95vw; max-height: 85vh; border-radius: 12px; box-shadow: 0 30px 60px rgba(0,0,0,0.6); transform: scale(0.9); transition: transform 0.3s ease; }
 .rv-modal.open img { transform: scale(1); }
 .rv-modal-close { position: absolute; top: 20px; right: 20px; color: #fff; background: rgba(0,0,0,0.6); border: none; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; font-size: 24px; display: flex; align-items: center; justify-content: center; }
+.rv-helpful-btn { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: none; color: #6e98aa; font-size: 0.85rem; font-weight: 700; padding: 4px 0; cursor: pointer; transition: all 0.2s; margin-top: 1rem; }
+.rv-helpful-btn:hover { color: #fff; }
+.rv-helpful-btn .helpful-icon { color: #6e98aa; transition: color 0.2s; font-size: 1.1rem; }
+.rv-helpful-btn.voted .helpful-icon { color: #f97316; }
+.rv-helpful-btn.voted .helpful-label { display: none; }
+.rv-helpful-btn:not(.voted) .helpful-count-num { display: none; }
 </style>
 
 <div class="rv-wrap">
@@ -204,6 +228,13 @@ require_once __DIR__ . '/../includes/header.php';
                         <p class="rv-reply-msg"><?php echo nl2br(htmlspecialchars($reply['reply_message'])); ?></p>
                     </div>
                 <?php endforeach; ?>
+
+                <button class="rv-helpful-btn <?php echo $review['helpful_voted'] ? 'voted' : ''; ?>"
+                    onclick="toggleHelpful(this, <?php echo $review['id']; ?>)">
+                    <span class="helpful-icon">👍</span>
+                    <span class="helpful-label">Helpful</span>
+                    <span class="helpful-count-num"><?php echo $review['helpful_count']; ?></span>
+                </button>
             </div>
             <?php endforeach; ?>
         </div>
@@ -272,6 +303,28 @@ function closeLightbox(e) {
     }, 300);
 }
 document.addEventListener('keydown', e => { if(e.key === 'Escape') closeLightbox(); });
+
+async function toggleHelpful(btn, reviewId) {
+    <?php if (!is_logged_in()): ?>
+    window.location.href = '/printflow/public/login.php';
+    return;
+    <?php endif; ?>
+    const res = await fetch('/printflow/public/api/review_helpful.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'review_id=' + reviewId
+    });
+    const data = await res.json();
+    if (!data.success) return;
+    const countEl = btn.querySelector('.helpful-count-num');
+    if (data.voted) {
+        btn.classList.add('voted');
+        countEl.textContent = data.count;
+    } else {
+        btn.classList.remove('voted');
+        countEl.textContent = data.count;
+    }
+}
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

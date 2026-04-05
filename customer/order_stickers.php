@@ -405,13 +405,8 @@ function checkStickersFormValid() {
 
 var stickersFormEl = document.getElementById('stickersForm');
 if (stickersFormEl) {
-    stickersFormEl.addEventListener('submit', function(e) {
-        window.__stickersValidationTriggered = true;
-        if (!checkStickersFormValid()) {
-            e.preventDefault();
-            return false;
-        }
-    });
+// Form validation is handled by the global order_validation.js
+// No manual submit intercept needed for basic validation
     stickersFormEl.addEventListener('change', checkStickersFormValid);
     stickersFormEl.addEventListener('input', checkStickersFormValid);
     stickersFormEl.addEventListener('invalid', function(e) { e.preventDefault(); }, true);

@@ -11,6 +11,36 @@ define('REPORTS_DASHBOARD_QUERIES_LOADED', true);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/branch_context.php';
 
+/** Simple trend-based 3-month forecast from a historical array. */
+function pf_forecast3(array $hist): array {
+    $n = count($hist);
+    if ($n < 3) return array_fill(0, 3, 0);
+    $last3 = array_slice($hist, -3);
+    $avg   = array_sum($last3) / 3.0;
+    $slope = ($last3[2] - $last3[0]) / 2.0;
+    $fore  = [];
+    for ($i = 1; $i <= 3; $i++) {
+        $fore[] = max(0, (int) round($avg + $slope * $i));
+    }
+    return $fore;
+}
+
+/** Single-step linear regression forecast for revenue/orders. */
+function pf_linreg(array $values): float {
+    $n = count($values);
+    if ($n < 2) return max(0, (float)end($values));
+    $sumX = $sumY = $sumXY = $sumXX = 0;
+    for ($i = 0; $i < $n; $i++) {
+        $sumX += $i; $sumY += $values[$i];
+        $sumXY += $i * $values[$i]; $sumXX += $i * $i;
+    }
+    $d = $n * $sumXX - $sumX * $sumX;
+    if ($d == 0) return max(0, array_sum($values) / $n);
+    $slope = ($n * $sumXY - $sumX * $sumY) / $d;
+    $b     = ($sumY - $slope * $sumX) / $n;
+    return max(0, round($b + $slope * $n, 2));
+}
+
 /** True if branch filter has any orders or job_orders (lifetime). */
 function pf_reports_branch_has_activity($branchId): bool {
     try {
@@ -193,6 +223,23 @@ function pf_reports_top_products_merged(string $from, string $toEnd, $branchId, 
 
     try {
         [$b, $bt, $bp] = branch_where_parts('o', $branchId);
+        $datePart = "";
+        $dParams = [];
+        $dTypes = "";
+        if ($from !== '' && $toEnd !== '') {
+            $datePart = " AND o.order_date BETWEEN ? AND ?";
+            $dParams = [$from, $toEnd];
+            $dTypes = "ss";
+        } elseif ($from !== '') {
+            $datePart = " AND o.order_date >= ?";
+            $dParams = [$from];
+            $dTypes = "s";
+        } elseif ($toEnd !== '') {
+            $datePart = " AND o.order_date <= ?";
+            $dParams = [$toEnd];
+            $dTypes = "s";
+        }
+
         $rows = db_query(
             "SELECT p.product_id, p.name AS product_name,
                     SUM(oi.quantity) as qty_sold,
@@ -200,10 +247,10 @@ function pf_reports_top_products_merged(string $from, string $toEnd, $branchId, 
              FROM order_items oi
              JOIN products p ON oi.product_id = p.product_id
              JOIN orders o ON oi.order_id = o.order_id
-             WHERE o.order_date BETWEEN ? AND ? AND o.payment_status = 'Paid'$b
+             WHERE o.payment_status = 'Paid' {$datePart} {$b}
              GROUP BY p.product_id, p.name",
-            'ss' . $bt,
-            array_merge([$from, $toEnd], $bp)
+            $dTypes . $bt,
+            array_merge($dParams, $bp)
         ) ?: [];
         foreach ($rows as $r) {
             $pid = (int) $r['product_id'];
@@ -220,16 +267,33 @@ function pf_reports_top_products_merged(string $from, string $toEnd, $branchId, 
 
     try {
         [$bj, $btj, $bpj] = branch_where_parts('jo', $branchId);
+        $jDatePart = "";
+        $jdParams = [];
+        $jdTypes = "";
+        if ($from !== '' && $toEnd !== '') {
+            $jDatePart = " AND jo.created_at BETWEEN ? AND ?";
+            $jdParams = [$from, $toEnd];
+            $jdTypes = "ss";
+        } elseif ($from !== '') {
+            $jDatePart = " AND jo.created_at >= ?";
+            $jdParams = [$from];
+            $jdTypes = "s";
+        } elseif ($toEnd !== '') {
+            $jDatePart = " AND jo.created_at <= ?";
+            $jdParams = [$toEnd];
+            $jdTypes = "s";
+        }
+
         $jrows = db_query(
             "SELECT COALESCE(NULLIF(TRIM(jo.service_type), ''), 'Customization') AS svc,
                     SUM(COALESCE(jo.quantity, 1)) as qty_sold,
                     SUM(CASE WHEN jo.payment_status = 'PAID'
                         THEN COALESCE(jo.amount_paid, jo.estimated_total, 0) ELSE 0 END) as revenue
              FROM job_orders jo
-             WHERE jo.created_at BETWEEN ? AND ?$bj
+             WHERE 1=1 {$jDatePart} {$bj}
              GROUP BY COALESCE(NULLIF(TRIM(jo.service_type), ''), 'Customization')",
-            'ss' . $btj,
-            array_merge([$from, $toEnd], $bpj)
+            $jdTypes . $btj,
+            array_merge($jdParams, $bpj)
         ) ?: [];
         foreach ($jrows as $r) {
             $name = (string) $r['svc'];
@@ -290,15 +354,32 @@ function pf_reports_branch_performance_merged(string $from, string $toEnd): arra
 
     // 2. Merge Store Orders data
     try {
+        $oDatePart = "";
+        $odParams = [];
+        $odTypes = "";
+        if ($from !== '' && $toEnd !== '') {
+            $oDatePart = " AND o.order_date BETWEEN ? AND ?";
+            $odParams = [$from, $toEnd];
+            $odTypes = "ss";
+        } elseif ($from !== '') {
+            $oDatePart = " AND o.order_date >= ?";
+            $odParams = [$from];
+            $odTypes = "s";
+        } elseif ($toEnd !== '') {
+            $oDatePart = " AND o.order_date <= ?";
+            $odParams = [$toEnd];
+            $odTypes = "s";
+        }
+
         $oRows = db_query(
             "SELECT o.branch_id,
                     COUNT(*) AS ord,
                     SUM(CASE WHEN o.payment_status = 'Paid' THEN o.total_amount ELSE 0 END) AS rev
              FROM orders o
-             WHERE o.order_date BETWEEN ? AND ? AND o.branch_id IS NOT NULL
+             WHERE o.branch_id IS NOT NULL {$oDatePart}
              GROUP BY o.branch_id",
-            'ss',
-            [$from, $toEnd]
+            $odTypes,
+            $odParams
         ) ?: [];
         foreach ($oRows as $r) {
             $id = (int) $r['branch_id'];
@@ -312,16 +393,33 @@ function pf_reports_branch_performance_merged(string $from, string $toEnd): arra
 
     // 3. Merge Customization Jobs data
     try {
+        $jDatePart = "";
+        $jdParams = [];
+        $jdTypes = "";
+        if ($from !== '' && $toEnd !== '') {
+            $jDatePart = " AND jo.created_at BETWEEN ? AND ?";
+            $jdParams = [$from, $toEnd];
+            $jdTypes = "ss";
+        } elseif ($from !== '') {
+            $jDatePart = " AND jo.created_at >= ?";
+            $jdParams = [$from];
+            $jdTypes = "s";
+        } elseif ($toEnd !== '') {
+            $jDatePart = " AND jo.created_at <= ?";
+            $jdParams = [$toEnd];
+            $jdTypes = "s";
+        }
+
         $jRows = db_query(
             "SELECT jo.branch_id,
                     COUNT(*) AS ord,
                     SUM(CASE WHEN jo.payment_status = 'PAID'
                         THEN COALESCE(jo.amount_paid, jo.estimated_total, 0) ELSE 0 END) AS rev
              FROM job_orders jo
-             WHERE jo.created_at BETWEEN ? AND ? AND jo.branch_id IS NOT NULL
+             WHERE jo.branch_id IS NOT NULL {$jDatePart}
              GROUP BY jo.branch_id",
-            'ss',
-            [$from, $toEnd]
+            $jdTypes,
+            $jdParams
         ) ?: [];
         foreach ($jRows as $r) {
             $id = (int) $r['branch_id'];
@@ -457,4 +555,149 @@ function pf_reports_render_heatmap_html(array $cellsByService, int $displayYear)
     }
     $h .= '</div></div>';
     return $h;
+}
+/**
+ * Daily or monthly sales series for a specific period (from -> toEnd).
+ * Merges Store Orders + Customization Jobs.
+ *
+ * @param string $from  'YYYY-MM-DD'
+ * @param string $toEnd 'YYYY-MM-DD 23:59:59'
+ * @return array{labels:string[], revStore:float[], revCustom:float[], orders:int[]}
+ */
+function pf_reports_period_sales_merged(string $from, string $toEnd, $branchId): array {
+    $labels = []; $revStore = []; $revCustom = []; $orders = [];
+    
+    // Validate inputs
+    if (empty($from) && empty($toEnd)) {
+        // If no date range specified, use last 30 days as fallback
+        $from = date('Y-m-d', strtotime('-30 days'));
+        $toEnd = date('Y-m-d') . ' 23:59:59';
+    }
+    
+    // 1. Determine grouping (Daily if < 90 days, else Monthly)
+    $tsFrom = strtotime($from ?: '2020-01-01');
+    $tsTo   = strtotime($toEnd ?: date('Y-m-d H:i:s'));
+    
+    if ($tsFrom === false || $tsTo === false) {
+        error_log('[PrintFlow] Invalid date format in pf_reports_period_sales_merged: from=' . $from . ', to=' . $toEnd);
+        return ['labels' => [], 'revStore' => [], 'revCustom' => [], 'orders' => []];
+    }
+    
+    $days   = ($tsTo - $tsFrom) / 86400;
+    $groupBy = ($days > 90) ? 'MONTH' : 'DAY';
+    
+    error_log('[PrintFlow] Sales chart query params: from=' . $from . ', to=' . $toEnd . ', branchId=' . $branchId . ', groupBy=' . $groupBy . ', days=' . $days);
+
+    // 2. Fetch Store Orders
+    $mapStore = [];
+    try {
+        [$b, $bt, $bp] = branch_where_parts('o', $branchId);
+        $datePart = ""; $dPs = []; $dTs = "";
+        if ($from !== '' && $toEnd !== '') {
+            $datePart = " AND o.order_date BETWEEN ? AND ?";
+            $dPs = [$from, $toEnd]; $dTs = "ss";
+        } elseif ($from !== '') {
+            $datePart = " AND o.order_date >= ?";
+            $dPs = [$from]; $dTs = "s";
+        } elseif ($toEnd !== '') {
+            $datePart = " AND o.order_date <= ?";
+            $dPs = [$toEnd]; $dTs = "s";
+        }
+
+        $fmt = ($groupBy === 'MONTH') ? '%Y-%m' : '%Y-%m-%d';
+        $sql = "SELECT DATE_FORMAT(o.order_date,'{$fmt}') as d,
+                       COUNT(*) as cnt,
+                       SUM(CASE WHEN o.payment_status='Paid' THEN o.total_amount ELSE 0 END) as rev
+                FROM orders o WHERE 1=1 {$datePart} {$b}
+                GROUP BY d ORDER BY d";
+        
+        error_log('[PrintFlow] Store orders SQL: ' . $sql . ' | Types: ' . ($dTs . $bt) . ' | Params: ' . json_encode(array_merge($dPs, $bp)));
+        
+        $rows = db_query($sql, $dTs . $bt, array_merge($dPs, $bp)) ?: [];
+        error_log('[PrintFlow] Store orders result count: ' . count($rows));
+        
+        foreach ($rows as $r) {
+            $mapStore[$r['d']] = ['cnt' => (int)$r['cnt'], 'rev' => (float)$r['rev']];
+        }
+    } catch (Throwable $e) {
+        error_log('[PrintFlow] Error fetching store orders: ' . $e->getMessage());
+    }
+
+    // 3. Fetch Customization Jobs
+    $mapJobs = [];
+    try {
+        [$bj, $btj, $bpj] = branch_where_parts('jo', $branchId);
+        $jDatePart = ""; $jdPs = []; $jdTs = "";
+        if ($from !== '' && $toEnd !== '') {
+            $jDatePart = " AND jo.created_at BETWEEN ? AND ?";
+            $jdPs = [$from, $toEnd]; $jdTs = "ss";
+        } elseif ($from !== '') {
+            $jDatePart = " AND jo.created_at >= ?";
+            $jdPs = [$from]; $jdTs = "s";
+        } elseif ($toEnd !== '') {
+            $jDatePart = " AND jo.created_at <= ?";
+            $jdPs = [$toEnd]; $jdTs = "s";
+        }
+
+        $fmt = ($groupBy === 'MONTH') ? '%Y-%m' : '%Y-%m-%d';
+        $sql = "SELECT DATE_FORMAT(jo.created_at,'{$fmt}') as d,
+                       COUNT(*) as cnt,
+                       SUM(CASE WHEN jo.payment_status='PAID' THEN COALESCE(jo.amount_paid, jo.estimated_total, 0) ELSE 0 END) as rev
+                FROM job_orders jo WHERE 1=1 {$jDatePart} {$bj}
+                GROUP BY d ORDER BY d";
+        
+        $jrows = db_query($sql, $jdTs . $btj, array_merge($jdPs, $bpj)) ?: [];
+        error_log('[PrintFlow] Job orders result count: ' . count($jrows));
+        
+        foreach ($jrows as $r) {
+            $mapJobs[$r['d']] = ['cnt' => (int)$r['cnt'], 'rev' => (float)$r['rev']];
+        }
+    } catch (Throwable $e) {
+        error_log('[PrintFlow] Error fetching job orders: ' . $e->getMessage());
+    }
+
+    // 4. Generate linear range and fill
+    if ($groupBy === 'MONTH') {
+        $curr = date('Y-m', $tsFrom);
+        $end  = date('Y-m', $tsTo);
+        while ($curr <= $end) {
+            $labels[] = date('M Y', strtotime($curr . '-01'));
+            $s = $mapStore[$curr] ?? ['cnt'=>0,'rev'=>0];
+            $j = $mapJobs[$curr] ?? ['cnt'=>0,'rev'=>0];
+            $revStore[]  = (float)$s['rev'];
+            $revCustom[] = (float)$j['rev'];
+            $orders[]    = (int)($s['cnt'] + $j['cnt']);
+            $curr = date('Y-m', strtotime($curr . '-01 +1 month'));
+        }
+    } else {
+        // Daily
+        $curr = date('Y-m-d', $tsFrom);
+        $end  = date('Y-m-d', $tsTo);
+        while ($curr <= $end) {
+            $labels[] = date('M d', strtotime($curr));
+            $s = $mapStore[$curr] ?? ['cnt'=>0,'rev'=>0];
+            $j = $mapJobs[$curr] ?? ['cnt'=>0,'rev'=>0];
+            $revStore[]  = (float)$s['rev'];
+            $revCustom[] = (float)$j['rev'];
+            $orders[]    = (int)($s['cnt'] + $j['cnt']);
+            $curr = date('Y-m-d', strtotime($curr . ' +1 day'));
+        }
+    }
+    
+    $result = [
+        'labels'    => $labels,
+        'revStore'  => $revStore,
+        'revCustom' => $revCustom,
+        'orders'    => $orders
+    ];
+    
+    error_log('[PrintFlow] Final sales chart result: ' . json_encode([
+        'labels_count' => count($labels),
+        'sample_labels' => array_slice($labels, 0, 3),
+        'revStore_sum' => array_sum($revStore),
+        'revCustom_sum' => array_sum($revCustom),
+        'orders_sum' => array_sum($orders)
+    ]));
+
+    return $result;
 }

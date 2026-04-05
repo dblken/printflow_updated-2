@@ -68,9 +68,7 @@
     function validateDescription() {
         const raw = (el('modal-description')?.value || '');
         const val = raw.trim();
-        if (val.startsWith(' ') || raw !== val && raw.startsWith(' ')) return ERRORS.nameLeadingSpace;
         if (!val) return ERRORS.descriptionRequired;
-        if (val.length < 2) return ERRORS.nameMinLength;
         if (val.length > 2000) return ERRORS.descriptionMax;
         return '';
     }
@@ -132,29 +130,14 @@
     function setupDescriptionInput() {
         const inp = el('modal-description');
         if (!inp) return;
-        inp.addEventListener('input', function() {
-            let v = this.value;
-            if (v.startsWith(' ')) v = v.trimStart();
-            v = v.replace(/\s+/g, ' ');
-            v = formatServiceName(v);
-            if (v !== this.value) {
-                this.value = v;
-            }
-            runValidation();
-        });
-        inp.addEventListener('keydown', function(e) {
-            if (e.key === ' ' && (this.selectionStart === 0 || this.value.trim() === '' && this.value === ' ')) {
-                e.preventDefault();
-            }
-        });
+        // Only validate on blur, don't interfere with typing
         inp.addEventListener('blur', function() {
-            this.value = formatServiceName(this.value);
             runValidation();
         });
     }
 
     function setupValidation() {
-        ['modal-name', 'modal-category', 'modal-description', 'modal-customer-modal-text', 'modal-status'].forEach(function(id) {
+        ['modal-name', 'modal-category', 'modal-customer-modal-text', 'modal-status'].forEach(function(id) {
             const elm = el(id);
             if (elm) {
                 elm.addEventListener('input', runValidation);
@@ -168,6 +151,20 @@
                 });
             }
         });
+        
+        // Description field - only validate on change/blur, not on input
+        const descElm = el('modal-description');
+        if (descElm) {
+            descElm.addEventListener('change', function() {
+                touchedFields.add('description');
+                runValidation();
+            });
+            descElm.addEventListener('blur', function() {
+                touchedFields.add('description');
+                runValidation();
+            });
+        }
+        
         setupServiceNameInput();
         setupDescriptionInput();
     }

@@ -14,6 +14,7 @@ $sort     = $_GET['sort'] ?? 'id';
 $dir      = strtoupper($_GET['dir'] ?? 'DESC') === 'DESC' ? 'DESC' : 'ASC';
 $page     = max(1, (int)($_GET['page'] ?? 1));
 $track_by = isset($_GET['track_by_roll']) && $_GET['track_by_roll'] !== '' ? (int)$_GET['track_by_roll'] : null;
+$stock_status = trim($_GET['stock_status'] ?? ''); // 'low', 'out', 'in'
 $per_page = 15;
 
 // Inventory Archive/Restore (AJAX)
@@ -104,25 +105,58 @@ if ($search) {
 
 // Count total for pagination
 $count_sql = "SELECT COUNT(*) as total FROM ({$sql}) as wrap";
-$total_rows = db_query($count_sql, $types ?: null, $params ?: null)[0]['total'] ?? 0;
-$total_pages = max(1, ceil($total_rows / $per_page));
-$page = min($page, $total_pages);
-$offset = ($page - 1) * $per_page;
+$total_rows_unfiltered = db_query($count_sql, $types ?: null, $params ?: null)[0]['total'] ?? 0;
 
-$sort_map = [
-    'name' => 'i.name',
-    'id'   => 'i.id'
-];
-$orderBy = $sort_map[$sort] ?? 'i.name';
-$sql .= " ORDER BY $orderBy $dir LIMIT $per_page OFFSET $offset";
-
-$items = db_query($sql, $types ?: null, $params ?: null) ?: [];
-
-// Add stock info
-foreach ($items as &$item) {
-    $item['current_stock'] = InventoryManager::getStockOnHand($item['id']);
+// If stock status filter is applied, we need to fetch all items first to filter by stock
+if ($stock_status) {
+    // Fetch all items without pagination
+    $all_items = db_query($sql, $types ?: null, $params ?: null) ?: [];
+    
+    // Add stock info and apply stock status filter
+    $filtered_items = [];
+    foreach ($all_items as $item) {
+        $item['current_stock'] = InventoryManager::getStockOnHand($item['id']);
+        
+        $stock = (float)$item['current_stock'];
+        $reorder = (float)$item['reorder_level'];
+        
+        if ($stock_status === 'out' && $stock > 0) continue;
+        if ($stock_status === 'low' && ($stock <= 0 || $stock > $reorder)) continue;
+        if ($stock_status === 'in' && ($stock <= 0 || $stock <= $reorder)) continue;
+        
+        $filtered_items[] = $item;
+    }
+    
+    // Calculate pagination based on filtered results
+    $total_rows = count($filtered_items);
+    $total_pages = max(1, ceil($total_rows / $per_page));
+    $page = min($page, $total_pages);
+    $offset = ($page - 1) * $per_page;
+    
+    // Apply pagination to filtered items
+    $items = array_slice($filtered_items, $offset, $per_page);
+} else {
+    // No stock filter - use normal pagination
+    $total_rows = $total_rows_unfiltered;
+    $total_pages = max(1, ceil($total_rows / $per_page));
+    $page = min($page, $total_pages);
+    $offset = ($page - 1) * $per_page;
+    
+    $sort_map = [
+        'name' => 'i.name',
+        'id'   => 'i.id'
+    ];
+    $orderBy = $sort_map[$sort] ?? 'i.name';
+    $sql .= " ORDER BY $orderBy $dir LIMIT $per_page OFFSET $offset";
+    
+    $items = db_query($sql, $types ?: null, $params ?: null) ?: [];
+    
+    // Add stock info
+    foreach ($items as &$item) {
+        $item['current_stock'] = InventoryManager::getStockOnHand($item['id']);
+    }
+    unset($item);
 }
-unset($item);
 
 // Get categories for filters
 $categories = db_query("SELECT * FROM inv_categories ORDER BY sort_order ASC, name ASC") ?: [];
@@ -182,11 +216,11 @@ if (isset($_GET['ajax'])) {
     $table_html = ob_get_clean();
 
     ob_start();
-    $p = array_filter(['category_id'=>$cat_id, 'search'=>$search, 'sort'=>$sort, 'dir'=>$dir, 'track_by_roll'=>$track_by], function($v) { return $v !== null && $v !== ''; });
+    $p = array_filter(['category_id'=>$cat_id, 'search'=>$search, 'sort'=>$sort, 'dir'=>$dir, 'track_by_roll'=>$track_by, 'stock_status'=>$stock_status], function($v) { return $v !== null && $v !== ''; });
     echo render_pagination($page, $total_pages, $p);
     $pagination_html = ob_get_clean();
 
-    $badge_count = count(array_filter([$cat_id ?: '', $search, $track_by], function($v) { return $v !== null && $v !== ''; }));
+    $badge_count = count(array_filter([$cat_id ?: '', $search, $track_by, $stock_status], function($v) { return $v !== null && $v !== ''; }));
 
     echo json_encode([
         'success'    => true,
@@ -276,12 +310,12 @@ if (isset($_GET['ajax'])) {
         .btn-edit:hover { background: #6366f1; color: #fff; transform: translateY(-1px); }
         
         /* Modals */
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 110000; align-items: center; justify-content: center; padding: 16px; overflow: hidden; pointer-events: auto !important; }
-        .modal-content { background: white; border-radius: 20px; width: 90%; max-width: 800px; position: relative; max-height: 90vh; border: 1px solid var(--border-color); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); z-index: 110001; animation: fadeIn 0.3s ease forwards; pointer-events: auto !important; display: flex; flex-direction: column; overflow: hidden; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 24px; flex-shrink: 0; border-bottom: 1px solid #e5e7eb; }
-        .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
-        .modal-title { font-size: 18px; font-weight: 700; color: #111827; padding-right: 40px; overflow-wrap: break-word; word-break: break-word; -webkit-hyphens: auto; -ms-hyphens: auto; hyphens: auto; line-height: 1.4; }
-        .close-btn { background: none; border: none; font-size: 20px; color: #9ca3af; cursor: pointer; padding: 4px; line-height: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 110000; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; pointer-events: auto !important; }
+        .modal-content { background: white; border-radius: 20px; width: 90%; max-width: 800px; position: relative; max-height: 90vh; border: 1px solid var(--border-color); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); z-index: 110001; animation: fadeIn 0.3s ease forwards; pointer-events: auto !important; display: flex; flex-direction: column; overflow: hidden; margin: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 24px !important; flex-shrink: 0; border-bottom: 1px solid #e5e7eb; }
+        .modal-body { padding: 24px !important; overflow-y: auto; flex: 1; }
+        .modal-title { font-size: 18px; font-weight: 700; color: #111827; padding-right: 40px; overflow-wrap: break-word; word-break: break-word; -webkit-hyphens: auto; -ms-hyphens: auto; hyphens: auto; line-height: 1.4; margin: 0; }
+        .close-btn { background: none; border: none; font-size: 20px; color: #9ca3af; cursor: pointer; padding: 4px; line-height: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
         .close-btn:hover { color: #374151; }
         
         .modal input, .modal select, .modal textarea { pointer-events: auto !important; cursor: text; }
@@ -574,7 +608,7 @@ if (isset($_GET['ajax'])) {
                                 Filter
                                 <span id="filterBadgeContainer">
                                     <?php 
-                                        $initial_badge = count(array_filter([$cat_id ?: '', $search, $track_by], function($v) { return $v !== null && $v !== ''; }));
+                                        $initial_badge = count(array_filter([$cat_id ?: '', $search, $track_by, $stock_status], function($v) { return $v !== null && $v !== ''; }));
                                         if ($initial_badge > 0): ?>
                                             <span class="filter-badge"><?php echo $initial_badge; ?></span>
                                         <?php endif; 
@@ -612,6 +646,20 @@ if (isset($_GET['ajax'])) {
                                         <option value="">All Tracking</option>
                                         <option value="0" <?php echo ($track_by === 0) ? 'selected' : ''; ?>>Standard (Ledger)</option>
                                         <option value="1" <?php echo ($track_by === 1) ? 'selected' : ''; ?>>Roll-Based (Individual)</option>
+                                    </select>
+                                </div>
+
+                                <!-- Stock Status -->
+                                <div class="filter-section">
+                                    <div class="filter-section-head">
+                                        <span class="filter-section-label">Stock Status</span>
+                                        <button type="button" class="filter-reset-link" onclick="resetFilterField(['stock_status'])">Reset</button>
+                                    </div>
+                                    <select id="fp_stock_status" class="filter-select">
+                                        <option value="">All Stock Levels</option>
+                                        <option value="in" <?php echo ($stock_status === 'in') ? 'selected' : ''; ?>>In Stock</option>
+                                        <option value="low" <?php echo ($stock_status === 'low') ? 'selected' : ''; ?>>Low Stock</option>
+                                        <option value="out" <?php echo ($stock_status === 'out') ? 'selected' : ''; ?>>Out of Stock</option>
                                     </select>
                                 </div>
                                 
@@ -697,7 +745,7 @@ if (isset($_GET['ajax'])) {
                 </div>
                 <div id="itemsPagination">
                     <?php 
-                        $p = array_filter(['category_id'=>$cat_id, 'search'=>$search, 'sort'=>$sort, 'dir'=>$dir, 'track_by_roll'=>$track_by], function($v) { return $v !== null && $v !== ''; });
+                        $p = array_filter(['category_id'=>$cat_id, 'search'=>$search, 'sort'=>$sort, 'dir'=>$dir, 'track_by_roll'=>$track_by, 'stock_status'=>$stock_status], function($v) { return $v !== null && $v !== ''; });
                         echo render_pagination($page, $total_pages, $p); 
                     ?>
                 </div>
@@ -716,6 +764,7 @@ if (isset($_GET['ajax'])) {
             </div>
             <button class="close-btn" onclick="closeAddStockModal()">&times;</button>
         </div>
+        <div class="modal-body">
         <form id="addStockForm" onsubmit="saveAddStock(event)">
             <input type="hidden" id="addStockItemId">
             <input type="hidden" id="addStockIsRoll">
@@ -762,11 +811,12 @@ if (isset($_GET['ajax'])) {
                     <input type="text" id="addStockNotes" placeholder="e.g. Purchased from supplier XYZ">
                 </div>
             </div>
-            <div style="display:flex; gap:12px; justify-content:flex-end; padding-top:16px; border-top:1px solid #f3f4f6;">
+            <div style="display:flex; gap:12px; justify-content:flex-end; padding-top:16px; border-top:1px solid #f3f4f6; margin-top: auto;">
                 <button type="button" onclick="closeAddStockModal()" class="btn-secondary" style="height:44px;border-radius:10px;padding:0 24px;">Cancel</button>
                 <button type="submit" id="addStockBtn" class="btn-primary" style="height:44px;border-radius:10px;padding:0 24px;background:#059669;" disabled>Add Stock</button>
             </div>
         </form>
+        </div>
     </div>
 </div>
 
@@ -777,12 +827,12 @@ if (isset($_GET['ajax'])) {
             <h3 class="modal-title">Confirm Stock Addition</h3>
             <button class="close-btn" onclick="closeAddStockConfirmModal()">&times;</button>
         </div>
-        <div style="padding:0 0 20px; font-size:14px; color:#374151;">
-            <p style="margin-bottom:12px;">You are about to add: <strong id="addStockConfirmQty">0</strong></p>
-            <p>New total will be: <strong id="addStockConfirmTotal">0</strong></p>
-            <p style="margin-top:16px; color:#6b7280;">Are you sure you want to continue?</p>
+        <div class="modal-body">
+            <p style="margin-bottom:12px; font-size:14px; color:#374151;">You are about to add: <strong id="addStockConfirmQty">0</strong></p>
+            <p style="font-size:14px; color:#374151;">New total will be: <strong id="addStockConfirmTotal">0</strong></p>
+            <p style="margin-top:16px; font-size:14px; color:#6b7280;">Are you sure you want to continue?</p>
         </div>
-        <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <div style="display:flex; gap:12px; justify-content:flex-end; padding:0 24px 24px;">
             <button type="button" onclick="closeAddStockConfirmModal()" class="btn-secondary" style="height:44px;border-radius:10px;padding:0 24px;">Cancel</button>
             <button type="button" id="addStockConfirmBtn" class="btn-primary" style="height:44px;border-radius:10px;padding:0 24px;background:#059669;">Confirm</button>
         </div>
@@ -831,7 +881,7 @@ if (isset($_GET['ajax'])) {
             <h3 class="modal-title" id="scName" style="padding-right:30px; word-break:break-all; overflow-wrap:anywhere;">Item Name</h3>
             <button class="close-btn" onclick="closeStockCard()">&times;</button>
         </div>
-
+        <div class="modal-body">
         <!-- Summary Cards -->
         <div class="sc-cards-grid" id="scCardsContainer">
             <div class="sc-card" style="background:#f0f9ff; border:1px solid #bae6fd;">
@@ -914,6 +964,7 @@ if (isset($_GET['ajax'])) {
             <button onclick="editFromStockCard()" class="btn-action blue" style="flex:1; min-width:120px; height:40px; font-size:14px; border-radius:10px;">Edit Settings</button>
             <a id="scLedgerLink" href="inv_transactions_ledger.php" class="btn-action" style="flex:1; min-width:120px; height:40px; font-size:14px; border-radius:10px; border:1px solid #e5e7eb; color:#374151; display:flex; align-items:center; justify-content:center; text-decoration:none;">View Full Ledger</a>
         </div>
+        </div>
     </div>
 </div>
 
@@ -927,6 +978,7 @@ if (isset($_GET['ajax'])) {
             </div>
             <button class="close-btn" onclick="closeDeductStockModal()">&times;</button>
         </div>
+        <div class="modal-body">
         <form id="deductStockForm" onsubmit="saveDeductStock(event)">
             <input type="hidden" id="deductStockItemId">
             <input type="hidden" id="deductStockUom">
@@ -941,11 +993,12 @@ if (isset($_GET['ajax'])) {
                     <input type="text" id="deductStockNotes" placeholder="e.g. Used for job order" class="w-100">
                 </div>
             </div>
-            <div style="display:flex; gap:12px; justify-content:flex-end; padding-top:16px; border-top:1px solid #f3f4f6;">
+            <div style="display:flex; gap:12px; justify-content:flex-end; padding-top:16px; border-top:1px solid #f3f4f6; margin-top: auto;">
                 <button type="button" onclick="closeDeductStockModal()" class="btn-secondary" style="height:44px;border-radius:10px;padding:0 24px;">Cancel</button>
                 <button type="submit" id="deductStockBtn" class="btn-primary" style="height:44px;border-radius:10px;padding:0 24px;background:#dc2626;">Deduct Stock</button>
             </div>
         </form>
+        </div>
     </div>
 </div>
 
@@ -957,10 +1010,11 @@ if (isset($_GET['ajax'])) {
             <button class="close-btn" onclick="closeModal()">&times;</button>
         </div>
         <div class="modal-body">
-        <form id="itemForm" onsubmit="saveItem(event)">
+        <form id="itemForm" onsubmit="saveItem(event)" style="display: flex; flex-direction: column; height: 100%;">
             <input type="hidden" id="itemId" name="id">
             <input type="hidden" id="actionType" name="action" value="create_item">
 
+            <div style="flex: 1; overflow-y: auto; padding-right: 8px;">
             <!-- Section: Material Information -->
             <div class="modal-section">
                 <p class="section-header">Material Information</p>
@@ -1121,10 +1175,11 @@ if (isset($_GET['ajax'])) {
                 <div id="editModalChangeSummaryContent" style="font-size:13px; color:#374151;"></div>
             </div>
             
-            <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top:16px; border-top:1px solid #f3f4f6;">
+            <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top:16px; border-top:1px solid #f3f4f6; margin-top: auto;">
                 <button type="button" onclick="closeModal()" class="btn-secondary" style="border-radius: 10px; height: 44px; padding: 0 24px;">Cancel</button>
                 <button type="button" id="archiveItemBtn" onclick="openItemArchiveConfirm()" class="btn-secondary" style="border-radius: 10px; height: 44px; padding: 0 24px; display:none;">Archive</button>
                 <button type="submit" class="btn-primary" id="saveBtn" style="border-radius: 10px; height: 44px; padding: 0 24px; background: #10b981; border:none; transition: background 0.2s;">Save Changes</button>
+            </div>
             </div>
         </form>
         </div>
@@ -1156,6 +1211,7 @@ if (isset($_GET['ajax'])) {
             get hasActiveFilters() {
                 return document.getElementById('fp_category')?.value ||
                        document.getElementById('fp_track_by_roll')?.value !== '' ||
+                       document.getElementById('fp_stock_status')?.value ||
                        document.getElementById('fp_search')?.value;
             }
         };
@@ -1181,6 +1237,11 @@ if (isset($_GET['ajax'])) {
         if (trackBySelect && !trackBySelect._pf_bound) {
             trackBySelect._pf_bound = true;
             trackBySelect.addEventListener('change', function () { fetchUpdatedTable({ page: 1 }); });
+        }
+        var stockStatusSelect = document.getElementById('fp_stock_status');
+        if (stockStatusSelect && !stockStatusSelect._pf_bound) {
+            stockStatusSelect._pf_bound = true;
+            stockStatusSelect.addEventListener('change', function () { fetchUpdatedTable({ page: 1 }); });
         }
         var addStockQty = document.getElementById('addStockQty');
         if (addStockQty && !addStockQty._pf_bound) {
@@ -1444,6 +1505,7 @@ if (isset($_GET['ajax'])) {
         const map = {
             'category_id': 'fp_category',
             'track_by_roll': 'fp_track_by_roll',
+            'stock_status': 'fp_stock_status',
             'search': 'fp_search'
         };
 

@@ -44,7 +44,10 @@ if ($search !== '') {
 }
 
 if ($user_type === 'Customer') {
-    $archive_col = "o.is_archived";
+    // Check if is_archived column exists
+    $has_archived = !empty(db_query("SHOW COLUMNS FROM orders LIKE 'is_archived'"));
+    $archive_col = $has_archived ? "o.is_archived" : "0";
+    
     $sql = "
         SELECT o.order_id, o.status, o.order_date, $archive_col as is_archived,
                (SELECT m.message FROM order_messages m WHERE m.order_id = o.order_id ORDER BY m.message_id DESC LIMIT 1) AS last_message,
@@ -53,16 +56,18 @@ if ($user_type === 'Customer') {
                (SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(oi.customization_data, '$.service_type')), p.name, 'Order') FROM order_items oi LEFT JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = o.order_id LIMIT 1) AS service_name,
                (SELECT TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,''))) FROM order_messages m JOIN users u ON u.user_id = m.sender_id WHERE m.order_id = o.order_id AND m.sender = 'Staff' ORDER BY m.message_id DESC LIMIT 1) AS staff_name
         FROM orders o
-        WHERE o.customer_id = ? AND $archive_col = ? $search_clause
+        WHERE o.customer_id = ?" . ($has_archived ? " AND $archive_col = ?" : "") . " $search_clause
         ORDER BY COALESCE((SELECT MAX(mx.created_at) FROM order_messages mx WHERE mx.order_id = o.order_id), o.order_date) DESC
     ";
     
-    $full_params = array_merge([$user_id, ($show_archived ? 1 : 0)], $params);
-    $full_types = "ii" . $types;
+    $full_params = $has_archived ? array_merge([$user_id, ($show_archived ? 1 : 0)], $params) : array_merge([$user_id], $params);
+    $full_types = $has_archived ? "ii" . $types : "i" . $types;
     $rows = db_query($sql, $full_types, $full_params);
     if ($rows === false) throw new Exception("Database lookup failed on orders.");
 } else {
-    $archive_col = "o.is_archived";
+    // Check if is_archived column exists
+    $has_archived = !empty(db_query("SHOW COLUMNS FROM orders LIKE 'is_archived'"));
+    $archive_col = $has_archived ? "o.is_archived" : "0";
     $has_activity = !empty(db_query("SHOW COLUMNS FROM customers LIKE 'last_activity'"));
     $activity_sel = $has_activity ? "c.last_activity as partner_last_activity," : "NULL as partner_last_activity,";
 
@@ -77,7 +82,7 @@ if ($user_type === 'Customer') {
                (SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(oi.customization_data, '$.service_type')), p.name, 'Order') FROM order_items oi LEFT JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = o.order_id LIMIT 1) AS service_name
         FROM orders o
         LEFT JOIN customers c ON c.customer_id = o.customer_id
-        WHERE o.status != 'Cancelled' AND $archive_col = ? $search_clause
+        WHERE o.status != 'Cancelled'" . ($has_archived ? " AND $archive_col = ?" : "") . " $search_clause
         AND (
             EXISTS (SELECT 1 FROM order_messages m WHERE m.order_id = o.order_id)
             OR o.order_date >= DATE_SUB(NOW(), INTERVAL 90 DAY)
@@ -85,8 +90,8 @@ if ($user_type === 'Customer') {
         ORDER BY COALESCE((SELECT MAX(mx.created_at) FROM order_messages mx WHERE mx.order_id = o.order_id), o.order_date) DESC
     ";
     
-    $full_params = array_merge([($show_archived ? 1 : 0)], $params);
-    $full_types = "i" . $types;
+    $full_params = $has_archived ? array_merge([($show_archived ? 1 : 0)], $params) : $params;
+    $full_types = $has_archived ? "i" . $types : $types;
     $rows = db_query($sql, $full_types, $full_params);
     if ($rows === false) throw new Exception("Database lookup failed on staff view.");
 }

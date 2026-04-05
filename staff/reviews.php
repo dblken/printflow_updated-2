@@ -11,7 +11,6 @@ require_once __DIR__ . '/../includes/staff_pending_check.php';
 
 // Filters
 $search = sanitize($_GET['search'] ?? '');
-$review_type = sanitize($_GET['review_type'] ?? '');
 $rating = (int)($_GET['rating'] ?? 0);
 $service = sanitize($_GET['service'] ?? '');
 
@@ -33,7 +32,7 @@ $offset = ($current_page - 1) * $items_per_page;
 
 $sql_base = "
     FROM reviews r
-    INNER JOIN customers c ON c.customer_id = r.user_id
+    INNER JOIN customers c ON c.customer_id = r.customer_id
     WHERE 1=1
 ";
 $params = [];
@@ -47,32 +46,16 @@ if (!empty($search)) {
     $params[] = (int)str_replace(['#', 'ORD-'], '', $search);
     $types .= 'ssi';
 }
-if (!empty($review_type)) {
-    $sql_base .= " AND r.review_type = ?";
-    $params[] = $review_type;
-    $types .= 's';
-}
 if ($rating > 0 && $rating <= 5) {
     $sql_base .= " AND r.rating = ?";
     $params[] = $rating;
     $types .= 'i';
 }
 if (!empty($service)) {
-    // Robust filtering by name (legacy) or by ID mapping (modern)
-    $sql_base .= " AND (
-        r.service_type = ? 
-        OR r.service_type LIKE ? 
-        OR (r.review_type = 'custom' AND r.reference_id IN (SELECT service_id FROM services WHERE name = ? OR name LIKE ?))
-        OR (r.review_type = 'product' AND r.reference_id IN (SELECT product_id FROM products WHERE name = ? OR name LIKE ?))
-    )";
-    $like = $service . '%';
+    // Filter by service name
+    $sql_base .= " AND r.service_type = ?";
     $params[] = $service;
-    $params[] = $like;
-    $params[] = $service;
-    $params[] = $like;
-    $params[] = $service;
-    $params[] = $like;
-    $types .= 'ssssss';
+    $types .= 's';
 }
 
 $count_sql = "SELECT COUNT(*) as total" . $sql_base;
@@ -84,20 +67,12 @@ $query_sql = "
     SELECT
         r.id,
         r.order_id,
-        r.reference_id,
-        r.review_type,
-        r.service_type as legacy_service_type,
+        r.service_type,
         r.rating,
-        r.comment,
-        r.video_path,
+        r.message,
         r.created_at,
         c.first_name,
-        c.last_name,
-        (CASE 
-            WHEN r.review_type = 'product' THEN (SELECT name FROM products WHERE product_id = r.reference_id)
-            WHEN r.review_type = 'custom' THEN (SELECT name FROM services WHERE service_id = r.reference_id)
-            ELSE r.service_type
-        END) as item_name
+        c.last_name
     " . $sql_base . "
     ORDER BY r.created_at DESC
     LIMIT ? OFFSET ?
@@ -108,25 +83,15 @@ $fetch_types = $types . 'ii';
 $reviews = db_query($query_sql, $fetch_types ?: null, $fetch_params ?: null) ?: [];
 
 // Map services for reset/links
-$page_query_params = ['search'=>$search, 'review_type'=>$review_type, 'rating'=>$rating, 'service'=>$service];
+$page_query_params = ['search'=>$search, 'rating'=>$rating, 'service'=>$service];
 
 // Fetch images and replies for each review
-$reviews = [];
-foreach ($reviews_raw as $r) {
+foreach ($reviews as &$r) {
     $rid = (int)$r['id'];
     $images = db_query("SELECT image_path FROM review_images WHERE review_id = ?", 'i', [$rid]) ?: [];
-    $replies = db_query("
-        SELECT rr.id, rr.reply_message, rr.created_at, u.first_name, u.last_name
-        FROM review_replies rr
-        INNER JOIN users u ON u.user_id = rr.staff_id
-        WHERE rr.review_id = ?
-        ORDER BY rr.created_at ASC
-    ", 'i', [$rid]) ?: [];
-    
     $r['images'] = $images;
-    $r['replies'] = $replies;
-    $reviews[] = $r;
 }
+unset($r);
 
 function stars_text($value) {
     $v = max(1, min(5, (int)$value));
@@ -221,14 +186,6 @@ $page_title = 'Review Management - Staff';
                     </select>
                 </div>
                 <div class="rv-group">
-                    <label class="rv-label">Type</label>
-                    <select name="review_type" class="rv-select" onchange="this.form.submit()">
-                        <option value="">All Types</option>
-                        <option value="product" <?php echo $review_type === 'product' ? 'selected' : ''; ?>>Fixed Products</option>
-                        <option value="custom" <?php echo $review_type === 'custom' ? 'selected' : ''; ?>>Custom Services</option>
-                    </select>
-                </div>
-                <div class="rv-group">
                     <label class="rv-label">Rating</label>
                     <select name="rating" class="rv-select" onchange="this.form.submit()">
                         <option value="0">All Ratings</option>
@@ -255,11 +212,8 @@ $page_title = 'Review Management - Staff';
                                 <div>
                                     <div class="review-user"><?php echo htmlspecialchars($review['first_name'] . ' ' . $review['last_name']); ?></div>
                                     <div class="review-meta">
-                                        <span class="type-badge <?php echo $review['review_type'] === 'product' ? 'type-product' : 'type-custom'; ?>">
-                                            <?php echo $review['review_type'] === 'product' ? 'Fixed Product' : 'Custom Service'; ?>
-                                        </span>
                                         <span style="font-weight: 700; color: #0a2530;">
-                                            <?php echo htmlspecialchars($review['item_name'] ?: ($review['legacy_service_type'] ?: 'Unknown Item')); ?>
+                                            <?php echo htmlspecialchars($review['service_type'] ?: 'Unknown'); ?>
                                         </span>
                                         <span>&bull;</span>
                                         <a href="customizations.php?order_id=<?php echo $review['order_id']; ?>" style="color: #0c4a6e; font-weight: 700; text-decoration: none;">Order #<?php echo $review['order_id']; ?></a>
@@ -270,16 +224,10 @@ $page_title = 'Review Management - Staff';
                                 <div class="review-stars"><?php echo stars_text($review['rating']); ?></div>
                             </div>
                             
-                            <div class="review-msg"><?php echo nl2br(htmlspecialchars($review['comment'] ?: '')); ?></div>
+                            <div class="review-msg"><?php echo nl2br(htmlspecialchars($review['message'] ?? '')); ?></div>
 
-                            <?php if (!empty($review['images']) || !empty($review['video_path'])): ?>
+                            <?php if (!empty($review['images'])): ?>
                                 <div class="review-media">
-                                    <?php if ($review['video_path']): 
-                                        $vpath = $review['video_path'];
-                                        if (strpos($vpath, 'http') === false && $vpath[0] !== '/') $vpath = '/printflow/'.$vpath;
-                                    ?>
-                                        <div class="media-thumb video-thumb" onclick="openMediaModal('<?php echo htmlspecialchars($vpath); ?>', 'video')"></div>
-                                    <?php endif; ?>
                                     <?php foreach ($review['images'] as $img): 
                                         $ipath = $img['image_path'];
                                         if (strpos($ipath, 'http') === false && $ipath[0] !== '/') $ipath = '/printflow/'.$ipath;
@@ -289,32 +237,7 @@ $page_title = 'Review Management - Staff';
                                 </div>
                             <?php endif; ?>
 
-                            <div class="replies-area">
-                                <div class="replies-container" id="replies-<?php echo $review['id']; ?>" <?php echo empty($review['replies']) ? 'style="display:none"' : ''; ?>>
-                                    <?php foreach ($review['replies'] as $reply): ?>
-                                        <div class="reply-item">
-                                            <div class="reply-header">
-                                                <span>Staff Response &bull; <?php echo htmlspecialchars($reply['first_name'] . ' ' . $reply['last_name']); ?></span>
-                                                <span><?php echo date('M d, Y', strtotime($reply['created_at'])); ?></span>
-                                            </div>
-                                            <div class="reply-msg"><?php echo nl2br(htmlspecialchars($reply['reply_message'])); ?></div>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-
-                                <div class="reply-form">
-                                    <select class="rv-select" style="width: 100%; font-size: 12px;" onchange="applyQuickReply(this, <?php echo $review['id']; ?>)">
-                                        <option value="">⚡ Quick Reply Suggestions...</option>
-                                        <option value="Thank you! We're happy to hear you're satisfied with your order.">Positive Feedback</option>
-                                        <option value="Thank you for your review! We look forward to serving you again.">Great experience</option>
-                                        <option value="We apologize for the inconvenience. Please contact us so we can resolve this.">Negative Feedback</option>
-                                    </select>
-                                    <div class="reply-input-wrap">
-                                        <textarea class="reply-textarea" placeholder="Type your response..." id="reply-text-<?php echo $review['id']; ?>"></textarea>
-                                        <button class="reply-submit" onclick="submitReply(<?php echo $review['id']; ?>)">Reply</button>
-                                    </div>
-                                </div>
-                            </div>
+                            <!-- Reply section removed -->
                         </div>
                     <?php endforeach; ?>
                     </div>

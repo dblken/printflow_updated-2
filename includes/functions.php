@@ -207,24 +207,17 @@ function create_notification($user_id, $user_type, $message, $type = 'System', $
     $customer_id = $user_type === 'Customer' ? $user_id : null;
     $staff_user_id = $user_type !== 'Customer' ? $user_id : null;
     
-    $order_type = null;
-    if ($type === 'Order' && $data_id !== null) {
-        $o = db_query("SELECT order_type FROM orders WHERE order_id = ? LIMIT 1", 'i', [$data_id]);
-        if (!empty($o)) $order_type = $o[0]['order_type'];
-    }
+    $sql = "INSERT INTO notifications (user_id, customer_id, message, type, data_id, is_read, send_email, send_sms) 
+            VALUES (?, ?, ?, ?, ?, 0, ?, ?)";
     
-    $sql = "INSERT INTO notifications (user_id, customer_id, message, type, data_id, is_read, send_email, send_sms, order_type) 
-            VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)";
-    
-    $result = db_execute($sql, 'iissiiis', [
+    $result = db_execute($sql, 'iissiii', [
         $staff_user_id,
         $customer_id,
         $message,
         $type,
         $data_id,
         $send_email ? 1 : 0,
-        $send_sms ? 1 : 0,
-        $order_type
+        $send_sms ? 1 : 0
     ]);
     
     if ($result && $send_email) {
@@ -371,16 +364,12 @@ function staff_notification_target_url(array $n): string {
 
         // Check if the data_id belongs to store orders table
         $ord_row = db_query(
-            "SELECT order_id, order_type FROM orders WHERE order_id = ? LIMIT 1",
+            "SELECT order_id FROM orders WHERE order_id = ? LIMIT 1",
             'i',
             [$data_id]
         );
         if (!empty($ord_row)) {
-            $o_type = $n['order_type'] ?? $ord_row[0]['order_type'];
-            if ($o_type === 'custom') {
-                return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=ORDER';
-            }
-            return $base . '/staff/orders.php';
+            return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=ORDER';
         }
 
         // Fallback: treat as a job order (most common case for staff notifications)
@@ -1242,6 +1231,24 @@ function render_pagination($current_page, $total_pages, $extra_params = [], $pag
  */
 function get_pagination_links($current_page, $total_pages, $extra_params = [], $page_param = 'page') {
     return render_pagination($current_page, $total_pages, $extra_params, $page_param);
+}
+
+/**
+ * Check if a customer's ID is verified.
+ */
+function is_customer_id_verified($customer_id = null) {
+    if ($customer_id === null) $customer_id = get_user_id();
+    if (!$customer_id) return false;
+    static $cache = [];
+    if (isset($cache[$customer_id])) return $cache[$customer_id];
+    // Ensure columns exist
+    global $conn;
+    $cols = db_query("SHOW COLUMNS FROM customers LIKE 'id_status'");
+    if (empty($cols)) {
+        $conn->query("ALTER TABLE customers ADD COLUMN id_image VARCHAR(255) DEFAULT NULL, ADD COLUMN id_type VARCHAR(100) DEFAULT NULL, ADD COLUMN id_status ENUM('None','Pending','Verified','Rejected') DEFAULT 'None', ADD COLUMN id_reject_reason VARCHAR(255) DEFAULT NULL");
+    }
+    $r = db_query("SELECT id_status FROM customers WHERE customer_id = ?", 'i', [$customer_id]);
+    return $cache[$customer_id] = (!empty($r) && $r[0]['id_status'] === 'Verified');
 }
 
 /**

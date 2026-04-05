@@ -3,6 +3,7 @@
  * PrintFlow - Admin Products Management
  */
 (function() {
+    console.log('[PrintFlow] Product Validation Loaded v2.2');
     const ERRORS = {
         nameRequired: 'Product name is required.',
         nameMinLength: 'Product name must be at least 2 characters.',
@@ -21,6 +22,7 @@
         quantityRequired: 'Quantity is required.',
         quantityWhole: 'Quantity must be a whole number.',
         quantityNegative: 'Quantity must be a non-negative number.',
+        quantityBelowLowStock: 'Quantity cannot be lower than low stock level.',
         lowStockExceed: 'Low stock level cannot exceed quantity.',
         lowStockWhole: 'Low stock level must be a whole number.',
         lowStockNegative: 'Low stock level must be a non-negative number.'
@@ -142,6 +144,14 @@
         const num = parseFloat(v);
         if (isNaN(num) || num < 0) return ERRORS.quantityNegative;
         if (num !== Math.floor(num)) return ERRORS.quantityWhole;
+        
+        // Check if quantity is lower than low stock level
+        const lowStockVal = getVal('low-stock');
+        const lowStock = parseInt(lowStockVal, 10);
+        if (!isNaN(lowStock) && num < lowStock) {
+            return ERRORS.quantityBelowLowStock;
+        }
+        
         return '';
     }
 
@@ -217,7 +227,13 @@
         ['modal-name', 'modal-category', 'modal-price', 'modal-description', 'modal-stock', 'modal-low-stock', 'modal-stock-mgr', 'modal-low-mgr'].forEach(function(id) {
             const elm = el(id);
             if (elm) {
-                elm.addEventListener('input', runValidation);
+                elm.addEventListener('input', function() {
+                    // Mark as touched on input
+                    if (id === 'modal-stock-mgr') touchedFields.add('stock');
+                    else if (id === 'modal-low-mgr') touchedFields.add('low-stock');
+                    else touchedFields.add(id.replace('modal-', ''));
+                    runValidation();
+                });
                 elm.addEventListener('change', function() {
                     if (id === 'modal-stock-mgr') touchedFields.add('stock');
                     else if (id === 'modal-low-mgr') touchedFields.add('low-stock');
@@ -277,10 +293,101 @@
         initProductFormValidation();
     }
 
+    // -------------------------------------------------------------------------
+    // EVENT DELEGATION FOR NUMERIC RESTRICTIONS (Quantity & Low Stock)
+    // -------------------------------------------------------------------------
+    // We use delegation on the document level to ensure listeners persist
+    // even if Alpine.js or other scripts re-render the modal content.
+    const NUMERIC_INPUT_IDS = ['modal-stock', 'modal-stock-mgr', 'modal-low-stock', 'modal-low-mgr'];
+
+    // Global KeyDown: Block invalid keystrokes immediately
+    document.addEventListener('keydown', function(e) {
+        if (!NUMERIC_INPUT_IDS.includes(e.target.id)) return;
+        
+        const el = e.target;
+        const isNumberKey = (e.key >= '0' && e.key <= '9');
+        const isModifier = e.ctrlKey || e.metaKey || e.altKey;
+        
+        // 1. Block '0' as first character
+        if (e.key === '0' && (el.value === '' || el.value === '0')) {
+            e.preventDefault();
+            return;
+        }
+
+        // 2. Limit to 5 characters
+        if (el.value.length >= 5 && isNumberKey && !isModifier) {
+            e.preventDefault();
+            return;
+        }
+    }, true);
+
+    // Global Input: Strip invalid characters/length (handles spinners & mouse interaction)
+    document.addEventListener('input', function(e) {
+        if (!NUMERIC_INPUT_IDS.includes(e.target.id)) return;
+        
+        const el = e.target;
+        let val = el.value;
+        let changed = false;
+
+        // 1. Remove any leading zeros (forces 01 -> 1, and 0 alone -> empty)
+        if (val.length > 0 && val.startsWith('0')) {
+            val = val.replace(/^0+/, '');
+            changed = true;
+        }
+
+        // 2. Enforce 5 character limit
+        if (val.length > 5) {
+            val = val.substring(0, 5);
+            changed = true;
+        }
+
+        if (changed) {
+            // Using a tiny timeout can help break out of browser-controlled input loops in type="number"
+            setTimeout(function() {
+                el.value = val;
+                // Re-trigger input for validation logic to pick up the change
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }, 0);
+        }
+    }, true);
+
+    // Global Blur: Final cleanup just in case
+    document.addEventListener('blur', function(e) {
+        if (!NUMERIC_INPUT_IDS.includes(e.target.id)) return;
+        
+        const el = e.target;
+        let val = el.value;
+        if (val.length > 0 && val.startsWith('0')) {
+            el.value = val.replace(/^0+/, '');
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }, true);
+
+    // Global Paste: Sanitize data before it enters
+    document.addEventListener('paste', function(e) {
+        if (!NUMERIC_INPUT_IDS.includes(e.target.id)) return;
+        
+        e.preventDefault();
+        const el = e.target;
+        let pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        
+        // Strip non-digits and leading zeros
+        pastedText = pastedText.replace(/\D/g, '').replace(/^0+/, '');
+        
+        // Limit to 5 digits
+        if (pastedText.length > 5) {
+            pastedText = pastedText.substring(0, 5);
+        }
+        
+        el.value = pastedText;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    }, true);
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', bootProductFormValidation);
     } else {
         bootProductFormValidation();
     }
     document.addEventListener('printflow:page-init', bootProductFormValidation);
+    document.addEventListener('pf-product-modal-shown', bootProductFormValidation);
 })();

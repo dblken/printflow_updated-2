@@ -3,13 +3,19 @@
     RewriteEngine On
     RewriteBase /printflow/
 
-    # Login/Register: GET -> home (modal); POST -> still handled by .php
+    # Auth Handlers: Point clean URLs to the internal handler
     RewriteCond %{REQUEST_METHOD} =GET
     RewriteRule ^login/?$ /printflow/?auth_modal=login [R=302,L,QSA]
     RewriteCond %{REQUEST_METHOD} =GET
     RewriteRule ^register/?$ /printflow/?auth_modal=register [R=302,L,QSA]
-    RewriteRule ^login/?$ public/login.php [L,QSA]
-    RewriteRule ^register/?$ public/register.php [L,QSA]
+    
+    # POST requests handled by the internal handler
+    RewriteRule ^login/?$ includes/auth_handler.php?action=login [L,QSA]
+    RewriteRule ^register/?$ includes/auth_handler.php?action=register [L,QSA]
+
+    # Block/Redirect direct access to the old public files
+    RewriteRule ^public/login\.php$ /printflow/?auth_modal=login [R=301,L]
+    RewriteRule ^public/register\.php$ /printflow/?auth_modal=register [R=301,L]
 
     # Clean URLs: /printflow/products/ -> public/products.php (and so on)
     RewriteRule ^products/?$ public/products.php [L,QSA]

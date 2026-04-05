@@ -140,16 +140,35 @@ if ($action === 'toggle_status') {
     $u = $u[0];
     $token = bin2hex(random_bytes(32));
     $expires = date('Y-m-d H:i:s', strtotime('+7 days'));
-    db_execute("UPDATE users SET profile_completion_token = ?, profile_completion_expires = ?, status = 'Pending' WHERE user_id = ?", 'ssi', [$token, $expires, $user_id]);
+    
+    // Store which fields to clear as JSON
+    $fields_to_clear = [];
+    $admin_notes = [];
+    if (!empty($data['admin_notes']) && is_array($data['admin_notes'])) {
+        $admin_notes = array_values(array_filter(array_map('trim', $data['admin_notes'])));
+        // Map admin notes to field names
+        foreach ($admin_notes as $note) {
+            if (stripos($note, 'Address') !== false) {
+                $fields_to_clear[] = 'address';
+            } elseif (stripos($note, 'ID Image') !== false || stripos($note, 'ID') !== false) {
+                $fields_to_clear[] = 'id_image';
+            } elseif (stripos($note, 'Contact') !== false) {
+                $fields_to_clear[] = 'contact';
+            }
+        }
+    }
+    
+    $fields_json = !empty($fields_to_clear) ? json_encode($fields_to_clear) : null;
+    
+    db_execute(
+        "UPDATE users SET profile_completion_token = ?, profile_completion_expires = ?, profile_completion_fields_to_clear = ?, status = 'Pending' WHERE user_id = ?", 
+        'sssi', 
+        [$token, $expires, $fields_json, $user_id]
+    );
 
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $complete_link = $protocol . '://' . $host . '/printflow/public/complete_profile.php?token=' . $token;
-
-    $admin_notes = [];
-    if (!empty($data['admin_notes']) && is_array($data['admin_notes'])) {
-        $admin_notes = array_values(array_filter(array_map('trim', $data['admin_notes'])));
-    }
 
     require_once __DIR__ . '/../includes/profile_completion_mailer.php';
     $mail_res = send_profile_completion_resend_email($u['email'], $u['first_name'], $complete_link, $admin_notes);

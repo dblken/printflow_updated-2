@@ -414,19 +414,18 @@ function sintraClearFieldError(container) {
 function sintraSetFieldError(container, message) {
     if (!container) return;
     var err = container.querySelector('.field-error');
-    if (!err) {
-        err = document.createElement('div');
-        err.className = 'field-error';
-        container.appendChild(err);
-    }
     if (message) {
+        if (!err) { 
+            err = document.createElement('div'); 
+            err.className = 'field-error'; 
+            container.appendChild(err); 
+        }
         container.classList.add('is-invalid');
-        err.textContent = message;
-        err.style.display = 'block';
+        err.innerHTML = `<span class="refl-error-icon">⚠</span> ${message}`;
+        err.style.display = 'flex';
     } else {
         container.classList.remove('is-invalid');
-        err.textContent = '';
-        err.style.display = 'none';
+        if (err) { err.textContent = ''; err.style.display = 'none'; }
     }
 }
 
@@ -624,6 +623,30 @@ document.addEventListener('DOMContentLoaded', function() {
 <style>
 /* Service Specific Tweaks */
 .dim-label { font-size: 0.7rem; color: #94a3b8; font-weight: 600; margin-bottom: 4px; display: block; text-transform: uppercase; }
+.field-error {
+    font-size: 0.75rem;
+    color: #f59e0b;
+    margin-top: 8px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    width: 100%;
+    flex-basis: 100%;
+}
+.refl-error-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    background: #f59e0b;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 900;
+    flex-shrink: 0;
+}
 .need-qty-row { display: flex; gap: 16px; width: 100%; }
 .dim-sep { height: 44px; display: flex; align-items: center; color: #cbd5e1; font-weight: bold; }
 

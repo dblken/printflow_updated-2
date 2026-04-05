@@ -59,7 +59,8 @@ fetch('/printflow/public/api/chat/list_conversations.php', {
         console.log('API Response:', data);
         document.getElementById('loadingState').style.display = 'none';
         if (!data.success) {
-            document.getElementById('loadingState').innerHTML = '<div class="p-12 text-center"><p style="color: #ef4444;">Error: ' + (data.error || 'Failed to load') + '</p><a href="#" onclick="location.reload()" style="color: #53c5e0; text-decoration: underline;">Retry</a></div>';
+            const errorMsg = data.details ? data.error + '<br><small>' + data.details + '</small>' : data.error;
+            document.getElementById('loadingState').innerHTML = '<div class="p-12 text-center"><p style="color: #ef4444;">' + errorMsg + '</p><a href="#" onclick="location.reload()" style="color: #53c5e0; text-decoration: underline; cursor: pointer;">Retry</a></div>';
             document.getElementById('loadingState').style.display = 'block';
             return;
         }

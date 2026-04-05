@@ -543,7 +543,7 @@ function require_auth() {
     SessionManager::setNoCacheHeaders();
     if (!is_logged_in()) {
         if (SessionManager::wasTimedOut()) {
-            header('Location: ' . AUTH_REDIRECT_BASE . '/public/login.php?timeout=1');
+            header('Location: ' . AUTH_REDIRECT_BASE . '/?auth_modal=login&timeout=1');
         } else {
             header('Location: ' . AUTH_REDIRECT_BASE . '/');
         }

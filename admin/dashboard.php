@@ -194,7 +194,7 @@ try {
 } catch (Exception $e) { $top_products = []; }
 
 // ── 12-Month Sales Trend (Store + Customization) ──────
-$trend12_labels = $trend12_revenues = $trend12_orders = [];
+$trend12_labels = $trend12_revenues_store = $trend12_revenues_custom = $trend12_orders = [];
 try {
     [$bo,$bto,$bpo] = branch_where_parts('o', $branchId);
     [$bj,$btj,$bpj] = branch_where_parts('jo', $branchId);
@@ -231,17 +231,16 @@ try {
         $j = $mapJ[$key] ?? [];
         $rs = (float)($s['revenue_store'] ?? 0);
         $rc = (float)($j['revenue_custom'] ?? 0);
-        $trend12_revenues[] = $rs + $rc;
+        $trend12_revenues_store[] = $rs;
+        $trend12_revenues_custom[] = $rc;
         $trend12_orders[] = (int)($s['orders_store'] ?? 0) + (int)($j['orders_custom'] ?? 0);
     }
 } catch (Exception $e) {}
 
 // ── Revenue Distribution (Top 7 products) ─────────────
-$from_dash = date('Y-m-01');
-$to_dash = date('Y-m-d') . ' 23:59:59';
 $top_products_full = [];
 try {
-    $top_products_full = pf_reports_top_products_merged($from_dash, $to_dash, $branchId, 10);
+    $top_products_full = pf_reports_top_products_merged('', '', $branchId, 10);
 } catch (Exception $e) {}
 $rev_donut = array_slice($top_products_full, 0, 7);
 $donut_palette = ['#00232b', '#53C5E0', '#0F4C5C', '#3498DB', '#6C5CE7', '#3A86A8', '#F39C12'];
@@ -571,6 +570,8 @@ $page_title = 'Dashboard - Admin | PrintFlow';
                 <?php endif; ?>
             </div>
 
+
+
             <!-- Best Selling Services + Low Stock Alerts -->
             <div class="dash-grid">
                 <!-- Best Selling Services -->
@@ -588,9 +589,24 @@ $page_title = 'Dashboard - Admin | PrintFlow';
 
                 <!-- Low Stock Alerts -->
                 <div class="dash-card">
-                    <div class="dash-card-title">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                        Low Stock Alerts
+                    <div class="dash-card-title" style="justify-content: space-between;">
+                        <span style="display: flex; align-items: center; gap: 8px;">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                            Low Stock Alerts
+                        </span>
+                        <?php if (!empty($low_stock)):
+                            // Check if any item is out of stock (0)
+                            $has_out_of_stock = false;
+                            foreach ($low_stock as $ls) {
+                                if ((float)$ls['current_stock'] <= 0) {
+                                    $has_out_of_stock = true;
+                                    break;
+                                }
+                            }
+                            $stock_filter = $has_out_of_stock ? 'out' : 'low';
+                        ?>
+                        <a href="<?php echo pf_admin_url('inv_items_management.php', ['stock_status' => $stock_filter]); ?>" style="font-size:13px; font-weight:600; color:#0d9488; text-decoration:none;">See all &rarr;</a>
+                        <?php endif; ?>
                     </div>
                     <?php if (!empty($low_stock)): ?>
                     <table class="mini-table">
@@ -836,6 +852,7 @@ $page_title = 'Dashboard - Admin | PrintFlow';
             try { window.__pfDashCategoryChart.destroy(); } catch (e) {}
             window.__pfDashCategoryChart = null;
         }
+
     };
     window.printflowInitDashboardCharts = function () {
         if (!document.getElementById('salesChart')) return;
@@ -971,7 +988,7 @@ $page_title = 'Dashboard - Admin | PrintFlow';
                 type: 'line',
                 data: { labels: [], datasets: [
                     {
-                        label: 'Store revenue (₱)',
+                        label: 'Store Revenue (₱)',
                         data: [],
                         borderColor: '#00232b',
                         backgroundColor: 'rgba(0,35,43,.08)',
@@ -984,7 +1001,7 @@ $page_title = 'Dashboard - Admin | PrintFlow';
                         yAxisID: 'y'
                     },
                     {
-                        label: 'Customization revenue (₱)',
+                        label: 'Customization Revenue (₱)',
                         data: [],
                         borderColor: '#6366F1',
                         backgroundColor: 'transparent',
@@ -1028,6 +1045,8 @@ $page_title = 'Dashboard - Admin | PrintFlow';
             });
             loadSalesChart(getChartPeriod());
         });
+
+
 
         // Order Status Chart - Dynamic (reloads with branch changes)
         (function () {
@@ -1184,12 +1203,21 @@ $page_title = 'Dashboard - Admin | PrintFlow';
                     data: {
                         labels: <?php echo json_encode($trend12_labels); ?>,
                         datasets: [{
-                            label: 'Revenue (₱)',
-                            data: <?php echo json_encode($trend12_revenues); ?>,
+                            label: 'Store Revenue (₱)',
+                            data: <?php echo json_encode($trend12_revenues_store); ?>,
                             borderColor: '#00232b',
                             backgroundColor: 'rgba(0,35,43,.08)',
                             borderWidth: 2.5,
                             fill: true,
+                            tension: 0.35,
+                            yAxisID: 'y'
+                        }, {
+                            label: 'Customization Revenue (₱)',
+                            data: <?php echo json_encode($trend12_revenues_custom); ?>,
+                            borderColor: '#6366F1',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2.5,
+                            fill: false,
                             tension: 0.35,
                             yAxisID: 'y'
                         }, {

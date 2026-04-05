@@ -26,7 +26,7 @@ if ($order_id <= 0) {
 }
 
 $order_rows = db_query("
-    SELECT o.order_id, o.customer_id, o.status, o.order_type, o.reference_id,
+    SELECT o.order_id, o.customer_id, o.status,
            (SELECT oi.customization_data FROM order_items oi WHERE oi.order_id = o.order_id ORDER BY oi.order_item_id ASC LIMIT 1) AS customization_data,
            (SELECT p.name FROM order_items oi LEFT JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = o.order_id ORDER BY oi.order_item_id ASC LIMIT 1) AS product_name,
            (SELECT oi.order_item_id FROM order_items oi WHERE oi.order_id = o.order_id ORDER BY oi.order_item_id ASC LIMIT 1) AS first_item_id
@@ -47,10 +47,13 @@ if (!in_array((string)$order['status'], ['Completed', 'To Rate', 'Rated'], true)
 }
 
 // Check if already rated in the new reviews table
-$existing = db_query("SELECT id, rating, comment, video_path, created_at FROM reviews WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
+$existing = db_query("SELECT id, rating, message, created_at FROM reviews WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
 $already_rated = !empty($existing);
 $review_id = $already_rated ? (int)$existing[0]['id'] : 0;
 $existing_rating = $already_rated ? (int)$existing[0]['rating'] : 0;
+$existing_message = $already_rated ? (string)($existing[0]['message'] ?? '') : '';
+// Allow re-edit if message was never properly saved
+$needs_message_update = $already_rated && (trim($existing_message) === '' || $existing_message === '(No comment provided)');
 
 $existing_images = $already_rated ? db_query("SELECT image_path FROM review_images WHERE review_id = ?", 'i', [$review_id]) : [];
 
@@ -74,7 +77,7 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid security token. Please refresh and try again.';
-    } elseif ($already_rated) {
+    } elseif ($already_rated && !$needs_message_update) {
         $error = 'You already rated this order.';
     } else {
         $rating = (int)($_POST['rating'] ?? 0);
@@ -136,26 +139,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($error === '') {
                 try {
-                    $ref_id = (int)($order['reference_id'] ?? 0);
-                    $rev_type = ($order['order_type'] === 'product') ? 'product' : 'custom';
+                    $ref_id = 0;
+                    $rev_type = 'custom';
                     
-                    // Fallback for ref_id if it's missing from order (try first order item)
-                    if ($ref_id <= 0) {
-                        $item_ref = db_query("SELECT product_id FROM order_items WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
-                        if (!empty($item_ref)) {
-                            $ref_id = (int)$item_ref[0]['product_id'];
-                        }
+                    $item_ref = db_query("SELECT product_id FROM order_items WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
+                    if (!empty($item_ref) && !empty($item_ref[0]['product_id'])) {
+                        $ref_id = (int)$item_ref[0]['product_id'];
+                        $rev_type = 'product';
                     }
 
-                    // Start transaction if possible (but db_execute is a wrapper, so we'll just do it manually)
-                    db_execute(
-                        "INSERT INTO reviews (order_id, user_id, reference_id, review_type, service_type, rating, comment, video_path, created_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())",
-                        'iiisssis',
-                        [$order_id, $customer_id, $ref_id, $rev_type, $service_type_label, $rating, $message, $video_path]
-                    );
-                    
-                    $new_review_id = db_query("SELECT LAST_INSERT_ID() as id")[0]['id'];
+                    if ($needs_message_update) {
+                        // Update existing review with the message
+                        db_execute(
+                            "UPDATE reviews SET rating = ?, message = ? WHERE id = ?",
+                            'isi',
+                            [$rating, $message, $review_id]
+                        );
+                        $new_review_id = $review_id;
+                    } else {
+                        // Insert new review
+                        db_execute(
+                            "INSERT INTO reviews (order_id, customer_id, service_type, rating, message, created_at)
+                             VALUES (?, ?, ?, ?, ?, NOW())",
+                            'iisis',
+                            [$order_id, $customer_id, $service_type_label, $rating, $message]
+                        );
+                        $new_review_id = db_query("SELECT LAST_INSERT_ID() as id")[0]['id'];
+                    }
                     
                     foreach ($uploaded_images as $img) {
                         db_execute("INSERT INTO review_images (review_id, image_path) VALUES (?, ?)", 'is', [$new_review_id, $img]);
@@ -235,18 +245,18 @@ require_once __DIR__ . '/../includes/header.php';
 
                 <form method="POST" enctype="multipart/form-data" id="ratingForm" onsubmit="handleSubmit(this)">
                     <input type="hidden" name="order_id" value="<?php echo (int)$order_id; ?>">
-                    <input type="hidden" id="ratingInput" name="rating" value="">
+                    <input type="hidden" id="ratingInput" name="rating" value="<?php echo $needs_message_update ? $existing_rating : ''; ?>">
                     <?php echo csrf_field(); ?>
 
                     <label class="rate-label">Star Rating <span style="color:#ef4444">*</span></label>
                     <div class="rate-stars" id="starButtons">
                         <?php for($i=1;$i<=5;$i++): ?>
-                        <button type="button" class="rate-star-btn" data-value="<?php echo $i; ?>">★</button>
+                        <button type="button" class="rate-star-btn <?php echo ($needs_message_update && $i <= $existing_rating) ? 'active' : ''; ?>" data-value="<?php echo $i; ?>">★</button>
                         <?php endfor; ?>
                     </div>
 
                     <label class="rate-label" for="messageInput">Write a Review <span style="color:#ef4444">*</span></label>
-                    <textarea id="messageInput" class="rate-textarea" name="message" required placeholder="Tell us about the print quality, the service, or anything you liked... (5-500 characters)"></textarea>
+                    <textarea id="messageInput" class="rate-textarea" name="message" required placeholder="Tell us about the print quality, the service, or anything you liked... (5-500 characters)"><?php echo $needs_message_update ? '' : ''; ?></textarea>
                     <div id="charCount" style="text-align: right; font-size: 11px; color: #5a7b8c; margin-top: 4px;">0 / 500</div>
 
                     <div style="margin-top:2rem;">

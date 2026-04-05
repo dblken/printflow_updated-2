@@ -3,7 +3,7 @@
  * Strategy: App Shell (instant open) + Stale-While-Revalidate for pages
  */
 
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v7';
 const SHELL_CACHE = 'printflow-shell-' + CACHE_VERSION;
 const PAGE_CACHE = 'printflow-pages-' + CACHE_VERSION;
 const IMG_CACHE = 'printflow-img-' + CACHE_VERSION;
@@ -22,7 +22,6 @@ const APP_SHELL = [
 const PRE_CACHE_PAGES = [
     '/printflow/',
     '/printflow/public/index.php',
-    '/printflow/public/login.php',
     '/printflow/public/products.php',
 ];
 

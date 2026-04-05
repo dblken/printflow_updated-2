@@ -704,6 +704,6 @@ function _ft_detect_social(string $url): array {
     <script src="<?php echo $base_url; ?>/public/assets/js/notifications.js" defer></script>
     <script src="<?php echo $base_url; ?>/public/assets/js/inactivity_logout.js" defer></script>
     <?php endif; ?>
-    <script src="<?php echo $base_url ?? '/printflow'; ?>/public/assets/js/order_validation.js" defer></script>
+    <script src="<?php echo $base_url ?? '/printflow'; ?>/public/assets/js/order_validation.js?v=<?php echo time(); ?>" defer></script>
 </body>
 </html>

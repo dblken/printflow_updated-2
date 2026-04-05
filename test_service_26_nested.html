@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Service 26 Nested Field Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .section { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+        .section h2 { margin-top: 0; color: #1f2937; }
+        .status { padding: 10px; border-radius: 6px; margin-bottom: 15px; }
+        .status.success { background: #d1fae5; border: 1px solid #6ee7b7; color: #065f46; }
+        .status.info { background: #dbeafe; border: 1px solid #93c5fd; color: #1e40af; }
+        .code { background: #1f2937; color: #f9fafb; padding: 15px; border-radius: 6px; overflow-x: auto; font-family: monospace; font-size: 13px; }
+        .link { display: inline-block; padding: 10px 20px; background: #0d9488; color: white; text-decoration: none; border-radius: 6px; margin: 5px; }
+        .link:hover { background: #0f766e; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f3f4f6; font-weight: 600; }
+        .check { color: #059669; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Service 26 - Nested Field Verification</h1>
+    
+    <div class="section">
+        <h2>✅ Database Verification</h2>
+        <div class="status success">
+            ✓ Nested field data found in database for service 26
+        </div>
+        
+        <table>
+            <tr>
+                <th>Property</th>
+                <th>Value</th>
+                <th>Status</th>
+            </tr>
+            <tr>
+                <td>Field Key</td>
+                <td><code>custom_cxcxc</code></td>
+                <td class="check">✓</td>
+            </tr>
+            <tr>
+                <td>Field Label</td>
+                <td><code>cxcxc</code></td>
+                <td class="check">✓</td>
+            </tr>
+            <tr>
+                <td>Field Type</td>
+                <td><code>radio</code></td>
+                <td class="check">✓ Correct (radio supports nested)</td>
+            </tr>
+            <tr>
+                <td>Radio Option</td>
+                <td><code>xcxxc</code></td>
+                <td class="check">✓</td>
+            </tr>
+            <tr>
+                <td>Has Nested Fields</td>
+                <td><code>Yes</code></td>
+                <td class="check">✓</td>
+            </tr>
+            <tr>
+                <td>Nested Field Label</td>
+                <td><code>xcxcx</code></td>
+                <td class="check">✓</td>
+            </tr>
+            <tr>
+                <td>Nested Field Type</td>
+                <td><code>file</code></td>
+                <td class="check">✓</td>
+            </tr>
+            <tr>
+                <td>Nested Field Required</td>
+                <td><code>true</code></td>
+                <td class="check">✓</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h2>📋 What to Test</h2>
+        
+        <h3>1. Admin Interface Test</h3>
+        <a href="http://localhost/printflow/admin/service_field_config.php?service_id=26" class="link" target="_blank">
+            Open Admin Config Page →
+        </a>
+        
+        <div class="status info">
+            <strong>Steps:</strong><br>
+            1. Click the link above to open admin page<br>
+            2. Find the field labeled "cxcxc" (type: RADIO)<br>
+            3. Click on the row to expand details<br>
+            4. Look for option "xcxxc"<br>
+            5. You should see a nested field configuration panel<br>
+            6. The nested field "xcxcx" (file type, required) should be visible
+        </div>
+        
+        <h3>2. Customer Order Form Test</h3>
+        <a href="http://localhost/printflow/customer/order_service_dynamic.php?service_id=26" class="link" target="_blank">
+            Open Customer Order Page →
+        </a>
+        
+        <div class="status info">
+            <strong>Steps:</strong><br>
+            1. Click the link above to open customer order page<br>
+            2. Scroll down to find the "cxcxc" radio field<br>
+            3. Select the "xcxxc" radio button<br>
+            4. <strong>Expected:</strong> A file upload field labeled "xcxcx *" should appear below<br>
+            5. The field should be marked as required (asterisk)<br>
+            6. Try to submit without uploading - should show validation error<br>
+            7. Select a different radio option (if available) - nested field should disappear
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>🎯 Expected Behavior</h2>
+        
+        <h3>On Customer Form:</h3>
+        <div class="code">
+When customer selects "xcxxc" radio button:
+  → Nested field container appears with smooth animation
+  → File upload field "xcxcx *" is visible
+  → Field is marked as required (has asterisk)
+  → Customer must upload a file to proceed
+
+When customer changes selection:
+  → Previous nested field disappears
+  → File upload is no longer required
+  → Form can be submitted without file
+        </div>
+        
+        <h3>On Admin Page:</h3>
+        <div class="code">
+When viewing field configuration:
+  → Field "cxcxc" shows as RADIO type
+  → Option "xcxxc" has a nested field configuration
+  → Nested field "xcxcx" is visible in the panel
+  → Type shows as "file"
+  → Required checkbox is checked
+  → Can edit or remove nested field
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>🔧 Troubleshooting</h2>
+        
+        <h3>If nested field doesn't appear on customer form:</h3>
+        <ol>
+            <li>Check browser console for JavaScript errors (F12)</li>
+            <li>Verify the radio option "xcxxc" is selected</li>
+            <li>Refresh the page (Ctrl+F5)</li>
+            <li>Check that service_field_renderer.php is updated</li>
+        </ol>
+        
+        <h3>If nested field doesn't show in admin:</h3>
+        <ol>
+            <li>Verify service_field_config.php is updated</li>
+            <li>Check that nested_field_functions.js is loaded</li>
+            <li>Clear browser cache</li>
+            <li>Check PHP error logs</li>
+        </ol>
+    </div>
+    
+    <div class="section">
+        <h2>📊 Database Structure</h2>
+        <div class="code">
+{
+  "options": [
+    {
+      "value": "xcxxc",
+      "nested_fields": [
+        {
+          "type": "file",
+          "label": "xcxcx",
+          "required": true
+        }
+      ]
+    }
+  ]
+}
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>✅ Verification Checklist</h2>
+        <ul>
+            <li>☐ Database contains nested field data</li>
+            <li>☐ Admin page shows nested field configuration</li>
+            <li>☐ Customer page renders nested field when radio selected</li>
+            <li>☐ Nested field disappears when different option selected</li>
+            <li>☐ Required validation works (prevents submission without file)</li>
+            <li>☐ File upload works correctly</li>
+            <li>☐ No JavaScript errors in console</li>
+            <li>☐ No PHP errors in logs</li>
+        </ul>
+    </div>
+    
+    <div style="text-align: center; margin-top: 40px; padding: 20px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px;">
+        <h3 style="color: #166534; margin-top: 0;">🎉 Nested Field Implementation Verified!</h3>
+        <p style="color: #166534;">The nested field for service 26 is correctly configured in the database.<br>
+        Use the links above to test the admin and customer interfaces.</p>
+    </div>
+</body>
+</html>

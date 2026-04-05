@@ -13,9 +13,21 @@ require_role('Customer');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['update_cart'])) {
         foreach ($_POST['quantities'] as $pid => $qty) {
-            if ($qty > 0 && isset($_SESSION['cart'][$pid])) {
-                $_SESSION['cart'][$pid]['quantity'] = (int)$qty;
+            $qty = max(1, (int)$qty);
+            if (isset($_SESSION['cart'][$pid])) {
+                $_SESSION['cart'][$pid]['quantity'] = $qty;
             }
+        }
+        // Enforce 99 total after update
+        $total = array_sum(array_column($_SESSION['cart'], 'quantity'));
+        if ($total > 99) {
+            $excess = $total - 99;
+            foreach ($_SESSION['cart'] as $pid => &$item) {
+                $reduce = min($excess, $item['quantity'] - 1);
+                if ($reduce > 0) { $item['quantity'] -= $reduce; $excess -= $reduce; }
+                if ($excess <= 0) break;
+            }
+            unset($item);
         }
     } elseif (isset($_POST['remove_item'])) {
         $pid = $_POST['remove_item'];
@@ -56,35 +68,36 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <style>
+    body.customer-theme { background: #ffffff !important; }
     .cart-theme-page {
-        color: #d9e6ef;
+        color: #1e293b;
     }
     .cart-theme-page .ct-page-title {
-        color: #eaf6fb !important;
+        color: #0f172a !important;
     }
     .cart-theme-page .card {
-        background: rgba(10, 37, 48, 0.55) !important;
-        border: 1px solid rgba(83, 197, 224, 0.22) !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
         border-radius: 1.25rem !important;
-        box-shadow: 0 12px 40px rgba(2, 12, 18, 0.35) !important;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important;
         overflow: hidden;
     }
     .cart-theme-page table {
         background: transparent !important;
-        color: #d9e6ef !important;
+        color: #1e293b !important;
     }
     .cart-theme-page thead {
-        background: rgba(8, 30, 39, 0.85) !important;
-        color: #9fc6d9 !important;
+        background: #f8fafc !important;
+        color: #475569 !important;
     }
     .cart-theme-page .cart-row {
-        border-bottom: 1px solid rgba(83, 197, 224, 0.14) !important;
+        border-bottom: 1px solid #e2e8f0 !important;
     }
     .cart-theme-page .cart-row td {
-        color: #d9e6ef !important;
+        color: #1e293b !important;
     }
     .cart-theme-page .cart-row:hover {
-        background: rgba(83, 197, 224, 0.09) !important;
+        background: #f1f5f9 !important;
     }
     .cart-theme-page .btn-primary {
         background: linear-gradient(135deg, #53C5E0, #32a1c4) !important;
@@ -98,59 +111,54 @@ require_once __DIR__ . '/../includes/header.php';
         border: none !important;
         box-shadow: 0 10px 22px rgba(50,161,196,0.3) !important;
     }
-    .cart-theme-page #checkout-btn:hover {
-        filter: brightness(1.05);
-    }
+    .cart-theme-page #checkout-btn:hover { filter: brightness(1.05); }
     .cart-theme-page .btn-secondary {
-        background: rgba(255,255,255,.05) !important;
-        color: #d9e6ef !important;
-        border: 1px solid rgba(83,197,224,.28) !important;
+        background: #f1f5f9 !important;
+        color: #334155 !important;
+        border: 1px solid #cbd5e1 !important;
     }
     .cart-theme-page .btn-secondary:hover {
-        background: rgba(83,197,224,.14) !important;
-        color: #fff !important;
+        background: #e2e8f0 !important;
+        color: #0f172a !important;
     }
+    .cart-theme-page .ct-empty { color: #64748b; }
+    .cart-theme-page .ct-empty p { color: #64748b; }
 
     /* Modern Circular Quantity Selector */
     .qty-control {
         display: inline-flex;
         align-items: center;
-        background: rgba(13, 43, 56, 0.92);
+        background: #f1f5f9;
         border-radius: 9999px;
         padding: 4px;
         gap: 12px;
-        border: 1px solid rgba(83, 197, 224, 0.26);
+        border: 1px solid #cbd5e1;
     }
     .qty-btn {
         width: 32px;
         height: 32px;
         border-radius: 50%;
         border: none;
-        background: rgba(83, 197, 224, 0.15);
-        color: #eaf6fb;
+        background: #e2e8f0;
+        color: #334155;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1.1rem;
         cursor: pointer;
         transition: all 0.2s;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     .qty-btn:hover:not(:disabled) {
-        background: rgba(83, 197, 224, 0.24);
+        background: #0a2530;
+        color: #fff;
         transform: scale(1.05);
     }
-    .qty-btn:active:not(:disabled) {
-        transform: scale(0.95);
-    }
-    .qty-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
+    .qty-btn:active:not(:disabled) { transform: scale(0.95); }
+    .qty-btn:disabled { opacity: 0.35; cursor: not-allowed; }
     .qty-val {
         font-weight: 700;
         font-size: 0.95rem;
-        color: #eaf6fb;
+        color: #0f172a;
         min-width: 20px;
         text-align: center;
     }
@@ -167,8 +175,8 @@ require_once __DIR__ . '/../includes/header.php';
 
     /* Trash Icon Styling */
     .trash-btn {
-        color: #fda4af;
-        background: rgba(239, 68, 68, 0.12);
+        color: #dc2626;
+        background: rgba(239, 68, 68, 0.1);
         border: none;
         padding: 8px;
         border-radius: 8px;
@@ -310,7 +318,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 <div class="min-h-screen py-8 cart-theme-page">
     <div class="container mx-auto px-4" style="max-width:1100px;">
-        <h1 class="ct-page-title">Shopping Cart</h1>
+        <h1 class="text-2xl font-bold text-gray-800">Shopping Cart</h1>
 
         <?php 
         $customer_id = get_user_id();
@@ -388,9 +396,9 @@ require_once __DIR__ . '/../includes/header.php';
                                     } else {
                                         $item_origin = $is_service_item ? 'Service' : 'Product';
                                     }
-                                    $item_type_bg = ($item_origin === 'Product') ? 'rgba(16, 185, 129, 0.18)' : 'rgba(168, 85, 247, 0.18)';
-                                    $item_type_border = ($item_origin === 'Product') ? 'rgba(16, 185, 129, 0.38)' : 'rgba(168, 85, 247, 0.4)';
-                                    $item_type_text = ($item_origin === 'Product') ? '#9af0d4' : '#ddc5ff';
+                                    $item_type_bg = ($item_origin === 'Product') ? 'rgba(16, 185, 129, 0.12)' : 'rgba(168, 85, 247, 0.12)';
+                                    $item_type_border = ($item_origin === 'Product') ? 'rgba(16, 185, 129, 0.5)' : 'rgba(168, 85, 247, 0.5)';
+                                    $item_type_text = ($item_origin === 'Product') ? '#065f46' : '#581c87';
                                     $item_name = (string)($item['name'] ?? 'Unknown Product');
                                     $item_category = (string)($item['category'] ?? '');
                                     $qty_for_edit = max(1, (int)($item['quantity'] ?? 1));
@@ -493,39 +501,39 @@ require_once __DIR__ . '/../includes/header.php';
                                             </div>
                                             <div>
                                                 <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-                                                    <div style="font-weight:600;"><?php echo htmlspecialchars($item['name'] ?? 'Unknown Product'); ?></div>
+                                                    <div style="font-weight:600; color:#0f172a;"><?php echo htmlspecialchars($item['name'] ?? 'Unknown Product'); ?></div>
                                                     <span style="display:inline-flex; align-items:center; height:20px; padding:0 0.55rem; border-radius:999px; border:1px solid <?php echo $item_type_border; ?>; background:<?php echo $item_type_bg; ?>; color:<?php echo $item_type_text; ?>; font-size:0.68rem; font-weight:700; letter-spacing:0.02em; text-transform:uppercase;">
                                                         <?php echo $item_origin; ?>
                                                     </span>
                                                 </div>
                                                 <?php if (!empty($item['variant_name'])): ?>
-                                                    <div style="font-size:0.75rem; color:#b6d8e6;"><?php echo htmlspecialchars((string)$item['variant_name']); ?></div>
+                                                    <div style="font-size:0.75rem; color:#475569;"><?php echo htmlspecialchars((string)$item['variant_name']); ?></div>
                                                 <?php endif; ?>
                                                 <?php if (!empty($item['category'])): ?>
-                                                    <div style="font-size:0.75rem; color:#9fc6d9;"><?php echo htmlspecialchars($item['category']); ?></div>
+                                                    <div style="font-size:0.75rem; color:#64748b;"><?php echo htmlspecialchars($item['category']); ?></div>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
                                         <td style="padding:1rem; text-align:center;">
                                             <?php 
                                             if ($is_unpriced_row): ?>
-                                                <span style="font-size:0.75rem; color:#9fc6d9; font-style:italic;">To be confirmed</span>
+                                                <span style="font-size:0.75rem; color:#64748b; font-style:italic;">To be confirmed</span>
                                             <?php else: ?>
-                                                <?php echo str_replace('PHP', '₱', format_currency($item['price'])); ?>
+                                                <span style="color:#0f172a; font-weight:600;"><?php echo str_replace('PHP', '₱', format_currency($item['price'])); ?></span>
                                             <?php endif; ?>
                                         </td>
                                         <td style="padding:1rem; text-align:center;">
                                             <div class="qty-control">
                                                 <button type="button" class="qty-btn" onclick="updateQty('<?php echo $pid; ?>', -1)" <?php echo $item['quantity'] <= 1 ? 'disabled' : ''; ?>>−</button>
                                                 <span class="qty-val" id="qty-<?php echo $pid; ?>"><?php echo $item['quantity']; ?></span>
-                                                <button type="button" class="qty-btn" onclick="updateQty('<?php echo $pid; ?>', 1)">+</button>
+                                                <button type="button" class="qty-btn" onclick="updateQty('<?php echo $pid; ?>', 1)" <?php echo $item['quantity'] >= 99 ? 'disabled' : ''; ?>>+</button>
                                             </div>
                                         </td>
                                         <td style="padding:1rem; text-align:right; font-weight:600;" id="total-<?php echo $pid; ?>">
                                             <?php if ($is_unpriced_row): ?>
-                                                <span style="font-size:0.75rem; color:#9fc6d9; font-style:italic;">To be confirmed</span>
+                                                <span style="font-size:0.75rem; color:#64748b; font-style:italic;">To be confirmed</span>
                                             <?php else: ?>
-                                                <?php echo str_replace('PHP', '₱', format_currency($item['price'] * $item['quantity'])); ?>
+                                                <span style="color:#0f172a; font-weight:600;"><?php echo str_replace('PHP', '₱', format_currency($item['price'] * $item['quantity'])); ?></span>
                                             <?php endif; ?>
                                         </td>
                                         <td style="padding:1rem; text-align:center;">
@@ -541,14 +549,14 @@ require_once __DIR__ . '/../includes/header.php';
                         </table>
                     </div>
                     
-                    <div style="padding:1.5rem; background:rgba(8,30,39,.8); border-top:1px solid rgba(83,197,224,.18); display:flex; justify-content:space-between; align-items:center;">
+                    <div style="padding:1.5rem; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                         <a href="products.php" class="btn-secondary" style="padding:0.5rem 1.25rem; border-radius:6px; font-weight: 500; text-decoration: none;">Continue Shopping</a>
                         
                         <div style="text-align:right;">
-                            <div style="font-size:0.875rem; color:#9fc6d9; margin-bottom:0.25rem;">Subtotal <?php echo $has_custom ? '(Priced Items only)' : ''; ?></div>
-                            <div style="font-size:1.5rem; font-weight:700; color:#eaf6fb; margin-bottom:1rem;" id="cart-total"><?php echo str_replace('PHP', '₱', format_currency($total)); ?></div>
+                            <div style="font-size:0.875rem; color:#64748b; margin-bottom:0.25rem;">Subtotal <?php echo $has_custom ? '(Priced Items only)' : ''; ?></div>
+                            <div style="font-size:1.5rem; font-weight:700; color:#0f172a; margin-bottom:1rem;" id="cart-total"><?php echo str_replace('PHP', '₱', format_currency($total)); ?></div>
                             <?php if ($has_custom): ?>
-                                <div style="font-size:0.75rem; color:#9fc6d9; font-style:italic; margin-top:-0.5rem; margin-bottom:1rem;">+ Custom items (Price will be confirmed by the shop)</div>
+                                <div style="font-size:0.75rem; color:#64748b; font-style:italic; margin-top:-0.5rem; margin-bottom:1rem;">+ Custom items (Price will be confirmed by the shop)</div>
                             <?php endif; ?>
                             <?php if ($is_restricted): ?>
                                 <button type="button" class="btn-primary" style="padding:0.75rem 2rem; opacity:0.5; cursor:not-allowed;" disabled>Proceed to Checkout</button>
@@ -658,48 +666,81 @@ function closeRemoveModal() {
 async function updateQty(pid, delta) {
     const span = document.getElementById(`qty-${pid}`);
     if (!span) return;
-    
+
     let currentQty = parseInt(span.textContent);
     let newQty = currentQty + delta;
     if (newQty < 1) return;
-    
+
+    // Check overall cart total — only block increases
+    if (delta > 0) {
+        const cartTotal = getCartTotal();
+        const newCartTotal = cartTotal - currentQty + newQty;
+        if (newCartTotal > 99) {
+            showCartToast('Your cart is full.', true);
+            return;
+        }
+    }
+
     // Optimistic UI
     span.textContent = newQty;
     const row = document.querySelector(`.cart-row[data-id="${pid}"]`);
     const price = parseFloat(row.dataset.price);
     const lineTotalSpan = document.getElementById(`total-${pid}`);
     lineTotalSpan.textContent = PHP(price * newQty);
-    
-    // Disable/Enable minus button
+
     const minusBtn = row.querySelector('.qty-btn:first-child');
+    const plusBtn = row.querySelector('.qty-btn:last-child');
     minusBtn.disabled = (newQty <= 1);
-    
+    plusBtn.disabled = (getCartTotal() >= 99);
+
     recalculateTotal();
+    updateAllPlusBtns();
 
     try {
         const res = await fetch('api_cart.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'update',
-                cart_key: pid,
-                quantity: newQty,
-                csrf_token: PF_CSRF_TOKEN
-            })
+            body: JSON.stringify({ action: 'update', cart_key: pid, quantity: newQty, csrf_token: PF_CSRF_TOKEN })
         });
         const data = await res.json();
         if (!data.success) {
-            alert(data.message || 'Failed to update quantity');
-            // Revert on error
+            showCartToast(data.message || 'Failed to update quantity.', true);
             span.textContent = currentQty;
+            minusBtn.disabled = (currentQty <= 1);
             recalculateTotal();
+            updateAllPlusBtns();
         } else {
-             // Update global count if needed
-             if (window.updateCartBadge) updateCartBadge(data.cart_count);
+            if (window.updateCartBadge) updateCartBadge(data.cart_count);
         }
-    } catch (err) {
-        console.error(err);
+    } catch (err) { console.error(err); }
+}
+
+function getCartTotal() {
+    let total = 0;
+    document.querySelectorAll('.qty-val').forEach(s => { total += parseInt(s.textContent) || 0; });
+    return total;
+}
+
+function updateAllPlusBtns() {
+    const full = getCartTotal() >= 99;
+    document.querySelectorAll('.cart-row').forEach(row => {
+        const plusBtn = row.querySelector('.qty-btn:last-child');
+        if (plusBtn) plusBtn.disabled = full;
+    });
+}
+
+function showCartToast(msg, isError) {
+    let toast = document.getElementById('cart-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'cart-toast';
+        document.body.appendChild(toast);
     }
+    toast.textContent = msg;
+    toast.style.cssText = `position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);background:${isError ? 'rgba(239,68,68,0.92)' : 'rgba(0,0,0,0.85)'};color:white;padding:12px 24px;border-radius:4px;font-size:0.9rem;font-weight:500;z-index:10000;transition:opacity 0.3s;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.2);`;
+    toast.style.opacity = '1';
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
 }
 
 async function toggleItem(pid, selected) {
@@ -801,6 +842,7 @@ function PHP(amount) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    updateAllPlusBtns();
     document.querySelectorAll('.cart-row').forEach(function(row) {
         row.addEventListener('click', function(e) {
             if (e.target.closest('button, a, input, label, .qty-control, .trash-btn, .cart-checkbox')) return;

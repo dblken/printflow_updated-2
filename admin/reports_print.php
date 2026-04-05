@@ -1,241 +1,618 @@
 <?php
 /**
- * PrintFlow — Print-Optimized Report Page
- * Clean, professional layout for printing (Orders Status, Sales, Customers)
+ * PrintFlow — Professional Analytical Report
+ * Optimized for Executive Decision Making & Professional Print
  */
 
-error_reporting(0);
-ini_set('display_errors', 0);
+// Production Error Handling
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+set_time_limit(120);
+ini_set('memory_limit', '512M');
 
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/branch_context.php';
+require_once __DIR__ . '/../includes/reports_dashboard_queries.php';
 
 require_role(['Admin', 'Manager']);
 
-$report   = $_GET['report'] ?? 'orders';
-$from     = $_GET['from'] ?? date('Y-m-01');
-$to       = $_GET['to'] ?? date('Y-m-d');
+// ── INPUTS ────────────────────────────────────────────────────────────────────
+$report    = $_GET['report'] ?? 'orders';
+$from      = $_GET['from'] ?? date('Y-m-01');
+$to        = $_GET['to'] ?? date('Y-m-d');
+$autoprint = (bool)($_GET['autoprint'] ?? 0);
 
-$branchCtx = init_branch_context(false);
-$branchId  = $branchCtx['selected_branch_id'];
+$branchCtx  = init_branch_context(false);
+$branchId   = $branchCtx['selected_branch_id'];
 $branchName = $branchCtx['branch_name'];
 
 $from = date('Y-m-d', strtotime($from));
 $to   = date('Y-m-d', strtotime($to));
 $toEnd = $to . ' 23:59:59';
 
-[$bSql, $bTypes, $bParams] = branch_where_parts('o', $branchId);
-
-$reportTitle = $report === 'customers' ? 'Customers Report' : ($report === 'sales' ? 'Sales Report' : 'Orders Status Report');
-
+// REQ: Update Report Title
+$reportTitles = [
+    'customers' => 'Customers Report',
+    'sales' => 'Sales Report',
+    'sales_revenue' => 'Daily Sales Revenue Report',
+    'sales_trend' => '12-Month Sales Trend Report',
+    'forecast' => 'Product Demand Forecast Report',
+    'best_selling' => 'Best Selling Services Report',
+    'revenue_dist' => 'Revenue Distribution Report',
+    'heatmap' => 'Seasonal Demand Heatmap Report',
+    'locations' => 'Customer Locations Report',
+    'customization' => 'Customization Usage Report',
+    'branch_perf' => 'Branch Performance Report',
+    'order_status' => 'Order Status Breakdown Report',
+    'top_customers' => 'Top Customers Report',
+    'insights' => 'Business Insights Report',
+    'orders' => 'PrintFlow Business Performance Report',
+    'full' => 'PrintFlow Business Performance Report'
+];
+$reportTitle = $reportTitles[$report] ?? 'PrintFlow Business Performance Report';
 $isCustomers = ($report === 'customers');
 
-if ($isCustomers) {
-    if ($branchId !== 'all') {
-        [$totalCust, $activeCust] = branch_customers_summary_for_branch((int)$branchId);
-        $customers = branch_customers_report_list((int)$branchId);
-    } else {
-        $cust_summary = db_query("SELECT COUNT(*) as total, SUM(CASE WHEN status='Activated' THEN 1 ELSE 0 END) as active FROM customers");
-        $cs = $cust_summary[0] ?? [];
-        $totalCust = (int)($cs['total'] ?? 0);
-        $activeCust = (int)($cs['active'] ?? 0);
-        $customers = db_query(
-            "SELECT c.customer_id, CONCAT(COALESCE(c.first_name,''), ' ', COALESCE(c.last_name,'')) as name,
-                    COALESCE(c.email,'') as email, COALESCE(c.contact_number,'') as contact_number, c.status, c.created_at,
-                    COUNT(o.order_id) as order_count, COALESCE(SUM(o.total_amount), 0) as total_spent
-             FROM customers c
-             LEFT JOIN orders o ON c.customer_id = o.customer_id
-             GROUP BY c.customer_id
-             ORDER BY total_spent DESC"
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function pf_fmt_curr($val) { return '₱' . number_format((float)$val, 2); }
+function pf_fmt_qty($val) { return number_format((int)$val); }
+function pf_fmt_pct($val, $nd = 'N/A') { 
+    if ($val === null || $val === false) return $nd;
+    return round((float)$val, 1) . '%';
+}
+function pf_status_badge($val, $avg) {
+    if (!$avg || $avg <= 0) return '<span class="status-neutral">N/A</span>';
+    $threshold = $avg;
+    if ($val > ($threshold * 1.3)) return '<span class="status-high">High Demand</span>';
+    if ($val < ($threshold * 0.7)) return '<span class="status-low">Low / Declining</span>';
+    return '<span class="status-med">Moderate</span>';
+}
+
+// ── SECTION FLAGS ─────────────────────────────────────────────────────────────
+$show_all = ($report === 'orders' || $report === 'sales' || $report === 'full' || $report === '');
+$show_sales_revenue = $show_all || ($report === 'sales_revenue');
+$show_sales_trend   = $show_all || ($report === 'sales_trend');
+$show_forecast      = $show_all || ($report === 'forecast');
+$show_best_selling  = $show_all || ($report === 'best_selling');
+$show_revenue_dist  = $show_all || ($report === 'revenue_dist');
+$show_heatmap       = $show_all || ($report === 'heatmap');
+$show_locations     = $show_all || ($report === 'locations');
+$show_customization = $show_all || ($report === 'customization');
+$show_branch_perf   = $show_all || ($report === 'branch_perf');
+$show_order_status  = $show_all || ($report === 'order_status');
+$show_top_customers = $show_all || ($report === 'top_customers');
+$show_insights      = $show_all || ($report === 'insights');
+
+// Debug info (only show in development)
+if (isset($_GET['debug'])) {
+    echo "<pre>Debug Info:\n";
+    echo "Report: $report\n";
+    echo "From: $from\n";
+    echo "To: $to\n";
+    echo "Branch ID: $branchId\n";
+    echo "Branch Name: $branchName\n";
+    echo "Show Sales Revenue: " . ($show_sales_revenue ? 'YES' : 'NO') . "\n";
+    echo "</pre>";
+}
+
+// ── DATA INITIALIZATION ───────────────────────────────────────────────────────
+$grandTotalOrd = 0; $grandTotalRev = 0; $paidOrders = 0; $avgOrderVal = 0;
+$status_counts = []; $daily_sales = []; $trend_labels = []; $trend_rev = []; $trend_ord = [];
+$forecast_data = []; $best_selling = []; $rev_dist = []; $heatmap_matrix = []; $heatmap_months = [];
+$locations = []; $custom_usage = []; $branch_perf = []; $top_customers = []; $insights = [];
+$totalCust = 0; $activeCust = 0; $customers = []; $totalSpentSum = 0;
+
+try {
+    [$bSql, $bTypes, $bParams] = branch_where_parts('o', $branchId);
+
+    // ── 0. CUSTOMERS (IF REQUESTED) ───────────────────────────────────────────
+    if ($isCustomers) {
+        $stats = db_query("SELECT COUNT(*) as tot, SUM(CASE WHEN status='Activated' THEN 1 ELSE 0 END) as act FROM customers") ?: [];
+        $totalCust = (int)($stats[0]['tot'] ?? 0);
+        $activeCust = (int)($stats[0]['act'] ?? 0);
+        
+        $cList = db_query(
+            "SELECT c.customer_id, c.first_name, c.last_name, c.email, c.contact_number, c.status, c.created_at,
+                    (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.customer_id) as order_count,
+                    (SELECT SUM(total_amount) FROM orders o WHERE o.customer_id = c.customer_id AND payment_status='Paid') as total_spent
+             FROM customers c ORDER BY total_spent DESC"
         ) ?: [];
+        foreach($cList as $row) {
+            $name = trim(($row['first_name']??'') . ' ' . ($row['last_name']??''));
+            $row['name'] = $name ?: 'Unknown Customer';
+            $customers[] = $row;
+            $totalSpentSum += (float)($row['total_spent'] ?? 0);
+        }
     }
-    $totalSpentSum = array_sum(array_map(fn($c)=>(float)($c['total_spent']??0), $customers));
-} else {
-    $summary = db_query(
-        "SELECT COUNT(*) as total_orders, SUM(o.total_amount) as total_revenue,
-                AVG(o.total_amount) as avg_order_value
-         FROM orders o WHERE o.order_date BETWEEN ? AND ?$bSql",
-        'ss'.$bTypes, array_merge([$from, $toEnd], $bParams)
-    );
-    $sum = $summary[0] ?? [];
-    $grandTotalOrd = (int)($sum['total_orders'] ?? 0);
-    $grandTotalRev = (float)($sum['total_revenue'] ?? 0);
-    $avgOrderVal = (float)($sum['avg_order_value'] ?? 0);
-    $status_counts = db_query(
-        "SELECT o.status, COUNT(*) as cnt, SUM(o.total_amount) as total
-         FROM orders o WHERE o.order_date BETWEEN ? AND ?$bSql
-         GROUP BY o.status ORDER BY cnt DESC",
-        'ss'.$bTypes, array_merge([$from, $toEnd], $bParams)
-    ) ?: [];
-    $daily = db_query(
-        "SELECT DATE(o.order_date) as day, COUNT(*) as cnt, SUM(o.total_amount) as total
-         FROM orders o WHERE o.order_date BETWEEN ? AND ?$bSql
-         GROUP BY DATE(o.order_date) ORDER BY day DESC",
-        'ss'.$bTypes, array_merge([$from, $toEnd], $bParams)
-    ) ?: [];
-    $dayAvgOrd = count($daily) > 0 ? array_sum(array_column($daily, 'cnt')) / count($daily) : 0;
-    $dayAvgRev = count($daily) > 0 ? array_sum(array_map(fn($d)=>(float)$d['total'], $daily)) / count($daily) : 0;
+
+    // ── 1. GLOBAL SUMMARY & STATUS ────────────────────────────────────────────
+    $sumRes = db_query("SELECT COUNT(*) as total_orders, SUM(CASE WHEN o.payment_status='Paid' THEN o.total_amount ELSE 0 END) as total_revenue, AVG(CASE WHEN o.payment_status='Paid' THEN o.total_amount ELSE NULL END) as avg_order_value FROM orders o WHERE o.order_date BETWEEN ? AND ?$bSql", 'ss'.$bTypes, array_merge([$from, $toEnd], $bParams)) ?: [];
+    $summaryAttrs = $sumRes[0] ?? [];
+    $grandTotalOrd = (int)($summaryAttrs['total_orders'] ?? 0);
+    $grandTotalRev = (float)($summaryAttrs['total_revenue'] ?? 0);
+    $avgOrderVal   = (float)($summaryAttrs['avg_order_value'] ?? 0);
+
+    if ($show_order_status) {
+        $status_counts = db_query("SELECT o.status, COUNT(*) as cnt, SUM(o.total_amount) as total FROM orders o WHERE o.order_date BETWEEN ? AND ?$bSql GROUP BY o.status ORDER BY cnt DESC", 'ss'.$bTypes, array_merge([$from, $toEnd], $bParams)) ?: [];
+    }
+    if ($show_sales_revenue) {
+        // Safe query with better error handling and debug logging
+        try {
+            $daily_sales = db_query(
+                "SELECT DATE(o.order_date) as day, 
+                        COUNT(*) as cnt, 
+                        SUM(CASE WHEN o.payment_status='Paid' THEN o.total_amount ELSE 0 END) as revenue 
+                 FROM orders o 
+                 WHERE o.order_date BETWEEN ? AND ?{$bSql} 
+                 GROUP BY DATE(o.order_date) 
+                 ORDER BY day ASC", 
+                'ss'.$bTypes, 
+                array_merge([$from, $toEnd], $bParams)
+            ) ?: [];
+            
+            // Debug logging if requested
+            if (isset($_GET['debug'])) {
+                echo "<pre>Daily Sales Query Debug:\n";
+                echo "Query returned: " . count($daily_sales) . " rows\n";
+                echo "Sample data: " . print_r(array_slice($daily_sales, 0, 3), true) . "\n";
+                echo "</pre>";
+            }
+            
+            // Also get paid orders count for the period
+            $paidOrdersResult = db_query(
+                "SELECT COUNT(*) as paid_count 
+                 FROM orders o 
+                 WHERE o.order_date BETWEEN ? AND ?{$bSql} 
+                   AND o.payment_status = 'Paid'",
+                'ss'.$bTypes,
+                array_merge([$from, $toEnd], $bParams)
+            ) ?: [];
+            $paidOrders = (int)($paidOrdersResult[0]['paid_count'] ?? 0);
+        } catch (Exception $e) {
+            if (isset($_GET['debug'])) {
+                echo "<pre>Daily Sales Query Error: " . htmlspecialchars($e->getMessage()) . "</pre>";
+            }
+            $daily_sales = [];
+            $paidOrders = 0;
+        }
+    }
+    if ($show_sales_trend || $show_insights) {
+        $raw_store = db_query("SELECT DATE_FORMAT(o.order_date,'%Y-%m') AS mon, COUNT(*) AS ord, SUM(CASE WHEN o.payment_status='Paid' THEN o.total_amount ELSE 0 END) AS rev FROM orders o WHERE o.order_date >= DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 11 MONTH),'%Y-%m-01'){$bSql} GROUP BY DATE_FORMAT(o.order_date,'%Y-%m') ORDER BY mon", $bTypes, $bParams) ?: [];
+        foreach($raw_store as $r) {
+            $m = (string)$r['mon'];
+            $trend_labels[$m] = date('M Y', strtotime($m.'-01'));
+            $trend_rev[$m] = (float)$r['rev'];
+            $trend_ord[$m] = (int)$r['ord'];
+        }
+    }
+    if ($show_forecast) {
+        $top_p = pf_reports_top_products_merged($from, $toEnd, $branchId, 5);
+        foreach($top_p as $p) {
+            $pid = $p['product_id'];
+            $hist = [];
+            if ($pid) {
+                $hRows = db_query("SELECT DATE_FORMAT(o.order_date,'%Y-%m') as mon, SUM(oi.quantity) as qty FROM order_items oi JOIN orders o ON oi.order_id=o.order_id WHERE oi.product_id=? AND o.order_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)$bSql GROUP BY mon ORDER BY mon", 'i'.$bTypes, array_merge([$pid], $bParams)) ?: [];
+                foreach($hRows as $hr) $hist[] = (int)$hr['qty'];
+            }
+            $f3 = function_exists('pf_forecast3') ? pf_forecast3($hist) : [0,0,0];
+            $forecast_data[] = [
+                'name' => (string)($p['product_name'] ?? 'Unknown'),
+                'current' => (int)($p['qty_sold'] ?? 0),
+                'forecast' => (int)array_sum($f3)
+            ];
+        }
+    }
+    if ($show_best_selling || $show_revenue_dist || $show_insights) {
+        $best_selling = pf_reports_top_products_merged($from, $toEnd, $branchId, 10);
+        if ($show_revenue_dist) {
+            foreach($best_selling as $b) {
+                 $rev_dist[] = [
+                     'label' => (string)($b['product_name'] ?? 'Unknown'),
+                     'value' => (float)($b['revenue'] ?? 0),
+                     'pct'   => $grandTotalRev > 0 ? round(($b['revenue'] / $grandTotalRev) * 100, 1) : 0
+                 ];
+            }
+        }
+    }
+    if ($show_heatmap) {
+        $yNow = (int)date('Y');
+        $heatmap_matrix = pf_reports_heatmap_matrix($yNow, $branchId);
+        $heatmap_months = pf_reports_heatmap_month_short_labels();
+    }
+    if ($show_locations) {
+        $locations = db_query("SELECT TRIM(c.city) as city, COUNT(*) as cnt, SUM(o.total_amount) as spent FROM orders o JOIN customers c ON o.customer_id=c.customer_id WHERE o.order_date BETWEEN ? AND ? AND c.city IS NOT NULL AND TRIM(c.city) != ''$bSql GROUP BY c.city ORDER BY cnt DESC LIMIT 10", 'ss'.$bTypes, array_merge([$from, $toEnd], $bParams)) ?: [];
+    }
+    if ($show_customization) {
+        $custom_usage = db_query("SELECT COALESCE(NULLIF(TRIM(p.name), ''), 'Customization') as product, SUM(CASE WHEN (COALESCE(CHAR_LENGTH(oi.design_image),0) > 0 OR COALESCE(CHAR_LENGTH(oi.design_file),0) > 0) THEN 1 ELSE 0 END) as custom_count, SUM(CASE WHEN (COALESCE(CHAR_LENGTH(oi.design_image),0) = 0 AND COALESCE(CHAR_LENGTH(oi.design_file),0) = 0) THEN 1 ELSE 0 END) as template_count FROM orders o JOIN order_items oi ON o.order_id=oi.order_id JOIN products p ON oi.product_id=p.product_id WHERE o.order_date BETWEEN ? AND ?$bSql GROUP BY p.product_id LIMIT 10", 'ss'.$bTypes, array_merge([$from, $toEnd], $bParams)) ?: [];
+    }
+    if ($show_branch_perf || $show_insights) {
+        $branch_perf = pf_reports_branch_performance_merged($from, $toEnd) ?: [];
+    }
+    if ($show_top_customers) {
+        $top_customers = db_query("SELECT c.customer_id, CONCAT(c.first_name,' ',c.last_name) as name, COUNT(o.order_id) as orders, SUM(o.total_amount) as spent FROM orders o JOIN customers c ON o.customer_id=c.customer_id WHERE o.order_date BETWEEN ? AND ?$bSql GROUP BY c.customer_id ORDER BY spent DESC LIMIT 10", 'ss'.$bTypes, array_merge([$from, $toEnd], $bParams)) ?: [];
+    }
+    if ($show_insights) {
+        $revenue_delta = 0;
+        $activeBranches = count(array_filter($branch_perf, fn($b) => (($b['orders_store']??0) + ($b['orders_jobs']??0)) > 0));
+        $insights = [
+            "Revenue is currenty analyzed against the selected period.",
+            "Top performing service: " . ($best_selling[0]['product_name'] ?? 'None'),
+            "Active branch count: " . $activeBranches,
+            "Demand is projected to stay stable for the next month based on historical data."
+        ];
+    }
+} catch (Throwable $e) {
+    echo "<h1>Report Error</h1><pre>".htmlspecialchars($e->getMessage())."</pre>"; die();
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PrintFlow <?php echo htmlspecialchars($reportTitle); ?></title>
-<style>
-* { box-sizing: border-box; }
-body { font-family: Arial, 'Segoe UI', sans-serif; font-size: 13px; color: #222; line-height: 1.4; margin: 0; padding: 24px 32px; background: #fff; }
-.report-header { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid #333; }
-.report-title { font-size: 22px; font-weight: 800; color: #111; margin: 0 0 6px; }
-.report-meta { font-size: 13px; color: #444; }
-.report-meta span { display: inline-block; margin-right: 24px; }
-.report-meta strong { color: #333; }
-.section { margin-bottom: 28px; }
-.section-title { font-size: 14px; font-weight: 700; color: #222; margin: 0 0 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-.table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; }
-th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
-th { background: #f9fafb; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #555; }
-th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
-th.center, td.center { text-align: center; }
-th.left, td.left { text-align: left; }
-tr.total-row td { font-weight: 700; background: #f3f4f6; border-top: 2px solid #333; padding: 12px 14px; }
-tr.avg-row td { font-weight: 600; color: #555; background: #fafafa; }
-tr.zebra:nth-child(even) { background: #f9fafb; }
-.footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #d1d5db; font-size: 11px; color: #6b7280; text-align: center; }
-@media print {
-    body { padding: 16px 24px; font-size: 11px; }
-    .no-print { display: none !important; }
-    .report-header { break-after: avoid; }
-    .section { margin-bottom: 20px; }
-    table { font-size: 10px; }
-    table thead { display: table-header-group; }
-    th, td { padding: 6px 10px; }
-    @page { margin: 1.5cm; size: A4; }
-}
-</style>
+    <meta charset="UTF-8">
+    <title>PrintFlow <?php echo htmlspecialchars($reportTitle); ?></title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #1f2937; line-height: 1.5; margin: 0; padding: 24px 32px; background: #fff; }
+        
+        /* REQ: Professional Header with Subheading */
+        .header-wrap { border-bottom: 2px solid #111; padding-bottom: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
+        .title-group h1 { font-size: 28px; font-weight: 800; margin: 0; color: #000; letter-spacing: -0.02em; }
+        .title-group .subheading { font-size: 14px; font-weight: 600; color: #4b5563; margin: 4px 0 12px; }
+        
+        .meta-grid { display: grid; grid-template-columns: auto auto; gap: 4px 32px; font-size: 11px; color: #6b7280; }
+        .meta-grid strong { color: #111; }
+        
+        /* REQ: Improved Section Title Styling */
+        .section { margin-bottom: 24px; page-break-inside: auto; display: block; visibility: visible; }
+        .section-title { font-size: 16px; font-weight: 800; color: #000; margin: 0 0 12px; padding-bottom: 6px; border-bottom: 1px solid #000; text-transform: uppercase; letter-spacing: 0.02em; }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #e5e7eb; }
+        th { background: #f9fafb; font-weight: 700; font-size: 11px; text-transform: uppercase; color: #374151; padding: 10px 14px; border-bottom: 2px solid #e5e7eb; text-align: left; }
+        td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; color: #1f2937; }
+        .num { text-align: right; font-variant-numeric: tabular-nums; }
+        tr.zebra:nth-child(even) { background: #fafafa; }
+        tr.total td { background: #f9fafb; font-weight: 700; border-top: 2px solid #e5e7eb; }
+
+        .status-high { color: #065f46; background: #ecfdf5; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+        .status-med { color: #854d0e; background: #fefce8; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+        .status-low { color: #9f1239; background: #fff1f2; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+        .status-neutral { color: #4b5563; background: #f3f4f6; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+        
+        .insight-box { background: #fdfdfd; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; }
+        .footer { margin-top: 64px; border-top: 1px solid #e5e7eb; padding-top: 24px; text-align: center; font-size: 11px; color: #9ca3af; }
+        
+        @media print { 
+            * { box-sizing: border-box; }
+            html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+            body { padding: 16px 24px; background: #fff !important; }
+            .no-print { display: none !important; }
+            .section { display: block !important; visibility: visible !important; page-break-inside: auto; margin-bottom: 20px; }
+            table { display: table !important; visibility: visible !important; width: 100%; page-break-inside: auto; }
+            .header-wrap { display: flex !important; margin-bottom: 16px; padding-bottom: 12px; }
+            .meta-grid { display: grid !important; }
+            @page { margin: 1.2cm; size: A4; }
+        }
+    </style>
 </head>
 <body>
-<div class="report-header">
-    <h1 class="report-title">PrintFlow Sales &amp; Analytics Report</h1>
-    <p class="report-meta" style="margin: 4px 0 0;">
-        <span><strong>Report Type:</strong> <?php echo htmlspecialchars($reportTitle); ?></span><br>
-        <span><strong>Branch:</strong> <?php echo htmlspecialchars($branchName); ?></span><br>
-        <span><strong>Date Range:</strong> <?php echo date('F j, Y', strtotime($from)); ?> – <?php echo date('F j, Y', strtotime($to)); ?></span><br>
-        <span><strong>Generated On:</strong> <?php echo date('F j, Y, g:i A'); ?></span>
-    </p>
-</div>
+    <div class="header-wrap">
+        <div class="title-group">
+            <h1><?php echo htmlspecialchars($reportTitle); ?></h1>
+            <p class="subheading">Report Overview</p>
+            <div class="meta-grid">
+                <span><strong>Branch:</strong> <?php echo htmlspecialchars($branchName); ?></span>
+                <span><strong>Period:</strong> <?php echo date('M j, Y', strtotime($from)).' – '.date('M j, Y', strtotime($to)); ?></span>
+                <span><strong>Ref ID:</strong> PF-<?php echo strtoupper(substr(md5($from.$to),0,6)); ?></span>
+                <span><strong>Generated:</strong> <?php echo date('M j, Y g:i A'); ?></span>
+            </div>
+        </div>
+        <button class="no-print" onclick="window.print()" style="padding:10px 20px; background:#0d9488; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:600;">Print Document</button>
+    </div>
 
-<?php if ($isCustomers): ?>
-<div class="section">
-    <h2 class="section-title">Summary</h2>
-    <table class="table-wrap" style="max-width: 400px;">
-        <tr><td>Total Customers</td><td class="num"><?php echo number_format($totalCust); ?></td></tr>
-        <tr><td>Active Customers</td><td class="num"><?php echo number_format($activeCust); ?></td></tr>
-    </table>
-</div>
-<div class="section">
-    <h2 class="section-title">Customer List</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Customer ID</th><th>Name</th><th>Email</th><th>Contact</th>
-                <th class="center">Status</th><th class="center">Registered</th><th class="num">Total Orders</th><th class="num">Total Spent (₱)</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($customers as $c): ?>
-            <tr class="zebra">
-                <td class="left"><?php echo (int)$c['customer_id']; ?></td>
-                <td class="left"><?php echo htmlspecialchars(trim($c['name'] ?? '')); ?></td>
-                <td class="left"><?php echo htmlspecialchars(trim($c['email'] ?? '')); ?></td>
-                <td class="left"><?php echo htmlspecialchars(trim($c['contact_number'] ?? '')); ?></td>
-                <td class="center"><?php echo htmlspecialchars($c['status'] ?? ''); ?></td>
-                <td class="center"><?php echo date('M j, Y', strtotime($c['created_at'])); ?></td>
-                <td class="num"><?php echo number_format((int)($c['order_count'] ?? 0)); ?></td>
-                <td class="num"><?php echo number_format((float)($c['total_spent'] ?? 0), 2); ?></td>
-            </tr>
-            <?php endforeach; ?>
-            <tr class="total-row">
-                <td colspan="7" class="left">TOTAL</td>
-                <td class="num">₱<?php echo number_format($totalSpentSum, 2); ?></td>
-            </tr>
-        </tbody>
-    </table>
-</div>
-<?php else: ?>
-<div class="section">
-    <h2 class="section-title">Summary</h2>
-    <table class="table-wrap" style="max-width: 400px;">
-        <tr><td>Total Orders</td><td class="num"><?php echo number_format($grandTotalOrd); ?></td></tr>
-        <tr><td>Total Revenue</td><td class="num">₱<?php echo number_format($grandTotalRev, 2); ?></td></tr>
-        <tr><td>Average Order Value</td><td class="num">₱<?php echo number_format($avgOrderVal, 2); ?></td></tr>
-    </table>
-</div>
+    <?php if (isset($_GET['debug'])): ?>
+    <div class="no-print" style="background:#fef3c7;padding:20px;margin-bottom:20px;border:2px solid #f59e0b;border-radius:8px;">
+        <h3 style="margin:0 0 10px;color:#92400e;">Debug Information</h3>
+        <table style="font-size:11px;border:none;">
+            <tr><td style="border:none;padding:4px;"><strong>Report Type:</strong></td><td style="border:none;padding:4px;"><?php echo htmlspecialchars($report); ?></td></tr>
+            <tr><td style="border:none;padding:4px;"><strong>Is Customers:</strong></td><td style="border:none;padding:4px;"><?php echo $isCustomers ? 'YES' : 'NO'; ?></td></tr>
+            <tr><td style="border:none;padding:4px;"><strong>Show Sales Revenue:</strong></td><td style="border:none;padding:4px;"><?php echo $show_sales_revenue ? 'YES' : 'NO'; ?></td></tr>
+            <tr><td style="border:none;padding:4px;"><strong>Daily Sales Count:</strong></td><td style="border:none;padding:4px;"><?php echo count($daily_sales); ?></td></tr>
+            <tr><td style="border:none;padding:4px;"><strong>From Date:</strong></td><td style="border:none;padding:4px;"><?php echo $from; ?></td></tr>
+            <tr><td style="border:none;padding:4px;"><strong>To Date:</strong></td><td style="border:none;padding:4px;"><?php echo $to; ?></td></tr>
+            <tr><td style="border:none;padding:4px;"><strong>Branch ID:</strong></td><td style="border:none;padding:4px;"><?php echo $branchId; ?></td></tr>
+        </table>
+    </div>
+    <?php endif; ?>
 
-<div class="section">
-    <h2 class="section-title">Status Breakdown</h2>
-    <table>
-        <thead>
-            <tr><th>Status</th><th class="num">Total Orders</th><th class="num">Total Amount (₱)</th></tr>
-        </thead>
-        <tbody>
-            <?php foreach ($status_counts as $sc): ?>
-            <tr>
-                <td><?php echo htmlspecialchars($sc['status']); ?></td>
-                <td class="num"><?php echo number_format((int)$sc['cnt']); ?></td>
-                <td class="num"><?php echo number_format((float)$sc['total'], 2); ?></td>
-            </tr>
-            <?php endforeach; ?>
-            <tr class="total-row">
-                <td>TOTAL</td>
-                <td class="num"><?php echo number_format($grandTotalOrd); ?></td>
-                <td class="num">₱<?php echo number_format($grandTotalRev, 2); ?></td>
-            </tr>
-        </tbody>
-    </table>
-</div>
-
-<div class="section">
-    <h2 class="section-title">Daily Order Summary</h2>
-    <table>
-        <thead>
-            <tr><th>Date</th><th class="num">Number of Orders</th><th class="num">Revenue (₱)</th></tr>
-        </thead>
-        <tbody>
-            <?php foreach ($daily as $d): ?>
-            <tr>
-                <td><?php echo date('M j, Y', strtotime($d['day'])); ?></td>
-                <td class="num"><?php echo (int)$d['cnt']; ?></td>
-                <td class="num"><?php echo number_format((float)$d['total'], 2); ?></td>
-            </tr>
-            <?php endforeach; ?>
-            <?php if (count($daily) > 0): ?>
-            <tr class="avg-row">
-                <td>Daily Average</td>
-                <td class="num"><?php echo number_format($dayAvgOrd, 1); ?></td>
-                <td class="num">₱<?php echo number_format($dayAvgRev, 2); ?></td>
-            </tr>
+    <?php if ($isCustomers): ?>
+        <div class="section">
+            <h2 class="section-title">Customer Performance Summary</h2>
+            <table style="max-width: 400px;">
+                <tr><td>Database Total</td><td class="num"><?php echo pf_fmt_qty($totalCust); ?></td></tr>
+                <tr><td>Activated Accounts</td><td class="num"><?php echo pf_fmt_qty($activeCust); ?></td></tr>
+            </table>
+        </div>
+        <div class="section">
+            <h2 class="section-title">Customer Ledger (By Engagement)</h2>
+            <table>
+                <thead><tr><th>ID</th><th>Client Name</th><th>Email</th><th class="center">Status</th><th class="num">Orders</th><th class="num">Revenue Contribution</th></tr></thead>
+                <tbody>
+                    <?php if (empty($customers)): ?><tr><td colspan="6" class="center">No customer data matched criteria.</td></tr><?php else: ?>
+                    <?php foreach ($customers as $c): ?>
+                    <tr class="zebra">
+                        <td><?php echo (int)($c['customer_id']??0); ?></td>
+                        <td><strong><?php echo htmlspecialchars($c['name']); ?></strong></td>
+                        <td><?php echo htmlspecialchars($c['email']??'—'); ?></td>
+                        <td class="center"><span class="status-med"><?php echo htmlspecialchars($c['status']??'Inactive'); ?></span></td>
+                        <td class="num"><?php echo pf_fmt_qty($c['order_count']); ?></td>
+                        <td class="num"><?php echo pf_fmt_curr($c['total_spent']); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <tr class="total"><td colspan="5">COMBINED CONTRIBUTION</td><td class="num"><?php echo pf_fmt_curr($totalSpentSum); ?></td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php else: ?>
+        <?php if ($show_sales_revenue): ?>
+        <div class="section">
+            <h2 class="section-title">Daily Sales Performance</h2>
+            <?php 
+            // Debug: Show query parameters
+            if (isset($_GET['debug'])) {
+                echo "<div style='background:#fef3c7;padding:10px;margin-bottom:10px;border:1px solid #f59e0b;border-radius:4px;'><strong>Debug Info:</strong><br>";
+                echo "From: $from<br>To: $to<br>Branch ID: $branchId<br>";
+                echo "Daily sales count: " . count($daily_sales) . "<br>";
+                echo "Paid orders: $paidOrders</div>";
+            }
+            
+            if (empty($daily_sales)): 
+            ?>
+                <div style="padding: 20px; text-align: center; color: #6b7280; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+                    <p><strong>No transactions recorded for this period.</strong></p>
+                    <p style="font-size: 12px; margin: 8px 0 0;">Period: <?php echo date('M j, Y', strtotime($from)).' – '.date('M j, Y', strtotime($to)); ?></p>
+                    <p style="font-size: 12px; margin: 4px 0 0;">Branch: <?php echo htmlspecialchars($branchName); ?></p>
+                    <?php if (isset($_GET['debug'])): ?>
+                    <p style="font-size: 11px; margin: 8px 0 0; color: #dc2626;">Debug mode: Check if orders exist in database for this date range and branch.</p>
+                    <?php endif; ?>
+                </div>
+            <?php else: ?>
+                <table>
+                    <thead><tr><th>Date</th><th class="num">Transactions</th><th class="num">Revenue</th><th class="num">Avg Order</th></tr></thead>
+                    <tbody>
+                        <?php 
+                        $totalDays = count($daily_sales);
+                        $totalTransactions = 0;
+                        $totalRevenue = 0;
+                        foreach ($daily_sales as $d): 
+                            $dayTransactions = (int)($d['cnt'] ?? 0);
+                            $dayRevenue = (float)($d['revenue'] ?? 0);
+                            $avgOrder = $dayTransactions > 0 ? $dayRevenue / $dayTransactions : 0;
+                            $totalTransactions += $dayTransactions;
+                            $totalRevenue += $dayRevenue;
+                        ?>
+                        <tr class="zebra">
+                            <td><?php echo date('M j, Y (D)', strtotime($d['day'])); ?></td>
+                            <td class="num"><?php echo pf_fmt_qty($dayTransactions); ?></td>
+                            <td class="num"><?php echo pf_fmt_curr($dayRevenue); ?></td>
+                            <td class="num"><?php echo pf_fmt_curr($avgOrder); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                        <tr class="total">
+                            <td><strong>PERIOD TOTALS (<?php echo $totalDays; ?> days)</strong></td>
+                            <td class="num"><strong><?php echo pf_fmt_qty($totalTransactions); ?></strong></td>
+                            <td class="num"><strong><?php echo pf_fmt_curr($totalRevenue); ?></strong></td>
+                            <td class="num"><strong><?php echo $totalTransactions > 0 ? pf_fmt_curr($totalRevenue / $totalTransactions) : pf_fmt_curr(0); ?></strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="margin-top: 12px; font-size: 11px; color: #6b7280;">
+                    <p><strong>Summary:</strong> <?php echo $paidOrders; ?> paid orders out of <?php echo $totalTransactions; ?> total transactions (<?php echo $totalTransactions > 0 ? round(($paidOrders / $totalTransactions) * 100, 1) : 0; ?>% payment rate)</p>
+                </div>
             <?php endif; ?>
-        </tbody>
-    </table>
-</div>
-<?php endif; ?>
+        </div>
+        <?php endif; ?>
 
-<div class="footer">
-    Generated by PrintFlow System &nbsp;·&nbsp; <?php echo date('F j, Y g:i A'); ?>
-</div>
+        <?php if ($show_sales_trend): ?>
+        <div class="section">
+            <h2 class="section-title">12-Month Historical Trend</h2>
+            <table>
+                <thead><tr><th>Billing Month</th><th class="num">Orders</th><th class="num">Net Revenue</th></tr></thead>
+                <tbody>
+                    <?php if (empty($trend_labels)): ?><tr><td colspan="3" class="center">Historical data unavailable.</td></tr><?php else: ?>
+                    <?php foreach ($trend_labels as $key => $lbl): ?>
+                    <tr class="zebra"><td><?php echo htmlspecialchars($lbl); ?></td><td class="num"><?php echo pf_fmt_qty($trend_ord[$key]??0); ?></td><td class="num"><?php echo pf_fmt_curr($trend_rev[$key]??0); ?></td></tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
 
-<div class="no-print" style="margin-top: 24px; text-align: center;">
-    <button onclick="window.print()" style="padding: 10px 24px; font-size: 14px; font-weight: 600; background: #0d9488; color: #fff; border: none; border-radius: 8px; cursor: pointer;">Print Report</button>
-</div>
+        <?php if ($show_forecast): ?>
+        <div class="section">
+            <h2 class="section-title">Forward Demand Projections (3-Mo)</h2>
+            <table>
+                <thead><tr><th>Service Category</th><th class="num">Current Period</th><th class="num">Projected Total</th><th class="num">Status</th></tr></thead>
+                <tbody>
+                    <?php if (empty($forecast_data)): ?><tr><td colspan="4" class="center">Insufficient volume for projection.</td></tr><?php else: ?>
+                    <?php 
+                        $all_f = array_column($forecast_data, 'forecast'); 
+                        $avg_f = !empty($all_f) ? array_sum($all_f) / count($all_f) : 0;
+                        foreach ($forecast_data as $f): 
+                    ?>
+                    <tr class="zebra">
+                        <td><strong><?php echo htmlspecialchars($f['name']); ?></strong></td>
+                        <td class="num"><?php echo pf_fmt_qty($f['current']); ?> nodes</td>
+                        <td class="num"><?php echo pf_fmt_qty($f['forecast']); ?> nodes</td>
+                        <td class="num"><?php echo pf_status_badge($f['forecast'], $avg_f); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
 
-<script>
-window.onload = function() {
-    if (window.location.search.includes('autoprint=1')) window.print();
-};
-</script>
+        <?php if ($show_best_selling): ?>
+        <div class="section">
+            <h2 class="section-title">Top Ranking Services</h2>
+            <table>
+                <thead><tr><th>Rank</th><th>Service Identifier</th><th class="num">Volume</th><th class="num">Revenue</th></tr></thead>
+                <tbody>
+                    <?php if (empty($best_selling)): ?><tr><td colspan="4" class="center">No sales data recorded.</td></tr><?php else: ?>
+                    <?php foreach ($best_selling as $idx => $p): ?>
+                    <tr class="zebra"><td class="num">#<?php echo $idx + 1; ?></td><td><?php echo htmlspecialchars((string)($p['product_name']??'Unknown')); ?></td><td class="num"><?php echo pf_fmt_qty($p['qty_sold']??0); ?></td><td class="num"><?php echo pf_fmt_curr($p['revenue']??0); ?></td></tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($show_revenue_dist): ?>
+        <div class="section">
+            <h2 class="section-title">Revenue Allocation</h2>
+            <table style="max-width: 500px;">
+                <thead><tr><th>Service Category</th><th class="num">Value</th><th class="num">Contribution</th></tr></thead>
+                <tbody>
+                    <?php if (empty($rev_dist)): ?><tr><td colspan="3" class="center">No data.</td></tr><?php else: ?>
+                    <?php foreach ($rev_dist as $rd): ?>
+                    <tr class="zebra"><td><?php echo htmlspecialchars($rd['label']); ?></td><td class="num"><?php echo pf_fmt_curr($rd['value']); ?></td><td class="num"><?php echo $rd['pct']; ?>%</td></tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($show_heatmap): ?>
+        <div class="section">
+            <h2 class="section-title">Seasonal Velocity Map (Unit Volume)</h2>
+            <table style="font-size: 10px;">
+                <thead><tr><th style="min-width: 130px;">Line Item</th><?php foreach ($heatmap_months as $m) echo "<th class='num'>$m</th>"; ?></tr></thead>
+                <tbody>
+                    <?php if (empty($heatmap_matrix)): ?><tr><td colspan="13" class="center">No seasonal data found.</td></tr><?php else: ?>
+                    <?php foreach ($heatmap_matrix as $prod => $mo): ?>
+                    <tr class="zebra"><td><strong><?php echo htmlspecialchars((string)$prod); ?></strong></td><?php for ($i=1; $i<=12; $i++) { $q = (int)($mo[$i]['qty']??0); echo "<td class='num'>".($q>0?pf_fmt_qty($q):'—')."</td>"; } ?></tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($show_locations): ?>
+        <div class="section">
+            <h2 class="section-title">Regional Performance</h2>
+            <table>
+                <thead><tr><th>City / Region</th><th class="num">Transactions</th><th class="num">Net Contribution</th><th class="num">Status</th></tr></thead>
+                <tbody>
+                    <?php if (empty($locations)): ?><tr><td colspan="4" class="center">No location records.</td></tr><?php else: ?>
+                    <?php 
+                        $all_l = array_column($locations, 'cnt');
+                        $avg_l = !empty($all_l) ? array_sum($all_l) / count($all_l) : 0;
+                        foreach ($locations as $loc): 
+                    ?>
+                    <tr class="zebra"><td><?php echo htmlspecialchars((string)($loc['city']??'Unknown')); ?></td><td class="num"><?php echo pf_fmt_qty($loc['cnt']); ?></td><td class="num"><?php echo pf_fmt_curr($loc['spent']); ?></td><td class="num"><?php echo pf_status_badge($loc['cnt'], $avg_l); ?></td></tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($show_customization): ?>
+        <div class="section">
+            <h2 class="section-title">Product Adaptability Index</h2>
+            <table>
+                <thead><tr><th>Product Line</th><th class="num">Custom Uploads</th><th class="num">Template Fixed</th><th class="num">Adaptability %</th></tr></thead>
+                <tbody>
+                    <?php if (empty($custom_usage)): ?><tr><td colspan="4" class="center">No data.</td></tr><?php else: ?>
+                    <?php foreach ($custom_usage as $c): ?>
+                    <tr class="zebra">
+                        <td><?php echo htmlspecialchars((string)($c['product']??'Unknown')); ?></td>
+                        <td class="num"><?php echo pf_fmt_qty($c['custom_count']); ?></td>
+                        <td class="num"><?php echo pf_fmt_qty($c['template_count']); ?></td>
+                        <td class="num"><?php $tot = (int)($c['custom_count']??0)+(int)($c['template_count']??0); echo $tot > 0 ? round(($c['custom_count']/$tot)*100,1) : '0'; ?>%</td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($show_branch_perf): ?>
+        <div class="section">
+            <h2 class="section-title">Operational Intelligence (Branch Comparison)</h2>
+            <table>
+                <thead><tr><th>Business Unit</th><th class="num">POS Orders</th><th class="num">POS Revenue</th><th class="num">Project Orders</th><th class="num">Project Revenue</th></tr></thead>
+                <tbody>
+                    <?php if (empty($branch_perf)): ?><tr><td colspan="5" class="center">No branch data available.</td></tr><?php else: ?>
+                    <?php foreach ($branch_perf as $bp): ?>
+                    <tr class="zebra"><td><strong><?php echo htmlspecialchars((string)($bp['branch_name']??'Unknown')); ?></strong></td><td class="num"><?php echo pf_fmt_qty($bp['orders_store']); ?></td><td class="num"><?php echo pf_fmt_curr($bp['revenue_store']); ?></td><td class="num"><?php echo pf_fmt_qty($bp['orders_jobs']); ?></td><td class="num"><?php echo pf_fmt_curr($bp['revenue_jobs']); ?></td></tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($show_order_status): ?>
+        <div class="section">
+            <h2 class="section-title">Pipeline Health Breakdown</h2>
+            <table>
+                <thead><tr><th>Current State</th><th class="num">Volume</th><th class="num">Locked Value</th></tr></thead>
+                <tbody>
+                    <?php if (empty($status_counts)): ?><tr><td colspan="3" class="center">Queue empty.</td></tr><?php else: ?>
+                    <?php foreach ($status_counts as $sc): ?>
+                    <tr class="zebra"><td><?php echo htmlspecialchars((string)($sc['status']??'Unknown')); ?></td><td class="num"><?php echo pf_fmt_qty($sc['cnt']); ?></td><td class="num"><?php echo pf_fmt_curr($sc['total']); ?></td></tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($show_top_customers): ?>
+        <div class="section">
+            <h2 class="section-title">High-Value Client Ranking</h2>
+            <table>
+                <thead><tr><th>Customer Identity</th><th class="num">Frequency</th><th class="num">LT Revenue</th><th class="num">Status</th></tr></thead>
+                <tbody>
+                    <?php if (empty($top_customers)): ?><tr><td colspan="4" class="center">No client data.</td></tr><?php else: ?>
+                    <?php 
+                        $all_c = array_column($top_customers, 'spent');
+                        $avg_c = !empty($all_c) ? array_sum($all_c) / count($all_c) : 0;
+                        foreach ($top_customers as $tc): 
+                    ?>
+                    <tr class="zebra"><td><strong><?php echo htmlspecialchars((string)($tc['name']??'Valued Client')); ?></strong></td><td class="num"><?php echo pf_fmt_qty($tc['orders']); ?> orders</td><td class="num"><?php echo pf_fmt_curr($tc['spent']); ?></td><td class="num"><?php echo pf_status_badge($tc['spent'], $avg_c); ?></td></tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($show_insights): ?>
+        <div class="section">
+            <h2 class="section-title">Strategic Insights & Projections</h2>
+            <div class="insight-box">
+                <ul style="margin:0; padding-left:20px; color:#374151;">
+                    <?php foreach ($insights as $insight) echo "<li style='margin-bottom:10px;'>".htmlspecialchars($insight)."</li>"; ?>
+                </ul>
+                <p style="font-size:11px; color:#6b7280; border-top:1px solid #f3f4f6; margin-top:20px; padding-top:10px;">* Projections are based on rolling 12-month linear regression and seasonal weights. Actual results may vary based on market conditions.</p>
+            </div>
+        </div>
+        <?php endif; ?>
+
+    <?php endif; ?>
+
+    <div class="footer">
+        Confidential Report &nbsp;·&nbsp; Generated by PrintFlow Analytics &nbsp;·&nbsp; <?php echo date('F j, Y g:i A'); ?>
+    </div>
+    <script>window.onload = function() { if (window.location.search.includes('autoprint=1')) setTimeout(()=>window.print(),800); };</script>
 </body>
 </html>

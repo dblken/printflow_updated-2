@@ -717,14 +717,8 @@ document.querySelectorAll('input[name="shirt_color"]').forEach(r => {
     });
 });
 
-document.getElementById('tshirtForm').addEventListener('submit', function(e) {
-    window.__tshirtValidationTriggered = true;
-    if (!checkFormValid()) {
-        e.preventDefault();
-        const firstErr = document.querySelector('.is-invalid');
-        if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-});
+// Form validation is handled by the global order_validation.js
+// No manual submit intercept needed for basic validation
 
 // Prefill values
 if (TSHIRT_PREFILL.text_content) document.getElementById('text_content').value = TSHIRT_PREFILL.text_content;

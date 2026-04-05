@@ -93,7 +93,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
         $description = sanitize($_POST['description'] ?? '');
         $price = (float)($_POST['price'] ?? 0);
         $stock_quantity = (int)($_POST['stock_quantity'] ?? 0);
-        $product_type = in_array($_POST['product_type'] ?? '', ['fixed','custom']) ? $_POST['product_type'] : 'custom';
         $low_stock_level = (int)($_POST['low_stock_level'] ?? 10);
         if ($low_stock_level < 1) $low_stock_level = 10;
         $statusRaw = trim((string)($_POST['status'] ?? ''));
@@ -137,9 +136,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
                     $photo_path = handle_product_photo_upload($_FILES['photo'] ?? null);
                     
                     $result = db_execute(
-                        "INSERT INTO products (name, sku, category, product_type, description, price, stock_quantity, low_stock_level, status, photo_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
-                        'sssssdiiss',
-                        [$name, $sku_val, $category, $product_type, $description, $price, $stock_quantity, $low_stock_level, $status, $photo_path]
+                        "INSERT INTO products (name, sku, category, description, price, stock_quantity, low_stock_level, status, photo_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
+                        'ssssdiiis',
+                        [$name, $sku_val, $category, $description, $price, $stock_quantity, $low_stock_level, $status, $photo_path]
                     );
 
                     if ($result) {
@@ -192,7 +191,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
         $description = sanitize($_POST['description'] ?? '');
         $price = (float)($_POST['price'] ?? 0);
         $stock_quantity = (int)($_POST['stock_quantity'] ?? 0);
-        $product_type = in_array($_POST['product_type'] ?? '', ['fixed','custom']) ? $_POST['product_type'] : 'custom';
         $low_stock_level = (int)($_POST['low_stock_level'] ?? 10);
         $statusRaw = trim((string)($_POST['status'] ?? ''));
         $status = ($statusRaw === 'Deactivated') ? 'Deactivated' : 'Activated';
@@ -235,16 +233,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
             if ($photo_path) {
                 // Update with new photo
                 $result = db_execute(
-                    "UPDATE products SET name = ?, sku = ?, category = ?, product_type = ?, description = ?, price = ?, stock_quantity = ?, low_stock_level = ?, status = ?, photo_path = ?, updated_at = NOW() WHERE product_id = ?",
-                    'sssssdiissi',
-                    [$name, $sku_val, $category, $product_type, $description, $price, $stock_quantity, $low_stock_level, $status, $photo_path, $product_id]
+                    "UPDATE products SET name = ?, sku = ?, category = ?, description = ?, price = ?, stock_quantity = ?, low_stock_level = ?, status = ?, photo_path = ?, updated_at = NOW() WHERE product_id = ?",
+                    'ssssdiiisi',
+                    [$name, $sku_val, $category, $description, $price, $stock_quantity, $low_stock_level, $status, $photo_path, $product_id]
                 );
             } else {
                 // Update without changing photo
                 $result = db_execute(
-                    "UPDATE products SET name = ?, sku = ?, category = ?, product_type = ?, description = ?, price = ?, stock_quantity = ?, low_stock_level = ?, status = ?, updated_at = NOW() WHERE product_id = ?",
-                    'sssssdiisi',
-                    [$name, $sku_val, $category, $product_type, $description, $price, $stock_quantity, $low_stock_level, $status, $product_id]
+                    "UPDATE products SET name = ?, sku = ?, category = ?, description = ?, price = ?, stock_quantity = ?, low_stock_level = ?, status = ?, updated_at = NOW() WHERE product_id = ?",
+                    'ssssdiiisi',
+                    [$name, $sku_val, $category, $description, $price, $stock_quantity, $low_stock_level, $status, $product_id]
                 );
             }
 
@@ -1542,12 +1540,12 @@ if (isset($_GET['ajax'])) {
                     <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
                         <div class="form-group" id="fg-stock-mgr">
                             <label for="modal-stock-mgr">Quantity <span style="color:#dc2626">*</span> <span style="font-weight:500;color:#6b7280;">(your branch)</span></label>
-                            <input type="number" id="modal-stock-mgr" name="stock_quantity" min="0" value="0" step="1" disabled autocomplete="off">
+                            <input type="number" id="modal-stock-mgr" name="stock_quantity" min="0" value="" step="1" disabled autocomplete="off" placeholder="0" maxlength="5">
                             <span id="err-stock-mgr" class="field-error"></span>
                         </div>
                         <div class="form-group" id="fg-low-stock-mgr">
                             <label for="modal-low-mgr">Low stock level <span style="color:#dc2626">*</span> <span style="font-weight:500;color:#6b7280;">(your branch)</span></label>
-                            <input type="number" id="modal-low-mgr" name="low_stock_level" min="0" value="10" step="1" disabled autocomplete="off">
+                            <input type="number" id="modal-low-mgr" name="low_stock_level" min="0" value="10" step="1" disabled autocomplete="off" placeholder="0" maxlength="5">
                             <small style="display:block;margin-top:4px;color:#6b7280;">Warn when stock falls below this. Must be ≤ quantity.</small>
                             <span id="err-low-mgr" class="field-error"></span>
                         </div>
@@ -1594,7 +1592,7 @@ if (isset($_GET['ajax'])) {
                 <div class="form-row">
                     <div class="form-group" id="fg-description" style="grid-column:1/-1;">
                         <label for="modal-description">Description</label>
-                        <textarea id="modal-description" name="description" rows="2" maxlength="500" placeholder="Optional description (max 500 chars)..."></textarea>
+                        <textarea id="modal-description" name="description" rows="2" maxlength="500" placeholder="Optional description (max 500 chars)..." style="resize:vertical;overflow-y:auto;max-height:120px;"></textarea>
                         <span id="err-description" class="field-error"></span>
                     </div>
                 </div>
@@ -1617,31 +1615,22 @@ if (isset($_GET['ajax'])) {
                 <div class="form-row-3">
                     <div class="form-group" id="fg-stock">
                         <label for="modal-stock">Quantity <span style="color:#dc2626">*</span></label>
-                        <input type="number" id="modal-stock"<?php echo $is_manager ? '' : ' name="stock_quantity"'; ?> min="0" value="0" step="1">
+                        <input type="number" id="modal-stock"<?php echo $is_manager ? '' : ' name="stock_quantity"'; ?> min="0" value="" step="1" placeholder="0" maxlength="5">
                         <span id="err-stock" class="field-error"></span>
                     </div>
                     <div class="form-group" id="fg-low-stock">
                         <label for="modal-low-stock">Low Stock Level <span style="color:#dc2626">*</span></label>
-                        <input type="number" id="modal-low-stock"<?php echo $is_manager ? '' : ' name="low_stock_level"'; ?> min="0" value="10" step="1">
+                        <input type="number" id="modal-low-stock"<?php echo $is_manager ? '' : ' name="low_stock_level"'; ?> min="0" value="10" step="1" placeholder="0" maxlength="5">
                         <small>Warn when stock falls below this. Must be ≤ Quantity.</small>
                         <span id="err-low-stock" class="field-error"></span>
                     </div>
                     <div class="form-group">
-                        <label for="modal-product-type">Product Type <span style="color:red">*</span></label>
-                        <select id="modal-product-type" name="product_type">
-                            <option value="custom">Service (Customizable)</option>
-                            <option value="fixed">Fixed Product</option>
+                        <label for="modal-status">Status</label>
+                        <select id="modal-status" name="status">
+                            <option value="Activated">Activated</option>
+                            <option value="Deactivated">Deactivated</option>
                         </select>
-                        <small>Fixed product vs service/customizable</small>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="modal-status">Status</label>
-                    <select id="modal-status" name="status">
-                        <option value="Activated">Activated</option>
-                        <option value="Deactivated">Deactivated</option>
-                    </select>
                 </div>
                 </div><!-- #pf-admin-only -->
 
@@ -1886,8 +1875,6 @@ window.openProductModal = function openProductModal(mode, product) {
             if (stockEl) stockEl.value = product.stock_quantity != null ? String(product.stock_quantity) : '0';
             var lowEl = document.getElementById('modal-low-stock');
             if (lowEl) lowEl.value = product.low_stock_level != null ? String(product.low_stock_level) : '10';
-            var ptEl = document.getElementById('modal-product-type');
-            if (ptEl) ptEl.value = (product.product_type === 'fixed') ? 'fixed' : 'custom';
             var stEl = document.getElementById('modal-status');
             if (stEl) stEl.value = (product.status === 'Deactivated') ? 'Deactivated' : 'Activated';
             if (photoInput) photoInput.value = '';
@@ -2183,6 +2170,33 @@ function printflowInitProductsPage() {
             } catch (err) {
                 console.error('Failed to generate SKU:', err);
                 skuInput.value = prefix + '0001';
+            }
+        });
+    }
+
+    // Description textarea: limit newlines to 5 (idempotent)
+    var descTextarea = document.getElementById('modal-description');
+    if (descTextarea && !descTextarea._pf_newline_bound) {
+        descTextarea._pf_newline_bound = true;
+        descTextarea.addEventListener('input', function(e) {
+            var text = this.value;
+            var newlineCount = (text.match(/\n/g) || []).length;
+            if (newlineCount > 5) {
+                // Remove excess newlines
+                var lines = text.split('\n');
+                this.value = lines.slice(0, 6).join('\n'); // 6 lines = 5 newlines
+                // Move cursor to end
+                this.setSelectionRange(this.value.length, this.value.length);
+            }
+        });
+        descTextarea.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                var text = this.value;
+                var newlineCount = (text.match(/\n/g) || []).length;
+                if (newlineCount >= 5) {
+                    e.preventDefault();
+                    return false;
+                }
             }
         });
     }

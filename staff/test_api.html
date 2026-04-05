@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>Testing API Response</h1>
+    <div id="result"></div>
+    
+    <script>
+        async function testAPI() {
+            try {
+                const response = await fetch('../admin/job_orders_api.php?action=list_pending_orders');
+                const data = await response.json();
+                
+                document.getElementById('result').innerHTML = `
+                    <h2>API Response:</h2>
+                    <p>Success: ${data.success}</p>
+                    <p>Total Orders: ${data.data ? data.data.length : 0}</p>
+                    <h3>First 5 Orders:</h3>
+                    <pre>${JSON.stringify(data.data.slice(0, 5), null, 2)}</pre>
+                    <h3>Looking for Order #2258:</h3>
+                    <pre>${JSON.stringify(data.data.find(o => o.id == '2258' || o.order_id == '2258'), null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html>

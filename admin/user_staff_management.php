@@ -44,6 +44,7 @@ if (!is_file($__pfUsersSchemaOk)) {
         if (!in_array('birthday', $uc)) db_execute("ALTER TABLE users ADD COLUMN birthday DATE NULL AFTER last_name");
         if (!in_array('profile_completion_token', $uc)) db_execute("ALTER TABLE users ADD COLUMN profile_completion_token VARCHAR(64) NULL");
         if (!in_array('profile_completion_expires', $uc)) db_execute("ALTER TABLE users ADD COLUMN profile_completion_expires DATETIME NULL");
+        if (!in_array('profile_completion_fields_to_clear', $uc)) db_execute("ALTER TABLE users ADD COLUMN profile_completion_fields_to_clear TEXT NULL");
         if (!in_array('id_validation_image', $uc)) db_execute("ALTER TABLE users ADD COLUMN id_validation_image VARCHAR(255) NULL");
         @file_put_contents($__pfUsersSchemaOk, '1');
     } catch (Throwable $e) { /* ignore */ }
@@ -1168,9 +1169,6 @@ if (isset($_GET['ajax'])) {
             <p style="margin:0 0 16px 0; font-size:13px; color:#6b7280;">Select what needs to be fixed so the staff is aware:</p>
             <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
                 <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:14px;">
-                    <input type="checkbox" x-model="resendModal.notes.name"> Name
-                </label>
-                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:14px;">
                     <input type="checkbox" x-model="resendModal.notes.address"> Address
                 </label>
                 <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:14px;">
@@ -1880,7 +1878,7 @@ function userManagement() {
                 return d.data || [];
             } catch (e) { console.error('Address load failed:', e); return []; }
         },
-        async loadCities() {
+        async loadCities(skipBuildAddress = false) {
             const pName = this.editModal.user?.address_province || '';
             const p = this.addressProvinces.find(x => x.name.toLowerCase() === pName.toLowerCase());
             const code = p?.code || '';
@@ -1891,21 +1889,21 @@ function userManagement() {
                 const d = await r.json();
                 if (d.success && d.data) this.addressCities = d.data;
                 this.addressBarangays = [];
-                this.buildAddress();
+                if (!skipBuildAddress) this.buildAddress();
             } catch (e) { console.error('Cities load failed:', e); }
             finally { this.loadingCities = false; }
         },
-        async loadBarangays() {
+        async loadBarangays(skipBuildAddress = false) {
             const cName = this.editModal.user?.address_city || '';
             const c = this.addressCities.find(x => x.name.toLowerCase() === cName.toLowerCase());
             const code = c?.code || '';
-            if (!code) { this.addressBarangays = []; this.buildAddress(); return; }
+            if (!code) { this.addressBarangays = []; if (!skipBuildAddress) this.buildAddress(); return; }
             this.loadingBarangays = true;
             try {
                 const r = await fetch('/printflow/admin/api_address.php?address_action=barangays&city_code=' + encodeURIComponent(code));
                 const d = await r.json();
                 if (d.success && d.data) this.addressBarangays = d.data;
-                this.buildAddress();
+                if (!skipBuildAddress) this.buildAddress();
             } catch (e) { console.error('Barangays load failed:', e); }
             finally { this.loadingBarangays = false; }
         },
@@ -1963,17 +1961,25 @@ function userManagement() {
                 const data = await res.json();
                 if (data.success) {
                     const u = data.user;
-                    const parsed = this.parseAddressFromString(u.address || '');
+                    // Store original address before parsing
+                    const originalAddress = u.address || '';
+                    const parsed = this.parseAddressFromString(originalAddress);
                     u.address_province = parsed.address_province;
                     u.address_city = parsed.address_city;
                     u.address_barangay = parsed.address_barangay;
                     u.address_line = parsed.address_line;
+                    // Keep the original full address
+                    u.address = originalAddress;
                     // Ensure branch_id is properly set (convert to string for select binding)
                     u.branch_id = u.branch_id ? String(u.branch_id) : '';
                     this.editModal.user = u;
-                    if (parsed.address_province) await this.loadCities();
-                    if (parsed.address_city) await this.loadBarangays();
-                    this.buildAddress();
+                    // Load cities and barangays without rebuilding address
+                    if (parsed.address_province) {
+                        await this.loadCities(true); // Pass true to skip buildAddress
+                    }
+                    if (parsed.address_city) {
+                        await this.loadBarangays(true); // Pass true to skip buildAddress
+                    }
                 } else {
                     this.editModal.error = data.error || 'Failed to load user.';
                 }

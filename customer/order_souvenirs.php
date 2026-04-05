@@ -191,10 +191,14 @@ function setSouvenirFieldError(container, message) {
     if (!container) return;
     var err = container.querySelector('.field-error');
     if (message) {
-        if (!err) { err = document.createElement('div'); err.className = 'field-error'; container.appendChild(err); }
+        if (!err) { 
+            err = document.createElement('div'); 
+            err.className = 'field-error'; 
+            container.appendChild(err); 
+        }
         container.classList.add('is-invalid');
-        err.textContent = message;
-        err.style.display = 'block';
+        err.innerHTML = `<span class="refl-error-icon">⚠</span> ${message}`;
+        err.style.display = 'flex';
     } else {
         container.classList.remove('is-invalid');
         if (err) { err.textContent = ''; err.style.display = 'none'; }
@@ -398,6 +402,30 @@ if (souvenirTypeOtherEl) {
 
 <style>
 .dim-label { font-size: 0.70rem; color: #94a3b8; font-weight: 600; margin-bottom: 4px; display: block; text-transform: uppercase; }
+.field-error {
+    font-size: 0.75rem;
+    color: #f59e0b;
+    margin-top: 8px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    width: 100%;
+    flex-basis: 100%;
+}
+.refl-error-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    background: #f59e0b;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 900;
+    flex-shrink: 0;
+}
 </style>
 </style>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

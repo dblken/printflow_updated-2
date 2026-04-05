@@ -58,6 +58,12 @@ if ($action === 'verify_payment') {
     // But some rows can be inconsistent (e.g., status=VERIFY_PAY with mismatched proof_status),
     // so if we clearly have proof + amount, treat it as SUBMITTED for this verification.
     if ($payment_proof_status !== 'SUBMITTED') {
+        // Already verified — idempotent success (job is in correct state)
+        if ($payment_proof_status === 'VERIFIED') {
+            echo json_encode(['success' => true]);
+            exit;
+        }
+
         $can_treat_as_submitted =
             in_array($job_status, ['TO_PAY', 'VERIFY_PAY', 'TO_VERIFY', 'PENDING_VERIFICATION', 'DOWNPAYMENT_SUBMITTED'], true) &&
             $submitted_amount > 0 &&

@@ -151,7 +151,7 @@ $qty_default = max(1, min(999, (int)($_GET['qty'] ?? 1)));
                         <label class="shopee-form-label pt-2">With Stand? *</label>
                         <div class="shopee-opt-group shopee-form-field">
                             <label class="shopee-opt-btn"><input type="radio" name="with_stand" value="Yes" required style="display:none;" onchange="standeeUpdateOpt(this)"> <span>Yes</span></label>
-                            <label class="shopee-opt-btn"><input type="radio" name="with_stand" value="No" style="display:none;" onchange="standeeUpdateOpt(this)"> <span>No</span></label>
+                            <label class="shopee-opt-btn"><input type="radio" name="with_stand" value="No" required style="display:none;" onchange="standeeUpdateOpt(this)"> <span>No</span></label>
                         </div>
                     </div>
 
@@ -220,8 +220,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-<style>
 .dim-label { font-size: 0.70rem; color: #94a3b8; font-weight: 600; margin-bottom: 4px; display: block; text-transform: uppercase; }
-</style>
 </style>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

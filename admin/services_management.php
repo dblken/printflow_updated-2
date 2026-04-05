@@ -5,6 +5,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/customer_service_catalog.php';
+require_once __DIR__ . '/../includes/service_field_config_helper.php';
 
 require_role(['Admin', 'Manager']);
 
@@ -24,6 +25,76 @@ function service_name_exists(string $name, int $excludeId = 0): bool {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_token'] ?? '')) {
+    // Handle file uploads
+    $uploaded_images = [];
+    $uploaded_video = '';
+    
+    // Debug: Log what we receive
+    error_log('POST received: ' . print_r($_POST, true));
+    error_log('FILES received: ' . print_r($_FILES, true));
+    
+    if (isset($_FILES['media_files']) && is_array($_FILES['media_files']['name'])) {
+        $file_count = count($_FILES['media_files']['name']);
+        error_log('Processing ' . $file_count . ' files');
+        
+        for ($i = 0; $i < $file_count; $i++) {
+            if ($_FILES['media_files']['error'][$i] !== UPLOAD_ERR_OK) {
+                error_log('File ' . $i . ' has error: ' . $_FILES['media_files']['error'][$i]);
+                continue;
+            }
+            
+            $file_name = $_FILES['media_files']['name'][$i];
+            $file_tmp = $_FILES['media_files']['tmp_name'][$i];
+            $file_size = $_FILES['media_files']['size'][$i];
+            $file_type = $_FILES['media_files']['type'][$i];
+            $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+            
+            error_log('Processing file: ' . $file_name . ' Type: ' . $file_type . ' Size: ' . $file_size);
+            
+            // Check if image
+            if (strpos($file_type, 'image/') === 0) {
+                $allowed_img = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                if (in_array($file_ext, $allowed_img) && $file_size <= 5 * 1024 * 1024 && count($uploaded_images) < 5) {
+                    $upload_dir = __DIR__ . '/../public/assets/images/services/';
+                    if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+                    
+                    $new_filename = 'service_' . time() . '_' . uniqid() . '_' . $i . '.' . $file_ext;
+                    $upload_path = $upload_dir . $new_filename;
+                    
+                    if (move_uploaded_file($file_tmp, $upload_path)) {
+                        $uploaded_images[] = '/printflow/public/assets/images/services/' . $new_filename;
+                        error_log('Image uploaded: ' . $new_filename);
+                    } else {
+                        error_log('Failed to move image file');
+                    }
+                }
+            }
+            // Check if video
+            elseif (strpos($file_type, 'video/') === 0) {
+                $allowed_vid = ['mp4', 'webm', 'mov', 'avi'];
+                if (in_array($file_ext, $allowed_vid) && $file_size <= 50 * 1024 * 1024 && empty($uploaded_video)) {
+                    $upload_dir = __DIR__ . '/../public/assets/videos/services/';
+                    if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+                    
+                    $new_filename = 'service_' . time() . '_' . uniqid() . '.' . $file_ext;
+                    $upload_path = $upload_dir . $new_filename;
+                    
+                    if (move_uploaded_file($file_tmp, $upload_path)) {
+                        $uploaded_video = '/printflow/public/assets/videos/services/' . $new_filename;
+                        error_log('Video uploaded: ' . $new_filename);
+                    } else {
+                        error_log('Failed to move video file');
+                    }
+                }
+            }
+        }
+    } else {
+        error_log('No media_files in $_FILES or not an array');
+    }
+    
+    error_log('Uploaded images: ' . print_r($uploaded_images, true));
+    error_log('Uploaded video: ' . $uploaded_video);
+    
     if (isset($_POST['create_service'])) {
         $name = preg_replace('/\s+/', ' ', trim($_POST['name'] ?? ''));
         $category = sanitize($_POST['category'] ?? '');
@@ -31,8 +102,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
         $price = 1.0;
         $statusRaw = trim((string) ($_POST['status'] ?? ''));
         $status = ($statusRaw === 'Deactivated') ? 'Deactivated' : 'Activated';
-        $customer_link = sanitize(trim((string) ($_POST['customer_link'] ?? '')));
         $hero_image = sanitize(trim((string) ($_POST['hero_image'] ?? '')));
+        $display_image = !empty($uploaded_images) ? implode(',', $uploaded_images) : sanitize(trim((string) ($_POST['display_image'] ?? '')));
+        $video_url = $uploaded_video ?: sanitize(trim((string) ($_POST['video_url'] ?? '')));
         $customer_modal_text = trim(sanitize((string) ($_POST['customer_modal_text'] ?? '')));
 
         if ($name === '') {
@@ -49,12 +121,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
             $error = 'A service with this name already exists.';
         } else {
             $result = db_execute(
-                'INSERT INTO services (name, category, description, price, duration, status, visible_to_customer, customer_link, hero_image, customer_modal_text, created_at, updated_at) VALUES (?, ?, ?, ?, NULL, ?, 1, ?, ?, ?, NOW(), NOW())',
-                'sss' . 'd' . 's' . 'sss',
-                [$name, $category, $description, $price, $status, $customer_link, $hero_image, $customer_modal_text]
+                'INSERT INTO services (name, category, description, price, duration, status, visible_to_customer, hero_image, display_image, video_url, customer_modal_text, created_at, updated_at) VALUES (?, ?, ?, ?, NULL, ?, 1, ?, ?, ?, ?, NOW(), NOW())',
+                'sssdsssss',
+                [$name, $category, $description, $price, $status, $hero_image, $display_image, $video_url, $customer_modal_text]
             );
             if ($result) {
-                $success = 'Service created successfully';
+                $msg = 'Service created successfully.';
+                if (!empty($uploaded_images)) {
+                    $msg .= ' Uploaded ' . count($uploaded_images) . ' image(s).';
+                }
+                if (!empty($uploaded_video)) {
+                    $msg .= ' Uploaded 1 video.';
+                }
+                $success = $msg;
             } else {
                 global $conn;
                 $error = 'Failed to create service. ' . ($conn->error ?? '');
@@ -68,8 +147,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
         $price = 1.0;
         $statusRaw = trim((string) ($_POST['status'] ?? ''));
         $status = ($statusRaw === 'Deactivated') ? 'Deactivated' : 'Activated';
-        $customer_link = sanitize(trim((string) ($_POST['customer_link'] ?? '')));
         $hero_image = sanitize(trim((string) ($_POST['hero_image'] ?? '')));
+        $display_image = !empty($uploaded_images) ? implode(',', $uploaded_images) : sanitize(trim((string) ($_POST['display_image'] ?? '')));
+        $video_url = $uploaded_video ?: sanitize(trim((string) ($_POST['video_url'] ?? '')));
         $customer_modal_text = trim(sanitize((string) ($_POST['customer_modal_text'] ?? '')));
 
         if ($service_id < 1) {
@@ -88,12 +168,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
             $error = 'A service with this name already exists.';
         } else {
             $result = db_execute(
-                'UPDATE services SET name = ?, category = ?, description = ?, price = ?, duration = NULL, status = ?, customer_link = ?, hero_image = ?, customer_modal_text = ?, updated_at = NOW() WHERE service_id = ?',
-                'sss' . 'd' . 's' . 'ss' . 's' . 'i',
-                [$name, $category, $description, $price, $status, $customer_link, $hero_image, $customer_modal_text, $service_id]
+                'UPDATE services SET name = ?, category = ?, description = ?, price = ?, duration = NULL, status = ?, hero_image = ?, display_image = ?, video_url = ?, customer_modal_text = ?, updated_at = NOW() WHERE service_id = ?',
+                'sssdsssssi',
+                [$name, $category, $description, $price, $status, $hero_image, $display_image, $video_url, $customer_modal_text, $service_id]
             );
             if ($result) {
-                $success = 'Service updated successfully';
+                $msg = 'Service updated successfully';
+                if (!empty($uploaded_images)) {
+                    $msg .= ' - Uploaded ' . count($uploaded_images) . ' image(s)';
+                }
+                if (!empty($uploaded_video)) {
+                    $msg .= ' - Uploaded 1 video';
+                }
+                $success = $msg;
             } else {
                 global $conn;
                 $error = 'Failed to update service. ' . ($conn->error ?? '');
@@ -256,6 +343,7 @@ function render_services_table_rows(array $services): void {
                         </td>
                         <td style="text-align:right;white-space:nowrap;" onclick="event.stopPropagation();">
                             <button type="button" class="btn-action blue" onclick='openModal("edit", <?php echo htmlspecialchars(json_encode($svc), ENT_QUOTES); ?>)'>Edit</button>
+                            <a href="service_field_config.php?service_id=<?php echo (int)$svc['service_id']; ?>" class="btn-action" style="color:#059669;border-color:#059669;text-decoration:none;" title="Configure service fields">Fields</a>
                             <?php if ($svc['status'] !== 'Archived'): ?>
                                 <form method="POST" class="inline service-status-form" data-pf-skip-guard data-action="<?php echo $svc['status'] === 'Activated' ? 'Deactivate' : 'Activate'; ?>" data-service-name="<?php echo htmlspecialchars($svc['name'], ENT_QUOTES); ?>" onsubmit="showServiceStatusModal(event, this);return false;">
                                     <?php echo csrf_field(); ?>
@@ -330,6 +418,7 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard Standees',
         .btn-action.blue { color:#3b82f6; border-color:#3b82f6; } .btn-action.blue:hover { background:#3b82f6; color:#fff; }
         .btn-action.red { color:#ef4444; border-color:#ef4444; } .btn-action.red:hover { background:#ef4444; color:#fff; }
         .btn-action.gray { color:#6b7280; border-color:#d1d5db; } .btn-action.gray:hover { background:#6b7280; color:#fff; }
+        a.btn-action[style*="#059669"]:hover { background:#059669 !important; color:#fff !important; border-color:#059669 !important; }
         .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
         @media(max-width:900px) { .kpi-row { grid-template-columns:repeat(2,1fr); } }
         .kpi-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px 20px; position:relative; overflow:hidden; }
@@ -360,6 +449,15 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard Standees',
         .filter-actions { padding:14px 18px; border-top:1px solid #f3f4f6; }
         .filter-btn-reset { width:100%; height:36px; border:1px solid #e5e7eb; background:#fff; border-radius:8px; font-size:13px; cursor:pointer; }
         .filter-badge { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; background:#0d9488; color:#fff; border-radius:50%; font-size:10px; font-weight:700; }
+        .file-upload-area { border:2px dashed #e5e7eb; border-radius:12px; padding:32px 20px; text-align:center; cursor:pointer; transition:all 0.2s; position:relative; background:#fafbfc; min-height:180px; }
+        .file-upload-area:hover { border-color:#0d9488; background:#f0fdfa; }
+        .file-upload-area.drag-over { border-color:#0d9488; background:#f0fdfa; border-style:solid; }
+        .upload-preview { position:relative; display:flex; align-items:center; justify-content:center; }
+        .media-item { position:relative; border-radius:8px; overflow:hidden; border:2px solid #e5e7eb; }
+        .media-item img, .media-item video { width:100%; height:120px; object-fit:cover; display:block; }
+        .media-item .remove-btn { position:absolute; top:4px; right:4px; background:#ef4444; color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s; }
+        .media-item:hover .remove-btn { opacity:1; }
+        .media-item .media-badge { position:absolute; bottom:4px; left:4px; background:rgba(0,0,0,0.7); color:white; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; }
         #service-modal-overlay, #view-service-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:16px; }
         #service-modal-overlay.active, #view-service-modal-overlay.active { display:flex; }
         #service-modal { max-width:560px; }
@@ -552,7 +650,7 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard Standees',
             </button>
         </div>
         <div class="modal-body">
-            <form method="POST" id="service-form" data-pf-skip-guard novalidate>
+            <form method="POST" id="service-form" data-pf-skip-guard novalidate enctype="multipart/form-data">
                 <?php echo csrf_field(); ?>
                 <input type="hidden" id="modal-mode-input" name="create_service" value="1">
                 <input type="hidden" id="modal-service-id" name="service_id" value="">
@@ -581,10 +679,47 @@ $category_options = ['Tarpaulin', 'T-Shirt', 'Stickers', 'Sintraboard Standees',
                 </div>
 
                 <div class="form-group">
+                    <label>Service Media <span style="color:#9ca3af;font-weight:400;">(optional)</span></label>
+                    <small style="display:block;color:#6b7280;font-size:12px;margin-bottom:8px;">Upload up to 5 images and 1 video</small>
+                    <div class="file-upload-area" id="media-upload-area" onclick="document.getElementById('modal-media-files').click()">
+                        <input type="file" id="modal-media-files" name="media_files[]" accept="image/*,video/*" multiple style="display:none;" onchange="handleMediaUpload(this)">
+                        <div class="upload-placeholder" id="media-placeholder">
+                            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#9ca3af;margin-bottom:8px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            <p style="margin:0;font-size:14px;color:#6b7280;font-weight:500;">Click to upload or drag and drop</p>
+                            <p style="margin:4px 0 0;font-size:12px;color:#9ca3af;">Images (PNG, JPG, GIF) up to 5MB each</p>
+                            <p style="margin:2px 0 0;font-size:12px;color:#9ca3af;">Video (MP4, WebM, MOV) up to 50MB</p>
+                            <p style="margin:6px 0 0;font-size:11px;color:#0d9488;font-weight:600;">Max: 5 images + 1 video</p>
+                        </div>
+                        <div class="upload-preview-grid" id="media-preview" style="display:none;">
+                            <div id="media-items-container" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;"></div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="modal-display-image" name="display_image" value="">
+                    <input type="hidden" id="modal-video-url" name="video_url" value="">
+                    <input type="hidden" id="media-data" name="media_data" value="">
+                </div>
+
+                <div class="form-group">
                     <label for="modal-customer-modal-text">Customer modal message <span style="color:#9ca3af;font-weight:400;">(optional)</span></label>
                     <small style="display:block;color:#6b7280;font-size:12px;margin:-2px 0 6px;">Text shown on the customer Services page when they open a service (below the title). Leave blank to use the default wording.</small>
                     <textarea id="modal-customer-modal-text" name="customer_modal_text" rows="4" maxlength="2000" placeholder="<?php echo htmlspecialchars(printflow_default_customer_service_modal_text()); ?>"></textarea>
                     <span id="err-customer-modal-text" class="field-error"></span>
+                </div>
+
+                <div class="form-group" style="margin-top:20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;cursor:pointer;" onclick="toggleFieldConfig()">
+                        <div>
+                            <label style="margin:0;font-size:13px;font-weight:700;color:#374151;cursor:pointer;">Customize Service Fields</label>
+                            <small style="display:block;color:#6b7280;font-size:11px;margin-top:2px;">Configure labels, options, and visibility for customer order form</small>
+                        </div>
+                        <svg id="field-config-arrow" style="width:20px;height:20px;color:#6b7280;transition:transform 0.2s;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                    <div id="field-config-panel" style="display:none;margin-top:12px;padding:16px;background:#fafbfc;border:1px solid #e5e7eb;border-radius:8px;">
+                        <p style="font-size:12px;color:#6b7280;margin:0 0 12px;">Click "Configure Fields" button after saving the service to customize form fields.</p>
+                        <a href="#" id="configure-fields-link" class="btn-secondary" style="display:inline-block;padding:8px 16px;background:#0d9488;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;" onclick="return false;">Configure Fields</a>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -754,7 +889,18 @@ function printflowInitServicesPage() {
     }
 
     // Form submit guard
-    document.getElementById('service-form')?.addEventListener('submit', function () {
+    document.getElementById('service-form')?.addEventListener('submit', function (e) {
+        // Transfer files from uploadedMediaFiles to the actual file input
+        const input = document.getElementById('modal-media-files');
+        if (uploadedMediaFiles.length > 0 && input.files.length === 0) {
+            // Files are in memory but not in input - create a new FileList
+            const dt = new DataTransfer();
+            uploadedMediaFiles.forEach(item => {
+                dt.items.add(item.file);
+            });
+            input.files = dt.files;
+        }
+        
         const btn = document.getElementById('modal-submit-btn');
         if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
     });
@@ -769,6 +915,18 @@ if (document.readyState === 'loading') {
 }
 document.addEventListener('printflow:page-init', printflowInitServicesPage);
 
+function toggleFieldConfig() {
+    const panel = document.getElementById('field-config-panel');
+    const arrow = document.getElementById('field-config-arrow');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        arrow.style.transform = 'rotate(180deg)';
+    } else {
+        panel.style.display = 'none';
+        arrow.style.transform = 'rotate(0deg)';
+    }
+}
+
 function openModal(mode, svc) {
     const overlay = document.getElementById('service-modal-overlay');
     const title = document.getElementById('modal-title');
@@ -780,6 +938,12 @@ function openModal(mode, svc) {
         return;
     }
     form.reset();
+    
+    // Reset field config panel
+    const panel = document.getElementById('field-config-panel');
+    const arrow = document.getElementById('field-config-arrow');
+    if (panel) panel.style.display = 'none';
+    if (arrow) arrow.style.transform = 'rotate(0deg)';
 
     if (mode === 'edit' && svc) {
         title.textContent = 'Edit Service';
@@ -789,16 +953,51 @@ function openModal(mode, svc) {
         document.getElementById('modal-name').value = svc.name || '';
         document.getElementById('modal-category').value = svc.category || '';
         document.getElementById('modal-description').value = svc.description || '';
+        
+        // Load existing media files
+        uploadedMediaFiles = [];
+        const existingImages = (svc.display_image || '').split(',').filter(img => img.trim());
+        const existingVideo = svc.video_url || '';
+        
+        // Store existing media paths in hidden fields
+        document.getElementById('modal-display-image').value = svc.display_image || '';
+        document.getElementById('modal-video-url').value = existingVideo;
+        
+        // Display existing media previews
+        if (existingImages.length > 0 || existingVideo) {
+            renderExistingMediaPreviews(existingImages, existingVideo);
+        } else {
+            renderMediaPreviews();
+        }
         const cm = svc.customer_modal_text;
         document.getElementById('modal-customer-modal-text').value = (cm !== undefined && cm !== null && String(cm).trim() !== '') ? String(cm) : (window.PF_DEFAULT_SERVICE_MODAL_TEXT || '');
         document.getElementById('modal-status').value = (svc.status === 'Deactivated') ? 'Deactivated' : 'Activated';
+        
+        // Update configure fields link
+        const configLink = document.getElementById('configure-fields-link');
+        if (configLink) {
+            configLink.href = 'service_field_config.php?service_id=' + (svc.service_id || '');
+            configLink.onclick = null;
+        }
     } else {
         title.textContent = 'Add Service';
         modeInput.name = 'create_service';
         submitBtn.textContent = 'Save Service';
         document.getElementById('modal-service-id').value = '';
+        document.getElementById('modal-display-image').value = '';
+        document.getElementById('modal-video-url').value = '';
+        document.getElementById('modal-media-files').value = '';
+        uploadedMediaFiles = [];
+        renderMediaPreviews();
         document.getElementById('modal-status').value = 'Activated';
         document.getElementById('modal-customer-modal-text').value = window.PF_DEFAULT_SERVICE_MODAL_TEXT || '';
+        
+        // Disable configure fields link for new services
+        const configLink = document.getElementById('configure-fields-link');
+        if (configLink) {
+            configLink.href = '#';
+            configLink.onclick = function(e) { e.preventDefault(); alert('Please save the service first before configuring fields.'); return false; };
+        }
     }
     submitBtn.disabled = false;
     overlay.classList.add('active');
@@ -832,6 +1031,45 @@ function openViewModal(svc) {
     const cm = svc.customer_modal_text;
     document.getElementById('view-customer-modal-text').textContent =
         (cm !== undefined && cm !== null && String(cm).trim() !== '') ? String(cm) : (window.PF_DEFAULT_SERVICE_MODAL_TEXT || '—');
+    
+    // Display existing media if available
+    const existingImages = (svc.display_image || '').split(',').filter(img => img.trim());
+    const existingVideo = svc.video_url || '';
+    
+    // Add media preview section to view modal if not exists
+    let mediaSection = document.getElementById('view-media-section');
+    if (!mediaSection) {
+        mediaSection = document.createElement('div');
+        mediaSection.id = 'view-media-section';
+        const descDiv = document.getElementById('view-description').parentElement;
+        descDiv.parentElement.insertBefore(mediaSection, descDiv.nextSibling);
+    }
+    
+    if (existingImages.length > 0 || existingVideo) {
+        let html = '<span class="view-label">Media</span><div class="view-value-box" style="padding:12px;">';
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;">';
+        
+        existingImages.forEach((img, i) => {
+            html += `<div style="position:relative;border-radius:6px;overflow:hidden;border:1px solid #e5e7eb;">
+                <img src="${img}" alt="Image ${i+1}" style="width:100%;height:100px;object-fit:cover;display:block;">
+                <span style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,0.7);color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">IMG ${i+1}</span>
+            </div>`;
+        });
+        
+        if (existingVideo) {
+            html += `<div style="position:relative;border-radius:6px;overflow:hidden;border:1px solid #e5e7eb;">
+                <video src="${existingVideo}" style="width:100%;height:100px;object-fit:cover;display:block;"></video>
+                <span style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,0.7);color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">VIDEO</span>
+            </div>`;
+        }
+        
+        html += '</div></div>';
+        mediaSection.innerHTML = html;
+        mediaSection.style.display = 'block';
+    } else {
+        mediaSection.style.display = 'none';
+    }
+    
     document.getElementById('view-service-modal-overlay').classList.add('active');
     document.body.style.overflow = 'hidden';
 }
@@ -931,6 +1169,184 @@ window.closeArchiveModal = function closeArchiveModal() {
 };
 
 // Page-specific initialization is now handled above via printflowInitServicesPage.
+
+let uploadedMediaFiles = [];
+
+function handleMediaUpload(input) {
+    const files = Array.from(input.files);
+    let images = uploadedMediaFiles.filter(f => f.type === 'image');
+    let videos = uploadedMediaFiles.filter(f => f.type === 'video');
+    
+    for (const file of files) {
+        const isImage = file.type.startsWith('image/');
+        const isVideo = file.type.startsWith('video/');
+        
+        if (isImage) {
+            if (images.length >= 5) {
+                alert('Maximum 5 images allowed');
+                continue;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                alert(`Image "${file.name}" exceeds 5MB limit`);
+                continue;
+            }
+            images.push({ file, type: 'image' });
+        } else if (isVideo) {
+            if (videos.length >= 1) {
+                alert('Maximum 1 video allowed');
+                continue;
+            }
+            if (file.size > 50 * 1024 * 1024) {
+                alert(`Video "${file.name}" exceeds 50MB limit`);
+                continue;
+            }
+            videos.push({ file, type: 'video' });
+        }
+    }
+    
+    uploadedMediaFiles = [...images, ...videos];
+    renderMediaPreviews();
+}
+
+function renderMediaPreviews() {
+    const container = document.getElementById('media-items-container');
+    const placeholder = document.getElementById('media-placeholder');
+    const preview = document.getElementById('media-preview');
+    
+    if (uploadedMediaFiles.length === 0) {
+        placeholder.style.display = 'block';
+        preview.style.display = 'none';
+        return;
+    }
+    
+    placeholder.style.display = 'none';
+    preview.style.display = 'block';
+    container.innerHTML = '';
+    
+    uploadedMediaFiles.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'media-item';
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            if (item.type === 'image') {
+                div.innerHTML = `
+                    <img src="${e.target.result}" alt="Image ${index + 1}">
+                    <span class="media-badge">IMG ${index + 1}</span>
+                    <button type="button" class="remove-btn" onclick="removeMediaItem(${index})">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                `;
+            } else {
+                div.innerHTML = `
+                    <video src="${e.target.result}"></video>
+                    <span class="media-badge">VIDEO</span>
+                    <button type="button" class="remove-btn" onclick="removeMediaItem(${index})">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                `;
+            }
+        };
+        reader.readAsDataURL(item.file);
+        container.appendChild(div);
+    });
+}
+
+function removeMediaItem(index) {
+    uploadedMediaFiles.splice(index, 1);
+    renderMediaPreviews();
+    
+    // Reset file input
+    const input = document.getElementById('modal-media-files');
+    input.value = '';
+}
+
+function renderExistingMediaPreviews(images, video) {
+    const container = document.getElementById('media-items-container');
+    const placeholder = document.getElementById('media-placeholder');
+    const preview = document.getElementById('media-preview');
+    
+    if (images.length === 0 && !video) {
+        placeholder.style.display = 'block';
+        preview.style.display = 'none';
+        return;
+    }
+    
+    placeholder.style.display = 'none';
+    preview.style.display = 'block';
+    container.innerHTML = '';
+    
+    // Display existing images
+    images.forEach((imgPath, index) => {
+        const div = document.createElement('div');
+        div.className = 'media-item';
+        div.innerHTML = `
+            <img src="${imgPath}" alt="Image ${index + 1}">
+            <span class="media-badge">IMG ${index + 1}</span>
+            <button type="button" class="remove-btn" onclick="removeExistingMedia('image', ${index})">
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        `;
+        container.appendChild(div);
+    });
+    
+    // Display existing video
+    if (video) {
+        const div = document.createElement('div');
+        div.className = 'media-item';
+        div.innerHTML = `
+            <video src="${video}"></video>
+            <span class="media-badge">VIDEO</span>
+            <button type="button" class="remove-btn" onclick="removeExistingMedia('video', 0)">
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        `;
+        container.appendChild(div);
+    }
+}
+
+function removeExistingMedia(type, index) {
+    if (type === 'image') {
+        const displayImageInput = document.getElementById('modal-display-image');
+        const images = displayImageInput.value.split(',').filter(img => img.trim());
+        images.splice(index, 1);
+        displayImageInput.value = images.join(',');
+        renderExistingMediaPreviews(images, document.getElementById('modal-video-url').value);
+    } else if (type === 'video') {
+        document.getElementById('modal-video-url').value = '';
+        const images = document.getElementById('modal-display-image').value.split(',').filter(img => img.trim());
+        renderExistingMediaPreviews(images, '');
+    }
+}
+
+// Drag and drop handler
+const mediaArea = document.getElementById('media-upload-area');
+if (mediaArea) {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        mediaArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        mediaArea.addEventListener(eventName, () => mediaArea.classList.add('drag-over'), false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        mediaArea.addEventListener(eventName, () => mediaArea.classList.remove('drag-over'), false);
+    });
+    
+    mediaArea.addEventListener('drop', function(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        const input = document.getElementById('modal-media-files');
+        input.files = files;
+        handleMediaUpload(input);
+    }, false);
+}
 </script>
 <script src="/printflow/public/assets/js/service-form-validation.js"></script>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

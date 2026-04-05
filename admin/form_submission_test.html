@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Form Submission Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        pre { background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Form Submission Test</h1>
+    
+    <div class="test-result info">
+        <strong>Instructions:</strong>
+        <ol>
+            <li>Click "Test Form Submission" to simulate what happens when you save</li>
+            <li>Check the console (F12) for debug messages</li>
+            <li>Look at the results below</li>
+        </ol>
+    </div>
+    
+    <form id="testForm" action="nested_field_diagnostic.php" method="POST">
+        <input type="hidden" name="csrf_token" value="test_token">
+        <input type="hidden" name="field_configs" id="fieldConfigsInput">
+        
+        <button type="button" onclick="testFormSubmission()">Test Form Submission</button>
+        <button type="submit" name="test_save">Submit Test Data</button>
+    </form>
+    
+    <div id="results"></div>
+    
+    <h2>🔍 Debug Information</h2>
+    <div id="debug-info"></div>
+    
+    <script>
+    // Load the nested field functions
+    const script1 = document.createElement('script');
+    script1.src = 'nested_field_functions.js';
+    document.head.appendChild(script1);
+    
+    const script2 = document.createElement('script');
+    script2.src = 'nested_field_fix.js';
+    document.head.appendChild(script2);
+    
+    function testFormSubmission() {
+        const results = document.getElementById('results');
+        const debugInfo = document.getElementById('debug-info');
+        
+        let html = '<h3>Test Results:</h3>';
+        let debug = '<h3>Debug Information:</h3>';
+        
+        // Test 1: Check if scripts loaded
+        debug += '<h4>Script Loading:</h4>';
+        if (typeof window.addNewField === 'function') {
+            html += '<div class="test-result success">✅ addNewField function loaded</div>';
+            debug += '<p>✅ nested_field_fix.js loaded successfully</p>';
+        } else {
+            html += '<div class="test-result error">❌ addNewField function not found</div>';
+            debug += '<p>❌ nested_field_fix.js failed to load</p>';
+        }
+        
+        if (typeof window.collectNestedFieldConfigurations === 'function') {
+            html += '<div class="test-result success">✅ collectNestedFieldConfigurations function loaded</div>';
+            debug += '<p>✅ nested_field_functions.js loaded successfully</p>';
+        } else {
+            html += '<div class="test-result error">❌ collectNestedFieldConfigurations function not found</div>';
+            debug += '<p>❌ nested_field_functions.js failed to load</p>';
+        }
+        
+        // Test 2: Create test data
+        const testConfig = {
+            "test_radio": {
+                "label": "Test Radio Field",
+                "type": "radio",
+                "required": true,
+                "visible": true,
+                "order": 1,
+                "options": [
+                    {
+                        "value": "Option 1",
+                        "nested_fields": [
+                            {
+                                "label": "Nested Text",
+                                "type": "text",
+                                "required": true
+                            }
+                        ]
+                    },
+                    "Option 2"
+                ]
+            }
+        };
+        
+        // Test 3: JSON serialization
+        try {
+            const jsonString = JSON.stringify(testConfig);
+            document.getElementById('fieldConfigsInput').value = jsonString;
+            html += '<div class="test-result success">✅ JSON serialization successful</div>';
+            debug += '<h4>Generated JSON:</h4><pre>' + jsonString + '</pre>';
+        } catch (e) {
+            html += '<div class="test-result error">❌ JSON serialization failed: ' + e.message + '</div>';
+            debug += '<p>❌ JSON error: ' + e.message + '</p>';
+        }
+        
+        // Test 4: Form validation
+        const form = document.getElementById('testForm');
+        const hiddenInput = document.getElementById('fieldConfigsInput');
+        
+        if (form && hiddenInput && hiddenInput.value) {
+            html += '<div class="test-result success">✅ Form ready for submission</div>';
+            debug += '<p>✅ Form elements found and populated</p>';
+            debug += '<p>Hidden input value length: ' + hiddenInput.value.length + ' characters</p>';
+        } else {
+            html += '<div class="test-result error">❌ Form not ready</div>';
+            debug += '<p>❌ Form elements missing or not populated</p>';
+        }
+        
+        results.innerHTML = html;
+        debugInfo.innerHTML = debug;
+        
+        console.log('Test configuration:', testConfig);
+        console.log('JSON string:', document.getElementById('fieldConfigsInput').value);
+    }
+    
+    // Auto-run test after scripts load
+    setTimeout(testFormSubmission, 1000);
+    </script>
+</body>
+</html>

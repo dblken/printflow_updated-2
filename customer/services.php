@@ -7,13 +7,14 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/customer_service_catalog.php';
+require_once __DIR__ . '/../includes/service_field_config_helper.php';
 
 // Fetch services from DB
 $visible_rows = db_query(
     "SELECT s.*, 
-    (SELECT COUNT(*) FROM job_orders jo WHERE (jo.service_type LIKE CONCAT('%', s.name, '%') OR jo.service_type = s.name) AND jo.status != 'CANCELLED') as sold_count,
-    (SELECT AVG(rating) FROM reviews r WHERE r.reference_id = s.service_id AND r.review_type = 'custom') as avg_rating,
-    (SELECT COUNT(*) FROM reviews r WHERE r.reference_id = s.service_id AND r.review_type = 'custom') as review_count
+    (SELECT COALESCE(SUM(oi.quantity),0) FROM order_items oi JOIN orders o ON oi.order_id = o.order_id WHERE o.status != 'Cancelled' AND oi.customization_data LIKE '%\"service_type\"%' AND oi.customization_data LIKE CONCAT('%', CONVERT(s.name USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%')) as sold_count,
+    (SELECT AVG(rating) FROM reviews r WHERE r.service_type COLLATE utf8mb4_unicode_ci = s.name COLLATE utf8mb4_unicode_ci) as avg_rating,
+    (SELECT COUNT(*) FROM reviews r WHERE r.service_type COLLATE utf8mb4_unicode_ci = s.name COLLATE utf8mb4_unicode_ci) as review_count
     FROM services s WHERE s.status = 'Activated' ORDER BY name ASC",
     '',
     []
@@ -21,7 +22,15 @@ $visible_rows = db_query(
 
 $core_services = [];
 foreach ($visible_rows as $row) {
-    $img = trim((string) ($row['hero_image'] ?? ''));
+    // Prioritize display_image over hero_image
+    $display_imgs = trim((string) ($row['display_image'] ?? ''));
+    if ($display_imgs !== '') {
+        $imgs_array = array_filter(array_map('trim', explode(',', $display_imgs)));
+        $img = !empty($imgs_array) ? $imgs_array[0] : '';
+    } else {
+        $img = trim((string) ($row['hero_image'] ?? ''));
+    }
+    
     if ($img === '') {
         $img = '/printflow/public/assets/images/services/default.png';
     }
@@ -34,7 +43,9 @@ foreach ($visible_rows as $row) {
         'name' => $row['name'],
         'category' => $row['category'] ?? '',
         'img' => $img,
-        'link' => $row['customer_link'] ?: 'order_create.php',
+        'link' => service_has_field_config($row['service_id']) 
+            ? 'order_service_dynamic.php?service_id=' . $row['service_id']
+            : ($row['customer_link'] ?: 'order_create.php'),
         'modal_text' => $row['customer_modal_text'] ?: printflow_default_customer_service_modal_text(),
         'sold_count' => (int)$row['sold_count'],
         'avg_rating' => (float)$row['avg_rating'],
@@ -60,42 +71,48 @@ function render_service_card($srv) {
     $json_link = htmlspecialchars(json_encode($srv['link']), ENT_QUOTES, 'UTF-8');
     $json_modal_text = htmlspecialchars(json_encode($srv['modal_text']), ENT_QUOTES, 'UTF-8');
     
+    // Get display images from database
+    $service_data = db_query("SELECT display_image FROM services WHERE service_id = ?", 'i', [$srv['id']]);
+    $display_images = [];
+    if (!empty($service_data) && !empty($service_data[0]['display_image'])) {
+        $images = explode(',', $service_data[0]['display_image']);
+        foreach ($images as $imgPath) {
+            $imgPath = trim($imgPath);
+            if ($imgPath !== '') {
+                $display_images[] = $imgPath;
+            }
+        }
+    }
+    // Fallback to hero image if no display images
+    if (empty($display_images)) {
+        $display_images[] = $img;
+    }
+    $json_images = htmlspecialchars(json_encode($display_images), ENT_QUOTES, 'UTF-8');
+    
     $ravg = $srv['avg_rating'];
     $rcount = $srv['review_count'];
     $sold = $srv['sold_count'];
     // If sold is 0 but there are reviews, use review_count as minimum sold
     $display_sold = ($sold <= 0 && $rcount > 0) ? $rcount : $sold;
     ?>
-    <div class="ct-product-card cursor-pointer group" onclick="openServiceModal(<?php echo $srv['id']; ?>, <?php echo $json_name; ?>, <?php echo $json_category; ?>, <?php echo $json_img; ?>, <?php echo $json_link; ?>, true, '', '', <?php echo $json_modal_text; ?>, <?php echo $ravg; ?>, <?php echo $rcount; ?>)">
-        <div class="ct-product-img overflow-hidden">
-            <div class="ct-product-img-inner transition-transform duration-500 group-hover:scale-110">
-                <img src="<?php echo htmlspecialchars($img); ?>" alt="<?php echo htmlspecialchars($srv['name']); ?>" style="width:100%; height:100%; object-fit:cover; border-radius:0.5rem;">
+    <div class="shopee-card" onclick="openServiceModal(<?php echo $srv['id']; ?>, <?php echo $json_name; ?>, <?php echo $json_category; ?>, <?php echo $json_images; ?>, <?php echo $json_link; ?>, true, '', '', <?php echo $json_modal_text; ?>, <?php echo $ravg; ?>, <?php echo $rcount; ?>)">
+        <img src="<?php echo htmlspecialchars($img); ?>" alt="<?php echo htmlspecialchars($srv['name']); ?>" class="shopee-img">
+        <div class="shopee-body">
+            <span class="shopee-category"><?php echo htmlspecialchars($srv['category']); ?></span>
+            <h3 class="shopee-name"><?php echo htmlspecialchars($srv['name']); ?></h3>
+            
+            <div class="rating-stars">
+                <?php for($i=1; $i<=5; $i++): ?>
+                    <svg style="width: 14px; height: 14px;" fill="<?php echo ($i <= round($ravg)) ? '#ffca11' : '#e5e7eb'; ?>" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                    </svg>
+                <?php endfor; ?>
+                <span class="rating-text"><?php echo $rcount > 0 ? "($rcount)" : ''; ?></span>
+                <span style="margin-left: auto; font-size: 0.75rem; color: var(--shopee-muted);"><?php echo $display_sold; ?> sold</span>
             </div>
         </div>
-        <div class="ct-product-body" style="text-align: left; padding: 1.25rem 1rem;">
-            <span class="ct-product-category" style="margin-bottom: 0.5rem; display: inline-block;"><?php echo htmlspecialchars($srv['category']); ?></span>
-            <h3 class="ct-product-name" style="margin-bottom: 0.4rem; font-weight: 700; font-size: 1.1rem; line-height: 1.3;">
-                <?php echo htmlspecialchars($srv['name']); ?>
-            </h3>
-            
-            <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 1rem;">
-                <!-- Stars -->
-                <div style="display: flex; gap: 1px;">
-                    <?php for($i=1; $i<=5; $i++): ?>
-                        <svg width="14" height="14" fill="<?php echo ($i <= round($ravg)) ? '#FBBF24' : '#374151'; ?>" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
-                    <?php endfor; ?>
-                </div>
-                
-                <?php if ($rcount > 0): ?>
-                    <a href="reviews.php?service_id=<?php echo $srv['id']; ?>" onclick="event.stopPropagation();" style="font-size: 0.75rem; color: #9ca3af; margin-left: 2px; text-decoration: none;" class="hover:underline hover:text-[#53C5E0]">(<?php echo $rcount; ?>) Reviews</a>
-                <?php endif; ?>
-                
-                <span style="font-size: 0.75rem; color: #64748b; margin-left: auto;"><?php echo $display_sold; ?> sold</span>
-            </div>
-
-            <span class="ct-view-product-btn" style="flex: 1; text-align: center; pointer-events: none;">
-                ORDER NOW
-            </span>
+        <div class="shopee-footer" onclick="event.stopPropagation();">
+            <a href="<?php echo htmlspecialchars($srv['link']); ?>" class="shopee-btn shopee-btn-buy">Order Now</a>
         </div>
     </div>
     <?php
@@ -103,22 +120,141 @@ function render_service_card($srv) {
 ?>
 
 <style>
+    :root {
+        --shopee-orange: #0a2530;
+        --shopee-bg: #ffffff;
+        --shopee-card-bg: #ffffff;
+        --shopee-text: #212121;
+        --shopee-muted: #757575;
+        --shopee-border: rgba(0,0,0,0.09);
+    }
+
     body.customer-theme {
         background: #ffffff !important;
         background-image: none !important;
     }
-    .ct-page-title { color: #1e293b !important; text-shadow: none !important; }
-    .ct-product-card {
-        background: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+    
+    .shopee-card {
+        background: var(--shopee-card-bg);
+        border: 1px solid var(--shopee-border);
+        border-radius: 4px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
-    .ct-product-card:hover {
-        border-color: #53C5E0 !important;
-        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+    
+    .shopee-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: var(--shopee-orange);
     }
-    .ct-product-name { color: #1e293b !important; }
-    .ct-product-category { background: #f1f5f9 !important; color: #475569 !important; border-color: #e2e8f0 !important; }
+    
+    .shopee-img {
+        width: 100%;
+        aspect-ratio: 1.2;
+        object-fit: cover;
+    }
+    
+    .shopee-body {
+        padding: 10px 10px 0px 10px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .shopee-name {
+        font-size: 0.95rem;
+        line-height: 1.3rem;
+        height: 2.6rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        color: var(--shopee-text);
+        margin-bottom: 6px;
+    }
+    
+    .shopee-category {
+        font-size: 0.75rem;
+        color: var(--shopee-muted);
+        margin-bottom: 4px;
+    }
+    
+    .shopee-price-row {
+        margin-top: auto;
+        margin-bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .shopee-price {
+        color: var(--shopee-orange);
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .shopee-sold {
+        font-size: 0.75rem;
+        color: var(--shopee-muted);
+    }
+    
+    .shopee-footer {
+        padding: 8px 10px;
+        border-top: 1px solid var(--shopee-border);
+        display: flex;
+        gap: 8px;
+    }
+    
+    .shopee-btn {
+        flex: 1;
+        padding: 7px 0;
+        border-radius: 3px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-align: center;
+        text-transform: uppercase;
+        transition: all 0.2s;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    
+    .shopee-btn-cart {
+        background: rgba(10, 37, 48, 0.08);
+        color: var(--shopee-orange);
+    }
+    
+    .shopee-btn-buy {
+        background: var(--shopee-orange);
+        color: #fff;
+        width: 100%;
+    }
+    
+    .shopee-btn:hover {
+        opacity: 0.9;
+    }
+    
+    .rating-stars {
+        color: #ffca11;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin-bottom: 2px;
+    }
+    
+    .rating-text {
+        font-size: 0.75rem;
+        color: var(--shopee-muted);
+        margin-left: 5px;
+    }
     
     #service-modal-content {
         background: #ffffff !important;
@@ -131,53 +267,14 @@ function render_service_card($srv) {
         background: #f8fafc !important;
         border-top-color: #e2e8f0 !important;
     }
-    .ct-card-footer {
-        display: flex;
-        gap: 8px;
-        padding: 0;
-        margin-top: 0.5rem;
-    }
-    .ct-cart-icon-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        border-radius: 0.5rem;
-        border: 1px solid #0a2530;
-        background: rgba(10, 37, 48, 0.08);
-        color: #0a2530;
-        cursor: pointer;
-        transition: all 0.2s;
-        flex-shrink: 0;
-    }
-    .ct-cart-icon-btn:hover {
-        background: #53C5E0;
-        border-color: #53C5E0;
-        color: #ffffff;
-    }
-    .ct-view-product-btn { 
-        background: #0a2530 !important; 
-        color: #ffffff !important; 
-        border: none !important; 
-        box-shadow: 0 4px 10px rgba(10, 37, 48, 0.2) !important;
-        transition: all 0.3s ease !important;
-        border-radius: 0.5rem;
-        padding: 0.6rem 1rem;
-        font-weight: 600;
-        font-size: 0.8125rem;
-        flex: 1;
-    }
-    .ct-product-card:hover .ct-view-product-btn {
-        background: #53C5E0 !important;
-        box-shadow: 0 8px 18px rgba(83, 197, 224, 0.3) !important;
-    }
 </style>
 
 <div class="min-h-screen py-8">
     <div class="container mx-auto px-4" style="max-width:1100px;">
 
-        <div class="mb-8 mt-4"></div>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <h1 class="text-2xl font-bold text-gray-800">Available Services</h1>
+        </div>
         
         <?php if (empty($core_services)): ?>
             <div class="ct-empty" style="padding:4rem;text-align:center;color:#6b7280; background: rgba(15, 23, 42, 0.5); border-radius: 1rem;">
@@ -220,8 +317,24 @@ function render_service_card($srv) {
 
         <div id="service-modal-scroll-body" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column;">
             <div style="width: 100%; height: 280px; position: relative; flex-shrink: 0;">
-                <img id="modal-img" src="" alt="" style="width: 100%; height: 100%; object-fit: cover;">
-                <div style="position: absolute; top: 1.25rem; left: 1.25rem;">
+                <div id="modal-image-carousel" style="position:relative;width:100%;height:100%;overflow:hidden;">
+                    <!-- Images will be inserted here dynamically -->
+                </div>
+                
+                <!-- Navigation Arrows -->
+                <button type="button" id="modal-carousel-prev" onclick="changeModalImage(-1);event.stopPropagation();" style="display:none;position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.9);color:#374151;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10;transition:all 0.2s;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <button type="button" id="modal-carousel-next" onclick="changeModalImage(1);event.stopPropagation();" style="display:flex;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.9);color:#374151;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10;transition:all 0.2s;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </button>
+                
+                <!-- Image Counter -->
+                <div id="modal-image-counter" style="display:none;position:absolute;bottom:16px;right:16px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;z-index:10;">
+                    <span id="modal-current-image">1</span> / <span id="modal-total-images">1</span>
+                </div>
+                
+                <div style="position: absolute; top: 1.25rem; left: 1.25rem; z-index:11;">
                     <span id="modal-category" style="padding: 0.35rem 0.85rem; background: #ffffff; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; border-radius: 0.5rem; color: #4F46E5; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">CATEGORY</span>
                 </div>
             </div>
@@ -235,10 +348,8 @@ function render_service_card($srv) {
                     </div>
                 </div>
                 <p id="modal-intro-text" style="color: #b9d4df; margin: 0 0 1.25rem; line-height: 1.6; font-size: 0.9rem;"></p>
-                <a id="modal-reviews-link" href="#" style="font-size: 0.82rem; color: #53c5e0; font-weight: 700; text-decoration: none; display: flex; align-items: center; gap: 6px;">
-                    Read Customer Reviews &rarr;
-                </a>
             </div>
+            <div id="modal-ratings-section" style="padding: 0 2rem 1.5rem;"></div>
         </div>
 
         <div id="modal-cart-section" style="padding: 1.25rem 2rem; background: rgba(8, 30, 39, 0.95); border-top: 1px solid rgba(83, 197, 224, 0.24);">
@@ -256,18 +367,57 @@ function render_service_card($srv) {
 
 <script>
 let currentModalData = {};
+let modalImages = [];
+let currentModalImageIndex = 0;
 
-function openServiceModal(id, name, category, img, link, is_service, price, stock, modalIntro, avgRating, reviewCount) {
+function openServiceModal(id, name, category, images, link, is_service, price, stock, modalIntro, avgRating, reviewCount) {
     document.getElementById('modal-name').textContent = name;
     document.getElementById('modal-category').textContent = category;
-    document.getElementById('modal-img').src = img;
     document.getElementById('modal-intro-text').textContent = modalIntro;
+    
+    // Handle images array
+    modalImages = Array.isArray(images) ? images : [images];
+    currentModalImageIndex = 0;
+    
+    // Setup carousel
+    const carousel = document.getElementById('modal-image-carousel');
+    carousel.innerHTML = '';
+    
+    modalImages.forEach((img, index) => {
+        const imgEl = document.createElement('img');
+        imgEl.src = img;
+        imgEl.alt = name;
+        imgEl.style.cssText = 'position:absolute;top:0;left:' + (index === 0 ? '0' : '100%') + ';width:100%;height:100%;object-fit:cover;transition:left 0.4s ease-in-out;';
+        imgEl.className = 'modal-carousel-image';
+        imgEl.dataset.index = index;
+        carousel.appendChild(imgEl);
+    });
+    
+    // Show/hide navigation
+    const prevBtn = document.getElementById('modal-carousel-prev');
+    const nextBtn = document.getElementById('modal-carousel-next');
+    const counter = document.getElementById('modal-image-counter');
+    
+    if (modalImages.length > 1) {
+        prevBtn.style.display = 'none'; // Hide on first image
+        nextBtn.style.display = 'flex';
+        counter.style.display = 'block';
+        document.getElementById('modal-total-images').textContent = modalImages.length;
+        document.getElementById('modal-current-image').textContent = '1';
+    } else {
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+        counter.style.display = 'none';
+    }
     
     const ratingVal = parseFloat(avgRating || 0).toFixed(1);
     document.getElementById('modal-rating-val').textContent = ratingVal;
     document.getElementById('modal-reviews-link').href = 'reviews.php?service_id=' + id;
     
     currentModalData = { id, name, link };
+    
+    // Load reviews
+    loadModalReviews(id);
     
     const modal = document.getElementById('service-modal');
     const content = document.getElementById('service-modal-content');
@@ -278,6 +428,45 @@ function openServiceModal(id, name, category, img, link, is_service, price, stoc
     modal.style.pointerEvents = 'auto';
     content.style.transform = 'translateY(0)';
     document.body.style.overflow = 'hidden';
+}
+
+function changeModalImage(direction) {
+    const newIndex = currentModalImageIndex + direction;
+    
+    if (newIndex < 0 || newIndex >= modalImages.length) return;
+    
+    const images = document.querySelectorAll('.modal-carousel-image');
+    const oldImg = images[currentModalImageIndex];
+    const newImg = images[newIndex];
+    
+    // Position new image
+    if (direction > 0) {
+        newImg.style.left = '100%';
+    } else {
+        newImg.style.left = '-100%';
+    }
+    
+    // Force reflow
+    newImg.offsetHeight;
+    
+    // Animate
+    if (direction > 0) {
+        oldImg.style.left = '-100%';
+    } else {
+        oldImg.style.left = '100%';
+    }
+    newImg.style.left = '0';
+    
+    currentModalImageIndex = newIndex;
+    
+    // Update counter
+    document.getElementById('modal-current-image').textContent = currentModalImageIndex + 1;
+    
+    // Update arrow visibility
+    const prevBtn = document.getElementById('modal-carousel-prev');
+    const nextBtn = document.getElementById('modal-carousel-next');
+    prevBtn.style.display = currentModalImageIndex === 0 ? 'none' : 'flex';
+    nextBtn.style.display = currentModalImageIndex === modalImages.length - 1 ? 'none' : 'flex';
 }
 
 function closeServiceModal() {
@@ -292,8 +481,70 @@ function closeServiceModal() {
     }, 300);
 }
 
+function loadModalReviews(serviceId) {
+    const container = document.getElementById('modal-ratings-section');
+    container.innerHTML = '';
+
+    fetch('/printflow/public/api/modal_reviews.php?service_id=' + encodeURIComponent(serviceId))
+        .then(r => r.json())
+        .then(data => {
+            const reviews = data.reviews || [];
+            const avg = parseFloat(data.avg || 0);
+            const count = parseInt(data.count || 0);
+
+            const starSvg = (w, filled) =>
+                `<svg width="${w}" height="${w}" fill="${filled ? '#ef4444' : '#d1d5db'}" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>`;
+
+            let html = `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:4px;padding:1.5rem 2rem;">`;
+            html += `<h2 style="font-size:1.1rem;font-weight:700;color:#111827;margin:0 0 0.75rem;">Product Ratings</h2>`;
+
+            if (reviews.length === 0) {
+                html += `<div style="text-align:center;padding:3rem 1rem;color:#6b7280;">`;
+                html += `<svg width="56" height="56" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>`;
+                html += `<p style="font-size:1rem;font-weight:600;margin:0.75rem 0 0.25rem;">No Reviews Yet</p>`;
+                html += `<p style="font-size:0.875rem;color:#9ca3af;">Be the first to review this product!</p>`;
+                html += `</div>`;
+            } else {
+                html += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;">`;
+                html += `<div style="display:flex;gap:2rem;align-items:center;flex-wrap:wrap;">`;
+                html += `<div style="text-align:center;"><div style="font-size:3rem;font-weight:700;color:#ef4444;line-height:1;">${avg.toFixed(1)}</div>`;
+                html += `<div style="font-size:0.875rem;color:#6b7280;margin-top:0.25rem;">out of 5</div>`;
+                html += `<div style="display:flex;gap:2px;margin-top:0.5rem;justify-content:center;">${[1,2,3,4,5].map(i => starSvg(22, i <= Math.round(avg))).join('')}</div></div>`;
+                html += `</div></div>`;
+
+                reviews.forEach(rv => {
+                    const name = ((rv.first_name || '') + ' ' + (rv.last_name || '')).trim();
+                    const initial = (name[0] || '?').toUpperCase();
+                    const rating = parseInt(rv.rating);
+                    const date = rv.created_at ? rv.created_at.substring(0, 16) : '';
+                    const msg = rv.message ? rv.message.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+
+                    html += `<div style="padding:1.5rem;border-bottom:1px solid #e5e7eb;">`;
+                    html += `<div style="display:flex;gap:1rem;">`;
+                    html += `<div style="flex-shrink:0;"><div style="width:48px;height:48px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-weight:600;color:#6b7280;">${initial}</div></div>`;
+                    html += `<div style="flex:1;"><div style="font-weight:600;color:#1f2937;margin-bottom:0.25rem;">${name}</div>`;
+                    html += `<div style="display:flex;gap:2px;margin-bottom:0.5rem;">${[1,2,3,4,5].map(i => starSvg(16, i <= rating)).join('')}</div>`;
+                    html += `<div style="font-size:0.875rem;color:#6b7280;margin-bottom:0.5rem;">${date}</div>`;
+                    if (msg) html += `<div style="color:#374151;line-height:1.6;">${msg}</div>`;
+                    html += `</div></div></div>`;
+                });
+
+                if (count > reviews.length) {
+                    html += `<div style="text-align:center;padding:1rem;"><a href="reviews.php?service_id=${serviceId}" style="font-size:0.875rem;color:#3b82f6;font-weight:600;text-decoration:none;">See all ${count} reviews →</a></div>`;
+                }
+            }
+
+            html += `</div>`;
+            container.innerHTML = html;
+        })
+        .catch(() => { container.innerHTML = ''; });
+}
+
+
 function buyNowService() {
-    if (currentModalData.link) window.location.href = currentModalData.link;
+    if (currentModalData.link) {
+        window.location.href = currentModalData.link;
+    }
 }
 </script>
 

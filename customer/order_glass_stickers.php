@@ -6,9 +6,30 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/service_order_helper.php';
+require_once __DIR__ . '/../includes/service_field_config_helper.php';
 
 require_role('Customer');
 $customer_id = get_user_id();
+
+// Get service ID and field configuration
+$service_info = db_query("SELECT service_id FROM services WHERE customer_link LIKE '%order_glass_stickers%' LIMIT 1");
+$service_id = $service_info[0]['service_id'] ?? 0;
+$field_configs = $service_id > 0 ? get_service_field_config($service_id) : [];
+
+// Helper function to get field label
+function get_field_label($key, $default, $configs) {
+    return (!empty($configs[$key]) && $configs[$key]['visible']) ? $configs[$key]['label'] : $default;
+}
+
+// Helper function to get field options
+function get_field_options($key, $default, $configs) {
+    return (!empty($configs[$key]) && $configs[$key]['visible'] && !empty($configs[$key]['options'])) ? $configs[$key]['options'] : $default;
+}
+
+// Helper function to check if field is visible
+function is_field_visible($key, $configs) {
+    return empty($configs) || empty($configs[$key]) || $configs[$key]['visible'];
+}
 
 $error = '';
 $addr_api = (defined('BASE_URL') ? BASE_URL : '/printflow') . '/public/api_address_public.php';
@@ -169,8 +190,9 @@ if ($display_img !== '' && strpos($display_img, 'http') === false && $display_im
                     <?php echo csrf_field(); ?>
 
                 <!-- Branch -->
+                <?php if (is_field_visible('branch', $field_configs)): ?>
                 <div class="mb-4" id="card-branch">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1"><?php echo htmlspecialchars(get_field_label('branch', 'Branch', $field_configs)); ?> *</label>
                     <select name="branch_id" class="input-field" required>
                         <option value="" selected disabled>Select Branch</option>
                         <?php foreach($branches as $b): ?>
@@ -178,16 +200,29 @@ if ($display_img !== '' && strpos($display_img, 'http') === false && $display_im
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <?php endif; ?>
 
                 <!-- Dimensions -->
+                <?php if (is_field_visible('dimensions', $field_configs)): ?>
+                <?php $dim_options = get_field_options('dimensions', ['2×3', '4×6', '6×8'], $field_configs); ?>
                 <div class="shopee-form-row">
-                    <label class="shopee-form-label pt-2">Dimensions (ft) * <span class="text-xs text-gray-400 font-normal">(All values are in feet)</span></label>
+                    <label class="shopee-form-label pt-2"><?php echo htmlspecialchars(get_field_label('dimensions', 'Dimensions (ft)', $field_configs)); ?> * <span class="text-xs text-gray-400 font-normal">(All values are in feet)</span></label>
                     <div class="shopee-form-field">
                         <div class="shopee-opt-group">
-                            <button type="button" class="shopee-opt-btn" data-width="2" data-height="3" onclick="selectDimension(2, 3, event)">2×3</button>
-                            <button type="button" class="shopee-opt-btn" data-width="4" data-height="6" onclick="selectDimension(4, 6, event)">4×6</button>
-                            <button type="button" class="shopee-opt-btn" data-width="6" data-height="8" onclick="selectDimension(6, 8, event)">6×8</button>
-                            <button type="button" class="shopee-opt-btn" id="dim-others-btn" onclick="selectDimensionOthers(event)">Others</button>
+                            <?php foreach ($dim_options as $dim): ?>
+                                <?php if ($dim === 'Others'): ?>
+                                    <button type="button" class="shopee-opt-btn" id="dim-others-btn" onclick="selectDimensionOthers(event)"><?php echo htmlspecialchars($dim); ?></button>
+                                <?php else: ?>
+                                    <?php 
+                                    $parts = explode('×', $dim);
+                                    if (count($parts) === 2):
+                                        $w = trim($parts[0]);
+                                        $h = trim($parts[1]);
+                                    ?>
+                                    <button type="button" class="shopee-opt-btn" data-width="<?php echo htmlspecialchars($w); ?>" data-height="<?php echo htmlspecialchars($h); ?>" onclick="selectDimension(<?php echo htmlspecialchars($w); ?>, <?php echo htmlspecialchars($h); ?>, event)"><?php echo htmlspecialchars($dim); ?></button>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
                         </div>
                         <input type="hidden" name="width" id="width_hidden">
                         <input type="hidden" name="height" id="height_hidden">
@@ -208,18 +243,18 @@ if ($display_img !== '' && strpos($display_img, 'http') === false && $display_im
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <!-- Surface Type -->
+                <?php if (is_field_visible('surface_type', $field_configs)): ?>
+                <?php $surface_options = get_field_options('surface_type', ['Glass (Window/Door/Storefront)', 'Wall (Painted/Concrete)', 'Frosted Glass', 'Mirror', 'Acrylic/Panel', 'Others'], $field_configs); ?>
                 <div class="shopee-form-row">
-                    <label class="shopee-form-label pt-2">Surface Type *</label>
+                    <label class="shopee-form-label pt-2"><?php echo htmlspecialchars(get_field_label('surface_type', 'Surface Type', $field_configs)); ?> *</label>
                     <div class="shopee-form-field">
                         <div class="shopee-opt-group" style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr));">
-                            <label class="shopee-opt-btn"><input type="radio" name="surface_type" value="Glass (Window/Door/Storefront)" required style="display:none;" onchange="updateOpt(this); toggleSurfaceOther();"> <span>Glass</span></label>
-                            <label class="shopee-opt-btn"><input type="radio" name="surface_type" value="Wall (Painted/Concrete)" style="display:none;" onchange="updateOpt(this); toggleSurfaceOther();"> <span>Wall</span></label>
-                            <label class="shopee-opt-btn"><input type="radio" name="surface_type" value="Frosted Glass" style="display:none;" onchange="updateOpt(this); toggleSurfaceOther();"> <span>Frosted Glass</span></label>
-                            <label class="shopee-opt-btn"><input type="radio" name="surface_type" value="Mirror" style="display:none;" onchange="updateOpt(this); toggleSurfaceOther();"> <span>Mirror</span></label>
-                            <label class="shopee-opt-btn"><input type="radio" name="surface_type" value="Acrylic/Panel" style="display:none;" onchange="updateOpt(this); toggleSurfaceOther();"> <span>Acrylic/Panel</span></label>
-                            <label class="shopee-opt-btn"><input type="radio" name="surface_type" value="Others" style="display:none;" onchange="updateOpt(this); toggleSurfaceOther();"> <span>Others</span></label>
+                            <?php foreach ($surface_options as $surf): ?>
+                                <label class="shopee-opt-btn"><input type="radio" name="surface_type" value="<?php echo htmlspecialchars($surf); ?>" required style="display:none;" onchange="updateOpt(this); toggleSurfaceOther();"> <span><?php echo htmlspecialchars($surf); ?></span></label>
+                            <?php endforeach; ?>
                         </div>
                         
                         <div id="surface-other-wrap" style="display: none; margin-top: 0.75rem;">
@@ -227,24 +262,33 @@ if ($display_img !== '' && strpos($display_img, 'http') === false && $display_im
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <!-- Lamination -->
+                <?php if (is_field_visible('lamination', $field_configs)): ?>
+                <?php $lam_options = get_field_options('lamination', ['With Laminate', 'Without Laminate'], $field_configs); ?>
                 <div class="shopee-form-row">
-                    <label class="shopee-form-label pt-2">Lamination *</label>
+                    <label class="shopee-form-label pt-2"><?php echo htmlspecialchars(get_field_label('lamination', 'Lamination', $field_configs)); ?> *</label>
                     <div class="shopee-opt-group shopee-form-field">
-                        <label class="shopee-opt-btn"><input type="radio" name="lamination" value="With Laminate" required style="display:none;" onchange="updateOpt(this)"> <span>With Laminate</span></label>
-                        <label class="shopee-opt-btn"><input type="radio" name="lamination" value="Without Laminate" style="display:none;" onchange="updateOpt(this)"> <span>Without Laminate</span></label>
+                        <?php foreach ($lam_options as $lam): ?>
+                            <label class="shopee-opt-btn"><input type="radio" name="lamination" value="<?php echo htmlspecialchars($lam); ?>" required style="display:none;" onchange="updateOpt(this)"> <span><?php echo htmlspecialchars($lam); ?></span></label>
+                        <?php endforeach; ?>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <!-- Installation -->
+                <?php if (is_field_visible('installation', $field_configs)): ?>
+                <?php $inst_options = get_field_options('installation', ['With Installation', 'Without Installation'], $field_configs); ?>
                 <div class="shopee-form-row">
-                    <label class="shopee-form-label pt-2">Installation *</label>
+                    <label class="shopee-form-label pt-2"><?php echo htmlspecialchars(get_field_label('installation', 'Installation', $field_configs)); ?> *</label>
                     <div class="shopee-opt-group shopee-form-field">
-                        <label class="shopee-opt-btn"><input type="radio" name="installation" value="With Installation" required style="display:none;" onchange="updateOpt(this); toggleInstallationAddress(true)"> <span>With Installation</span></label>
-                        <label class="shopee-opt-btn"><input type="radio" name="installation" value="Without Installation" style="display:none;" onchange="updateOpt(this); toggleInstallationAddress(false)"> <span>Without Installation</span></label>
+                        <?php foreach ($inst_options as $inst): ?>
+                            <label class="shopee-opt-btn"><input type="radio" name="installation" value="<?php echo htmlspecialchars($inst); ?>" required style="display:none;" onchange="updateOpt(this); toggleInstallationAddress(<?php echo $inst === 'With Installation' ? 'true' : 'false'; ?>)"> <span><?php echo htmlspecialchars($inst); ?></span></label>
+                        <?php endforeach; ?>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <!-- Installation Address (Conditional) -->
                 <div id="install-address-section" style="display: none; margin-bottom: 1rem; padding: 1.25rem; border-radius: 12px;" class="bg-gray-50 border border-gray-200">
@@ -469,13 +513,8 @@ function increaseQty() { const i = document.getElementById('quantity-input'); i.
 function clampQty() { const i = document.getElementById('quantity-input'); let v = parseInt(i.value) || 1; i.value = Math.min(999, Math.max(1, v)); }
 
 document.getElementById('glassForm').addEventListener('submit', function(e) {
-    if (dimensionMode === 'preset') {
-        const active = document.querySelector('.opt-btn.active');
-        if (!active) { alert('Please select a dimension.'); e.preventDefault(); return; }
-    } else {
-        if (!document.getElementById('custom_width').value || !document.getElementById('custom_height').value) {
-            alert('Please enter custom dimensions.'); e.preventDefault(); return;
-        }
+    if (dimensionMode === 'others') {
+        syncOthersDimensions();
     }
 });
 </script>

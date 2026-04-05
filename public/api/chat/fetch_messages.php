@@ -165,7 +165,10 @@ if ($partner['avatar'] && strpos($partner['avatar'], '/') === false) {
 }
 
 // 4. Fetch order metadata (archive status)
-$order_meta = db_query("SELECT is_archived FROM orders WHERE order_id = ?", 'i', [$order_id]);
+$has_archived_col = !empty(db_query("SHOW COLUMNS FROM orders LIKE 'is_archived'"));
+$order_meta = $has_archived_col
+    ? db_query("SELECT is_archived FROM orders WHERE order_id = ?", 'i', [$order_id])
+    : [];
 $is_archived = !empty($order_meta) ? (bool)$order_meta[0]['is_archived'] : false;
 
 // 5. Fetch last seen message ID for the current authenticated user's sent messages

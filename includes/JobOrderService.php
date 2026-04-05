@@ -442,8 +442,14 @@ class JobOrderService {
                 if (!$item) continue;
 
                 if ($item['track_by_roll']) {
-                    $lengthNeeded = $m['computed_required_length_ft'] ?: $m['quantity'];
-                    
+                    $lengthNeeded = (float)($m['computed_required_length_ft'] ?: $m['quantity']);
+
+                    if ($lengthNeeded <= 0) {
+                        // Nothing to deduct — mark as processed and continue
+                        db_execute("UPDATE job_order_materials SET deducted_at = NOW() WHERE id = ?", 'i', [$m['id']]);
+                        continue;
+                    }
+
                     try {
                         // Use unified FIFO deduction logic
                         RollService::deductFIFO(

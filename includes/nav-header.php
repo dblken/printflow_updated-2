@@ -54,26 +54,32 @@ if ($initials === '') {
         #main-header .pf-search-input { width: 100%; background: transparent; border: none; outline: none; color: #fff; font-size: .88rem; }
         #main-header .pf-search-input::placeholder { color: rgba(255,255,255,.58); }
         #main-header .pf-header-right { flex: 0 0 auto; margin-left: auto; display: flex; align-items: center; gap: .6rem; }
-        #main-header .pf-icon-btn { position: relative; width: 2.55rem; height: 2.55rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,.86); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.11); transition: all .2s ease; }
+        #main-header .pf-icon-btn { position: relative; width: 2.55rem; height: 2.55rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,.86); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.11); transition: all .2s ease; overflow: visible; }
         #main-header .pf-icon-btn:hover { color: #53C5E0; border-color: rgba(83,197,224,.5); background: rgba(83,197,224,.12); transform: translateY(-1px); }
         #main-header .pf-icon-btn svg { width: 1.2rem; height: 1.2rem; stroke-width: 1.9; }
         #main-header .pf-cart-icon,
         #main-header .pf-notif-icon { width: 1.2rem; height: 1.2rem; stroke-width: 1.9; }
-        #main-header .pf-badge { position: absolute; top: -5px; right: -5px; background: #53C5E0; color: #0a2530; font-size: .65rem; font-weight: 900; border-radius: 9999px; min-width: 18px; height: 18px; padding: 0 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(83,197,224,.4); line-height: 1; border: 1.5px solid #0a2530; }
+        #main-header .pf-notif-icon { width: 1.35rem; height: 1.35rem; }
+        #main-header .pf-badge { position: absolute; top: -6px; right: -6px; background: #53C5E0; color: #0a2530; font-size: .65rem; font-weight: 900; border-radius: 9999px; min-width: 18px; height: 18px; padding: 0 4px; display: flex !important; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(83,197,224,.4); line-height: 1; border: 1.5px solid #0a2530; z-index: 10; pointer-events: none; }
         #main-header .pf-notif-dropdown { position: absolute; top: calc(100% + 10px); right: 0; width: 320px; max-height: 480px; background: #0a2530; border: 1px solid rgba(83,197,224,0.3); border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); display: none; flex-direction: column; overflow: hidden; z-index: 100; }
         #main-header .pf-notif-dropdown.open { display: flex; }
         #main-header .pf-notif-header { padding: 12px 16px; border-bottom: 1px solid rgba(83,197,224,0.1); display: flex; align-items: center; justify-content: space-between; background: rgba(83,197,224,0.05); }
-        #main-header .pf-notif-header span { font-size: 0.8rem; font-weight: 800; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.05em; }
+        #main-header .pf-notif-header span { font-size: 0.7rem; font-weight: 800; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.05em; }
+        #main-header .pf-notif-header a { font-size: 0.7rem !important; color: #53c5e0; text-decoration: none; font-weight: 800 !important; text-transform: uppercase; letter-spacing: 0.05em; }
         #main-header .pf-notif-list { overflow-y: auto; flex: 1; }
+        #main-header .pf-notif-list::-webkit-scrollbar { width: 6px; }
+        #main-header .pf-notif-list::-webkit-scrollbar-track { background: rgba(83,197,224,0.05); border-radius: 10px; }
+        #main-header .pf-notif-list::-webkit-scrollbar-thumb { background: rgba(83,197,224,0.3); border-radius: 10px; }
+        #main-header .pf-notif-list::-webkit-scrollbar-thumb:hover { background: rgba(83,197,224,0.5); }
         #main-header .pf-notif-item { display: flex; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(83,197,224,0.05); transition: background 0.2s; text-decoration: none; align-items: flex-start; }
         #main-header .pf-notif-item:hover { background: rgba(83,197,224,0.08); }
-        #main-header .pf-notif-item.unread { background: rgba(83,197,224,0.04); }
+        #main-header .pf-notif-item.unread { background: rgba(83,197,224,0.15); border-left: 3px solid #53c5e0; }
         #main-header .pf-notif-item-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(83,197,224,0.1); display: flex; align-items: center; justify-content: center; color: #53c5e0; flex-shrink: 0; }
         #main-header .pf-notif-item-content { flex: 1; min-width: 0; }
         #main-header .pf-notif-item-text { font-size: 0.8rem; color: #eaf6fb; line-height: 1.4; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         #main-header .pf-notif-item-time { font-size: 0.7rem; color: rgba(83,197,224,0.6); font-weight: 600; }
-        #main-header .pf-notif-footer { padding: 10px; border-top: 1px solid rgba(83,197,224,0.1); text-align: center; }
-        #main-header .pf-notif-footer a { font-size: 0.75rem; color: #53c5e0; font-weight: 700; text-decoration: none; text-transform: uppercase; }
+        #main-header .pf-notif-footer { padding: 8px; border-top: 1px solid rgba(83,197,224,0.1); text-align: center; }
+        #main-header .pf-notif-footer a { font-size: 0.7rem !important; color: #53c5e0; font-weight: 800 !important; text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em; }
         #main-header .pf-notif-empty { padding: 32px 16px; text-align: center; color: rgba(255,255,255,0.4); font-size: 0.85rem; }
         #main-header .pf-avatar { width: 2.55rem; height: 2.55rem; border-radius: 9999px; overflow: hidden; border: 1px solid rgba(83,197,224,.45); background: linear-gradient(135deg, rgba(83,197,224,.24), rgba(50,161,196,.4)); display: inline-flex; align-items: center; justify-content: center; color: #e6f7fc; font-size: .78rem; font-weight: 700; letter-spacing: .02em; }
         #main-header .pf-avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -267,10 +273,6 @@ if ($initials === '') {
                             Products
                             <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-600 to-accent-purple group-hover:w-full transition-all duration-300"></span>
                         </a>
-                        <a href="<?php echo $base_url; ?>/customer/reviews.php" class="nav-link font-medium transition-colors duration-200 relative group" style="color:inherit;">
-                            Reviews
-                            <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-600 to-accent-purple group-hover:w-full transition-all duration-300"></span>
-                        </a>
                     <?php endif; ?>
                 <?php else: ?>
 <a href="<?php echo $url_index; ?>" class="nav-link font-medium transition-colors duration-200 relative group" style="color:inherit;">
@@ -293,19 +295,24 @@ if ($initials === '') {
                 <?php endif; ?>
                 </div>
                 <?php if ($show_header_search): ?>
-                <div class="pf-search-wrap">
-                    <form class="pf-search-form" action="<?php echo htmlspecialchars($search_action); ?>" method="get" autocomplete="off">
+                <div class="pf-search-wrap" style="position:relative;">
+                    <form class="pf-search-form" action="<?php echo htmlspecialchars($search_action); ?>" method="get" autocomplete="off" onsubmit="document.getElementById('pf-search-dropdown').style.display='none'">
                         <svg class="pf-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"></path>
                         </svg>
                         <input
                             type="search"
+                            id="pf-search-input"
                             name="<?php echo htmlspecialchars($search_param); ?>"
                             value="<?php echo htmlspecialchars($search_query); ?>"
                             class="pf-search-input"
-                            placeholder="<?php echo htmlspecialchars($search_placeholder); ?>"
-                            aria-label="Search">
+                            placeholder="<?php echo htmlspecialchars(is_customer() ? 'Search services, products, orders...' : $search_placeholder); ?>"
+                            aria-label="Search"
+                            autocomplete="off">
                     </form>
+                    <?php if (is_customer()): ?>
+                    <div id="pf-search-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#0a2530;border:1px solid rgba(83,197,224,0.3);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.5);z-index:9999;overflow:hidden;"></div>
+                    <?php endif; ?>
                 </div>
                 <?php endif; ?>
             </div>
@@ -323,26 +330,27 @@ if ($initials === '') {
                     <?php endif; ?>
                     <!-- Cart icon (customer only) -->
                     <?php if (is_customer()): ?>
-                    <a href="<?php echo $base_url; ?>/customer/cart.php" title="My Cart" class="pf-icon-btn nav-link" style="color:white;">
-                        <svg class="pf-cart-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 3 1.5 1.5m0 0 2.07 10.358A2.25 2.25 0 0 0 8.027 16.5h8.946a2.25 2.25 0 0 0 2.206-1.642L21 8.25H6.375m-2.625-3.75H21M9 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm8.25 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/>
-                        </svg>
-                        <?php
-                        $cart_count = isset($_SESSION['cart']) ? array_sum(array_column($_SESSION['cart'], 'quantity')) : 0;
-                        $cart_display = $cart_count > 99 ? '99+' : $cart_count;
-                        ?>
-                        <span id="cart-count-badge" class="pf-badge" style="display:<?php echo ($cart_count > 0 ? 'flex' : 'none'); ?>;"><?php echo $cart_display; ?></span>
-                    </a>
+                    <?php
+                    $cart_count = isset($_SESSION['cart']) ? array_sum(array_column($_SESSION['cart'], 'quantity')) : 0;
+                    $cart_display = $cart_count > 99 ? '99+' : $cart_count;
+                    ?>
+                    <div class="relative" style="display:inline-flex;">
+                        <a href="<?php echo $base_url; ?>/customer/cart.php" title="My Cart" class="pf-icon-btn nav-link" style="color:white;">
+                            <svg class="pf-cart-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 3 1.5 1.5m0 0 2.07 10.358A2.25 2.25 0 0 0 8.027 16.5h8.946a2.25 2.25 0 0 0 2.206-1.642L21 8.25H6.375m-2.625-3.75H21M9 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm8.25 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/>
+                            </svg>
+                        </a>
+                        <span id="cart-count-badge" class="pf-badge" style="display:flex;"><?php echo $cart_display; ?></span>
+                    </div>
                     <?php endif; ?>
                     <!-- Notifications -->
                     <div class="relative" data-pf-notif-wrap>
                         <button type="button" 
                            title="Notifications"
                            data-pf-notif-toggle
-                           class="pf-icon-btn group" 
-                           style="color: white; position: relative;">
-                            <svg class="pf-notif-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: inherit;">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.858 17.082a23.85 23.85 0 0 1-5.716 0M15 11.25a3 3 0 1 0-6 0c0 1.913-.394 3.31-.94 4.272a1.48 1.48 0 0 0 1.293 2.228h5.294a1.48 1.48 0 0 0 1.293-2.228c-.546-.963-.94-2.36-.94-4.272Z"></path>
+                           class="pf-icon-btn nav-link">
+                            <svg class="pf-notif-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                             </svg>
                             <?php 
                             $notif_display = $unread_count > 99 ? '99+' : $unread_count; 
@@ -354,22 +362,22 @@ if ($initials === '') {
                         <div data-pf-notif-menu class="pf-notif-dropdown">
                             <div class="pf-notif-header">
                                 <span>Notifications</span>
-                                <a href="?mark_all_read=1" style="font-size:0.65rem; color:#53c5e0; text-decoration:none;">Mark all read</a>
+                                <a href="?mark_all_read=1" style="font-size:0.7rem !important; color:#53c5e0; text-decoration:none; font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">Mark all read</a>
                             </div>
                             <div class="pf-notif-list" data-pf-notif-list>
                                 <div class="pf-notif-empty">Loading notifications...</div>
                             </div>
                             <div class="pf-notif-footer">
-                                <a href="<?php echo $base_url; ?>/<?php echo strtolower($user_type); ?>/notifications.php">View All Notifications</a>
+                                <a href="<?php echo $base_url; ?>/<?php echo strtolower($user_type); ?>/notifications.php" style="font-size:0.7rem !important; color:#53c5e0; font-weight:800 !important; text-decoration:none; text-transform:uppercase; letter-spacing:0.05em;">View All Notifications</a>
                             </div>
                         </div>
                     </div>
 
                     <!-- User Dropdown -->
                     <div class="relative" data-pf-profile-wrap>
-                        <button type="button" data-pf-profile-toggle class="flex items-center transition-colors duration-200 group" style="background:none;border:none;cursor:pointer;padding:0;" title="My Account">
-                            <div class="pf-avatar transition-all duration-300 group-hover:text-[#53C5E0]"
-                                 style="<?php echo (stripos($_SERVER['REQUEST_URI'] ?? '', '/profile.php') !== false) ? 'color:#53C5E0;' : ''; ?>">
+                        <button type="button" data-pf-profile-toggle class="pf-icon-btn nav-link flex items-center gap-3" style="width:auto;padding:0 0.5rem;" title="My Account">
+                            <div class="pf-avatar transition-all duration-300"
+                                 style="width:1.85rem;height:1.85rem;font-size:0.7rem;<?php echo (stripos($_SERVER['REQUEST_URI'] ?? '', '/profile.php') !== false) ? 'color:#53C5E0;' : ''; ?>">
                                 <?php if (!empty($current_user['profile_picture'])): ?>
                                     <img src="<?php echo $asset_base; ?>/assets/uploads/profiles/<?php echo htmlspecialchars($current_user['profile_picture']); ?>?t=<?php echo time(); ?>" 
                                          alt="Profile" 
@@ -378,6 +386,13 @@ if ($initials === '') {
                                     <span><?php echo htmlspecialchars($initials); ?></span>
                                 <?php endif; ?>
                             </div>
+                            <svg class="w-3.5 h-3.5 transition-transform duration-200" 
+                                 style="color:inherit;flex-shrink:0;opacity:0.8;" 
+                                 fill="currentColor" 
+                                 viewBox="0 0 20 20"
+                                 data-dropdown-arrow>
+                                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
                         </button>
 
                         <!-- Dropdown Menu -->
@@ -496,48 +511,38 @@ if ($initials === '') {
 
 <script>
 (function(){
+    // ── Active nav link ──────────────────────────────────────────
     var p = window.location.pathname.toLowerCase().replace(/\/$/, '');
     var navLinks = document.querySelectorAll('a.nav-link');
     for (var i = 0; i < navLinks.length; i++) {
         var a = navLinks[i];
         var h = (a.getAttribute('href') || '').toLowerCase().replace(/\/$/, '');
-        
-        // Check if it's the home link
         var isHomeLink = (h === '/printflow/public' || h === '/printflow' || h === '' || h.endsWith('/index.php'));
         var isHomePage = (p === '/printflow/public' || p === '/printflow' || p === '' || p.endsWith('/index.php'));
-        
         if (isHomeLink && isHomePage) {
             a.classList.add('nav-active');
         } else if (!isHomeLink) {
-            // For other pages, extract filename and match
             var hFile = h.split('/').pop().replace('.php', '');
             var pFile = p.split('/').pop().replace('.php', '');
-            if (hFile && pFile && hFile === pFile) {
-                a.classList.add('nav-active');
-            }
+            if (hFile && pFile && hFile === pFile) a.classList.add('nav-active');
         }
     }
 
+    // ── Profile dropdown ─────────────────────────────────────────
     var profileWraps = document.querySelectorAll('[data-pf-profile-wrap]');
     for (var j = 0; j < profileWraps.length; j++) {
         (function(wrap){
             var btn = wrap.querySelector('[data-pf-profile-toggle]');
             var menu = wrap.querySelector('[data-pf-profile-menu]');
+            var arrow = wrap.querySelector('[data-dropdown-arrow]');
             if (!btn || !menu) return;
-            btn.addEventListener('click', function(ev){
-                ev.preventDefault();
-                ev.stopPropagation();
-                menu.classList.toggle('open');
-            });
-            menu.addEventListener('click', function(ev){
-                ev.stopPropagation();
-            });
-            document.addEventListener('click', function(ev){
-                if (!wrap.contains(ev.target)) menu.classList.remove('open');
-            });
+            btn.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopPropagation(); var isOpen = menu.classList.toggle('open'); if (arrow) arrow.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)'; });
+            menu.addEventListener('click', function(ev){ ev.stopPropagation(); });
+            document.addEventListener('click', function(ev){ if (!wrap.contains(ev.target)) { menu.classList.remove('open'); if (arrow) arrow.style.transform = 'rotate(0deg)'; } });
         })(profileWraps[j]);
     }
 
+    // ── Notifications dropdown ───────────────────────────────────
     var notifWraps = document.querySelectorAll('[data-pf-notif-wrap]');
     for (var k = 0; k < notifWraps.length; k++) {
         (function(wrap){
@@ -545,8 +550,7 @@ if ($initials === '') {
             var menu = wrap.querySelector('[data-pf-notif-menu]');
             if (!btn || !menu) return;
             btn.addEventListener('click', function(ev){
-                ev.preventDefault();
-                ev.stopPropagation();
+                ev.preventDefault(); ev.stopPropagation();
                 var isOpen = menu.classList.toggle('open');
                 if (isOpen) {
                     if (window.PFNotifications && typeof window.PFNotifications.loadDropdown === 'function') {
@@ -555,34 +559,106 @@ if ($initials === '') {
                         var list = wrap.querySelector('[data-pf-notif-list]');
                         if (list) list.innerHTML = '<div class="pf-notif-empty">System initializing...</div>';
                         setTimeout(function(){
-                            if (window.PFNotifications && typeof window.PFNotifications.loadDropdown === 'function') {
-                                window.PFNotifications.loadDropdown();
-                            } else if (list) {
-                                list.innerHTML = '<div class="pf-notif-empty">Failed to initialize notifications.</div>';
-                            }
+                            if (window.PFNotifications && typeof window.PFNotifications.loadDropdown === 'function') window.PFNotifications.loadDropdown();
+                            else if (list) list.innerHTML = '<div class="pf-notif-empty">Failed to initialize notifications.</div>';
                         }, 1000);
                     }
                 }
             });
-            document.addEventListener('click', function(ev){
-                if (!wrap.contains(ev.target)) menu.classList.remove('open');
-            });
+            document.addEventListener('click', function(ev){ if (!wrap.contains(ev.target)) menu.classList.remove('open'); });
         })(notifWraps[k]);
     }
 
+    // ── Mobile panel ─────────────────────────────────────────────
     var mobileToggle = document.querySelector('[data-pf-mobile-toggle]');
     var mobilePanel = document.querySelector('[data-pf-mobile-panel]');
     if (mobileToggle && mobilePanel) {
-        mobileToggle.addEventListener('click', function(ev){
-            ev.preventDefault();
-            ev.stopPropagation();
-            mobilePanel.classList.toggle('open');
-        });
-        document.addEventListener('click', function(ev){
-            if (!mobilePanel.contains(ev.target) && !mobileToggle.contains(ev.target)) {
-                mobilePanel.classList.remove('open');
-            }
-        });
+        mobileToggle.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopPropagation(); mobilePanel.classList.toggle('open'); });
+        document.addEventListener('click', function(ev){ if (!mobilePanel.contains(ev.target) && !mobileToggle.contains(ev.target)) mobilePanel.classList.remove('open'); });
     }
+
+    // ── Cart count badge ─────────────────────────────────────────
+    window.updateCartBadge = function(count) {
+        var badge = document.getElementById('cart-count-badge');
+        if (!badge) return;
+        count = parseInt(count) || 0;
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.display = 'flex';
+    };
+
+    // Poll cart count on load and every 5s
+    <?php if ($is_logged_in && is_customer()): ?>
+    (function pollCart() {
+        fetch('/printflow/customer/api_cart.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action: 'get_count', csrf_token: '<?php echo generate_csrf_token(); ?>'})
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(d){ if (d.success) window.updateCartBadge(d.cart_count); })
+        .catch(function(){});
+        setTimeout(pollCart, 5000);
+    })();
+    <?php endif; ?>
+
+    // ── Realtime search ──────────────────────────────────────────
+    <?php if ($is_logged_in && is_customer()): ?>
+    (function(){
+        var input = document.getElementById('pf-search-input');
+        var dropdown = document.getElementById('pf-search-dropdown');
+        if (!input || !dropdown) return;
+
+        var timer = null;
+        var icons = {
+            service: '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>',
+            product: '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>',
+            order:   '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>'
+        };
+        var colors = { service: '#53c5e0', product: '#a78bfa', order: '#34d399' };
+
+        function doSearch(q) {
+            if (!q.trim()) { dropdown.style.display = 'none'; return; }
+            fetch('/printflow/public/api/search.php?q=' + encodeURIComponent(q))
+            .then(function(r){ return r.json(); })
+            .then(function(data) {
+                var results = data.results || [];
+                if (!results.length) { dropdown.style.display = 'none'; return; }
+                var html = '';
+                results.forEach(function(r) {
+                    var color = colors[r.type] || '#fff';
+                    html += '<a href="' + r.url + '" style="display:flex;align-items:center;gap:10px;padding:10px 14px;text-decoration:none;border-bottom:1px solid rgba(83,197,224,0.08);transition:background 0.15s;" '
+                          + 'onmouseover="this.style.background=\'rgba(83,197,224,0.1)\'" onmouseout="this.style.background=\'\'">'
+                          + '<span style="color:' + color + ';flex-shrink:0;">' + (icons[r.type] || '') + '</span>'
+                          + '<span style="flex:1;min-width:0;">'
+                          + '<span style="display:block;font-size:0.82rem;font-weight:600;color:#eaf6fb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + r.label.replace(/</g,'&lt;') + '</span>'
+                          + '<span style="display:block;font-size:0.72rem;color:rgba(255,255,255,0.45);">' + r.sub.replace(/</g,'&lt;') + '</span>'
+                          + '</span>'
+                          + '<span style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:' + color + ';opacity:0.7;flex-shrink:0;">' + r.type + '</span>'
+                          + '</a>';
+                });
+                dropdown.innerHTML = html;
+                dropdown.style.display = 'block';
+            })
+            .catch(function(){ dropdown.style.display = 'none'; });
+        }
+
+        input.addEventListener('input', function() {
+            clearTimeout(timer);
+            timer = setTimeout(function(){ doSearch(input.value); }, 220);
+        });
+
+        input.addEventListener('focus', function() {
+            if (input.value.trim()) doSearch(input.value);
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!input.contains(e.target) && !dropdown.contains(e.target)) dropdown.style.display = 'none';
+        });
+
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') dropdown.style.display = 'none';
+        });
+    })();
+    <?php endif; ?>
 }());
 </script>

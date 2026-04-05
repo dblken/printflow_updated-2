@@ -32,6 +32,9 @@ if (!in_array($user_type, ['Admin', 'Manager'], true)) {
 $period = $_GET['period'] ?? 'monthly';
 $year   = max(2020, min(2030, (int)($_GET['year'] ?? date('Y'))));
 $month  = max(1, min(12, (int)($_GET['month'] ?? date('n'))));
+$from_raw = trim($_GET['from'] ?? '');
+$to_raw   = trim($_GET['to']   ?? '');
+$use_range = ($from_raw !== '' || $to_raw !== '');
 
 // Branch filter:
 // - Admin can request "all" or a specific branch_id.
@@ -50,6 +53,95 @@ $oFilter = $branch_int ? " AND branch_id = $branch_int" : '';   // for orders ta
 $jFilter = $branch_int ? " AND branch_id = $branch_int" : '';   // for job_orders table
 
 try {
+    // ── Date-range mode (global filter) ──────────────────────────────────────
+    if ($use_range) {
+        $from_dt = $from_raw !== '' ? $from_raw : date('Y-m-d', strtotime('-30 days'));
+        $to_dt   = $to_raw   !== '' ? $to_raw   : date('Y-m-d');
+        $to_end  = $to_dt . ' 23:59:59';
+        $days_diff = (int)((strtotime($to_dt) - strtotime($from_dt)) / 86400) + 1;
+        $group_monthly = $days_diff > 60;
+
+        if ($group_monthly) {
+            $sR = db_query(
+                "SELECT DATE_FORMAT(order_date,'%Y-%m') AS gkey,
+                        DATE_FORMAT(order_date,'%b %Y') AS label,
+                        COALESCE(SUM(total_amount),0) AS revenue_store,
+                        COUNT(*) AS orders_store
+                 FROM orders
+                 WHERE (payment_status='Paid' OR status='Completed')
+                   AND order_date BETWEEN ? AND ? $oFilter
+                 GROUP BY DATE_FORMAT(order_date,'%Y-%m') ORDER BY gkey",
+                'ss', [$from_dt, $to_end]
+            ) ?: [];
+            $jR = db_query(
+                "SELECT DATE_FORMAT(ts,'%Y-%m') AS gkey,
+                        DATE_FORMAT(ts,'%b %Y') AS label,
+                        COALESCE(SUM(amt),0) AS revenue_custom,
+                        COUNT(*) AS orders_custom
+                 FROM (SELECT COALESCE(payment_verified_at,created_at) AS ts,
+                              COALESCE(NULLIF(amount_paid,0),estimated_total,0) AS amt
+                       FROM job_orders
+                       WHERE (payment_status='PAID' OR status='COMPLETED')
+                         AND COALESCE(payment_verified_at,created_at) BETWEEN ? AND ? $jFilter) t
+                 GROUP BY DATE_FORMAT(ts,'%Y-%m') ORDER BY gkey",
+                'ss', [$from_dt, $to_end]
+            ) ?: [];
+            $sMap = []; foreach ($sR as $r) $sMap[$r['gkey']] = $r;
+            $jMap = []; foreach ($jR as $r) $jMap[$r['gkey']] = $r;
+            $rows = [];
+            $cur = strtotime(date('Y-m-01', strtotime($from_dt)));
+            $end = strtotime(date('Y-m-01', strtotime($to_dt)));
+            while ($cur <= $end) {
+                $k = date('Y-m', $cur);
+                $rows[] = _pf_merge_store_job_row(date('M Y', $cur), $sMap[$k] ?? null, $jMap[$k] ?? null);
+                $cur = strtotime('+1 month', $cur);
+            }
+        } else {
+            $sR = db_query(
+                "SELECT DATE(order_date) AS dkey,
+                        DATE_FORMAT(order_date,'%b %e') AS label,
+                        COALESCE(SUM(total_amount),0) AS revenue_store,
+                        COUNT(*) AS orders_store
+                 FROM orders
+                 WHERE (payment_status='Paid' OR status='Completed')
+                   AND order_date BETWEEN ? AND ? $oFilter
+                 GROUP BY DATE(order_date) ORDER BY dkey",
+                'ss', [$from_dt, $to_end]
+            ) ?: [];
+            $jR = db_query(
+                "SELECT DATE(ts) AS dkey,
+                        DATE_FORMAT(ts,'%b %e') AS label,
+                        COALESCE(SUM(amt),0) AS revenue_custom,
+                        COUNT(*) AS orders_custom
+                 FROM (SELECT COALESCE(payment_verified_at,created_at) AS ts,
+                              COALESCE(NULLIF(amount_paid,0),estimated_total,0) AS amt
+                       FROM job_orders
+                       WHERE (payment_status='PAID' OR status='COMPLETED')
+                         AND COALESCE(payment_verified_at,created_at) BETWEEN ? AND ? $jFilter) t
+                 GROUP BY DATE(ts) ORDER BY dkey",
+                'ss', [$from_dt, $to_end]
+            ) ?: [];
+            $sMap = []; foreach ($sR as $r) $sMap[$r['dkey']] = $r;
+            $jMap = []; foreach ($jR as $r) $jMap[$r['dkey']] = $r;
+            $rows = [];
+            $cur = strtotime($from_dt);
+            $end = strtotime($to_dt);
+            while ($cur <= $end) {
+                $dkey = date('Y-m-d', $cur);
+                $rows[] = _pf_merge_store_job_row(date('M j', $cur), $sMap[$dkey] ?? null, $jMap[$dkey] ?? null);
+                $cur = strtotime('+1 day', $cur);
+            }
+        }
+        echo json_encode([
+            'labels'         => array_map(fn($r) => $r['label'], $rows),
+            'revenue_store'  => array_map(fn($r) => (float)$r['revenue_store'], $rows),
+            'revenue_custom' => array_map(fn($r) => (float)$r['revenue_custom'], $rows),
+            'revenue'        => array_map(fn($r) => (float)$r['revenue'], $rows),
+            'orders'         => array_map(fn($r) => (int)$r['orders'], $rows),
+        ]);
+        exit;
+    }
+
     switch ($period) {
         case 'today':
             $storeRows = db_query(

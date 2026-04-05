@@ -41,7 +41,11 @@ try {
         'gender' => $c['gender'] ?? '',
         'created_at' => date('M j, Y', strtotime($c['created_at'])),
         'profile_picture' => $profile_picture,
-        'initial' => strtoupper(substr($c['first_name'], 0, 1))
+        'initial' => strtoupper(substr($c['first_name'], 0, 1)),
+        'id_status' => $c['id_status'] ?? 'Unverified',
+        'id_type'   => $c['id_type'] ?? '',
+        'id_image'  => !empty($c['id_image']) ? '/printflow/uploads/ids/' . $c['id_image'] : null,
+        'id_reject_reason' => $c['id_reject_reason'] ?? ''
     ];
 
     echo json_encode(['success' => true, 'customer' => $data]);

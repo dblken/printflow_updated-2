@@ -11,23 +11,17 @@ require_role('Admin');
 $current_user = get_logged_in_user();
 $page_title = 'Inventory Ledger - Admin';
 
-/** Safe JSON for data attribute */
+/** Safe JSON for onclick="viewTransaction(...)" — never emit empty / broken JS */
 function pf_ledger_tx_json_attr(array $row): string {
-    // Clean the data first
-    $cleaned = [];
-    foreach ($row as $key => $value) {
-        if (is_string($value)) {
-            $value = str_replace("\0", '', $value);
-            $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
-        }
-        $cleaned[$key] = $value;
+    $flags = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+    if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+        $flags |= JSON_INVALID_UTF8_SUBSTITUTE;
     }
-    
-    $j = json_encode($cleaned, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    $j = json_encode($row, $flags);
     if ($j === false) {
-        return '{}';
+        $j = '{}';
     }
-    return $j;
+    return htmlspecialchars($j, ENT_QUOTES, 'UTF-8');
 }
 
 // Get filter parameters
@@ -69,9 +63,9 @@ if ($type_filter) {
 }
 if ($search) {
     $st = '%' . $search . '%';
-    $sql .= " AND (i.name LIKE ? OR t.notes LIKE ? OR t.reference_id LIKE ? OR t.id LIKE ?)";
-    $params[] = $st; $params[] = $st; $params[] = $st; $params[] = $st;
-    $types .= 'ssss';
+    $sql .= " AND (i.name LIKE ? OR t.notes LIKE ? OR t.ref_type LIKE ? OR t.ref_id LIKE ? OR t.id LIKE ?)";
+    $params[] = $st; $params[] = $st; $params[] = $st; $params[] = $st; $params[] = $st;
+    $types .= 'sssss';
 }
 if ($start_date && $end_date) {
     $sql .= " AND t.transaction_date BETWEEN ? AND ?";
@@ -110,8 +104,6 @@ $items = db_query("SELECT id, name, unit_of_measure as unit FROM inv_items ORDER
 
 // AJAX Partial Response
 if (isset($_GET['ajax'])) {
-    // Start buffering ALL output to catch any potential warnings/notices
-    if (ob_get_level() > 0) ob_clean();
     ob_start();
     ?>
     <?php if (empty($transactions)): ?>
@@ -133,7 +125,7 @@ if (isset($_GET['ajax'])) {
                 $typeBadgeStyle = 'display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:#eef2ff;color:#4338ca;';
             }
         ?>
-            <tr style="cursor:pointer;" data-tx='<?php echo pf_ledger_tx_json_attr($t); ?>' onclick="viewTransactionFromRow(this)">
+            <tr style="cursor:pointer;" onclick="viewTransaction(<?php echo pf_ledger_tx_json_attr($t); ?>)">
                 <td style="font-family:monospace;font-size:12px;color:#111827;">#TX-<?php echo $t['id']; ?></td>
                 <td style="color:#6b7280;"><?php echo $t['transaction_date']; ?></td>
                 <td class="truncate" style="font-weight:500;color:#111827;text-transform:capitalize;" title="<?php echo htmlspecialchars($t['item_name']); ?>">
@@ -150,7 +142,7 @@ if (isset($_GET['ajax'])) {
                 <td class="truncate" style="font-size:12px;color:#6b7280;" title="<?php echo htmlspecialchars($t['notes'] ?: '—'); ?>"><?php echo htmlspecialchars($t['notes'] ?: '—'); ?></td>
                 <td style="font-size:12px;color:#374151;"><?php echo htmlspecialchars($t['created_by_name'] ?: 'System'); ?></td>
                 <td class="no-truncate" style="text-align:right;white-space:nowrap;" onclick="event.stopPropagation()">
-                    <button type="button" onclick="event.stopPropagation();viewTransactionFromRow(this.closest('tr'))" class="btn-action blue">View</button>
+                    <button type="button" onclick="event.stopPropagation();viewTransaction(<?php echo pf_ledger_tx_json_attr($t); ?>)" class="btn-action blue">View</button>
                 </td>
             </tr>
         <?php endforeach; ?>
@@ -163,14 +155,8 @@ if (isset($_GET['ajax'])) {
     echo render_pagination($page, $total_pages, $p);
     $pagination_html = ob_get_clean();
 
-    // Prepare common variables
     $badge_count = count(array_filter([$item_id ?: '', $type_filter, $search, $start_date, $end_date], function($v) { return $v !== null && $v !== ''; }));
 
-    // Clean any accidental output (whitespace, notices) before the JSON
-    $captured_garbage = ob_get_clean(); 
-    if (ob_get_level() > 0) ob_clean();
-    
-    header('Content-Type: application/json');
     echo json_encode([
         'success'    => true,
         'table'      => $table_html,
@@ -231,8 +217,8 @@ if (isset($_GET['ajax'])) {
         .close-btn { background: none; border: none; font-size: 20px; color: #111827; cursor: pointer; padding: 4px; line-height: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .close-btn:hover { color: #374151; }
         
-        .form-group { margin-bottom: 12px; }
-        .form-group label { display: block; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; margin-bottom: 6px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+        .form-group.full { grid-column: span 2; }
         
         /* Ensure select elements in modal have consistent height and style (match table font) */
         .modal select, .modal input { height: 40px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 12px; font-size: 13px; background: #fff; color: #374151; }
@@ -460,7 +446,7 @@ if (isset($_GET['ajax'])) {
         <main>
             <!-- Ledger Card -->
             <div class="card">
-                <div id="ledger-filter-toolbar" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px;" x-data="filterPanel()" @click="console.log('Toolbar clicked', $data)">
+                <div id="ledger-filter-toolbar" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px;" x-data="filterPanel()">
                     <h3 style="font-size:16px;font-weight:700;color:#1f2937;margin:0;">
                         Ledger List
                         <span style="font-size:13px; font-weight:400; color:#6b7280; margin-left:8px;">
@@ -480,7 +466,7 @@ if (isset($_GET['ajax'])) {
 
                         <!-- Sort Button -->
                         <div style="position:relative;">
-                            <button type="button" class="toolbar-btn" :class="{active: sortOpen || (activeSort !== 'newest')}" @click="sortOpen = !sortOpen; filterOpen = false" style="height:38px;">
+                            <button type="button" class="toolbar-btn" :class="{active: sortOpen}" @click="sortOpen = !sortOpen; filterOpen = false" style="height:38px;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
                                 Sort by
                             </button>
@@ -518,7 +504,7 @@ if (isset($_GET['ajax'])) {
                                     ?>
                                 </span>
                             </button>
-                            <div class="filter-panel" x-show="filterOpen" x-cloak @click.outside="filterOpen = false" @click.stop>
+                            <div class="filter-panel" x-show="filterOpen" x-cloak @click.outside="filterOpen = false">
                                 <div class="filter-panel-header">Filter</div>
                                 
                                 <!-- Date Range -->
@@ -557,6 +543,8 @@ if (isset($_GET['ajax'])) {
                                     </div>
                                     <select id="fp_type" class="filter-select">
                                         <option value="">All Types</option>
+                                        <option value="IN" <?php echo ($type_filter === 'IN') ? 'selected' : ''; ?>>All STOCK-IN</option>
+                                        <option value="OUT" <?php echo ($type_filter === 'OUT') ? 'selected' : ''; ?>>All STOCK-OUT</option>
                                         <option value="opening_balance" <?php echo ($type_filter === 'opening_balance') ? 'selected' : ''; ?>>Opening Balance</option>
                                         <option value="purchase" <?php echo ($type_filter === 'purchase') ? 'selected' : ''; ?>>Purchase (IN)</option>
                                         <option value="issue" <?php echo ($type_filter === 'issue') ? 'selected' : ''; ?>>Issue (OUT)</option>
@@ -619,7 +607,7 @@ if (isset($_GET['ajax'])) {
                                         $typeBadgeStyle = 'display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:#eef2ff;color:#4338ca;';
                                     }
                                 ?>
-                                    <tr style="cursor:pointer;" data-tx='<?php echo pf_ledger_tx_json_attr($t); ?>' onclick="viewTransactionFromRow(this)">
+                                    <tr style="cursor:pointer;" onclick="viewTransaction(<?php echo pf_ledger_tx_json_attr($t); ?>)">
                                         <td style="font-family:monospace;font-size:12px;color:#111827;">#TX-<?php echo $t['id']; ?></td>
                                         <td style="color:#6b7280;"><?php echo $t['transaction_date']; ?></td>
                                         <td class="truncate" style="font-weight:500;color:#111827;text-transform:capitalize;" title="<?php echo htmlspecialchars($t['item_name']); ?>">
@@ -636,7 +624,7 @@ if (isset($_GET['ajax'])) {
                                         <td class="truncate" style="font-size:12px;color:#6b7280;" title="<?php echo htmlspecialchars($t['notes'] ?: '—'); ?>"><?php echo htmlspecialchars($t['notes'] ?: '—'); ?></td>
                                         <td style="font-size:12px;color:#374151;"><?php echo htmlspecialchars($t['created_by_name'] ?: 'System'); ?></td>
                                         <td class="no-truncate" style="text-align:right;white-space:nowrap;" onclick="event.stopPropagation()">
-                                            <button type="button" onclick="event.stopPropagation();viewTransactionFromRow(this.closest('tr'))" class="btn-action blue">View</button>
+                                            <button type="button" onclick="event.stopPropagation();viewTransaction(<?php echo pf_ledger_tx_json_attr($t); ?>)" class="btn-action blue">View</button>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -666,33 +654,34 @@ if (isset($_GET['ajax'])) {
             <button type="button" class="close-btn" onclick="document.getElementById('viewModal').style.display='none'">×</button>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
-            <div style="grid-column:span 2;">
-                <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Material</div>
-                <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px; word-break:break-word;" id="viewModalItem"></div>
+            <div style="grid-column:span 2; background:#f9fafb; padding:16px; border-radius:12px; border:1px solid #f3f4f6;">
+                <div style="font-size:11px; font-weight:700; color:#111827; text-transform:uppercase; margin-bottom:4px;">Material</div>
+                <div style="font-weight:700; color:#111827; overflow-wrap:break-word; word-break:break-word; hyphens:auto;" id="viewModalItem"></div>
             </div>
             <div>
-                <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Date</div>
-                <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px;" id="viewModalDate"></div>
+                <div style="font-size:11px; font-weight:700; color:#111827; text-transform:uppercase; margin-bottom:4px;">Date</div>
+                <div style="font-weight:600; color:#374151;" id="viewModalDate"></div>
             </div>
             <div>
-                <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Direction</div>
-                <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px;" id="viewModalDir"></div>
+                <div style="font-size:11px; font-weight:700; color:#111827; text-transform:uppercase; margin-bottom:4px;">Direction</div>
+                <div style="font-weight:700; color:#374151;" id="viewModalDir"></div>
             </div>
             <div>
-                <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Trans. Type</div>
-                <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px;" id="viewModalType"></div>
+                <div style="font-size:11px; font-weight:700; color:#111827; text-transform:uppercase; margin-bottom:4px;">Trans. Type</div>
+                <div style="color:#374151;" id="viewModalType"></div>
             </div>
             <div>
-                <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Quantity</div>
-                <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px;" id="viewModalQty"></div>
+                <div style="font-size:11px; font-weight:700; color:#111827; text-transform:uppercase; margin-bottom:4px;">Quantity</div>
+                <div style="font-weight:700; color:#374151;" id="viewModalQty"></div>
             </div>
         </div>
         <div style="margin-bottom:24px;">
-            <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Internal Notes</div>
-            <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; font-size:14px; min-height:60px; word-break:break-word;" id="viewModalNotes"></div>
+            <div style="font-size:11px; font-weight:700; color:#111827; text-transform:uppercase; margin-bottom:8px;">Internal Notes</div>
+            <div style="background:#f3f4f6; border-radius:10px; padding:12px; color:#374151; min-height:60px;" id="viewModalNotes"></div>
         </div>
-        <div style="padding:16px 0 0; margin-top:24px; border-top:1px solid #f3f4f6; display:flex; justify-content:flex-end;">
-            <button type="button" onclick="document.getElementById('viewModal').style.display='none'" class="btn-secondary">Close</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-top:20px; border-top:1px solid #f3f4f6;">
+            <div style="color:#6b7280;">Recorded by: <span style="font-weight:600; color:#374151;" id="viewModalAdmin"></span></div>
+            <button type="button" onclick="document.getElementById('viewModal').style.display='none'" class="btn-action blue">Close</button>
         </div>
     </div>
 </div>
@@ -708,10 +697,10 @@ if (isset($_GET['ajax'])) {
             <input type="hidden" name="action" value="record_transaction">
             <input type="hidden" id="txType" name="transaction_type" value="">
             
-            <div style="display:grid; gap:14px; margin-bottom:18px;">
-                <div class="form-group">
+            <div class="form-grid">
+                <div class="form-group full">
                     <label for="txItem">Resource / Material *</label>
-                    <select id="txItem" name="item_id" required style="width:100%; height:40px; border:1px solid #e5e7eb; border-radius:8px; padding:0 14px; font-size:14px; background:#f9fafb; color:#1f2937; font-family:inherit;">
+                    <select id="txItem" name="item_id" required style="width: 100%;">
                         <option value="">Search for an item...</option>
                         <?php foreach ($items as $item): ?>
                             <option value="<?php echo $item['id']; ?>"><?php echo htmlspecialchars($item['name']); ?> (SOH: <?php echo (float)InventoryManager::getStockOnHand($item['id']); ?> <?php echo $item['unit']; ?>)</option>
@@ -719,28 +708,25 @@ if (isset($_GET['ajax'])) {
                     </select>
                 </div>
                 
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                    <div class="form-group">
-                        <label for="txDate">Transaction Date *</label>
-                        <input type="date" id="txDate" name="transaction_date" value="<?php echo date('Y-m-d'); ?>" required style="width:100%; height:40px; border:1px solid #e5e7eb; border-radius:8px; padding:0 14px; font-size:14px; background:#f9fafb; color:#1f2937; font-family:inherit;">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="txQty">Quantity *</label>
-                        <input type="number" step="0.01" id="txQty" name="quantity" min="0.01" required placeholder="0.00" style="width:100%; height:40px; border:1px solid #e5e7eb; border-radius:8px; padding:0 14px; font-size:14px; background:#f9fafb; color:#1f2937; font-family:inherit;">
-                    </div>
+                <div class="filter-group">
+                    <label for="txDate">Transaction Date *</label>
+                    <input type="date" id="txDate" name="transaction_date" value="<?php echo date('Y-m-d'); ?>" required>
                 </div>
                 
-                <div class="form-group">
+                <div class="filter-group">
+                    <label for="txQty">Quantity *</label>
+                    <input type="number" step="0.01" id="txQty" name="quantity" min="0.01" required placeholder="0.00">
+                </div>
+                
+                <div class="form-group full">
                     <label for="txNotes">Internal Memo / Notes</label>
-                    <textarea id="txNotes" name="notes" rows="1" maxlength="200" placeholder="Reason for this movement..." style="width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#f9fafb; color:#1f2937; font-family:inherit; resize:none; max-width:100%; box-sizing:border-box; overflow:hidden; min-height:40px;" onkeydown="handleNotesKeydown(event)"></textarea>
-                    <div style="font-size:11px; color:#6b7280; margin-top:4px; text-align:right;"><span id="txNotesCount">0</span>/200</div>
+                    <input type="text" id="txNotes" name="notes" placeholder="Reason for this movement...">
                 </div>
             </div>
             
-            <div style="padding:16px 0 0; margin-top:24px; border-top:1px solid #f3f4f6; display:flex; justify-content:flex-end; gap:12px;">
-                <button type="button" onclick="closeModal()" class="btn-secondary">Cancel</button>
-                <button type="submit" class="btn-primary" id="saveBtn" style="background:#0d9488; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer;">Submit Entry</button>
+            <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 24px; border-top: 1px solid #f3f4f6;">
+                <button type="button" onclick="closeModal()" class="btn-secondary" style="height: 44px; border-radius: 10px; padding: 0 24px;">Cancel</button>
+                <button type="submit" class="btn-primary" id="saveBtn" style="height: 44px; border-radius: 10px; padding: 0 24px; background: #6366f1;">Submit Entry</button>
             </div>
         </form>
     </div>
@@ -748,9 +734,9 @@ if (isset($_GET['ajax'])) {
 
 <script>
     /* var: Turbo re-runs this script; let would conflict with other admin pages (e.g. inv_items currentSort). */
-    var ledgerPage = <?php echo (int)($page ?? 1); ?>;
-    var currentSort = <?php echo json_encode($sort ?? 'transaction_date'); ?>;
-    var currentDir = <?php echo json_encode($dir ?? 'DESC'); ?>;
+    var ledgerPage = <?php echo $page; ?>;
+    var currentSort = '<?php echo $sort; ?>';
+    var currentDir = '<?php echo $dir; ?>';
     var searchTimer = null;
     var ledgerFetchController = null;
     var ledgerRequestSerial = 0;
@@ -759,15 +745,7 @@ if (isset($_GET['ajax'])) {
         return {
             sortOpen: false,
             filterOpen: false,
-            activeSort: <?php 
-                $activeSort = 'newest';
-                if (($sort ?? '') === 'transaction_date') {
-                    $activeSort = ($dir ?? 'DESC') === 'DESC' ? 'newest' : 'oldest';
-                } elseif (($sort ?? '') === 'item_name') {
-                    $activeSort = ($dir ?? 'ASC') === 'ASC' ? 'az' : 'za';
-                }
-                echo json_encode($activeSort);
-            ?>,
+            activeSort: '<?php echo $sort === 'transaction_date' ? ($dir === 'DESC' ? 'newest' : 'oldest') : ($sort === 'item_name' ? ($dir === 'ASC' ? 'az' : 'za') : 'newest'); ?>',
             get hasActiveFilters() {
                 const start = document.getElementById('fp_start_date')?.value || '';
                 const end = document.getElementById('fp_end_date')?.value || '';
@@ -783,58 +761,27 @@ if (isset($_GET['ajax'])) {
 
     function printflowInitInvLedgerPage() {
         const toolbar = document.getElementById('ledger-filter-toolbar');
-        if (!toolbar) {
-            console.error('Toolbar not found');
-            return;
-        }
-
-        console.log('Initializing ledger page filters...');
+        if (!toolbar) return;
 
         const panelSearchInput = document.getElementById('fp_search');
-        const quickSearchInput = document.getElementById('ledgerQuickSearch');
 
         const onSearchInput = (sourceEl) => {
-            const value = sourceEl?.value ?? '';
-            console.log('Search input changed:', value);
-            if (panelSearchInput && sourceEl !== panelSearchInput) panelSearchInput.value = value;
-            if (quickSearchInput && sourceEl !== quickSearchInput) quickSearchInput.value = value;
-
             clearTimeout(searchTimer);
             searchTimer = setTimeout(() => {
-                console.log('Triggering search fetch...');
                 fetchUpdatedTable({ page: 1 });
             }, 250);
         };
 
         if (panelSearchInput) {
-            console.log('Attaching search input listener');
             panelSearchInput.addEventListener('input', () => { onSearchInput(panelSearchInput); });
-        }
-        if (quickSearchInput) {
-            quickSearchInput.addEventListener('input', () => { onSearchInput(quickSearchInput); });
         }
 
         ['fp_item_id', 'fp_type', 'fp_start_date', 'fp_end_date'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                console.log('Attaching change listener to:', id);
-                el.addEventListener('change', () => {
-                    console.log('Filter changed:', id, el.value);
-                    clearTimeout(searchTimer);
-                    fetchUpdatedTable({ page: 1 });
-                });
-            } else {
-                console.warn('Filter element not found:', id);
-            }
+            document.getElementById(id)?.addEventListener('change', () => {
+                clearTimeout(searchTimer);
+                fetchUpdatedTable({ page: 1 });
+            });
         });
-        
-        // Setup notes character counter
-        const notesInput = document.getElementById('txNotes');
-        if (notesInput) {
-            notesInput.addEventListener('input', updateNotesCounter);
-        }
-        
-        console.log('Ledger page initialization complete');
     }
 
     if (document.readyState === 'loading') {
@@ -845,7 +792,7 @@ if (isset($_GET['ajax'])) {
     document.addEventListener('printflow:page-init', printflowInitInvLedgerPage);
 
     function buildFilterURL(overrides = {}, isAjax = false) {
-        const params = new URLSearchParams();
+        const params = new URLSearchParams(window.location.search);
         
         const map = {
             'item_id': 'fp_item_id',
@@ -856,16 +803,13 @@ if (isset($_GET['ajax'])) {
         };
 
         for (const [param, id] of Object.entries(map)) {
-            const el = document.getElementById(id);
-            const val = el?.value || '';
+            const val = document.getElementById(id)?.value;
             if (val) params.set(param, val);
+            else params.delete(param);
         }
 
-        if (overrides.page !== undefined) {
-            params.set('page', overrides.page);
-        } else if (ledgerPage > 1) {
-            params.set('page', ledgerPage);
-        }
+        if (overrides.page !== undefined) params.set('page', overrides.page);
+        else if (ledgerPage > 1) params.set('page', ledgerPage);
 
         if (overrides.sort !== undefined) {
             params.set('sort', overrides.sort);
@@ -882,14 +826,13 @@ if (isset($_GET['ajax'])) {
         }
 
         if (isAjax) params.set('ajax', '1');
+        else params.delete('ajax');
 
         return window.location.pathname + '?' + params.toString();
     }
 
     async function fetchUpdatedTable(overrides = {}) {
         const url = buildFilterURL(overrides, true);
-        console.log('Fetching updated table:', url);
-        
         ledgerRequestSerial += 1;
         const requestSerial = ledgerRequestSerial;
         if (ledgerFetchController) {
@@ -899,32 +842,16 @@ if (isset($_GET['ajax'])) {
 
         try {
             const resp = await fetch(url, { signal: ledgerFetchController.signal });
-            console.log('Response status:', resp.status);
-            
             if (!resp.ok) throw new Error('Request failed with status ' + resp.status);
-            const rawText = (await resp.text()).trim();
-            console.log('Response length:', rawText.length);
-            
+            const rawText = await resp.text();
             let data;
             try {
                 data = JSON.parse(rawText);
             } catch (_parseErr) {
-                console.log('JSON parse failed, trying to extract...');
-                const startIdx = rawText.indexOf('{');
-                if (startIdx >= 0) {
-                    data = JSON.parse(rawText.slice(startIdx));
-                } else {
-                    throw _parseErr;
-                }
+                const possibleJson = rawText.slice(rawText.indexOf('{'));
+                data = JSON.parse(possibleJson);
             }
-            
-            console.log('Parsed data:', data);
-            
-            if (requestSerial !== ledgerRequestSerial) {
-                console.log('Request outdated, ignoring');
-                return;
-            }
-            
+            if (requestSerial !== ledgerRequestSerial) return;
             if (data.success) {
                 const tbody = document.getElementById('ledgerTableBody');
                 const pagination = document.getElementById('ledgerPagination');
@@ -934,12 +861,11 @@ if (isset($_GET['ajax'])) {
 
                 if (tbody) {
                     tbody.innerHTML = data.table;
-                    console.log('Table updated');
                     if (typeof Alpine !== 'undefined' && typeof Alpine.initTree === 'function') {
                         try {
                             Alpine.initTree(tbody);
                         } catch (e) {
-                            console.error('Alpine initTree error:', e);
+                            console.error(e);
                         }
                     }
                 }
@@ -947,32 +873,21 @@ if (isset($_GET['ajax'])) {
                 if (showingText) {
                     showingText.textContent = data.startIdx + '–' + data.endIdx;
                 }
-                if (totalText) totalText.textContent = data.count;
+                if (totalText) totalText.textContent = data.total;
                 
                 if (badgeCont) {
                     badgeCont.innerHTML = data.badge > 0 ? `<span class="filter-badge">${data.badge}</span>` : '';
-                    console.log('Badge updated:', data.badge);
                 }
 
                 if (overrides.page !== undefined) ledgerPage = overrides.page;
 
-                const quickSearchInput = document.getElementById('ledgerQuickSearch');
-                const panelSearchInput = document.getElementById('fp_search');
-                if (quickSearchInput && panelSearchInput && quickSearchInput.value !== panelSearchInput.value) {
-                    panelSearchInput.value = quickSearchInput.value;
-                }
+                if (overrides.page !== undefined) ledgerPage = overrides.page;
 
                 const displayUrl = buildFilterURL(overrides, false);
                 window.history.replaceState({ path: displayUrl }, '', displayUrl);
-                console.log('Update complete');
-            } else {
-                console.error('Response not successful:', data);
             }
         } catch (e) {
-            if (e.name === 'AbortError') {
-                console.log('Request aborted');
-                return;
-            }
+            if (e.name === 'AbortError') return;
             console.error('Error updating table:', e);
         } finally {
             if (requestSerial === ledgerRequestSerial) {
@@ -1010,31 +925,14 @@ if (isset($_GET['ajax'])) {
 
     function resetFilterField(fields) {
         fields.forEach(f => {
-            const id = 'fp_' + f;
-            const el = document.getElementById(id);
-            if (el) {
-                el.value = '';
-            }
+            const el = document.getElementById('fp_' + f);
+            if (el) el.value = '';
         });
         fetchUpdatedTable({ page: 1 });
     }
 
     function goToLedgerPage(page) {
         fetchUpdatedTable({ page: page });
-    }
-
-    function viewTransactionFromRow(row) {
-        try {
-            const jsonStr = row.getAttribute('data-tx');
-            if (!jsonStr) {
-                console.error('No transaction data found on row');
-                return;
-            }
-            const t = JSON.parse(jsonStr);
-            viewTransaction(t);
-        } catch (e) {
-            console.error('Failed to parse transaction data:', e);
-        }
     }
 
     function viewTransaction(t) {
@@ -1052,8 +950,11 @@ if (isset($_GET['ajax'])) {
         document.getElementById('viewModalType').textContent = typeStr;
         document.getElementById('viewModalType').style.textTransform = 'capitalize';
         document.getElementById('viewModalDir').textContent = t.direction;
+        document.getElementById('viewModalDir').style.color = isIN ? '#059669' : '#dc2626';
         document.getElementById('viewModalQty').textContent = displayQty + ' ' + t.unit;
+        document.getElementById('viewModalQty').style.color = isIN ? '#059669' : '#dc2626';
         document.getElementById('viewModalNotes').textContent = t.notes || 'No notes.';
+        document.getElementById('viewModalAdmin').textContent = t.created_by_name || 'System';
         document.getElementById('viewModal').style.display = 'flex';
     }
 
@@ -1070,110 +971,10 @@ if (isset($_GET['ajax'])) {
             document.getElementById('modalTitle').textContent = 'Receive Stock (STOCK-IN)';
             document.getElementById('txType').value = 'purchase';
         }
-        
-        // Reset character counter
-        updateNotesCounter();
-        
-        // Setup quantity input based on selected item
-        const itemSelect = document.getElementById('txItem');
-        if (itemSelect) {
-            itemSelect.addEventListener('change', handleItemChange);
-        }
     }
 
     function closeModal() {
         document.getElementById('txModal').style.display = 'none';
-        const itemSelect = document.getElementById('txItem');
-        if (itemSelect) {
-            itemSelect.removeEventListener('change', handleItemChange);
-        }
-    }
-    
-    function handleItemChange() {
-        const itemSelect = document.getElementById('txItem');
-        const qtyInput = document.getElementById('txQty');
-        if (!itemSelect || !qtyInput) return;
-        
-        const selectedOption = itemSelect.options[itemSelect.selectedIndex];
-        if (!selectedOption || !selectedOption.value) return;
-        
-        // Extract UOM from option text (format: "Name (SOH: X unit)")
-        const optionText = selectedOption.textContent || '';
-        const uomMatch = optionText.match(/\((SOH:[^)]+)\s+(\w+)\)/);
-        const uom = uomMatch ? uomMatch[2].toLowerCase() : 'pcs';
-        
-        // Configure quantity input based on UOM
-        if (uom === 'pcs') {
-            qtyInput.step = '1';
-            qtyInput.min = '1';
-            qtyInput.placeholder = 'e.g. 10';
-            qtyInput.addEventListener('keydown', handlePcsKeyDown);
-            qtyInput.addEventListener('paste', handlePcsPaste);
-        } else {
-            qtyInput.step = '0.01';
-            qtyInput.min = '0.01';
-            qtyInput.placeholder = '0.00';
-            qtyInput.removeEventListener('keydown', handlePcsKeyDown);
-            qtyInput.removeEventListener('paste', handlePcsPaste);
-        }
-        
-        // Clear existing value when item changes
-        qtyInput.value = '';
-    }
-    
-    function handlePcsKeyDown(e) {
-        const allowed = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab', 'Home', 'End', 'Enter'];
-        if (allowed.includes(e.key)) return;
-        
-        // Block decimal point, comma, and scientific notation
-        if (e.key === '.' || e.key === ',' || e.key === 'e' || e.key === 'E' || e.key === '-' || e.key === '+') {
-            e.preventDefault();
-            return;
-        }
-        
-        // Allow only digits
-        if (!/^\d$/.test(e.key)) e.preventDefault();
-    }
-    
-    function handlePcsPaste(e) {
-        const text = (e.clipboardData || window.clipboardData).getData('text') || '';
-        // For pcs, only whole-number paste is allowed
-        if (!/^\d+$/.test(text.trim())) {
-            e.preventDefault();
-            return;
-        }
-        // Disallow 0
-        if (parseInt(text.trim(), 10) === 0) {
-            e.preventDefault();
-            return;
-        }
-    }
-    
-    function handleNotesKeydown(e) {
-        if (e.key === 'Enter') {
-            const notesInput = e.target;
-            const lineBreaks = (notesInput.value.match(/\n/g) || []).length;
-            // Block if already at 3 line breaks (4 lines total)
-            if (lineBreaks >= 3) {
-                e.preventDefault();
-                return;
-            }
-        }
-    }
-    
-    function updateNotesCounter() {
-        const notesInput = document.getElementById('txNotes');
-        const counter = document.getElementById('txNotesCount');
-        if (notesInput && counter) {
-            // Enforce 200 character limit including line breaks
-            if (notesInput.value.length > 200) {
-                notesInput.value = notesInput.value.substring(0, 200);
-            }
-            counter.textContent = notesInput.value.length;
-            // Auto-resize to fit content
-            notesInput.style.height = 'auto';
-            notesInput.style.height = notesInput.scrollHeight + 'px';
-        }
     }
 
     async function saveTransaction(e) {
@@ -1212,7 +1013,7 @@ if (isset($_GET['ajax'])) {
                     alert(summary);
                 }
             } else {
-                const errMsg = data.error || (data.errors && typeof data.errors === 'object' ? Object.values(data.errors).join(' ') : 'Unknown error');
+                const errMsg = data.error || (data.errors ? Object.values(data.errors).join(' ') : 'Unknown error');
                 alert('Error: ' + errMsg);
             }
         } catch (err) {
@@ -1239,6 +1040,5 @@ if (isset($_GET['ajax'])) {
 
     // Page-specific initialization is handled above via printflowInitInvLedgerPage.
 </script>
-<?php include __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>

@@ -10,6 +10,30 @@ require_once __DIR__ . '/../includes/branch_context.php';
 
 require_role(['Admin', 'Manager']);
 
+// Handle ID verification approval/rejection
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_action']) && verify_csrf_token($_POST['csrf_token'] ?? '')) {
+    $cid = (int)($_POST['cid'] ?? 0);
+    $action = $_POST['id_action'];
+    if ($cid > 0 && in_array($action, ['approve','reject'])) {
+        if ($action === 'approve') {
+            db_execute("UPDATE customers SET id_status='Verified', id_reject_reason=NULL WHERE customer_id=?", 'i', [$cid]);
+            create_notification($cid, 'Customer', 'Your ID has been verified! You can now place orders.', 'System', false, false);
+        } else {
+            $reason = sanitize($_POST['reject_reason'] ?? 'ID could not be verified. Please resubmit a clearer photo.');
+            db_execute("UPDATE customers SET id_status='Rejected', id_reject_reason=? WHERE customer_id=?", 'si', [$reason, $cid]);
+            create_notification($cid, 'Customer', 'Your ID verification was rejected: ' . $reason, 'System', false, false);
+        }
+    }
+    // AJAX request — return JSON, no redirect
+    if (!empty($_POST['ajax'])) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true]);
+        exit;
+    }
+    header('Location: customers_management.php?id_reviewed=1');
+    exit;
+}
+
 $branchCtx = init_branch_context(false);
 $branchId  = $branchCtx['selected_branch_id'];
 
@@ -82,19 +106,28 @@ if (isset($_GET['ajax'])) {
                 <th>Email</th>
                 <th>Contact</th>
                 <th>Registered</th>
+                <th>Status</th>
                 <th style="text-align:right;" class="no-print">Actions</th>
             </tr>
         </thead>
         <tbody id="customersTableBody">
             <?php if (empty($customers)): ?>
                 <tr id="emptyCustomersRow">
-                    <td colspan="6" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No customers found</td>
+                    <td colspan="8" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No customers found</td>
                 </tr>
             <?php else: ?>
                 <tr id="emptyCustomersRow" style="display:none;">
-                    <td colspan="6" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No customers found</td>
+                    <td colspan="8" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No customers found</td>
                 </tr>
-                <?php foreach ($customers as $customer): ?>
+                <?php foreach ($customers as $customer): 
+                    $id_status = $customer['id_status'] ?? 'Unverified';
+                    $status_style = match($id_status) {
+                        'Verified'   => 'background:#dcfce7;color:#166534;',
+                        'Rejected'   => 'background:#fee2e2;color:#991b1b;',
+                        'Pending'    => 'background:#fef9c3;color:#854d0e;',
+                        default      => 'background:#f3f4f6;color:#6b7280;'
+                    };
+                ?>
                     <tr class="customer-row" onclick="openModal(<?php echo $customer['customer_id']; ?>)">
                         <td style="color:#1f2937;"><?php echo $customer['customer_id']; ?></td>
                         <td style="font-weight:500;color:#1f2937;" class="name-cell">
@@ -113,13 +146,10 @@ if (isset($_GET['ajax'])) {
                             </div>
                         </td>
                         <td style="color:#6b7280;font-size:12px;"><?php echo format_date($customer['created_at']); ?></td>
+                        <td><span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;<?php echo $status_style; ?>"><?php echo htmlspecialchars($id_status); ?></span></td>
                         <td style="text-align:right;" class="no-print actions" onclick="event.stopPropagation()">
-                            <button type="button" onclick="event.stopPropagation();openModal(<?php echo $customer['customer_id']; ?>)" class="btn-action blue">
-                                Profile
-                            </button>
-                            <button type="button" onclick="event.stopPropagation();openTransactionModal(<?php echo $customer['customer_id']; ?>)" class="btn-action teal">
-                                Transactions
-                            </button>
+                            <button type="button" onclick="event.stopPropagation();openModal(<?php echo $customer['customer_id']; ?>)" class="btn-action blue">Profile</button>
+                            <button type="button" onclick="event.stopPropagation();openTransactionModal(<?php echo $customer['customer_id']; ?>)" class="btn-action teal">Transactions</button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -572,6 +602,7 @@ $page_title = 'Customers Management - Admin';
                     loading: false,
                     errorMsg: '',
                     customer: null,
+                    idRejectReason: '',
                     filterOpen: false,
                     sortOpen: false,
                     activeSort: _activeSortKey,
@@ -597,6 +628,7 @@ $page_title = 'Customers Management - Admin';
                         this.loading = true;
                         this.errorMsg = '';
                         this.customer = null;
+                        this.idRejectReason = '';
                         fetch('/printflow/admin/api_customer_details.php?id=' + customerId, { credentials: 'same-origin' })
                             .then(r => r.json())
                             .then(data => {
@@ -605,6 +637,33 @@ $page_title = 'Customers Management - Admin';
                                 else { this.errorMsg = data.error || 'Failed to load details.'; }
                             })
                             .catch(err => { this.loading = false; this.errorMsg = 'Network error.'; });
+                    },
+
+                    async submitIdAction(action) {
+                        if (!this.customer?.customer_id) return;
+                        if (action === 'reject' && !this.idRejectReason.trim()) {
+                            if (!confirm('No reject reason entered. Proceed with default reason?')) return;
+                        }
+                        const fd = new FormData();
+                        fd.append('ajax', '1');
+                        fd.append('id_action', action);
+                        fd.append('cid', this.customer.customer_id);
+                        fd.append('reject_reason', this.idRejectReason.trim());
+                        fd.append('csrf_token', '<?php echo generate_csrf_token(); ?>');
+                        try {
+                            const res = await fetch('/printflow/admin/customers_management.php', { method: 'POST', body: fd, credentials: 'same-origin' });
+                            const data = await res.json();
+                            if (data.success) {
+                                // Refresh customer data in modal
+                                const cid = this.customer.customer_id;
+                                this.idRejectReason = '';
+                                fetch('/printflow/admin/api_customer_details.php?id=' + cid, { credentials: 'same-origin' })
+                                    .then(r => r.json())
+                                    .then(d => { if (d.success) this.customer = d.customer; });
+                                // Refresh table without resetting filters
+                                fetchUpdatedTable();
+                            }
+                        } catch(e) { console.error('submitIdAction error', e); }
                     },
 
                     openTransactionModal(id) {
@@ -853,19 +912,28 @@ $page_title = 'Customers Management - Admin';
                                 <th>Email</th>
                                 <th>Contact</th>
                                 <th>Registered</th>
+                                <th>Status</th>
                                 <th style="text-align:right;" class="no-print">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="customersTableBody">
                             <?php if (empty($customers)): ?>
                                 <tr id="emptyCustomersRow">
-                                    <td colspan="6" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No customers found</td>
+                                    <td colspan="8" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No customers found</td>
                                 </tr>
                             <?php else: ?>
                                 <tr id="emptyCustomersRow" style="display:none;">
-                                    <td colspan="6" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No customers found</td>
+                                    <td colspan="8" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">No customers found</td>
                                 </tr>
-                                <?php foreach ($customers as $customer): ?>
+                                <?php foreach ($customers as $customer):
+                                    $id_status = $customer['id_status'] ?? 'Unverified';
+                                    $status_style = match($id_status) {
+                                        'Verified'   => 'background:#dcfce7;color:#166534;',
+                                        'Rejected'   => 'background:#fee2e2;color:#991b1b;',
+                                        'Pending'    => 'background:#fef9c3;color:#854d0e;',
+                                        default      => 'background:#f3f4f6;color:#6b7280;'
+                                    };
+                                ?>
                                     <tr class="customer-row" onclick="openModal(<?php echo $customer['customer_id']; ?>)">
                                         <td style="color:#1f2937;"><?php echo $customer['customer_id']; ?></td>
                                         <td style="font-weight:500;color:#1f2937;" class="name-cell">
@@ -884,13 +952,10 @@ $page_title = 'Customers Management - Admin';
                                             </div>
                                         </td>
                                         <td style="color:#6b7280;font-size:12px;"><?php echo format_date($customer['created_at']); ?></td>
+                                        <td><span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;<?php echo $status_style; ?>"><?php echo htmlspecialchars($id_status); ?></span></td>
                                         <td style="text-align:right;" class="no-print actions" onclick="event.stopPropagation()">
-                                            <button type="button" onclick="event.stopPropagation();openModal(<?php echo $customer['customer_id']; ?>)" class="btn-action blue">
-                                                Profile
-                                            </button>
-                                            <button type="button" onclick="event.stopPropagation();openTransactionModal(<?php echo $customer['customer_id']; ?>)" class="btn-action teal">
-                                                Transactions
-                                            </button>
+                                            <button type="button" onclick="event.stopPropagation();openModal(<?php echo $customer['customer_id']; ?>)" class="btn-action blue">Profile</button>
+                                            <button type="button" onclick="event.stopPropagation();openTransactionModal(<?php echo $customer['customer_id']; ?>)" class="btn-action teal">Transactions</button>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -981,6 +1046,36 @@ $page_title = 'Customers Management - Admin';
                         <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;display:block;">Address</label>
                         <div style="background:#f9fafb;border-radius:8px;padding:12px;border:1px solid #f3f4f6;">
                             <p style="color:#1f2937;font-weight:500;font-size:13px;margin:0;line-height:1.6;" x-text="customer?.address || 'No address provided'"></p>
+                        </div>
+                    </div>
+
+                    <!-- ID Verification Section -->
+                    <div style="margin-top:20px;padding-top:20px;border-top:1px solid #f3f4f6;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                            <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;">ID Verification</label>
+                            <template x-if="customer">
+                                <span :style="customer.id_status === 'Verified' ? 'background:#dcfce7;color:#166534;' : (customer.id_status === 'Rejected' ? 'background:#fee2e2;color:#991b1b;' : (customer.id_status === 'Pending' ? 'background:#fef9c3;color:#854d0e;' : 'background:#f3f4f6;color:#6b7280;'))" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;" x-text="customer.id_status || 'Unverified'"></span>
+                            </template>
+                        </div>
+
+                        <p x-show="customer?.id_type" style="font-size:12px;color:#6b7280;margin:0 0 10px;">ID Type: <strong x-text="customer?.id_type"></strong></p>
+
+                        <div x-show="customer?.id_image" style="margin-bottom:14px;">
+                            <a :href="customer?.id_image" target="_blank" rel="noopener">
+                                <img :src="customer?.id_image" alt="Customer ID" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;border:1px solid #e5e7eb;cursor:zoom-in;">
+                            </a>
+                        </div>
+
+                        <p x-show="!customer?.id_image" style="font-size:13px;color:#9ca3af;font-style:italic;margin:0 0 14px;">No ID image uploaded.</p>
+
+                        <p x-show="customer?.id_reject_reason" style="font-size:12px;color:#dc2626;margin:0 0 12px;">Rejection reason: <span x-text="customer?.id_reject_reason"></span></p>
+
+                        <!-- Verify / Reject actions via AJAX -->
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;">
+                            <button type="button" class="btn-action" style="color:#16a34a;border-color:#16a34a;" x-show="customer?.id_status !== 'Verified'" @click="submitIdAction('approve')" onmouseover="this.style.background='#16a34a';this.style.color='white'" onmouseout="this.style.background='transparent';this.style.color='#16a34a'">&#10003; Verify ID</button>
+                            <span x-show="customer?.id_status === 'Verified'" style="font-size:12px;color:#16a34a;font-weight:600;">&#10003; ID Verified</span>
+                            <input type="text" x-model="idRejectReason" placeholder="Reject reason (optional)..." style="flex:1;min-width:160px;height:32px;padding:0 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
+                            <button type="button" class="btn-action red" @click="submitIdAction('reject')">&#10005; Reject</button>
                         </div>
                     </div>
                 </div>

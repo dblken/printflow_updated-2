@@ -34,7 +34,7 @@ require_once __DIR__ . '/../includes/header.php';
 <style>
 /* --- Core Layout & Premium Aesthetics --- */
 body.chat-page main#main-content { padding-top: 0 !important; background: #fff !important; }
-#chat-outer { width: 100vw; height: 100vh; margin: 0; }
+#chat-outer { max-width: 1100px; margin: 0 auto; height: 100vh; padding: 0 1.5rem; }
 
 .glass-shell { 
     display: grid; 

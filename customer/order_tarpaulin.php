@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/service_order_helper.php';
 
 require_role('Customer');
+require_once __DIR__ . '/../includes/require_id_verified.php';
 $customer_id = get_user_id();
 
 $error = '';
@@ -360,9 +361,6 @@ function decreaseQty() { const i = document.getElementById('quantity-input'); if
 
 document.getElementById('tarpForm').addEventListener('submit', function(e) {
     syncDimensionToHidden();
-    if (!document.getElementById('width_hidden').value || !document.getElementById('height_hidden').value) {
-        alert('Please fill in Dimensions.'); e.preventDefault(); return false;
-    }
 });
 
 var finishIcon = document.getElementById('finish-info-icon');

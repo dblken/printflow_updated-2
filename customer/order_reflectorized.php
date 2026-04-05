@@ -348,10 +348,14 @@ function reflSetFieldError(container, message) {
     if (!container) return;
     let err = container.querySelector('.field-error');
     if (message) {
-        if (!err) { err = document.createElement('div'); err.className = 'field-error'; container.appendChild(err); }
+        if (!err) { 
+            err = document.createElement('div'); 
+            err.className = 'field-error'; 
+            container.appendChild(err); 
+        }
         container.classList.add('is-invalid');
-        err.textContent = message;
-        err.style.display = 'block';
+        err.innerHTML = `<span class="refl-error-icon">⚠</span> ${message}`;
+        err.style.display = 'flex';
     } else {
         container.classList.remove('is-invalid');
         if (err) { err.textContent = ''; err.style.display = 'none'; }

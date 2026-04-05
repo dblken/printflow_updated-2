@@ -91,8 +91,8 @@ $offset = ($page - 1) * $per_page;
 // Sorting
 $order_clause = match($sort_by) {
     'oldest' => "jo.created_at ASC",
-    'az'     => "c.last_name ASC, c.first_name ASC",
-    'za'     => "c.last_name DESC, c.first_name DESC",
+    'az'     => "c.first_name ASC, c.last_name ASC",
+    'za'     => "c.first_name DESC, c.last_name DESC",
     default  => "jo.created_at DESC"
 };
 $sql .= " ORDER BY $order_clause LIMIT $per_page OFFSET $offset";
@@ -1104,36 +1104,56 @@ function custom_payment_badge($status) {
                         <p style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:6px;">Notes</p>
                         <div style="background:#f9fafb;border-radius:8px;padding:12px 14px;font-size:13px;color:#374151;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;" x-text="job?.notes"></div>
                     </div>
-                    <!-- Images -->
-                    <div x-show="(job?.artwork_path || (job?.items && job.items.length > 0 && job.items.some(i => i.design_url || i.reference_url)))" style="margin-top:18px;">
-                        <p style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;">Design Files</p>
-                        <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                            <template x-if="job?.artwork_path">
-                                <div style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;" @click="viewImage(job.artwork_path)">
-                                    <img :src="job.artwork_path" style="width:100%;height:100%;object-fit:cover;" alt="Artwork">
-                                    <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Artwork</div>
-                                </div>
-                            </template>
-                            <template x-if="job?.items && job.items.length > 0">
+                    <!-- Design Files & Payment Proof -->
+                    <div x-show="(job?.artwork_path || job?.payment_proof_path || (job?.items && job.items.length > 0 && job.items.some(i => i.design_url || i.reference_url)))" style="margin-top:18px;">
+                        <div style="display:flex;gap:24px;flex-wrap:wrap;">
+                            <!-- Design Files -->
+                            <div x-show="(job?.artwork_path || (job?.items && job.items.length > 0 && job.items.some(i => i.design_url || i.reference_url)))" style="flex:1;min-width:200px;">
+                                <p style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;">Design Files</p>
                                 <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                                    <template x-for="(item, idx) in job.items" :key="idx">
-                                        <div>
-                                            <template x-if="item.design_url">
-                                                <div style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;margin-bottom:8px;" @click="viewImage(item.design_url)">
-                                                    <img :src="item.design_url" style="width:100%;height:100%;object-fit:cover;" alt="Design">
-                                                    <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Design</div>
-                                                </div>
-                                            </template>
-                                            <template x-if="item.reference_url">
-                                                <div style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;" @click="viewImage(item.reference_url)">
-                                                    <img :src="item.reference_url" style="width:100%;height:100%;object-fit:cover;" alt="Reference">
-                                                    <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Reference</div>
+                                    <template x-if="job?.artwork_path">
+                                        <div style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;" @click="viewImage(job.artwork_path)">
+                                            <img :src="job.artwork_path" style="width:100%;height:100%;object-fit:cover;" alt="Artwork">
+                                            <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Artwork</div>
+                                        </div>
+                                    </template>
+                                    <template x-if="job?.items && job.items.length > 0">
+                                        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                                            <template x-for="(item, idx) in job.items" :key="idx">
+                                                <div>
+                                                    <template x-if="item.design_url">
+                                                        <div style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;margin-bottom:8px;" @click="viewImage(item.design_url)">
+                                                            <img :src="item.design_url" style="width:100%;height:100%;object-fit:cover;" alt="Design">
+                                                            <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Design</div>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="item.reference_url">
+                                                        <div style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #e5e7eb;cursor:pointer;" @click="viewImage(item.reference_url)">
+                                                            <img :src="item.reference_url" style="width:100%;height:100%;object-fit:cover;" alt="Reference">
+                                                            <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:4px;text-align:center;">Reference</div>
+                                                        </div>
+                                                    </template>
                                                 </div>
                                             </template>
                                         </div>
                                     </template>
                                 </div>
-                            </template>
+                            </div>
+                            <!-- Payment Proof -->
+                            <div x-show="job?.payment_proof_path" style="flex:0 0 auto;min-width:200px;">
+                                <p style="font-size:11px;font-weight:600;color:#10b981;text-transform:uppercase;margin-bottom:8px;">Payment Proof</p>
+                                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                                    <div style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid #10b981;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.15);" @click="viewImage(job.payment_proof_path)">
+                                        <img :src="job.payment_proof_path" style="width:100%;height:100%;object-fit:cover;" alt="Payment Proof">
+                                        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(16,185,129,0.95);color:white;font-size:10px;padding:4px;text-align:center;font-weight:600;">
+                                            <svg style="width:12px;height:12px;display:inline-block;margin-right:3px;vertical-align:middle;" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                            </svg>
+                                            Payment Proof
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

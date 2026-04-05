@@ -11,16 +11,15 @@ require_role('Customer');
 
 // Get filter parameters
 $category = $_GET['category'] ?? '';
-$search = $_GET['search'] ?? '';
 
-// Build query — only show Fixed Products as requested
+// Build query — show all Activated products
 $sql = "SELECT p.*, 
         (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.product_id AND pv.status = 'Active') as variant_count,
-        (SELECT SUM(quantity) FROM order_items oi JOIN orders o ON oi.order_id = o.order_id WHERE oi.product_id = p.product_id AND o.order_type = 'product' AND o.status != 'Cancelled') as sold_count,
-        (SELECT AVG(rating) FROM reviews r WHERE r.reference_id = p.product_id AND r.review_type = 'product') as avg_rating,
-        (SELECT COUNT(*) FROM reviews r WHERE r.reference_id = p.product_id AND r.review_type = 'product') as review_count
+        (SELECT COALESCE(SUM(oi.quantity),0) FROM order_items oi JOIN orders o ON oi.order_id = o.order_id WHERE oi.product_id = p.product_id AND o.status != 'Cancelled' AND (oi.customization_data IS NULL OR oi.customization_data = '' OR oi.customization_data NOT LIKE '%\"service_type\"%')) as sold_count,
+        (SELECT AVG(rating) FROM reviews r WHERE r.service_type COLLATE utf8mb4_unicode_ci = p.name COLLATE utf8mb4_unicode_ci) as avg_rating,
+        (SELECT COUNT(*) FROM reviews r WHERE r.service_type COLLATE utf8mb4_unicode_ci = p.name COLLATE utf8mb4_unicode_ci) as review_count
         FROM products p 
-        WHERE p.status = 'Activated' AND (p.product_type = 'fixed' OR p.product_type = '')";
+        WHERE p.status = 'Activated'";
 $params = [];
 $types = '';
 
@@ -30,21 +29,13 @@ if (!empty($category)) {
     $types .= 's';
 }
 
-if (!empty($search)) {
-    $sql .= " AND (name LIKE ? OR description LIKE ?)";
-    $search_term = '%' . $search . '%';
-    $params[] = $search_term;
-    $params[] = $search_term;
-    $types .= 'ss';
-}
-
 // Pagination settings
 $items_per_page = 12;
 $current_page = max(1, (int)($_GET['page'] ?? 1));
 $offset = ($current_page - 1) * $items_per_page;
 
 // Count total items for pagination
-$count_sql = "SELECT COUNT(*) as total FROM products WHERE status = 'Activated' AND (product_type = 'fixed' OR product_type = '')";
+$count_sql = "SELECT COUNT(*) as total FROM products WHERE status = 'Activated'";
 $count_params = [];
 $count_types = '';
 
@@ -52,13 +43,6 @@ if (!empty($category)) {
     $count_sql .= " AND category = ?";
     $count_params[] = $category;
     $count_types .= 's';
-}
-
-if (!empty($search)) {
-    $count_sql .= " AND (name LIKE ? OR description LIKE ?)";
-    $count_params[] = '%' . $search . '%';
-    $count_params[] = '%' . $search . '%';
-    $count_types .= 'ss';
 }
 
 $total_result = db_query($count_sql, $count_types, $count_params);
@@ -89,14 +73,14 @@ require_once __DIR__ . '/../includes/header.php';
 
     .shopee-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 15px;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 20px;
     }
 
     @media (max-width: 640px) {
         .shopee-grid {
             grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
+            gap: 12px;
         }
     }
 
@@ -119,38 +103,39 @@ require_once __DIR__ . '/../includes/header.php';
 
     .shopee-img {
         width: 100%;
-        aspect-ratio: 1;
+        aspect-ratio: 1.2;
         object-fit: cover;
     }
 
     .shopee-body {
-        padding: 10px;
+        padding: 10px 10px 0px 10px;
         flex-grow: 1;
         display: flex;
         flex-direction: column;
     }
 
     .shopee-name {
-        font-size: 0.875rem;
-        line-height: 1.25rem;
-        height: 2.5rem;
+        font-size: 0.95rem;
+        line-height: 1.3rem;
+        height: 2.6rem;
         overflow: hidden;
         text-overflow: ellipsis;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         color: var(--shopee-text);
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
 
     .shopee-category {
         font-size: 0.75rem;
         color: var(--shopee-muted);
-        margin-bottom: 5px;
+        margin-bottom: 4px;
     }
 
     .shopee-price-row {
         margin-top: auto;
+        margin-bottom: 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -168,7 +153,7 @@ require_once __DIR__ . '/../includes/header.php';
     }
 
     .shopee-footer {
-        padding: 10px;
+        padding: 8px 10px;
         border-top: 1px solid var(--shopee-border);
         display: flex;
         gap: 8px;
@@ -176,7 +161,7 @@ require_once __DIR__ . '/../includes/header.php';
 
     .shopee-btn {
         flex: 1;
-        padding: 8px 0;
+        padding: 7px 0;
         border-radius: 3px;
         font-size: 0.8rem;
         font-weight: 600;
@@ -210,7 +195,7 @@ require_once __DIR__ . '/../includes/header.php';
         display: flex;
         align-items: center;
         gap: 2px;
-        margin-bottom: 5px;
+        margin-bottom: 2px;
     }
 
     .rating-text {
@@ -223,13 +208,7 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="min-h-screen py-8 bg-white">
     <div class="container mx-auto px-4" style="max-width:1100px;">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-            <h1 class="text-2xl font-bold text-gray-800">Fixed Products</h1>
-            <div class="w-full md:w-auto">
-                <form action="" method="GET" class="flex gap-2">
-                    <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search products..." class="flex-grow px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-shopee-orange">
-                    <button type="submit" style="background-color: var(--shopee-orange);" class="text-white px-6 py-2 rounded-lg hover:opacity-90 font-semibold transition-all">Search</button>
-                </form>
-            </div>
+            <h1 class="text-2xl font-bold text-gray-800">Available Products</h1>
         </div>
 
         <!-- Products Grid -->
@@ -265,7 +244,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <span style="margin-left: auto; font-size: 0.75rem; color: var(--shopee-muted);"><?php echo $sold_count; ?> sold</span>
                             </div>
 
-                            <div class="shopee-price-row mt-2">
+                            <div class="shopee-price-row">
                                 <span class="shopee-price"><?php echo format_currency($product['price']); ?></span>
                             </div>
                         </div>
@@ -281,7 +260,7 @@ require_once __DIR__ . '/../includes/header.php';
 
             <!-- Pagination -->
             <div class="mt-12 flex justify-center">
-                <?php echo get_pagination_links($current_page, $total_pages, ['category' => $category, 'search' => $search]); ?>
+                <?php echo get_pagination_links($current_page, $total_pages, ['category' => $category]); ?>
             </div>
         <?php endif; ?>
     </div>
@@ -309,7 +288,7 @@ async function addToCartDirect(productId) {
             if (window.updateCartBadge) updateCartBadge(data.cart_count);
             showToast('Added to cart!');
         } else {
-            alert(data.message || 'Failed to add to cart');
+            showToast(data.message || 'Failed to add to cart.', true);
         }
     } catch (err) {
         console.error('Cart Error:', err);
@@ -317,7 +296,7 @@ async function addToCartDirect(productId) {
     }
 }
 
-function showToast(msg) {
+function showToast(msg, isError) {
     let toast = document.getElementById('shopee-toast');
     if (!toast) {
         toast = document.createElement('div');
@@ -331,7 +310,7 @@ function showToast(msg) {
         bottom: 5rem;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(0,0,0,0.85);
+        background: ${isError ? 'rgba(239,68,68,0.92)' : 'rgba(0,0,0,0.85)'};
         color: white;
         padding: 12px 24px;
         border-radius: 4px;

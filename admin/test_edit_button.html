@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Edit Button</title>
+</head>
+<body>
+    <button onclick="handleEditClick('test_key')">Test Edit Button</button>
+    
+    <script>
+        const fieldConfigurations = {
+            'test_key': {
+                label: 'Test Field',
+                type: 'radio',
+                options: ['Option 1', 'Option 2'],
+                required: true
+            }
+        };
+        
+        function handleEditClick(key) {
+            console.log('handleEditClick called with:', key);
+            showEditFieldModal(key);
+        }
+        
+        function showEditFieldModal(key) {
+            console.log('showEditFieldModal called with:', key);
+            alert('Edit modal for: ' + key);
+        }
+    </script>
+</body>
+</html>

@@ -2,8 +2,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const forms = document.querySelectorAll('form');
     
     forms.forEach(form => {
-        const buyNowBtn = form.querySelector('button[name="buy_now"], button[value="Buy Now"], button[type="submit"]');
-        if (!buyNowBtn) return;
+        // Skip validation if explicitly opted out via data attribute or global flag
+        if (form.getAttribute('data-pf-skip-validation') === 'true' || form.dataset.pfSkipValidation === 'true') {
+            return;
+        }
         
         form.setAttribute('novalidate', 'novalidate');
         
@@ -113,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const errorMsg = document.createElement('div');
         errorMsg.className = 'custom-validation-error';
         errorMsg.dataset.for = errMsgId;
-        errorMsg.innerHTML = `<span class="error-icon">!</span> ${message}`;
+        errorMsg.innerHTML = `<span class="error-icon">⚠</span> ${message}`;
         
         container.parentNode.insertBefore(errorMsg, container.nextSibling);
         
@@ -127,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     function getErrorContainer(el) {
-        return el.closest('.opt-btn-group') || el.closest('.option-grid') || el.closest('.qty-control') || el.closest('.file-input-wrap') || el.closest('.file-input-container') || el;
+        return el.closest('.shopee-opt-group') || el.closest('.opt-btn-group') || el.closest('.option-grid') || el.closest('.qty-control') || el.closest('.file-input-wrap') || el.closest('.file-input-container') || el;
     }
 
     function clearErrorOnElement(el) {
@@ -186,17 +188,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 position: relative;
             }
             .custom-validation-error {
-                color: #dc2626;
+                color: #f59e0b; /* Amber/Yellow */
                 font-size: 0.75rem;
                 margin-top: 0.45rem;
                 font-weight: 600;
-                display: flex;
+                display: flex !important;
                 align-items: center;
                 gap: 0.45rem;
                 opacity: 0;
                 transform: translateY(-8px);
                 transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
                 pointer-events: none;
+                /* Force to its own line in flexbox containers */
+                width: 100% !important;
+                min-width: 100% !important;
+                flex-basis: 100% !important;
+                flex-grow: 1 !important;
             }
             .custom-validation-error.show {
                 opacity: 1;
@@ -206,12 +213,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                width: 14px;
-                height: 14px;
-                background: #dc2626;
+                width: 15px;
+                height: 15px;
+                background: #f59e0b; /* Amber/Yellow for Warning */
                 color: #ffffff;
                 border-radius: 50%;
-                font-size: 10px;
+                font-size: 11px;
                 font-weight: 900;
                 line-height: 1;
                 flex-shrink: 0;

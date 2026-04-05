@@ -266,25 +266,40 @@ function service_order_ensure_tables() {
 function service_order_get_page_stats($keyword) {
     if (empty($keyword)) return ['sold_count' => 0, 'avg_rating' => 0, 'review_count' => 0];
     
-    // Exact exclusion rules to prevent "order_glass_stickers" from overriding "order_stickers"
     $exclude = "AND customer_link NOT LIKE '%order_glass_stickers%' AND customer_link NOT LIKE '%order_transparent%' AND customer_link NOT LIKE '%order_reflectorized%'";
     if (strpos($keyword, 'order_glass') !== false || strpos($keyword, 'order_transparent') !== false || strpos($keyword, 'order_reflectorized') !== false) {
-        $exclude = ""; 
+        $exclude = "";
     }
     
     $row = db_query("SELECT service_id, name FROM services WHERE customer_link LIKE '%" . db_escape($keyword) . "%' $exclude LIMIT 1");
     if (empty($row)) return ['sold_count' => 0, 'avg_rating' => 0, 'review_count' => 0];
     
-    $s_id = (int)$row[0]['service_id'];
+    $s_id   = (int)$row[0]['service_id'];
     $s_name = $row[0]['name'];
-    
-    $stats = db_query("SELECT 
-        (SELECT COUNT(*) FROM job_orders jo WHERE (jo.service_type LIKE CONCAT('%', ?, '%') OR jo.service_type = ?) AND jo.status != 'CANCELLED') as sold_count,
-        (SELECT AVG(rating) FROM reviews r WHERE r.reference_id = ? AND r.review_type = 'custom') as avg_rating,
-        (SELECT COUNT(*) FROM reviews r WHERE r.reference_id = ? AND r.review_type = 'custom') as review_count
-    ", 'ssii', [$s_name, $s_name, $s_id, $s_id]);
-    
-    $res = $stats[0] ?? ['sold_count' => 0, 'avg_rating' => 0, 'review_count' => 0];
-    $res['service_id'] = $s_id;
-    return $res;
+
+    // Count sold from orders + order_items, only service orders (have service_type in customization_data)
+    $sold_row = db_query(
+        "SELECT COALESCE(SUM(oi.quantity), 0) AS cnt
+         FROM order_items oi
+         JOIN orders o ON oi.order_id = o.order_id
+         WHERE o.status != 'Cancelled'
+           AND oi.customization_data LIKE '%\"service_type\"%'
+           AND oi.customization_data LIKE CONCAT('%', CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci, '%')",
+        's', [$s_name]
+    );
+    $sold_count = (int)(($sold_row[0]['cnt'] ?? 0));
+
+    $stats = db_query(
+        "SELECT AVG(rating) as avg_rating, COUNT(*) as review_count
+         FROM reviews
+         WHERE service_type COLLATE utf8mb4_unicode_ci = ? COLLATE utf8mb4_unicode_ci",
+        's', [$s_name]
+    );
+
+    return [
+        'sold_count'   => $sold_count,
+        'avg_rating'   => $stats[0]['avg_rating'] ?? 0,
+        'review_count' => (int)($stats[0]['review_count'] ?? 0),
+        'service_id'   => $s_id,
+    ];
 }

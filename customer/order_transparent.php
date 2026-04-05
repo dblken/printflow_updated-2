@@ -316,9 +316,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 document.getElementById('transForm').addEventListener('submit', function(e) {
     syncDimensions();
-    if (!document.getElementById('dimensions_hidden').value) {
-        alert('Please select or enter Dimensions.'); e.preventDefault(); return false;
-    }
 });
 </script>
 
