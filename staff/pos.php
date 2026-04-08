@@ -8,9 +8,17 @@ $GLOBALS['PRINTFLOW_DISABLE_TURBO'] = true;
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/branch_context.php';
 
 // Require staff or admin role
 require_role(['Admin', 'Staff']);
+
+// Resolve and lock staff branch into session
+$_pos_branch_ctx = init_branch_context(false);
+$pos_staff_branch_id = (int)$_pos_branch_ctx['selected_branch_id'];
+if ($pos_staff_branch_id > 0) {
+    $_SESSION['branch_id'] = $pos_staff_branch_id;
+}
 
 $page_title = "Point of Sale (POS)";
 $current_page = "pos";
@@ -33,6 +41,12 @@ $branches = [];
 try {
     $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Active' ORDER BY branch_name ASC");
 } catch (Exception $e) { }
+
+// Fetch active services from DB (same source as customer/services.php)
+$pos_services = [];
+try {
+    $pos_services = db_query("SELECT service_id, name, category FROM services WHERE status = 'Activated' ORDER BY name ASC") ?: [];
+} catch (Exception $e) { }
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -42,9 +56,26 @@ try {
     <title><?php echo htmlspecialchars($page_title); ?> - PrintFlow</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/printflow/public/assets/css/output.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <?php include __DIR__ . '/../includes/admin_style.php'; ?>
-    
     <style>
+        /* Field styles for service modal (mirrors order_service_dynamic.php) */
+        .shopee-form-row{display:flex;gap:1rem;margin-bottom:1.25rem;align-items:flex-start;flex-wrap:wrap;}
+        .shopee-form-label{min-width:120px;padding-top:.5rem;font-size:.85rem;font-weight:600;color:#374151;flex-shrink:0;}
+        .shopee-form-field{flex:1;display:flex;flex-direction:column;min-width:0;gap:4px;}
+        .shopee-opt-group{display:flex;flex-wrap:wrap;gap:.5rem;align-items:flex-start;}
+        .shopee-opt-btn{display:inline-flex;align-items:center;justify-content:center;padding:.45rem .9rem;border:2px solid #e5e7eb;border-radius:.5rem;background:#fff;cursor:pointer;transition:all .2s;font-size:.85rem;font-weight:500;color:#374151;min-height:2.25rem;}
+        .shopee-opt-btn:hover{border-color:#0d9488;background:#f0fdfa;}
+        .shopee-opt-btn.active{border-color:#0d9488;background:#0d9488;color:#fff;}
+        .shopee-opt-btn select,.shopee-opt-btn input[type=date]{border:none;background:transparent;outline:none;font-size:.85rem;font-weight:500;color:#374151;cursor:pointer;}
+        .input-field{width:100%;padding:.6rem .75rem;border:1px solid #cbd5e1;border-radius:.5rem;font-size:.875rem;outline:none;transition:border-color .2s;max-width:400px;}
+        .input-field:focus{border-color:#0d9488;}
+        .qty-input-field::-webkit-outer-spin-button,.qty-input-field::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+        .qty-input-field[type=number]{-moz-appearance:textfield;appearance:textfield;}
+        .notes-textarea{font-size:.875rem;font-weight:500;color:#374151;resize:none!important;min-height:80px!important;max-height:80px!important;}
+        .dim-label{font-size:.7rem;color:#94a3b8;font-weight:600;margin-bottom:4px;display:block;text-transform:uppercase;}
+        .nested-fields-container{display:none;margin-top:12px;padding:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;}
+        .quantity-container{display:inline-flex;justify-content:space-between;gap:1rem;width:160px;cursor:default;}
         /* 
          * STABLE POS LAYOUT
          * We use absolute positioning inside a relative container to prevent ALL jumping/height shifts.
@@ -79,13 +110,14 @@ try {
             background: #ffffff;
             border-bottom: 1px solid #e2e8f0;
             display: flex;
-            gap: 15px;
+            gap: 10px;
             align-items: center;
         }
         
         .pos-search-box {
             position: relative;
             flex: 1;
+            max-width: 400px;
         }
         
         .pos-search-box i {
@@ -104,6 +136,7 @@ try {
             font-size: 14px;
             outline: none;
             transition: border-color 0.2s;
+            height: 44px;
         }
         
         .pos-search-input:focus {
@@ -117,18 +150,20 @@ try {
             border-radius: 8px;
             background: #ffffff;
             font-size: 14px;
-            min-width: 180px;
+            width: 160px;
+            flex-shrink: 0;
             outline: none;
             cursor: pointer;
+            height: 44px;
         }
 
         .pos-products-grid {
             flex: 1;
             overflow-y: auto;
-            padding: 24px;
+            padding: 16px;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
             align-content: start;
             background: #f1f5f9;
         }
@@ -137,13 +172,14 @@ try {
         .pos-card {
             background: #ffffff;
             border: 1px solid rgba(226, 232, 240, 0.6);
-            border-radius: 16px;
+            border-radius: 10px;
             overflow: hidden;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            height: 100%;
         }
         
         .pos-card:hover {
@@ -159,60 +195,75 @@ try {
         }
         .pos-card.no-stock:hover { transform: none; box-shadow: none; }
         
-        .pos-card-img-container {
+        .pos-card-icon-container {
             width: 100%;
-            height: 140px;
+            min-height: 110px;
             position: relative;
-            background: #f1f5f9;
-        }
-        
-        .pos-card-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .pos-card-price {
-            position: absolute;
-            bottom: 12px;
-            right: 12px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(4px);
-            padding: 6px 12px;
-            border-radius: 10px;
-            font-weight: 700;
-            color: #4f46e5;
-            font-size: 15px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(226, 232, 240, 0.8);
-        }
-        
-        .pos-card-body {
-            padding: 12px;
+            background: linear-gradient(135deg, #06A1A1 0%, #048888 100%);
+            flex: 1;
             display: flex;
             flex-direction: column;
-            flex: 1;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            gap: 8px;
+        }
+        
+        .pos-card-price-top {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(8px);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 700;
+            color: white;
+            font-size: 13px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .pos-card-product-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+            text-align: center;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        }
+        
+
+        
+        .pos-card-body {
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            background: white;
+            flex-shrink: 0;
         }
         
         .pos-card-title {
-            font-size: 14px;
+            font-size: 11px;
             font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 8px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
+            color: #64748b;
+            text-align: center;
+            line-height: 1.2;
             overflow: hidden;
-            line-height: 1.3;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         
         .pos-card-stock {
-            margin-top: auto;
-            font-size: 12px;
+            font-size: 9px;
             color: #64748b;
             display: flex;
             align-items: center;
-            gap: 4px;
+            justify-content: center;
+            gap: 3px;
         }
 
         /* Right Side: Cart */
@@ -516,6 +567,34 @@ try {
         /* Hide scrollbar for grid to look cleaner */
         .pos-products-grid::-webkit-scrollbar, .pos-cart-list::-webkit-scrollbar { width: 6px; }
         .pos-products-grid::-webkit-scrollbar-thumb, .pos-cart-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        
+        /* Select2 Custom Styling */
+        .select2-container--default .select2-selection--single {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            height: 44px;
+            padding: 8px 12px;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 28px;
+            color: #1e293b;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 42px;
+        }
+        .select2-container--default.select2-container--focus .select2-selection--single {
+            border-color: #06A1A1;
+        }
+        .select2-dropdown {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+        }
+        .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: #06A1A1;
+        }
+        .select2-container {
+            width: 100% !important;
+        }
     </style>
 </head>
 <body data-turbo="false">
@@ -533,24 +612,88 @@ try {
         <main style="flex: 1; display: flex; flex-direction: column; width: 100%; min-height: 0;">
             <div class="pos-wrapper" style="width: 100%; flex: 1; min-height: 0;">
                 
-                <!-- LEFT: SERVICES -->
-                <div class="pos-products-area" style="background:#fff;">
-                    <div style="padding: 24px; border-bottom: 1px solid #e2e8f0; background: #fff;">
-                        <h2 style="font-weight:700; font-size:18px; color:#1e293b; margin:0;">Available Services</h2>
-                        <p style="font-size:13px; color:#64748b; margin-top:4px;">Quickly add a printing service to the order.</p>
+                <!-- LEFT: PRODUCTS/SERVICES (Dynamic) -->
+                <div class="pos-products-area" id="pos-left-panel" style="background:#fff;">
+                    <!-- Selection Screen (Default) -->
+                    <div id="selection-view" style="display: flex; align-items: center; justify-content: center; height: 100%; background: #f8fafc; padding: 40px;">
+                        <div style="max-width: 600px; width: 100%;">
+                            <div style="text-align: center; margin-bottom: 48px;">
+                                <h1 style="font-size: 1.75rem; font-weight: 700; color: #1e293b; margin-bottom: 8px;">Select Category</h1>
+                                <p style="font-size: 0.9rem; color: #64748b;">Choose products or services to add to order</p>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <!-- Products Button -->
+                                <button onclick="showPOSMode('products')" style="background: white; border: 2px solid #e2e8f0; border-radius: 12px; padding: 48px 24px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 16px;" onmouseover="this.style.borderColor='#06A1A1'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.08)';" onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                                    <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #06A1A1 0%, #048888 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                                    </div>
+                                    <div>
+                                        <h2 style="font-size: 1.125rem; font-weight: 700; color: #1e293b; margin: 0 0 6px 0;">Products</h2>
+                                        <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Browse catalog items</p>
+                                    </div>
+                                </button>
+                                
+                                <!-- Services Button -->
+                                <button onclick="showPOSMode('services')" style="background: white; border: 2px solid #e2e8f0; border-radius: 12px; padding: 48px 24px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 16px;" onmouseover="this.style.borderColor='#06A1A1'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.08)';" onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                                    <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #06A1A1 0%, #048888 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                                    </div>
+                                    <div>
+                                        <h2 style="font-size: 1.125rem; font-weight: 700; color: #1e293b; margin: 0 0 6px 0;">Services</h2>
+                                        <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Custom printing</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="pos-services-grid" style="border-bottom:none; padding: 24px;">
-                        <button type="button" class="service-btn" onclick="addQuickService('Tarpaulin'); setActiveService(this)" data-service="Tarpaulin">Tarpaulin</button>
-                        <button type="button" class="service-btn" onclick="addQuickService('T-Shirt'); setActiveService(this)" data-service="T-Shirt">T-Shirt</button>
-                        <button type="button" class="service-btn" onclick="addQuickService('Decals / Stickers'); setActiveService(this)" data-service="Decals / Stickers">Decals / Stickers</button>
-                        <button type="button" class="service-btn" onclick="addQuickService('Reflectorized'); setActiveService(this)" data-service="Reflectorized">Reflectorized</button>
-                        <button type="button" class="service-btn" onclick="addQuickService('Glass/Wall'); setActiveService(this)" data-service="Glass/Wall">Glass/Wall</button>
-                        <button type="button" class="service-btn" onclick="addQuickService('Transparent Stickers'); setActiveService(this)" data-service="Transparent Stickers">Transparent</button>
-                        <button type="button" class="service-btn" onclick="addQuickService('Sintraboard'); setActiveService(this)" data-service="Sintraboard">Sintraboard</button>
-                        <button type="button" class="service-btn" onclick="addQuickService('Standees'); setActiveService(this)" data-service="Standees">Standees</button>
-                        <button type="button" class="service-btn" onclick="addQuickService('Souvenirs'); setActiveService(this)" data-service="Souvenirs">Souvenirs</button>
-                        <button type="button" class="service-btn btn-other" onclick="addOtherService(); setActiveService(this)" data-service="Other">+ Other</button>
+                    <!-- Products View -->
+                    <div id="products-view" style="display: none; height: 100%; flex-direction: column;">
+                        <div class="pos-search-header">
+                            <div class="pos-search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="pos-search" class="pos-search-input" placeholder="Search products...">
+                            </div>
+                            <select id="pos-category" class="pos-category-select">
+                                <option value="">All Categories</option>
+                                <?php foreach($categories as $cat): ?>
+                                    <option value="<?= htmlspecialchars($cat['category']) ?>"><?= htmlspecialchars($cat['category']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div style="flex: 1;"></div>
+                            <button onclick="backToSelection()" class="pos-category-select" style="min-width: auto; padding: 12px 20px; background: #f8fafc; border-color: #cbd5e1; cursor: pointer; width: auto; display: flex; align-items: center; gap: 8px;" title="Back to selection">
+                                <i class="fas fa-arrow-left"></i> <span>Back</span>
+                            </button>
+                        </div>
+                        <div class="pos-products-grid" id="pos-products-grid"></div>
+                    </div>
+                    
+                    <!-- Services View -->
+                    <div id="services-view" style="display: none; height: 100%; flex-direction: column;">
+                        <div style="padding: 24px; border-bottom: 1px solid #e2e8f0; background: #fff; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h2 style="font-weight:700; font-size:18px; color:#1e293b; margin:0;">Available Services</h2>
+                                <p style="font-size:13px; color:#64748b; margin-top:4px;">Quickly add a printing service to the order.</p>
+                            </div>
+                            <button onclick="backToSelection()" class="pos-category-select" style="min-width: auto; padding: 12px 16px; background: #f8fafc; border-color: #cbd5e1; cursor: pointer;" title="Back to selection">
+                                <i class="fas fa-arrow-left"></i> Back
+                            </button>
+                        </div>
+                        
+                        <div class="pos-services-grid" style="border-bottom:none; padding: 24px; overflow-y: auto;">
+                            <?php if (empty($pos_services)): ?>
+                                <div style="grid-column:1/-1;text-align:center;color:#64748b;padding:2rem;">No services available.</div>
+                            <?php else: ?>
+                                <?php foreach ($pos_services as $svc): ?>
+                                    <button type="button" class="service-btn"
+                                        onclick="openServiceModal(<?php echo (int)$svc['service_id']; ?>, '<?php echo addslashes($svc['name']); ?>'); setActiveService(this)"
+                                        data-service="<?php echo htmlspecialchars($svc['name']); ?>">
+                                        <?php echo htmlspecialchars($svc['name']); ?>
+                                    </button>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
                 
@@ -563,13 +706,14 @@ try {
                     
                     <div class="pos-customer-section">
                         <div class="pos-customer-label">
-                            <span>Customer</span>
+                            <span>Customer *</span>
                             <button class="pos-btn-link" onclick="openNewCustomerModal()">+ New</button>
                         </div>
-                        <select id="pos-customer" class="pos-category-select" style="width: 100%; min-width: unset;">
+                        <select id="pos-customer" class="pos-category-select" style="width: 100%; min-width: unset;" required>
+                            <option value="">-- Select Customer --</option>
                             <option value="guest">Walk-in Customer (Guest)</option>
                             <?php foreach($customers as $c): ?>
-                                <option value="<?= $c['customer_id'] ?>"><?= htmlspecialchars($c['first_name'] . ' ' . $c['last_name']) ?></option>
+                                <option value="<?= $c['customer_id'] ?>"><?= htmlspecialchars($c['first_name'] . ' ' . $c['last_name']) ?><?= !empty($c['email']) ? ' - ' . htmlspecialchars($c['email']) : (!empty($c['contact_number']) ? ' - ' . htmlspecialchars($c['contact_number']) : ' - No contact') ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -629,7 +773,22 @@ try {
     </div>
 </div>
 
-<!-- POS Customization Modal -->
+<!-- Service Order Modal (DB-driven fields) -->
+<div id="service-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeServiceModal()">
+    <div style="background:#fff;width:100%;max-width:680px;border-radius:20px;padding:0;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #e2e8f0;display:flex;flex-direction:column;max-height:90vh;overflow:hidden;">
+        <div style="padding:20px 24px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+            <h3 id="sm-title" style="margin:0;font-size:18px;font-weight:800;color:#0f172a;"></h3>
+            <button onclick="closeServiceModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;padding:4px;" onmouseover="this.style.color='#1e293b'" onmouseout="this.style.color='#94a3b8'">&times;</button>
+        </div>
+        <div id="sm-fields-body" style="overflow-y:auto;flex:1;padding:20px 24px;"></div>
+        <div id="sm-footer-actions" style="display:none;padding:16px 24px;border-top:1px solid #e2e8f0;background:#f8fafc;flex-shrink:0;">
+            <div style="display:flex;gap:10px;">
+                <button onclick="closeServiceModal()" style="flex:1;padding:12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#64748b;font-weight:700;cursor:pointer;font-size:14px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">Cancel</button>
+                <button onclick="confirmServiceModal()" style="flex:2;padding:12px;border:none;border-radius:10px;background:#4f46e5;color:#fff;font-weight:700;cursor:pointer;font-size:14px;box-shadow:0 4px 12px rgba(79,70,229,0.3);" onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">Add to Order</button>
+            </div>
+        </div>
+    </div>
+</div>
 <div id="custom-modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center; flex-direction:column;">
     <div style="background:#ffffff; width:450px; border-radius:20px; padding:28px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.15); border:1px solid #e2e8f0; transform:translateY(0); transition:all 0.3s; margin:16px; color:#1e293b;">
         <h3 id="cm-title" style="margin:0 0 20px 0; font-size:20px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">Product Customization</h3>
@@ -647,15 +806,29 @@ try {
 
 <!-- Modal for New Customer -->
 <div id="customer-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:999; align-items:center; justify-content:center;">
-    <div style="background:#ffffff; width:400px; border-radius:20px; padding:28px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.15); color:#1e293b; border:1px solid #e2e8f0;">
+    <div style="background:#ffffff; width:450px; border-radius:20px; padding:28px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.15); color:#1e293b; border:1px solid #e2e8f0;">
         <div style="display:flex; justify-content:space-between; margin-bottom:24px;">
             <h3 style="margin:0; font-weight:800; color:#0f172a; font-size:20px; letter-spacing:-0.02em;">Add Customer</h3>
             <button onclick="closeCustomerModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:#94a3b8; padding:4px;" onmouseover="this.style.color='#1e293b'" onmouseout="this.style.color='#94a3b8'">&times;</button>
         </div>
-        <input type="text" id="nc-first" placeholder="First Name" style="width:100%; padding:14px; margin-bottom:16px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#1e293b; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#06A1A1';this.style.background='#fff'">
-        <input type="text" id="nc-last" placeholder="Last Name" style="width:100%; padding:14px; margin-bottom:16px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#1e293b; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#06A1A1';this.style.background='#fff'">
-        <input type="tel" id="nc-phone" placeholder="Phone Number" style="width:100%; padding:14px; margin-bottom:24px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#1e293b; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#06A1A1';this.style.background='#fff'">
-        <button onclick="saveCustomer()" id="nc-save-btn" style="width:100%; background:#4f46e5; color:white; padding:14px; border:none; border-radius:12px; font-weight:700; cursor:pointer; box-shadow:0 10px 15px -3px rgba(79,70,229,0.3); transition:all 0.2s;" onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">Save Customer</button>
+        <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px;">First Name *</label>
+            <input type="text" id="nc-first" placeholder="Enter first name" style="width:100%; padding:12px; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; color:#1e293b; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#06A1A1';this.style.background='#fff'" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'">
+        </div>
+        <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px;">Last Name *</label>
+            <input type="text" id="nc-last" placeholder="Enter last name" style="width:100%; padding:12px; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; color:#1e293b; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#06A1A1';this.style.background='#fff'" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'">
+        </div>
+        <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px;">Email Address *</label>
+            <input type="email" id="nc-email" placeholder="customer@example.com" style="width:100%; padding:12px; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; color:#1e293b; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#06A1A1';this.style.background='#fff'" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'">
+            <small style="display:block; margin-top:4px; font-size:11px; color:#64748b;">A password setup link will be sent to this email</small>
+        </div>
+        <div style="margin-bottom:24px;">
+            <label style="display:block; font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px;">Phone Number (Optional)</label>
+            <input type="tel" id="nc-phone" placeholder="09XX XXX XXXX" style="width:100%; padding:12px; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; color:#1e293b; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#06A1A1';this.style.background='#fff'" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'">
+        </div>
+        <button onclick="saveCustomer()" id="nc-save-btn" style="width:100%; background:#4f46e5; color:white; padding:14px; border:none; border-radius:12px; font-weight:700; cursor:pointer; box-shadow:0 10px 15px -3px rgba(79,70,229,0.3); transition:all 0.2s;" onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">Create Customer & Send Email</button>
     </div>
 </div>
 
@@ -681,20 +854,88 @@ try {
     </div>
 </div>
 
+<?php
+// Inject the same field interaction scripts used by order_service_dynamic.php
+require_once __DIR__ . '/../includes/service_field_renderer.php';
+echo get_service_field_scripts();
+?>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 window.POS_BRANCHES = <?php echo json_encode(array_map(function($b){return ['id'=>(int)$b['id'],'name'=>$b['branch_name']];}, $branches ?: [])); ?>;
 
 let products = [];
 let cart = [];
 let currentTotal = 0;
+let currentMode = null; // 'products' or 'services'
 
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize Select2 for customer dropdown
+$(document).ready(function() {
+    $('#pos-customer').select2({
+        placeholder: '-- Select Customer --',
+        allowClear: false,
+        width: '100%',
+        minimumResultsForSearch: 0 // Always show search box
+    });
+    
+    // Set default to guest
+    $('#pos-customer').val('guest').trigger('change');
+});
+
+function showPOSMode(mode) {
+    currentMode = mode;
+    document.getElementById('selection-view').style.display = 'none';
+    
+    if (mode === 'products') {
+        document.getElementById('products-view').style.display = 'flex';
+        document.getElementById('services-view').style.display = 'none';
+        // Force re-render products to ensure they show with icons
+        if (products.length > 0) {
+            renderProducts();
+        } else {
+            fetchProducts();
+        }
+    } else if (mode === 'services') {
+        document.getElementById('products-view').style.display = 'none';
+        document.getElementById('services-view').style.display = 'flex';
+    }
+}
+
+function backToSelection() {
+    currentMode = null;
+    document.getElementById('selection-view').style.display = 'flex';
+    document.getElementById('products-view').style.display = 'none';
+    document.getElementById('services-view').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
     fetchProducts();
     refreshCart(); // Initialize cart from session
     const searchEl = document.getElementById('pos-search');
     const catEl = document.getElementById('pos-category');
     if (searchEl) searchEl.addEventListener('input', renderProducts);
     if (catEl) catEl.addEventListener('change', renderProducts);
+    
+    // Check if returning from customizations page with updated price
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('from_customizations') === '1') {
+        // Restore customer selection if saved
+        const savedState = sessionStorage.getItem('pos_cart_state');
+        if (savedState) {
+            try {
+                const state = JSON.parse(savedState);
+                if (state.customer) {
+                    $('#pos-customer').val(state.customer).trigger('change');
+                }
+            } catch (e) {}
+            sessionStorage.removeItem('pos_cart_state');
+        }
+        // Cart price already updated in session — just refresh silently
+        await refreshCart();
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
 });
 
 async function syncedCartAction(action, payload = {}) {
@@ -729,29 +970,178 @@ async function refreshCart() {
 }
 
 async function fetchProducts() {
+    const grid = document.getElementById('pos-products-grid');
+    if (grid) {
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:#94a3b8;"><i class="fas fa-spinner fa-spin" style="font-size:32px; margin-bottom:16px;"></i><br>Loading products...</div>';
+    }
     try {
         const res = await fetch('/printflow/staff/api/get_products.php');
         const data = await res.json();
+        console.log('Products API Response:', data);
         if(data.success) {
             products = data.products || [];
-            const grid = document.getElementById('pos-products-grid');
+            console.log('Total products loaded:', products.length);
+            if (products.length > 0) {
+                console.log('Sample product:', products[0]);
+            }
             if (grid) renderProducts();
         } else {
-            const grid = document.getElementById('pos-products-grid');
-            if (grid) grid.innerHTML = '<p style="color:red; text-align:center; padding:20px;">Failed to load products.</p>';
+            if (grid) grid.innerHTML = '<p style="color:red; text-align:center; padding:20px;">Failed to load products: ' + (data.message || 'Unknown error') + '</p>';
         }
     } catch(e) {
-        const grid = document.getElementById('pos-products-grid');
-        if (grid) grid.innerHTML = '<p style="color:red; text-align:center; padding:20px;">Network error.</p>';
+        console.error('Fetch error:', e);
+        if (grid) grid.innerHTML = '<p style="color:red; text-align:center; padding:20px;">Network error: ' + e.message + '</p>';
     }
 }
 
-// POS Dynamic Requirements Config - Synced with customer service forms (excluding Notes)
+// ── Service Modal (DB-driven fields) ────────────────────────────────────────
 function getBranchField() {
     const branches = (window.POS_BRANCHES || []).map(b => ({ value: b.id, label: b.name }));
     const hasBranches = branches && branches.length > 0;
     return { label: 'Branch *', type: 'select', name: 'branch_id', options: branches, required: hasBranches };
 }
+
+async function openServiceModal(serviceId, serviceName) {
+    console.log('openServiceModal called:', serviceId, serviceName);
+    const overlay = document.getElementById('service-modal-overlay');
+    const title   = document.getElementById('sm-title');
+    const body    = document.getElementById('sm-fields-body');
+    const footerActions = document.getElementById('sm-footer-actions');
+
+    title.textContent = serviceName + ' — Order Details';
+    body.innerHTML = '<div style="text-align:center;padding:2rem;color:#64748b;"><i class="fas fa-spinner fa-spin"></i> Loading fields...</div>';
+    footerActions.style.display = 'none';
+    overlay.style.display = 'flex';
+    overlay.dataset.serviceId = serviceId;
+    overlay.dataset.serviceName = serviceName;
+
+    try {
+        const res  = await fetch('/printflow/staff/api/pos_service_fields.php?service_id=' + serviceId);
+        const data = await res.json();
+        console.log('Service fields response:', data);
+        if (!data.success) {
+            body.innerHTML = '<p style="color:#ef4444;text-align:center;padding:1rem;">' + (data.error || 'Failed to load fields.') + '</p>';
+            return;
+        }
+        overlay.dataset.csrfToken = data.csrf_token;
+        body.innerHTML = data.fields_html;
+        footerActions.style.display = 'block';
+
+        // Lock branch to staff's assigned branch
+        if (data.staff_branch_id) {
+            const branchSel = body.querySelector('select[name="branch_id"]');
+            if (branchSel) {
+                branchSel.value = data.staff_branch_id;
+                branchSel.disabled = true;
+                branchSel.style.opacity = '0.7';
+                branchSel.style.cursor = 'not-allowed';
+                // Add hidden input so disabled value is still submitted
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'branch_id';
+                hidden.value = data.staff_branch_id;
+                branchSel.parentNode.appendChild(hidden);
+            }
+        }
+
+        // Re-run the field scripts (conditional logic, qty buttons, etc.)
+        if (typeof updateConditionalFields === 'function') updateConditionalFields();
+        body.querySelectorAll('.shopee-opt-btn input[type="radio"]').forEach(r => {
+            r.addEventListener('change', function() {
+                if (typeof updateOptVisual === 'function') updateOptVisual(this);
+                if (typeof updateConditionalFields === 'function') updateConditionalFields();
+            });
+        });
+        body.querySelectorAll('select').forEach(s => {
+            s.addEventListener('change', function() {
+                if (typeof updateConditionalFields === 'function') updateConditionalFields();
+            });
+        });
+    } catch(e) {
+        body.innerHTML = '<p style="color:#ef4444;text-align:center;padding:1rem;">Network error. Please try again.</p>';
+    }
+}
+
+function closeServiceModal() {
+    document.getElementById('service-modal-overlay').style.display = 'none';
+}
+
+async function confirmServiceModal() {
+    const overlay     = document.getElementById('service-modal-overlay');
+    const serviceId   = parseInt(overlay.dataset.serviceId);
+    const serviceName = overlay.dataset.serviceName;
+    const body        = document.getElementById('sm-fields-body');
+
+    // Collect all field values from the rendered form
+    const customization = {};
+    let valid = true;
+
+    // Branch — prefer hidden input (set when locked for staff)
+    const branchHidden = body.querySelector('input[type="hidden"][name="branch_id"]');
+    const branchSel = body.querySelector('select[name="branch_id"]');
+    const branchVal = (branchHidden && branchHidden.value) ? branchHidden.value : (branchSel ? branchSel.value : '');
+    if (!branchVal) { alert('Please select a branch.'); if (branchSel) branchSel.focus(); return; }
+    customization['branch_id'] = branchVal;
+
+    // All visible rows
+    body.querySelectorAll('.shopee-form-row').forEach(row => {
+        if (row.style.display === 'none') return; // skip hidden conditional rows
+        const label = row.querySelector('.shopee-form-label');
+        if (!label) return;
+        const labelText = label.innerText.replace('*','').trim();
+        const isRequired = label.innerText.includes('*');
+
+        // Radio
+        const checkedRadio = row.querySelector('input[type="radio"]:checked');
+        if (checkedRadio) { customization[labelText] = checkedRadio.value; return; }
+
+        // Select (non-branch)
+        const sel = row.querySelector('select:not([name="branch_id"])'); 
+        if (sel && sel.value) { customization[labelText] = sel.value; }
+        if (sel && isRequired && !sel.value) { alert(labelText + ' is required.'); valid = false; }
+
+        // Date
+        const dateInput = row.querySelector('input[type="date"]');
+        if (dateInput && dateInput.value) { customization[labelText] = dateInput.value; }
+        if (dateInput && isRequired && !dateInput.value) { alert(labelText + ' is required.'); valid = false; }
+
+        // Quantity
+        const qtyInput = row.querySelector('#quantity-input');
+        if (qtyInput) { customization['quantity'] = qtyInput.value || 1; }
+
+        // Textarea (notes)
+        const textarea = row.querySelector('textarea');
+        if (textarea && textarea.value.trim()) { customization[labelText] = textarea.value.trim(); }
+
+        // Dimension hidden fields
+        const wh = row.querySelector('#width_hidden');
+        const hh = row.querySelector('#height_hidden');
+        if (wh && hh) {
+            if (wh.value && hh.value) { customization[labelText] = wh.value + '×' + hh.value; }
+            else if (isRequired) { alert(labelText + ' is required.'); valid = false; }
+        }
+
+        // Text / number
+        const textInput = row.querySelector('input[type="text"], input[type="number"]:not(#quantity-input)');
+        if (textInput && !textInput.id.includes('hidden') && textInput.value.trim()) {
+            customization[labelText] = textInput.value.trim();
+        }
+    });
+
+    // Add service to cart with price = 0 (will be set in customizations page)
+    const result = await syncedCartAction('add', {
+        product_id: serviceId,
+        name: serviceName,
+        price: 0,
+        qty: parseInt(customization['quantity'] || 1),
+        customization: customization,
+        is_service: true
+    });
+
+    if (result.success) closeServiceModal();
+}
+
+// ── Legacy service requirements (kept for product-based services) ─────────────
 const serviceRequirements = {
     'Tarpaulin': [
         getBranchField,
@@ -914,11 +1304,16 @@ function expandRequirements(key, productType) {
 
 function renderProducts() {
     const grid = document.getElementById('pos-products-grid');
-    if (!grid) return;
+    if (!grid) {
+        console.error('Grid element not found!');
+        return;
+    }
     const searchEl = document.getElementById('pos-search');
     const catEl = document.getElementById('pos-category');
     const search = (searchEl ? searchEl.value : '').toLowerCase();
     const cat = catEl ? catEl.value : '';
+    
+    console.log('Rendering products. Total products:', products.length);
     
     grid.innerHTML = '';
     
@@ -928,29 +1323,37 @@ function renderProducts() {
         return mSearch && mCat;
     });
     
+    console.log('Filtered products:', filtered.length);
+    if (filtered.length > 0) {
+        console.log('Sample product:', filtered[0]);
+    }
+    
     if(filtered.length === 0) {
         grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:#94a3b8;">No products found.</div>';
         return;
     }
     
-    filtered.forEach(p => {
+    filtered.forEach((p, index) => {
         const outOfStock = p.stock_quantity <= 0;
-        const img = p.product_image ? '/printflow/' + p.product_image : '/printflow/public/assets/images/services/default.png';
         
         const card = document.createElement('div');
         card.className = `pos-card ${outOfStock ? 'no-stock' : ''}`;
         if(!outOfStock) card.onclick = () => addToCart(p);
         
+        const priceFormatted = parseFloat(p.price || 0).toFixed(2);
+        const productName = p.product_name || 'Unnamed Product';
+        const stockQty = parseInt(p.stock_quantity) || 0;
+        
         card.innerHTML = `
-            <div class="pos-card-img-container">
-                <img src="${img}" class="pos-card-img" onerror="this.onerror=null; this.src='/printflow/public/images/products/README.md'; this.outerHTML='<div style=\\'background:#f1f5f9; height:100%; display:flex; align-items:center; justify-content:center; font-size:32px;\\'>📦</div>';">
-                <div class="pos-card-price">₱${parseFloat(p.price).toFixed(2)}</div>
+            <div class="pos-card-icon-container">
+                <div class="pos-card-price-top">₱${priceFormatted}</div>
+                <div class="pos-card-product-name">${productName}</div>
             </div>
             <div class="pos-card-body">
-                <div class="pos-card-title">${p.product_name}</div>
+                <div class="pos-card-title">${p.category || 'Product'}</div>
                 <div class="pos-card-stock">
-                    <i class="fas ${outOfStock ? 'fa-times-circle text-red' : 'fa-check-circle text-green'}" style="color:${outOfStock ? '#ef4444' : '#06A1A1'}"></i>
-                    ${outOfStock ? 'Out of Stock' : p.stock_quantity + ' available'}
+                    <i class="fas ${outOfStock ? 'fa-times-circle' : 'fa-check-circle'}" style="color:${outOfStock ? '#ef4444' : '#06A1A1'}; font-size:8px;"></i>
+                    <span>${outOfStock ? 'Out' : stockQty + ' left'}</span>
                 </div>
             </div>
         `;
@@ -1348,7 +1751,7 @@ function confirmPrice() {
     const price = parseFloat(document.getElementById('pm-price-input').value);
     
     if (isOtherService && !name) return alert('Please enter a service name.');
-    if (isNaN(price) || price < 0) return alert('Please enter a valid price.');
+    if (isNaN(price) || price <= 0) return alert('Please enter a valid price.');
     
     addToCartWithCustomization(pendingProduct, price, name, pendingCustomization);
     closePriceModal();
@@ -1371,52 +1774,8 @@ function setActiveService(btn) {
     setTimeout(() => btn && btn.classList.remove('active'), 400);
 }
 
-function addQuickService(serviceName) {
-    // Mapping for UI button names to DB category names
-    const categoryMap = {
-        'Decals / Stickers': 'Decals & Stickers',
-        'T-Shirt': 'Apparel',
-        'Glass/Wall': 'Glass/Wall',
-        'Transparent': 'Transparent Stickers',
-        'Sintraboard': 'Sintraboard',
-        'Standees': 'Standees',
-        'Souvenirs': 'Souvenirs',
-        'Reflectorized': 'Reflectorized'
-    };
-    
-    const dbCategory = categoryMap[serviceName] || serviceName;
-    
-    // Look for exact category match first, then partial product name match
-    let p = products.find(prod => 
-        prod.category === dbCategory || 
-        prod.product_name.toLowerCase().includes(serviceName.toLowerCase()) ||
-        prod.product_name.toLowerCase().includes(dbCategory.toLowerCase())
-    );
-    if(!p) p = products.find(prod => prod.category.includes(serviceName));
-
-    if(p) {
-        const reqs = getRequirementsForProduct(p.product_name, p.category);
-        if (reqs) {
-            openCustomModal(p, reqs);
-        } else {
-            addToCart(p);
-        }
-    } else {
-        // Create a temporary product object if not found in catalog
-        const fallback = { product_id: 21, product_name: serviceName, category: serviceName, price: 0, stock_quantity: null };
-        const reqs = getRequirementsForProduct(serviceName, serviceName);
-        if (reqs) {
-             openCustomModal(fallback, reqs);
-        } else {
-             addToCart(fallback);
-        }
-    }
-}
-
-function addOtherService() {
-    const otherBase = { product_id: 21, product_name: 'Other', category: 'Other', price: 0, stock_quantity: null };
-    openPriceModal(otherBase, true);
-}
+// addQuickService kept as no-op for legacy compatibility
+function addQuickService(serviceName) {}
 
 async function updateQtyByCartIndex(index, delta) {
     const item = cart[index];
@@ -1455,6 +1814,9 @@ function renderCart() {
             const div = document.createElement('div');
             div.className = 'pos-cart-item';
             
+            // Check if item is a service (price = 0 or is_service flag)
+            const isService = item.is_service || item.price === 0;
+            
             let customHtml = '';
             if (item.customization) {
                 const parts = [];
@@ -1465,11 +1827,18 @@ function renderCart() {
                     customHtml = `<div style="font-size:11px; color:#64748b; margin-top:2px; line-height:1.2; word-break:break-word; max-height: 48px; overflow-y: auto;">${parts.join(' | ')}</div>`;
                 }
             }
+
+            const priceHtml = isService
+                ? `<button onclick="redirectToSetPrice(${index})" style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:2px 8px;background:#fef3c7;border:1px solid #f59e0b;border-radius:5px;font-size:12px;font-weight:700;color:#d97706;text-decoration:none;cursor:pointer;border:none;" title="Click to set price in Customizations">
+                    <i class="fas fa-tag" style="font-size:10px;"></i> Set Price
+                  </button>`
+                : `<div class="pos-item-price" style="margin-top:2px;">₱${item.price.toFixed(2)}</div>`;
             
             div.innerHTML = `
                 <div class="pos-item-details" style="flex:1;">
                     <div class="pos-item-name">${item.name}</div>
-                    <div class="pos-item-price" style="margin-top:2px;">₱${item.price.toFixed(2)}</div>
+                    ${priceHtml}
+                    ${customHtml}
                 </div>
                 <div class="pos-item-controls">
                     <button class="pos-qty-btn" style="font-size:16px; line-height:1; font-weight:bold;" onclick="updateQtyByCartIndex(${index}, -1)">&minus;</button>
@@ -1547,6 +1916,25 @@ function updateCheckoutState() {
     let canCheckout = true;
     let message = 'Complete Sale';
     
+    // Check if customer is selected
+    const customer = $('#pos-customer').val();
+    if (!customer) {
+        canCheckout = false;
+        message = 'Select Customer';
+    }
+    
+    // Check if cart has any services with price = 0
+    const hasUnpricedService = cart.some(i => (i.is_service || i.price === 0) && i.price === 0);
+    
+    if (hasUnpricedService) {
+        canCheckout = false;
+        message = 'Set Price First';
+        icon.className = 'fas fa-lock';
+        text.textContent = message;
+        btn.disabled = true;
+        return;
+    }
+    
     const pm = document.getElementById('pos-payment-method').value;
     const ref = document.getElementById('pos-reference').value.trim();
     
@@ -1555,6 +1943,7 @@ function updateCheckoutState() {
         message = 'Enter Ref Number';
     }
     
+    // Regular products require payment
     const tendered = parseFloat(document.getElementById('pos-tendered').value) || 0;
     if (tendered < currentTotal || tendered > 1000000) {
         canCheckout = false;
@@ -1569,6 +1958,20 @@ function updateCheckoutState() {
 async function processCheckout() {
     if(cart.length === 0) return;
     
+    // Validate customer selection
+    const customer = $('#pos-customer').val();
+    if (!customer) {
+        alert('Please select a customer before checkout.');
+        return;
+    }
+    
+    // Block checkout if any item has price = 0
+    const hasUnpricedService = cart.some(i => (i.is_service || i.price === 0) && i.price === 0);
+    if (hasUnpricedService) {
+        alert('Please set the price for all items before completing the sale.\n\nClick the yellow "Set Price" button on items to set their price in Customizations.');
+        return;
+    }
+    
     const pm = document.getElementById('pos-payment-method').value;
     const ref = document.getElementById('pos-reference').value.trim();
     if (pm !== 'Cash' && !ref) {
@@ -1577,13 +1980,16 @@ async function processCheckout() {
     }
     
     const tendered = parseFloat(document.getElementById('pos-tendered').value) || 0;
+    
     if (tendered < currentTotal || tendered > 1000000) {
         alert("Amount tendered must be at least ₱" + currentTotal.toFixed(2) + " and not exceed ₱1,000,000.");
         return;
     }
     
     const changeAmount = (tendered - currentTotal).toFixed(2);
-    if(!confirm(`Confirm payment of ₱${currentTotal.toFixed(2)} using ${pm}?\nChange due: ₱${changeAmount}\n\nProceed to finish the transaction?`)) {
+    const confirmMsg = `Confirm sale of ₱${currentTotal.toFixed(2)} using ${pm}?\nChange due: ₱${changeAmount}`;
+    
+    if(!confirm(confirmMsg)) {
         return;
     }
     
@@ -1594,11 +2000,11 @@ async function processCheckout() {
     
     const payload = {
         action: 'walkin_checkout',
-        customer_id: document.getElementById('pos-customer').value,
+        customer_id: $('#pos-customer').val(),
         payment_method: pm,
         reference_number: ref,
         amount_tendered: tendered,
-        items: cart.map(i => ({ id: i.product_id, qty: i.qty, price: i.price, name: i.name || null, customization: i.customization || null }))
+        items: cart.map(i => ({ id: i.product_id, qty: i.qty, price: i.price, name: i.name || null, customization: i.customization || null, is_service: i.is_service || false }))
     };
     
     try {
@@ -1607,11 +2013,20 @@ async function processCheckout() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
-        const data = await res.json();
+        const text = await res.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch(parseErr) {
+            console.error('Non-JSON response from checkout:', text);
+            alert('Server error. Check browser console for details.');
+            updateCheckoutState();
+            return;
+        }
         if(data.success) {
             alert('Sale Completed! Order ID: ' + data.order_id);
             await syncedCartAction('clear');
-            document.getElementById('pos-customer').value = 'guest';
+            $('#pos-customer').val('guest').trigger('change');
             document.getElementById('pos-tendered').value = '';
             document.getElementById('pos-reference').value = '';
             document.getElementById('pos-payment-method').value = 'Cash';
@@ -1619,10 +2034,11 @@ async function processCheckout() {
             fetchProducts();
         } else {
             alert('Checkout failed: ' + (data.message || 'Error'));
+            updateCheckoutState();
         }
-    } catch(e) {
-        alert('Network error.');
-    } finally {
+    } catch (e) {
+        console.error('Checkout error:', e);
+        alert('Network error: ' + e.message);
         updateCheckoutState();
     }
 }
@@ -1636,37 +2052,75 @@ function closeCustomerModal() {
 async function saveCustomer() {
     const first = document.getElementById('nc-first').value.trim();
     const last = document.getElementById('nc-last').value.trim();
-    if(!first || !last) return alert('First and Last name required.');
+    const email = document.getElementById('nc-email').value.trim();
+    const phone = document.getElementById('nc-phone').value.trim();
     
-    document.getElementById('nc-save-btn').textContent = 'Saving...';
+    // Validation
+    if(!first) {
+        alert('First name is required.');
+        document.getElementById('nc-first').focus();
+        return;
+    }
+    if(!last) {
+        alert('Last name is required.');
+        document.getElementById('nc-last').focus();
+        return;
+    }
+    if(!email) {
+        alert('Email address is required.');
+        document.getElementById('nc-email').focus();
+        return;
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if(!emailRegex.test(email)) {
+        alert('Please enter a valid email address.');
+        document.getElementById('nc-email').focus();
+        return;
+    }
+    
+    const btn = document.getElementById('nc-save-btn');
+    btn.textContent = 'Creating customer...';
+    btn.disabled = true;
+    
     try {
         const res = await fetch('/printflow/staff/api/pos_add_customer.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                first_name: first, last_name: last,
-                contact_number: document.getElementById('nc-phone').value.trim()
+                first_name: first,
+                last_name: last,
+                email: email,
+                contact_number: phone
             })
         });
         const data = await res.json();
         if(data.success) {
-            const sel = document.getElementById('pos-customer');
-            const opt = document.createElement('option');
-            opt.value = data.customer_id;
-            opt.textContent = `${first} ${last}`;
-            sel.appendChild(opt);
-            sel.value = data.customer_id;
+            const sel = $('#pos-customer');
+            const displayText = `${first} ${last} - ${email}`;
+            const opt = $('<option></option>').attr('value', data.customer_id).text(displayText);
+            sel.append(opt);
+            sel.val(data.customer_id).trigger('change');
             closeCustomerModal();
+            
+            // Clear form
             document.getElementById('nc-first').value = '';
             document.getElementById('nc-last').value = '';
+            document.getElementById('nc-email').value = '';
             document.getElementById('nc-phone').value = '';
+            
+            // Show success message
+            alert(`Customer created successfully!\n\nA password setup email has been sent to ${email}.\nThe customer can use this email to create their account password.`);
         } else {
-            alert('Failed: ' + data.message);
+            alert('Failed: ' + (data.message || 'Unknown error'));
         }
     } catch(e) {
-        alert('Error.');
+        console.error('Error:', e);
+        alert('Network error. Please try again.');
     } finally {
-        document.getElementById('nc-save-btn').textContent = 'Save Customer';
+        btn.textContent = 'Create Customer & Send Email';
+        btn.disabled = false;
     }
 }
 
@@ -1682,6 +2136,58 @@ window.togglePosOtherInput = togglePosOtherInput;
 window.updateQtyByCartIndex = updateQtyByCartIndex;
 window.removeByCartIndex = removeByCartIndex;
 window.clearCart = clearCart;
+
+async function redirectToSetPrice(index) {
+    const item = cart[index];
+    if (!item) return;
+    
+    // Validate customer is selected
+    const customer = $('#pos-customer').val();
+    if (!customer) {
+        alert('Please select a customer first.');
+        return;
+    }
+    
+    // Store cart state in session storage
+    sessionStorage.setItem('pos_cart_state', JSON.stringify({
+        cart: cart,
+        customer: customer,
+        item_index: index
+    }));
+    
+    // Create a temporary customization entry
+    const payload = {
+        action: 'create_pending_customization',
+        customer_id: customer,
+        item: {
+            id: item.product_id,
+            name: item.name,
+            qty: item.qty,
+            customization: item.customization || null,
+            is_service: item.is_service || false
+        }
+    };
+    
+    try {
+        const res = await fetch('/printflow/staff/api/pos_checkout.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success && data.customization_id) {
+            // Redirect to customizations page
+            window.location.href = '/printflow/staff/customizations.php?status=PENDING&order_id=' + data.customization_id + '&job_type=CUSTOMIZATION&return_to_pos=1';
+        } else {
+            alert('Failed to create customization: ' + (data.message || 'Unknown error'));
+        }
+    } catch (e) {
+        console.error('Error:', e);
+        alert('Network error. Please try again.');
+    }
+}
+
+window.redirectToSetPrice = redirectToSetPrice;
 </script>
 
 </body>

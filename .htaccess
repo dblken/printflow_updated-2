@@ -28,6 +28,9 @@
     RewriteRule ^403\.php$ public/403.php [L]
     RewriteRule ^500\.php$ public/500.php [L]
 
+    # Customer service ordering: /printflow/customer/order/5 -> customer/order_service_dynamic.php?service_id=5
+    RewriteRule ^customer/order/([0-9]+)/?$ customer/order_service_dynamic.php?service_id=$1 [L,QSA]
+
     # Home: /printflow/ or /printflow/index/ -> public/index.php
     RewriteRule ^index/?$ public/index.php [L,QSA]
     RewriteRule ^$ public/index.php [L,QSA]

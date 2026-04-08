@@ -14,7 +14,14 @@ require_once __DIR__ . '/../includes/require_id_verified.php';
 $customer_id = get_user_id();
 
 $service_id = (int)($_GET['service_id'] ?? 0);
+$edit_item_key = $_GET['edit_item'] ?? '';
 $error = '';
+
+// Load existing cart data if editing
+$existing_data = [];
+if ($edit_item_key && isset($_SESSION['cart'][$edit_item_key])) {
+    $existing_data = $_SESSION['cart'][$edit_item_key];
+}
 
 if ($service_id < 1) {
     header('Location: services.php');
@@ -52,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
     
     // Validate branch
     if ($branch_id < 1) {
-        $error = 'Please select a branch.';
+        $error = 'Please select a branch for pickup.';
     }
     
     // Validate all required fields dynamically
@@ -213,6 +220,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
             $_SESSION['cart'][$item_key] = [
                 'type' => 'Service',
                 'source_page' => 'services',
+                'service_id' => $service_id,
+                'product_id' => $service_id,
                 'name' => $service['name'],
                 'price' => $total_price,
                 'quantity' => $quantity,
@@ -380,7 +389,7 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
                 <form action="" method="POST" enctype="multipart/form-data" id="serviceForm" data-pf-skip-validation="true" novalidate>
                     <?php echo csrf_field(); ?>
                     
-                    <?php echo render_service_fields($service_id, $branches); ?>
+                    <?php echo render_service_fields($service_id, $branches, $existing_data); ?>
                     
                     <div class="shopee-form-row pt-8">
                         <div style="width: 130px;"></div>
@@ -762,7 +771,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Final check: If row is required (*) but has NO value detected in ANY control
                 if (hasControls && !rowHasValue) {
                     const firstControl = row.querySelector('select, label, input:not([type="hidden"]), textarea') || row;
-                    setError(firstControl, `${fieldName} is required.`);
+                    const finalMessage = fieldName.includes('Branch') ? 'Please select a branch for pickup.' : `${fieldName} is required.`;
+                    setError(firstControl, finalMessage);
                 }
             });
             

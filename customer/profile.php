@@ -379,7 +379,7 @@ require_once __DIR__ . '/../includes/header.php';
     --pf-secondary: #0a1f26;
     --pf-accent: #53c5e0;
     --pf-accent-hover: #32a1c4;
-    --pf-text-main: #030d11; /* Changed to dark for the white container as requested */
+    --pf-text-main: #030d11;
     --pf-text-muted: #64748b;
     --pf-border: #e2e8f0;
     --pf-card-bg: #ffffff;
@@ -393,8 +393,17 @@ require_once __DIR__ . '/../includes/header.php';
     background: #fff;
     border-radius: 16px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
-    overflow: hidden; /* Prevent overflow */
+    overflow: hidden;
     box-sizing: border-box;
+}
+
+/* Mobile: reduce padding and margin */
+@media (max-width: 768px) {
+    .profile-container {
+        margin: 20px 1rem;
+        padding: 1.5rem 1rem;
+        border-radius: 12px;
+    }
 }
 
 /* 2. LAYOUT STRUCTURE (GRID / FLEX) */
@@ -405,19 +414,28 @@ require_once __DIR__ . '/../includes/header.php';
     align-items: start;
 }
 
-/* 📱 Responsiveness (Tablet: 992px) */
+/* 📱 Mobile: Single column, sidebar on top */
 @media (max-width: 992px) {
-    .profile-grid { grid-template-columns: 1fr; gap: 2rem; }
-    .profile-container { margin: 20px; padding: 1.5rem; }
+    .profile-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
 }
 
-/* ─ SIDEBAR (LEFT SIDE) ─ */
+/* ─ SIDEBAR (LEFT SIDE / TOP ON MOBILE) ─ */
 .profile-sidebar {
     position: sticky;
     top: 20px;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+@media (max-width: 992px) {
+    .profile-sidebar {
+        position: relative;
+        top: 0;
+    }
 }
 
 .sidebar-content {
@@ -428,6 +446,12 @@ require_once __DIR__ . '/../includes/header.php';
     border: 1px solid var(--pf-border);
 }
 
+@media (max-width: 768px) {
+    .sidebar-content {
+        padding: 1.25rem 1rem;
+    }
+}
+
 .profile-avatar-wrap {
     position: relative;
     display: inline-block;
@@ -435,7 +459,8 @@ require_once __DIR__ . '/../includes/header.php';
 }
 
 .profile-avatar-ring {
-    width: 130px; height: 130px;
+    width: 130px;
+    height: 130px;
     border-radius: 50%;
     overflow: hidden;
     background: #fff;
@@ -444,44 +469,101 @@ require_once __DIR__ . '/../includes/header.php';
     margin: 0 auto;
 }
 
-.profile-avatar-ring img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 768px) {
+    .profile-avatar-ring {
+        width: 110px;
+        height: 110px;
+    }
+}
+
+.profile-avatar-ring img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
 
 .profile-avatar-edit-btn {
     position: absolute;
-    bottom: 5px; right: 5px;
-    width: 32px; height: 32px;
+    bottom: 5px;
+    right: 5px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background: var(--pf-accent);
     color: #fff;
-    display: flex; align-items: center; justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     border: 2px solid #fff;
 }
 
 .profile-user-name {
-    font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.25rem;
-    word-wrap: break-word; overflow-wrap: break-word; word-break: break-word;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.25rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    max-width: 100%;
+    line-height: 1.3;
+}
+
+@media (max-width: 768px) {
+    .profile-user-name {
+        font-size: 1.1rem;
+    }
 }
 
 .profile-user-email {
-    font-size: 0.875rem; color: #64748b; margin-bottom: 1rem; 
-    word-wrap: break-word; overflow-wrap: break-word; word-break: break-all;
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-bottom: 1rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-all;
+    max-width: 100%;
+}
+
+@media (max-width: 768px) {
+    .profile-user-email {
+        font-size: 0.813rem;
+    }
 }
 
 .profile-info-pill {
-    display: flex; justify-content: space-between; padding: 0.75rem 0;
-    border-top: 1px solid #e2e8f0; font-size: 0.813rem;
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-top: 1px solid #e2e8f0;
+    font-size: 0.813rem;
+}
+
+@media (max-width: 768px) {
+    .profile-info-pill {
+        font-size: 0.75rem;
+        padding: 0.65rem 0;
+    }
 }
 
 /* ─ MAIN CONTENT (RIGHT SIDE) ─ */
 .profile-main-content {
-    display: flex; flex-direction: column; gap: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+@media (max-width: 768px) {
+    .profile-main-content {
+        gap: 1.5rem;
+    }
 }
 
 .profile-card {
     background: #fff;
-    padding: 0; /* padding handled in card inner */
+    padding: 0;
     transition: all 0.3s ease;
 }
 
@@ -489,9 +571,28 @@ require_once __DIR__ . '/../includes/header.php';
     transform: translateY(-2px);
 }
 
+@media (max-width: 768px) {
+    .profile-card:hover {
+        transform: none;
+    }
+}
+
 .profile-card-title {
-    font-size: 1.125rem; font-weight: 700; color: #0f172a; 
-    margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .profile-card-title {
+        font-size: 1rem;
+        margin-bottom: 1.25rem;
+    }
 }
 
 /* ─ FORM LAYOUT & ELEMENTS ─ */
@@ -502,9 +603,12 @@ require_once __DIR__ . '/../includes/header.php';
     box-sizing: border-box;
 }
 
-/* 📱 Mobile: 576px */
-@media (max-width: 576px) {
-    .form-grid { grid-template-columns: 1fr; }
+/* 📱 Mobile: Single column */
+@media (max-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
 }
 
 .pf-field-group {
@@ -512,19 +616,46 @@ require_once __DIR__ . '/../includes/header.php';
 }
 
 .pf-label {
-    display: block; font-size: 0.75rem; font-weight: 700; 
-    color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.025em;
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+@media (max-width: 768px) {
+    .pf-label {
+        font-size: 0.7rem;
+        margin-bottom: 6px;
+    }
 }
 
 .pf-input {
-    width: 100%; padding: 12px 14px;
-    border: 1px solid #cbd5e1; border-radius: 8px;
-    font-size: 0.95rem; color: #1e293b; background: #fff;
-    box-sizing: border-box; transition: 0.2s;
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: #1e293b;
+    background: #fff;
+    box-sizing: border-box;
+    transition: 0.2s;
+}
+
+@media (max-width: 768px) {
+    .pf-input {
+        padding: 14px 12px;
+        font-size: 1rem;
+        min-height: 44px;
+    }
 }
 
 .pf-input:focus {
-    outline: none; border-color: var(--pf-accent); box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.1);
+    outline: none;
+    border-color: var(--pf-accent);
+    box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.1);
 }
 
 .pf-btn-primary {
@@ -543,10 +674,27 @@ require_once __DIR__ . '/../includes/header.php';
     text-transform: uppercase;
     font-size: 0.8rem;
     text-decoration: none;
+    min-height: 40px;
+}
+
+@media (max-width: 768px) {
+    .pf-btn-primary {
+        width: 100%;
+        padding: 12px 20px;
+        font-size: 0.85rem;
+        min-height: 48px;
+    }
 }
 
 .pf-btn-primary:hover {
     opacity: 0.9;
+}
+
+/* Button container on mobile */
+@media (max-width: 768px) {
+    .profile-card form > div:last-child {
+        margin-top: 1.25rem !important;
+    }
 }
 
 /* Quick Actions Nav */
@@ -562,12 +710,51 @@ require_once __DIR__ . '/../includes/header.php';
 .profile-nav-item a.active { background: #fff; color: var(--pf-accent); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 
 /* Alerts */
-.pf-alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 2rem; border-left: 4px solid transparent; }
-.pf-alert-error { background: #fef2f2; color: #b91c1c; border-left-color: #ef4444; }
-.pf-alert-success { background: #f0fdf4; color: #15803d; border-left-color: #22c55e; }
+.pf-alert {
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    border-left: 4px solid transparent;
+}
 
-.live-indicator { font-size: 0.75rem; margin-top: 4px; min-height: 1.25rem; transition: 0.2s; }
-.live-indicator.error { color: #dc2626; font-weight: 600; }
+@media (max-width: 768px) {
+    .pf-alert {
+        padding: 0.875rem 1rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.875rem;
+    }
+}
+
+.pf-alert-error {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-left-color: #ef4444;
+}
+
+.pf-alert-success {
+    background: #f0fdf4;
+    color: #15803d;
+    border-left-color: #22c55e;
+}
+
+.live-indicator {
+    font-size: 0.75rem;
+    margin-top: 4px;
+    min-height: 1.25rem;
+    transition: 0.2s;
+}
+
+.live-indicator.error {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+/* Address section responsive */
+@media (max-width: 768px) {
+    #address-form > div:first-of-type {
+        grid-template-columns: 1fr !important;
+    }
+}
 </style>
 
 <div class="min-h-screen py-10" style="background: #f1f5f9;">
@@ -948,15 +1135,24 @@ require_once __DIR__ . '/../includes/header.php';
     display: flex;
     align-items: center;
 }
+
 .password-wrapper input {
     padding-right: 45px !important;
     width: 100%;
 }
+
+@media (max-width: 768px) {
+    .password-wrapper input {
+        padding-right: 50px !important;
+    }
+}
+
 /* Hide browser default password toggle */
 .password-wrapper input::-ms-reveal,
 .password-wrapper input::-ms-clear {
     display: none;
 }
+
 .password-wrapper input::-webkit-credentials-auto-fill-button,
 .password-wrapper input::-webkit-contacts-auto-fill-button {
     visibility: hidden;
@@ -964,6 +1160,7 @@ require_once __DIR__ . '/../includes/header.php';
     position: absolute;
     right: 0;
 }
+
 .password-toggle {
     position: absolute;
     right: 12px;
@@ -980,18 +1177,32 @@ require_once __DIR__ . '/../includes/header.php';
     transition: color 0.2s;
     z-index: 10;
     outline: none;
+    min-width: 32px;
+    min-height: 32px;
 }
+
+@media (max-width: 768px) {
+    .password-toggle {
+        min-width: 40px;
+        min-height: 40px;
+        right: 8px;
+    }
+}
+
 .password-toggle:focus {
     outline: none;
     border: none;
 }
+
 .password-toggle:hover {
     color: #53C5E0;
 }
+
 .pf-field-group.is-invalid .pf-input {
     border-color: #ef4444 !important;
     background-color: #fef2f2;
 }
+
 .error-message {
     color: #ef4444;
     font-size: 11px;
@@ -999,6 +1210,14 @@ require_once __DIR__ . '/../includes/header.php';
     display: none;
     font-weight: 500;
 }
+
+@media (max-width: 768px) {
+    .error-message {
+        font-size: 0.75rem;
+        margin-top: 6px;
+    }
+}
+
 .pf-field-group.is-invalid .error-message {
     display: block;
 }

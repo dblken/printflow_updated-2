@@ -78,15 +78,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $area = $w * $h;
                 if ($unit === 'in') $area = $area / 144;
                 
-                $unit_price = 45.00;
-                $base_price = $area * $unit_price * $quantity;
+                $price_per_sqft = 45.00;
+                $unit_price = $area * $price_per_sqft;  // Price per piece
                 $installation_fee = ($installation === 'With Installation') ? (500 + ($area * 15)) : 0;
+                $installation_fee_per_unit = $installation_fee / $quantity;  // Divide installation fee by quantity
 
                 $_SESSION['cart'][$item_key] = [
                     'type' => 'Service',
                     'source_page' => 'services',
                     'name' => 'Glass & Wall Sticker Printing',
-                    'price' => $base_price + $installation_fee,
+                    'price' => $unit_price + $installation_fee_per_unit,  // Unit price, not total
                     'quantity' => $quantity,
                     'category' => 'Glass & Wall Sticker Printing',
                     'branch_id' => $branch_id,

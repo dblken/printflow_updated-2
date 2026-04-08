@@ -417,6 +417,15 @@ $page_title = 'Notifications - Staff';
                                 $is_unread = !(int)$notif['is_read'];
                                 $target_url = staff_notification_target_url($notif);
 
+                                // Get order type for order notifications
+                                $order_type_label = null;
+                                if ($type_slug === 'order' && !empty($notif['data_id'])) {
+                                    $order_check = db_query("SELECT order_type FROM orders WHERE order_id = ? LIMIT 1", 'i', [(int)$notif['data_id']]);
+                                    if (!empty($order_check)) {
+                                        $order_type_label = $order_check[0]['order_type'] === 'custom' ? 'Service' : 'Product';
+                                    }
+                                }
+
                                 $iconSvg = match ($type_slug) {
                                     'order' => '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>',
                                     'stock' => '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>',
@@ -438,6 +447,9 @@ $page_title = 'Notifications - Staff';
                                         <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                         <?php echo htmlspecialchars(time_ago($notif['created_at'])); ?>
                                         <span class="type-pill <?php echo htmlspecialchars($type_slug); ?>"><?php echo htmlspecialchars($notif['type']); ?></span>
+                                        <?php if ($order_type_label): ?>
+                                        <span class="type-pill" style="background: <?php echo $order_type_label === 'Service' ? '#e0e7ff' : '#dcfce7'; ?>; color: <?php echo $order_type_label === 'Service' ? '#4338ca' : '#166534'; ?>;"><?php echo $order_type_label; ?></span>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                                 <div class="notif-actions-wrap">

@@ -13,9 +13,19 @@ require_once __DIR__ . '/../includes/staff_pending_check.php';
 
 $staffBranchId = printflow_branch_filter_for_user() ?? (int)($_SESSION['branch_id'] ?? 1);
 
+// Generate CSRF token for the page
+$csrf_token = generate_csrf_token();
+
 // Handle status update via AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
-    if (verify_csrf_token($_POST['csrf_token'] ?? '')) {
+    header('Content-Type: application/json');
+    
+    try {
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
+            exit;
+        }
+        
         $order_id = (int)$_POST['order_id'];
         $new_status = $_POST['status'];
         $staff_id = get_user_id();
@@ -37,8 +47,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
                 $success = db_execute("UPDATE orders SET status = ?, updated_at = NOW() WHERE order_id = ?", 'si', [$new_status, $order_id]);
 
                 if ($success) {
+                    // If marking as completed, deduct inventory quantities
+                    if ($new_status === 'Completed') {
+                        $order_items = db_query(
+                            "SELECT oi.product_id, oi.quantity, p.name as product_name, p.stock_quantity 
+                             FROM order_items oi 
+                             INNER JOIN products p ON oi.product_id = p.product_id 
+                             WHERE oi.order_id = ?",
+                            'i',
+                            [$order_id]
+                        );
+                        
+                        if (!empty($order_items)) {
+                            foreach ($order_items as $item) {
+                                // Only deduct if there's enough stock
+                                if ($item['stock_quantity'] >= $item['quantity']) {
+                                    // Update product stock in products table
+                                    $deduct_success = db_execute(
+                                        "UPDATE products SET stock_quantity = stock_quantity - ? WHERE product_id = ?",
+                                        'ii',
+                                        [$item['quantity'], $item['product_id']]
+                                    );
+                                    
+                                    if ($deduct_success) {
+                                        // Create inventory transaction record
+                                        db_execute(
+                                            "INSERT INTO inventory_transactions (item_id, direction, ref_type, ref_id, quantity, transaction_date, notes, created_by) 
+                                             VALUES (?, 'OUT', 'order', ?, ?, NOW(), ?, ?)",
+                                            'iidsi',
+                                            [
+                                                $item['product_id'],
+                                                $order_id,
+                                                $item['quantity'],
+                                                "Order #{$order_id} completed - {$item['product_name']}",
+                                                $staff_id
+                                            ]
+                                        );
+                                        
+                                        log_activity($staff_id, 'Inventory Deduction', "Deducted {$item['quantity']} units of {$item['product_name']} (Product ID: {$item['product_id']}) for Order #{$order_id}");
+                                    }
+                                } else {
+                                    log_activity($staff_id, 'Inventory Warning', "Insufficient stock for {$item['product_name']} (Product ID: {$item['product_id']}) - Order #{$order_id}. Required: {$item['quantity']}, Available: {$item['stock_quantity']}");
+                                }
+                            }
+                        } else {
+                            log_activity($staff_id, 'Inventory Info', "Order #{$order_id} has no products to deduct (likely a service order)");
+                        }
+                    }
+
                     // Log activity
                     log_activity($staff_id, 'Order Status Update', "Updated Order #{$order_id} to {$new_status}");
+
+                    // Sync status to job_orders
+                    $job_status_map = [
+                        'Pending'            => 'PENDING',
+                        'Pending Review'     => 'PENDING',
+                        'Pending Approval'   => 'PENDING',
+                        'Approved'           => 'APPROVED',
+                        'To Pay'             => 'TO_PAY',
+                        'To Verify'          => 'VERIFY_PAY',
+                        'Pending Verification' => 'VERIFY_PAY',
+                        'Downpayment Submitted' => 'VERIFY_PAY',
+                        'Processing'         => 'IN_PRODUCTION',
+                        'In Production'      => 'IN_PRODUCTION',
+                        'Printing'           => 'IN_PRODUCTION',
+                        'Ready for Pickup'   => 'TO_RECEIVE',
+                        'Completed'          => 'COMPLETED',
+                        'Cancelled'          => 'CANCELLED'
+                    ];
+                    $mapped_job_status = $job_status_map[$new_status] ?? null;
+                    if ($mapped_job_status) {
+                        db_execute("UPDATE job_orders SET status = ? WHERE order_id = ?", 'si', [$mapped_job_status, $order_id]);
+                    }
 
                     // Notify customer
                     if ($new_status === 'To Pay') {
@@ -47,12 +127,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
                         $msg = "Your order #{$order_id} status has been updated to: {$new_status}";
                     }
                     
-                    // Pass order_id as data_id for shortcut linking
                     create_notification($customer_id, 'Customer', $msg, 'Order', false, false, $order_id);
                     add_order_system_message($order_id, $msg);
                 }
             } else {
-                // Status is already the same, consider it a "soft" success
                 $success = true;
             }
         } else {
@@ -60,29 +138,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
         }
 
         if ($success) {
-            // If AJAX, return JSON
-            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
-                header('Content-Type: application/json');
-                echo json_encode(['success' => true, 'new_status' => $new_status]);
-                exit;
-            }
-
-            redirect('/printflow/staff/orders.php?success=1');
+            echo json_encode(['success' => true, 'new_status' => $new_status]);
         } else {
-            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'error' => 'Database update failed']);
-                exit;
-            }
-            redirect('/printflow/staff/orders.php?error=1');
+            echo json_encode(['success' => false, 'error' => 'Failed to update order status']);
         }
-    } else {
-        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
-            exit;
-        }
+    } catch (Exception $e) {
+        error_log('Order status update error: ' . $e->getMessage());
+        echo json_encode(['success' => false, 'error' => 'An error occurred: ' . $e->getMessage()]);
     }
+    exit;
 }
 
 // Get filter parameters
@@ -105,16 +169,28 @@ if ($payment_status_filter !== '') $active_filters['payment_status'] = $payment_
 if ($min_price_filter !== '') $active_filters['min_price'] = $min_price_filter;
 if ($max_price_filter !== '') $active_filters['max_price'] = $max_price_filter;
 
-$sql_conditions = " AND o.order_type = 'product'";
+$sql_conditions = "";
 $params = [];
 $types = '';
 
 // Apply branch filtering
 $sql_conditions .= branch_where('o', $staffBranchId, $types, $params);
 
+// IMPORTANT: Exclude service orders (order_type = 'custom') - they belong in customizations.php
+$sql_conditions .= " AND (o.order_type IS NULL OR o.order_type = 'product')";
+
 if ($status_filter !== '') {
     if ($status_filter === 'Pending') {
         $sql_conditions .= " AND (o.status = 'Pending' OR o.status = 'Pending Review')";
+    } elseif (strpos($status_filter, ',') !== false) {
+        // Handle multiple statuses (e.g., "Approved,Ready for Pickup")
+        $statuses = explode(',', $status_filter);
+        $placeholders = implode(',', array_fill(0, count($statuses), '?'));
+        $sql_conditions .= " AND o.status IN ($placeholders)";
+        foreach ($statuses as $s) {
+            $params[] = trim($s);
+            $types .= 's';
+        }
     } else {
         $sql_conditions .= " AND o.status = ?";
         $params[] = $status_filter;
@@ -163,6 +239,7 @@ if ($product_type_filter !== '') {
 
 $sql = "SELECT o.*, COALESCE(NULLIF(TRIM(CONCAT_WS(' ', c.first_name, c.last_name)), ''), 'Walk-in Customer (Guest)') as customer_name,
         (SELECT GROUP_CONCAT(COALESCE(p.name, 'Custom Product') SEPARATOR ', ') FROM order_items oi LEFT JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = o.order_id) as item_names,
+        (SELECT COUNT(*) FROM order_items WHERE order_id = o.order_id) as item_count,
         (SELECT oi.customization_data FROM order_items oi WHERE oi.order_id = o.order_id ORDER BY oi.order_item_id ASC LIMIT 1) as first_item_customization
         FROM orders o LEFT JOIN customers c ON o.customer_id = c.customer_id WHERE 1=1" . $sql_conditions;
 
@@ -196,6 +273,11 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                 <td style="padding: 16px 12px; vertical-align: middle;">
                     <div style="font-weight: 700; color: #1e293b; font-size: 14px; display: flex; align-items: center; gap: 8px;">
                         #<?php echo $order['order_id']; ?>
+                        <?php if (($order['item_count'] ?? 1) > 1): ?>
+                            <span style="background: #06A1A1; color: white; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;" title="<?php echo $order['item_count']; ?> items in order">
+                                Bulk (<?php echo $order['item_count']; ?>)
+                            </span>
+                        <?php endif; ?>
                         <?php 
                         $unread = get_unread_chat_count($order['order_id'], 'User');
                         if ($unread > 0): 
@@ -209,12 +291,15 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                         <div style="font-size: 12px; color: #64748b; margin-top: 4px; font-weight: 600;">
                             <?php 
                                 $display_items = $order['item_names'];
-                                if ($display_items === 'Custom Product' || $display_items === 'Custom Order') {
-                                    $display_items = get_service_name_from_customization($order['first_item_customization'] ?? '{}', $display_items);
-                                    
+                                // Only convert to service name if it's actually a custom/service order
+                                if (($display_items === 'Custom Product' || $display_items === 'Custom Order') && !empty($order['first_item_customization'])) {
                                     $c_json = json_decode($order['first_item_customization'] ?? '{}', true);
-                                    if (!empty($c_json['product_type']) && $c_json['product_type'] !== $display_items) {
-                                        $display_items .= " (" . $c_json['product_type'] . ")";
+                                    // Check if this has service_type in customization (indicates it's a service order)
+                                    if (!empty($c_json['service_type'])) {
+                                        $display_items = get_service_name_from_customization($c_json, $display_items);
+                                        if (!empty($c_json['product_type']) && $c_json['product_type'] !== $display_items) {
+                                            $display_items .= " (" . $c_json['product_type'] . ")";
+                                        }
                                     }
                                 }
                                 echo htmlspecialchars(strlen($display_items) > 100 ? substr($display_items, 0, 100) . '...' : $display_items); 
@@ -239,7 +324,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                 <td style="padding: 16px 12px; vertical-align: middle; text-align: right;">
                     <div style="display: flex; justify-content: flex-end; gap: 4px;">
                         <button
-                            onclick="event.stopPropagation(); window.openStaffOrderManage(<?php echo $order['order_id']; ?>, '<?php echo addslashes($order['status']); ?>');"
+                            onclick="event.stopPropagation(); openOrderModal(<?php echo $order['order_id']; ?>);"
                             class="btn-staff-action btn-staff-action-emerald"
                         >
                             Manage
@@ -272,6 +357,7 @@ $page_title = 'Orders - Staff';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="turbo-visit-control" content="reload">
+    <meta name="csrf-token" content="<?php echo htmlspecialchars($csrf_token); ?>">
     <title><?php echo $page_title; ?></title>
     <link rel="stylesheet" href="/printflow/public/assets/css/output.css">
     <?php include __DIR__ . '/../includes/admin_style.php'; ?>
@@ -298,7 +384,7 @@ $page_title = 'Orders - Staff';
             position: relative; z-index: 1;
             background: #fff;
             border-radius: 20px;
-            width: 100%; max-width: 1400px;
+            width: 100%; max-width: 900px;
             max-height: 90vh;
             overflow-y: auto;
             box-shadow: 0 25px 60px rgba(0,0,0,0.25);
@@ -424,6 +510,34 @@ $page_title = 'Orders - Staff';
         .badge-gray { background: #f3f4f6; color: #374151; }
         .badge-purple { background: #ede9fe; color: #5b21b6; }
 
+        /* Image Lightbox Modal */
+        #imageModal {
+            position: fixed; inset: 0; z-index: 10002;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px; opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
+            background: rgba(0,0,0,0.9);
+        }
+        #imageModal.open { opacity: 1; pointer-events: all; }
+        .img-modal-content {
+            position: relative; max-width: 90vw; max-height: 90vh;
+            transform: scale(0.9); transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+        }
+        #imageModal.open .img-modal-content { transform: scale(1); }
+        .img-modal-img {
+            max-width: 100%; max-height: 90vh; border-radius: 12px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5); display: block;
+        }
+        .img-modal-close {
+            position: absolute; top: -40px; right: 0;
+            background: rgba(255,255,255,0.9); color: #0f172a;
+            border: none; border-radius: 50%; width: 36px; height: 36px;
+            cursor: pointer; font-size: 20px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        .img-modal-close:hover { background: #fff; transform: rotate(90deg); }
+
         /* Table hover + clickable rows */
         .staff-orders-table tbody tr { transition: background 0.1s; }
         .staff-orders-table tbody tr:hover td { background: #f9fafb; }
@@ -469,7 +583,7 @@ $page_title = 'Orders - Staff';
             'Pending Review':        'background: #fef3c7; color: #92400e;',
             'Approved':              'background: #dbeafe; color: #1e40af;',
             'To Pay':                'background: #dbeafe; color: #1e40af;',
-            'To Verify':             'background: #fef9c3; color: #854d0e;',
+            'To Verify':             'background: #fef3c7; color: #92400e;',
             'Downpayment Submitted': 'background: #fce7f3; color: #be185d;',
             'Pending Verification':  'background: #fef9c3; color: #854d0e;',
             'Processing':            'background: #e0e7ff; color: #4338ca;',
@@ -487,7 +601,8 @@ $page_title = 'Orders - Staff';
             'Rated':                 'background: #f3e8ff; color: #6b21a8;'
         };
         var style = map[val] || 'background: #F3F4F6; color: #374151;';
-        var display = (val === 'Pending Review') ? 'Pending' : val;
+        // Display "Pending" for "Pending Review" and "To Verify"
+        var display = (val === 'Pending Review' || val === 'To Verify') ? 'Pending' : val;
         return '<span class="px-3 py-1 text-xs rounded-full" style="' + style + ' display: inline-block; white-space: nowrap; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">' + display + '</span>';
     }
 
@@ -605,6 +720,22 @@ $page_title = 'Orders - Staff';
     }
     window.closeOrderModal = closeOrderModal;
 
+    function openImageModal(imageUrl) {
+        var modal = document.getElementById('imageModal');
+        var img = document.getElementById('imageModalImg');
+        if (modal && img) {
+            img.src = imageUrl;
+            modal.classList.add('open');
+        }
+    }
+    window.openImageModal = openImageModal;
+
+    function closeImageModal() {
+        var modal = document.getElementById('imageModal');
+        if (modal) modal.classList.remove('open');
+    }
+    window.closeImageModal = closeImageModal;
+
     function showStatusOverlay(icon, msg) {
         var ov = document.getElementById('omStatusOverlay');
         if (!ov) return;
@@ -665,21 +796,62 @@ $page_title = 'Orders - Staff';
         var fd = new FormData();
         fd.append('order_id', orderId);
         fd.append('action', action);
-        fd.append('csrf_token', document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : '');
-        fetch('/printflow/staff/verify_payment_process.php', {
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfMeta) fd.append('csrf_token', csrfMeta.content);
+        
+        fetch('/printflow/staff/api_verify_payment.php', {
             method: 'POST', body: fd,
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(function(r) { return r.json(); })
+        .then(function(r) { 
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json(); 
+        })
         .then(function(res) {
             if (res.success) {
-                showStatusOverlay('✅', res.message || 'Payment updated!');
+                showStatusOverlay('✅', 'Payment ' + action + 'd successfully!');
                 setTimeout(function() { openOrderModal(orderId); }, 1200);
             } else {
                 alert(res.error || 'Failed to update payment');
             }
         })
-        .catch(function() { alert('Network error'); });
+        .catch(function(err) { 
+            console.error('Payment verify error:', err);
+            alert('Network error: ' + err.message); 
+        });
+    }
+
+    function markAsCompleted(orderId, csrfToken) {
+        if (!confirm('Mark this order as completed? The customer will be notified.')) return;
+        var fd = new FormData();
+        fd.append('order_id', orderId);
+        fd.append('status', 'Completed');
+        fd.append('csrf_token', csrfToken);
+        fd.append('update_status', '1');
+        
+        fetch('/printflow/staff/orders.php', {
+            method: 'POST', body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { 
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json(); 
+        })
+        .then(function(res) {
+            if (res.success) {
+                showStatusOverlay('🎉', 'Order marked as completed!');
+                setTimeout(function() { 
+                    closeOrderModal();
+                    window.location.href = '/printflow/staff/orders.php?status=Completed';
+                }, 1500);
+            } else {
+                alert(res.error || 'Failed to update status');
+            }
+        })
+        .catch(function(err) { 
+            console.error('Mark completed error:', err);
+            alert('Network error: ' + err.message); 
+        });
     }
 
     // renderOrderModal is defined after DOMContentLoaded since it
@@ -695,6 +867,12 @@ $page_title = 'Orders - Staff';
                 '<br><b>Reason:</b> ' + esc(d.cancel_reason) +
                 (d.cancelled_at ? '<br><b>At:</b> ' + esc(d.cancelled_at) : '') + '</div></div>';
         }
+
+        // Calculate total from items
+        var calculatedTotal = 0;
+        (d.items || []).forEach(function(item) {
+            calculatedTotal += (item.quantity || 0) * (item.unit_price || 0);
+        });
 
         var itemsHTML = '';
         (d.items || []).forEach(function(item) {
@@ -723,11 +901,16 @@ $page_title = 'Orders - Staff';
 
             var designHTML = '';
             if (item.has_design) {
+                var designUrl = item.design_url || '';
+                // Fix the URL if it doesn't have the base path
+                if (designUrl && !designUrl.startsWith('http') && !designUrl.startsWith('/printflow')) {
+                    designUrl = '/printflow/' + designUrl.replace(/^\/+/, '');
+                }
                 designHTML += '<div style="width:100%;margin-bottom:12px;">' +
                     '<div style="font-size:13px;font-weight:800;color:#475569;text-transform:uppercase;margin-bottom:8px;">Customer Design</div>' +
-                    '<a href="' + item.design_url + '" target="_blank" style="display:block;border-radius:12px;overflow:hidden;border:2px solid #f1f5f9;">' +
-                    '<img src="' + item.design_url + '" alt="Design" style="width:100%;max-height:400px;object-fit:cover;display:block;"></a>' +
-                    '<a href="' + item.design_url + '" target="_blank" style="display:inline-block;font-size:12px;color:#06A1A1;margin-top:8px;font-weight:700;text-decoration:none;background:#e6f7f5;padding:4px 10px;border-radius:6px;">↗ View Full</a></div>';
+                    '<a href="' + designUrl + '" target="_blank" style="display:block;border-radius:12px;overflow:hidden;border:2px solid #f1f5f9;max-width:100%;">' +
+                    '<img src="' + designUrl + '" alt="Design" style="width:100%;max-width:100%;height:auto;max-height:400px;object-fit:contain;display:block;background:#f8fafc;"></a>' +
+                    '<a href="' + designUrl + '" target="_blank" style="display:inline-block;font-size:12px;color:#06A1A1;margin-top:8px;font-weight:700;text-decoration:none;background:#e6f7f5;padding:4px 10px;border-radius:6px;">↗ View Full</a></div>';
             }
 
             itemsHTML += '<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;padding:20px 0;border-bottom:1px solid #e2e8f0;">' +
@@ -742,11 +925,21 @@ $page_title = 'Orders - Staff';
 
         var payBlock = '';
         if (d.payment_proof) {
+            var paymentUrl = d.payment_proof || '';
+            // Fix double /printflow/ in URL
+            if (paymentUrl.includes('/printflow/printflow/')) {
+                paymentUrl = paymentUrl.replace('/printflow/printflow/', '/printflow/');
+            }
+            // Ensure it starts with /printflow if it's a relative path
+            if (paymentUrl && !paymentUrl.startsWith('http') && !paymentUrl.startsWith('/printflow')) {
+                paymentUrl = '/printflow/' + paymentUrl.replace(/^\/+/, '');
+            }
             payBlock = '<div style="margin-top:16px;padding:16px;background:#f0fdf4;border:1px solid #dcfce7;border-radius:12px;">' +
                 '<div style="font-weight:700;color:#15803d;font-size:12px;margin-bottom:8px;">📄 Payment Proof</div>' +
-                '<a href="' + d.payment_proof + '" target="_blank" style="display:block;border-radius:8px;overflow:hidden;">' +
-                '<img src="' + d.payment_proof + '" alt="Payment Proof" style="width:100%;height:auto;display:block;"></a>' +
-                (d.status === 'Downpayment Submitted' ? '<div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+                '<div onclick="openImageModal(\'' + paymentUrl.replace(/'/g, "\\'") + '\')" style="cursor:pointer;border-radius:8px;overflow:hidden;border:2px solid #dcfce7;transition:all 0.2s;" onmouseover="this.style.borderColor=\'#22c55e\';this.style.transform=\'scale(1.02)\'" onmouseout="this.style.borderColor=\'#dcfce7\';this.style.transform=\'scale(1)\'">' +
+                '<img src="' + paymentUrl + '" alt="Payment Proof" style="width:100%;height:auto;display:block;max-height:300px;object-fit:contain;background:#fff;"></div>' +
+                '<div style="margin-top:8px;font-size:11px;color:#15803d;font-weight:600;">💡 Click image to view full size</div>' +
+                (d.status === 'To Verify' && d.payment_proof ? '<div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
                     '<button class="btn-primary" onclick="verifyPayment(' + d.order_id + ', \'Approve\')" style="background:#22c55e;font-size:12px;padding:8px;">Approve Payment</button>' +
                     '<button class="btn-secondary" onclick="verifyPayment(' + d.order_id + ', \'Reject\')" style="color:#ef4444;border-color:#fee2e2;font-size:12px;padding:8px;">Reject Payment</button></div>' : '') +
                 '</div>';
@@ -761,13 +954,17 @@ $page_title = 'Orders - Staff';
                 '<button class="btn-primary" onclick="approveDesign(' + d.order_id + ', \'' + csrf + '\')" style="flex:1;">✓ Approve Design</button>' +
                 '<button class="btn-secondary" onclick="openRevisionModal(' + d.order_id + ', \'' + csrf + '\')" style="flex:1;color:#ef4444;border-color:#fee2e2;">✎ Request Revision</button>' +
                 '</div>';
+        } else if (d.status === 'Approved' || d.status === 'Ready for Pickup') {
+            actionsHTML = '<div style="margin-top:20px;">' +
+                '<button class="btn-primary" onclick="markAsCompleted(' + d.order_id + ', \'' + csrf + '\')" style="width:100%;background:#22c55e;font-size:14px;padding:12px;">✓ Mark as Completed</button>' +
+                '</div>';
         }
 
         document.getElementById('omBody').innerHTML =
             '<div class="om-grid">' +
             '<div class="om-card"><div class="om-card-title">Order Info</div>' +
             '<div class="om-row"><span class="om-label">Status</span><span class="om-value">' + statusBadge(d.status) + '</span></div>' +
-            '<div class="om-row"><span class="om-label">Total</span><span class="om-value">' + formatCurrency(d.total_amount) + '</span></div>' +
+            '<div class="om-row"><span class="om-label">Total</span><span class="om-value">' + formatCurrency(calculatedTotal) + '</span></div>' +
             '<div class="om-row"><span class="om-label">Payment</span><span class="om-value">' + statusBadge(d.payment_status || '-') + '</span></div>' +
             (d.payment_reference ? '<div class="om-row"><span class="om-label">Ref #</span><span class="om-value">' + esc(d.payment_reference) + '</span></div>' : '') +
             cancelBlock + '</div>' +
@@ -784,9 +981,12 @@ $page_title = 'Orders - Staff';
 
     // ── DOMContentLoaded: event listeners & auto-open ────
     document.addEventListener('DOMContentLoaded', function() {
-        // Escape key closes modal
+        // Escape key closes modals
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeOrderModal();
+            if (e.key === 'Escape') {
+                closeOrderModal();
+                closeImageModal();
+            }
         });
 
         // Filter form auto-submit via AJAX
@@ -903,18 +1103,9 @@ $page_title = 'Orders - Staff';
                             <label class="form-label" style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:8px;">Status</label>
                             <select name="status" class="input-field">
                                 <option value="">All Statuses</option>
-                                <option value="Pending" <?php echo $status_filter === 'Pending' ? 'selected' : ''; ?>>Pending (New)</option>
+                                <option value="Pending" <?php echo $status_filter === 'Pending' ? 'selected' : ''; ?>>Pending</option>
                                 <option value="Approved" <?php echo $status_filter === 'Approved' ? 'selected' : ''; ?>>Approved</option>
-                                <option value="To Pay" <?php echo $status_filter === 'To Pay' ? 'selected' : ''; ?>>To Pay</option>
-                                <option value="Downpayment Submitted" <?php echo $status_filter === 'Downpayment Submitted' ? 'selected' : ''; ?>>Downpayment Submitted</option>
-                                <option value="Pending Verification" <?php echo $status_filter === 'Pending Verification' ? 'selected' : ''; ?>>Pending Verification</option>
-                                <option value="Processing" <?php echo $status_filter === 'Processing' ? 'selected' : ''; ?>>Processing</option>
-                                <option value="Printing" <?php echo $status_filter === 'Printing' ? 'selected' : ''; ?>>Printing</option>
-                                <option value="In Production" <?php echo $status_filter === 'In Production' ? 'selected' : ''; ?>>In Production</option>
-                                <option value="For Revision" <?php echo $status_filter === 'For Revision' ? 'selected' : ''; ?>>For Revision</option>
-                                <option value="Ready for Pickup" <?php echo $status_filter === 'Ready for Pickup' ? 'selected' : ''; ?>>Ready for Pickup</option>
                                 <option value="Completed" <?php echo $status_filter === 'Completed' ? 'selected' : ''; ?>>Completed</option>
-                                <option value="Cancelled" <?php echo $status_filter === 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option>
                             </select>
                         </div>
 
@@ -968,11 +1159,9 @@ $page_title = 'Orders - Staff';
                 <?php
                 $quick_statuses = [
                     ['val' => '', 'label' => 'All Orders', 'icon' => '📦'],
-                    ['val' => 'Pending', 'label' => 'New / Pending', 'icon' => '⏳'],
+                    ['val' => 'Pending', 'label' => 'Pending', 'icon' => '⏳'],
                     ['val' => 'Approved', 'label' => 'Approved', 'icon' => '✅'],
-                    ['val' => 'Processing', 'label' => 'Processing', 'icon' => '⚙️'],
-                    ['val' => 'Ready for Pickup', 'label' => 'Ready', 'icon' => '🏁'],
-                    ['val' => 'Downpayment Submitted', 'label' => 'ToCheck', 'icon' => '💰'],
+                    ['val' => 'Completed', 'label' => 'Completed', 'icon' => '🎉'],
                 ];
                 foreach ($quick_statuses as $qs):
                     $is_active = $status_filter === $qs['val'];
@@ -1044,11 +1233,12 @@ $page_title = 'Orders - Staff';
                                     </td>
                                     <td style="padding: 16px 12px; vertical-align: middle; text-align: right;">
                                         <div style="display: flex; justify-content: flex-end; gap: 4px;">
-                                            <button onclick="openStaffOrderManage(<?php echo $order['order_id']; ?>, '<?php echo addslashes($order['status']); ?>')" 
+                                            <button onclick="event.stopPropagation(); openOrderModal(<?php echo $order['order_id']; ?>);"
                                                     class="btn-staff-action btn-staff-action-emerald">
                                                 Manage
                                             </button>
-                                            <a href="/printflow/staff/chats.php?order_id=<?php echo $order['order_id']; ?>" 
+                                            <a href="/printflow/staff/chats.php?order_id=<?php echo $order['order_id']; ?>"
+                                               onclick="event.stopPropagation();"
                                                class="btn-staff-action btn-staff-action-indigo">
                                                 Message
                                             </a>
@@ -1155,6 +1345,16 @@ $page_title = 'Orders - Staff';
                 <button type="submit" class="btn-primary">Send Request</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     IMAGE LIGHTBOX MODAL
+═══════════════════════════════════════════ -->
+<div id="imageModal" onclick="closeImageModal()">
+    <div class="img-modal-content" onclick="event.stopPropagation()">
+        <button class="img-modal-close" onclick="closeImageModal()" aria-label="Close">✕</button>
+        <img id="imageModalImg" src="" alt="Full Size" class="img-modal-img">
     </div>
 </div>
 

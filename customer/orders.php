@@ -193,20 +193,20 @@ require_once __DIR__ . '/../includes/header.php';
 .tt-tabs {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.5rem;
     overflow-x: auto;
     scrollbar-width: none;
     padding: 0.2rem 0.5rem;
     justify-content: flex-start;
 }
 @media (min-width: 900px) {
-    .tt-tabs { justify-content: space-between; width: 100%; }
+    .tt-tabs { justify-content: space-between; width: 100%; gap: 0.25rem; }
     .tt-tab { flex: 1; justify-content: center; }
 }
 .tt-tabs::-webkit-scrollbar { display: none; }
 .tt-tab {
-    padding: 0.55rem 0.75rem;
-    font-size: 0.72rem;
+    padding: 0.65rem 1rem;
+    font-size: 0.8rem;
     color: #64748b;
     font-weight: 700;
     text-decoration: none;
@@ -217,14 +217,20 @@ require_once __DIR__ . '/../includes/header.php';
     align-items: center;
     gap: 0.5rem;
 }
+@media (max-width: 640px) {
+    .tt-tab { padding: 0.7rem 1.1rem; font-size: 0.85rem; }
+}
 .tt-tab:hover { color: #0f172a; background: #e2e8f0; }
 .tt-tab.active { background: #0a2530; color: #fff; }
 .tt-tab-count {
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     background: rgba(0,0,0,0.08);
-    padding: 2px 6px;
+    padding: 3px 7px;
     border-radius: 4px !important;
     opacity: 0.8;
+}
+@media (max-width: 640px) {
+    .tt-tab-count { font-size: 0.75rem; padding: 3px 8px; }
 }
 .tt-tab.active .tt-tab-count { background: rgba(255,255,255,0.2); opacity: 1; }
 
@@ -239,6 +245,9 @@ require_once __DIR__ . '/../includes/header.php';
     box-shadow: none !important;
     cursor: pointer;
 }
+@media (max-width: 640px) {
+    .ct-order-card { padding: 1.25rem 1rem; }
+}
 .ct-order-card + .ct-order-card { border-top: 1px solid #e2e8f0 !important; }
 .ct-order-card:hover { background: #f8fafc !important; }
 
@@ -250,6 +259,9 @@ require_once __DIR__ . '/../includes/header.php';
     padding-bottom: 0.75rem;
     border-bottom: 1px solid #e2e8f0;
 }
+@media (max-width: 640px) {
+    .card-top-row { margin-bottom: 1rem; padding-bottom: 1rem; }
+}
 .order-id-chip {
     font-size: 0.7rem;
     font-weight: 900;
@@ -260,25 +272,58 @@ require_once __DIR__ . '/../includes/header.php';
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
-.card-content { display: flex; gap: 1.5rem; align-items: center; }
+@media (max-width: 640px) {
+    .order-id-chip { font-size: 0.75rem; padding: 5px 12px; }
+}
+.card-content { display: flex; gap: 1.5rem; align-items: flex-start; }
+@media (max-width: 640px) {
+    .card-content { flex-direction: column; gap: 1rem; }
+}
 .img-preview-box {
     width: 70px; height: 70px; flex-shrink: 0;
     border-radius: 8px !important; overflow: hidden;
     background: #f1f5f9;
     border: 1px solid #e2e8f0;
 }
+@media (max-width: 640px) {
+    .img-preview-box { width: 80px; height: 80px; }
+}
 .img-preview-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
 .ct-order-card:hover .img-preview-box img { transform: scale(1.05); }
 
 .details-column { flex: 1; min-width: 0; }
+@media (max-width: 640px) {
+    .details-column { width: 100%; }
+}
 .order-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.35rem; line-height: 1.3; }
+@media (max-width: 640px) {
+    .order-title { font-size: 1.05rem; }
+}
 .qty-tag { font-size: 0.75rem; color: #0e7490; font-weight: 700; }
+@media (max-width: 640px) {
+    .qty-tag { font-size: 0.8rem; }
+}
 .timestamp-text { font-size: 0.72rem; color: #94a3b8; margin-top: 0.4rem; font-weight: 500; }
+@media (max-width: 640px) {
+    .timestamp-text { font-size: 0.75rem; margin-top: 0.5rem; }
+}
 
 .pricing-column { text-align: right; min-width: 280px; display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem; }
+@media (max-width: 640px) {
+    .pricing-column { text-align: left; align-items: flex-start; min-width: unset; width: 100%; gap: 1rem; }
+}
 .final-price { font-size: 1.25rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; line-height: 1; }
+@media (max-width: 640px) {
+    .final-price { font-size: 1.4rem; }
+}
 .hidden-price-msg { font-size: 0.72rem; color: #94a3b8; font-style: italic; line-height: 1.4; margin-bottom: 0.25rem; }
-.card-actions-inline { display: flex; gap: 0.5rem; }
+@media (max-width: 640px) {
+    .hidden-price-msg { font-size: 0.78rem; }
+}
+.card-actions-inline { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+@media (max-width: 640px) {
+    .card-actions-inline { width: 100%; gap: 0.65rem; }
+}
 
 .card-footer-actions {
     display: flex; justify-content: flex-end; gap: 0.85rem;
@@ -292,6 +337,17 @@ require_once __DIR__ . '/../includes/header.php';
     text-transform: uppercase; letter-spacing: 0.04em;
     transition: all 0.2s; cursor: pointer;
     text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;
+    justify-content: center;
+    min-height: 40px;
+}
+@media (max-width: 640px) {
+    .action-button { 
+        flex: 1 1 calc(50% - 0.35rem);
+        font-size: 0.75rem;
+        padding: 0.65rem 1rem;
+        min-height: 44px;
+    }
+    .action-button svg { width: 16px; height: 16px; }
 }
 .btn-chat { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 .btn-chat:hover { background: #e2e8f0; color: #0f172a; }
@@ -304,6 +360,9 @@ require_once __DIR__ . '/../includes/header.php';
     display: inline-flex; align-items: center;
     padding: 3px 10px; border-radius: 999px !important;
     font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+@media (max-width: 640px) {
+    .status-pill { font-size: 0.7rem; padding: 4px 12px; }
 }
 .st-pending  { background: #fef9c3; color: #854d0e; border: 1px solid #fde68a; }
 .st-approved { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
@@ -404,11 +463,9 @@ require_once __DIR__ . '/../includes/header.php';
 .cm-opt-label.active { border-color: #53c5e0; background: rgba(83,197,224,0.1); }
 
 @media (max-width: 640px) {
-    .card-content { flex-direction: column; align-items: flex-start; gap: 1rem; }
-    .pricing-column { text-align: left; align-items: flex-start; min-width: unset; width: 100%; }
-    .card-actions-inline { width: 100%; flex-wrap: wrap; }
-    .action-button { flex: 1; justify-content: center; }
     .im-dashboard { grid-template-columns: 1fr; }
+    .orders-page-container { padding: 0 0.75rem; }
+    .unified-dashboard { margin-bottom: 2rem; }
 }
 
 .capitalize-first { display: inline-block; }
@@ -419,6 +476,16 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="orders-theme-page min-h-screen py-8">
     <div class="container mx-auto px-4" style="max-width:1100px;">
         <div class="mb-8 mt-4"></div>
+        
+        <?php if (isset($_SESSION['order_success'])): ?>
+            <div style="background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; font-weight: 600; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);">
+                <svg width="24" height="24" fill="currentColor" viewBox="0 0 20 20" style="flex-shrink: 0;">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <span><?php echo htmlspecialchars($_SESSION['order_success']); unset($_SESSION['order_success']); ?></span>
+            </div>
+        <?php endif; ?>
+        
         <!-- Unified Dashboard Container -->
         <div class="unified-dashboard">
             <!-- Sticky Navigation Tabs -->
@@ -442,7 +509,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="empty-view">
                         <div class="empty-view-title">No orders found</div>
                         <div class="empty-view-sub">Orders from this category will show up here.</div>
-                        <a href="/printflow/customer/services.php" class="inline-block px-10 py-3.5 bg-slate-900 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all border border-white/5">Browse Services</a>
+                        <a href="/printflow/customer/services.php" class="shopee-btn shopee-btn-buy" style="display: inline-block; text-decoration: none; padding: 7px 16px; border-radius: 3px; font-size: 0.8rem; font-weight: 600; text-align: center; text-transform: uppercase; background: #0a2530; color: #fff; border: none; cursor: pointer; transition: all 0.2s;">Browse Services</a>
                     </div>
                 <?php else: ?>
                     <?php foreach ($orders as $index => $order): ?>

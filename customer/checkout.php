@@ -81,12 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         }
         
         $order_sql = "INSERT INTO orders (customer_id, branch_id, reference_id, order_date, total_amount, downpayment_amount, status, payment_status, payment_type, notes, order_type) 
-                      VALUES (?, ?, ?, NOW(), ?, ?, 'Pending Review', ?, ?, ?, ?)";
-
-        $payment_method = $_POST['payment_method'] ?? 'pay_later';
+                      VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)";
         
-        // Removed payment_method from query as column doesn't exist
-        $order_id = db_execute($order_sql, 'iiiddssss', [$customer_id, $branch_id, $reference_id, $total, $downpayment_amount, $payment_status, $payment_type, $notes, $order_type]);
+        $status = 'Pending';
+        $order_id = db_execute($order_sql, 'iiiddssssss', [$customer_id, $branch_id, $reference_id, $total, $downpayment_amount, $status, $payment_status, $payment_type, $notes, $order_type]);
         
         if ($order_id) {
             // 2. Insert Order Items (design stored as LONGBLOB, never on disk)
@@ -108,6 +106,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
                     $design_binary = file_get_contents($item['design_tmp_path']);
                 }
 
+                // Ensure unit_price is per item, not total
+                $unit_price = (float)$item['price'];
+                $quantity_val = (int)$item['quantity'];
+                
+                // Safety check: if unit_price is suspiciously high (> 500) and quantity > 1,
+                // divide by quantity to get the correct unit price
+                if ($quantity_val > 1 && $unit_price > 500) {
+                    // Likely a total price, convert to unit price
+                    $unit_price = round($unit_price / $quantity_val, 2);
+                }
+                
                 if ($design_binary) {
                     // INSERT with BLOB using send_long_data
                     $item_stmt = $conn->prepare(
@@ -120,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
                             $order_id,
                             $item['product_id'],
                             $item['quantity'],
-                            $item['price'],
+                            $unit_price,
                             $custom_data,
                             $null,          // placeholder for BLOB
                             $design_mime,
@@ -137,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
                         "INSERT INTO order_items (order_id, product_id, quantity, unit_price, customization_data)
                          VALUES (?, ?, ?, ?, ?)",
                         'iiids',
-                        [$order_id, $item['product_id'], $item['quantity'], $item['price'], $custom_data]
+                        [$order_id, $item['product_id'], $item['quantity'], $unit_price, $custom_data]
                     );
                 }
             }
@@ -217,18 +226,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             }
             
             unset($_SESSION['cart']);
+            sync_cart_to_db($customer_id);
             
             // 5. Notification
             $first_item_custom = !empty($inserted_order_item_ids) ? db_query("SELECT customization_data FROM order_items WHERE order_id = ? LIMIT 1", 'i', [$order_id]) : [];
-            $srv_name = 'Service Order';
+            $product_name = 'Product Order';
             if (!empty($first_item_custom)) {
                 $custom_data = json_decode($first_item_custom[0]['customization_data'] ?? '[]', true);
-                $srv_name = get_service_name_from_customization($custom_data, 'Service Order');
+                $product_name = get_service_name_from_customization($custom_data, 'Product Order');
             }
-            create_notification($customer_id, 'Customer', "Order for {$srv_name} placed successfully!", 'Order', true, false, $order_id);
+            create_notification($customer_id, 'Customer', "Order for {$product_name} placed successfully!", 'Order', true, false, $order_id);
             notify_staff_new_order((int)$order_id, (string)($customer['first_name'] ?? 'Customer'));
             
-            $_SESSION['success'] = "Your order for {$srv_name} has been placed successfully! Our team will review it shortly. You can track the status here.";
+            $_SESSION['success'] = "Your order for {$product_name} has been placed successfully! Our team will review it shortly. You can track the status here.";
             
             // Redirect to the new order's details page
             redirect("order_details.php?id=$order_id");

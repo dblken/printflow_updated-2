@@ -575,7 +575,7 @@ function loadConvs() {
                 const active = activeId === c.order_id ? 'active' : '';
                 const online = c.is_online ? 'active' : '';
                 return `
-                <div class="conv-card ${active}" onclick="openChat(${c.order_id}, '${c.customer_name.replace(/'/g,"\\'")}', '${c.service_name.replace(/'/g,"\\'")}', ${c.is_archived}, '${(c.customer_avatar || '').replace(/'/g,"\\'")}')">
+                <div class="conv-card ${active}" onclick="openChat(${c.order_id}, '${c.customer_name.replace(/'/g,"\\'")}'', '${c.product_name.replace(/'/g,"\\'")}', ${c.is_archived}, '${(c.customer_avatar || '').replace(/'/g,"\\'")}')">
                     <div class="conv-avatar" style="overflow: hidden;">
                         ${c.customer_avatar ? `<img src="${window.baseUrl}/${c.customer_avatar}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='${(c.customer_name[0] || '?').toUpperCase()}'">` : (c.customer_name[0] || '?').toUpperCase()}
                         <div class="dot-online ${online}"></div>
@@ -585,7 +585,7 @@ function loadConvs() {
                             <span class="conv-name">${escapeHtml(c.customer_name)}</span>
                             <span class="conv-time">${formatTime(c.last_message_at)}</span>
                         </div>
-                        <div class="conv-sub">Order #${c.order_id} • ${escapeHtml(c.service_name)}</div>
+                        <div class="conv-sub">Order #${c.order_id} • ${escapeHtml(c.product_name)}</div>
                         <div class="conv-preview">
                             ${c.unread_count > 0 ? `<span class="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">${c.unread_count}</span>` : ''}
                             ${escapeHtml(c.last_message || 'No messages yet')}
@@ -599,7 +599,7 @@ function loadConvs() {
             const rawId = urlParams.get('order_id');
             if (rawId && !window.staffUiOpened && data.conversations) {
                 const c = data.conversations.find(x => x.order_id == rawId);
-                if (c) openChat(c.order_id, c.customer_name, c.service_name, c.is_archived, c.customer_avatar || '');
+                if (c) openChat(c.order_id, c.customer_name, c.product_name, c.is_archived, c.customer_avatar || '');
             }
         });
 }
@@ -1112,7 +1112,7 @@ function openDetails(id) {
                             </div>
                             <div style="flex:1;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                                    <div style="font-size:1.35rem; font-weight:900; color:#1e293b; line-height:1;">${escapeHtml(i.service_name)}</div>
+                                    <div style="font-size:1.35rem; font-weight:900; color:#1e293b; line-height:1;">${escapeHtml(i.product_name)}</div>
                                     <div style="text-align:right;">
                                          <div class="pf-spec-key" style="margin:0;">Total Order Value</div>
                                          <div style="font-size:1.35rem; font-weight:900; color:#06A1A1;">${i.subtotal || '—'}</div>

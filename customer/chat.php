@@ -26,6 +26,7 @@ if ($order_id) {
 $page_title = $order_id ? "Chat - Order #{$order_id} - PrintFlow" : 'Messages - PrintFlow';
 $use_customer_css = true;
 $is_chat_page = true;
+$hide_chatbot = true; // Hide chatbot button on chat page
 require_once __DIR__ . '/../includes/header.php';
 ?>
 <!-- Load Bootstrap Icons for Chat UI -->
@@ -288,13 +289,82 @@ body.chat-page main#main-content { padding-top: 0 !important; background: #fff !
 /* --- Mobile Responsiveness --- */
 @media (max-width: 900px) { 
     .glass-shell { grid-template-columns: 1fr; border-radius: 0; border: none; }
-    #chat-outer { height: calc(100vh - 80px); }
-    .chat-sidebar { position: fixed; inset: 0; z-index: 1000; transform: translateX(-100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-    .chat-sidebar.open { transform: translateX(0); }
-    .mobile-menu-btn { display: flex !important; margin-right: 0.5rem; }
+    #chat-outer { height: calc(100vh - 80px); padding: 0; }
+    
+    /* Mobile: Show sidebar by default, hide chat */
+    .chat-sidebar { 
+        display: flex;
+        border-right: none;
+        background: #fff;
+    }
+    .chat-main { 
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        background: #fff;
+    }
+    
+    /* When chat is active, hide sidebar and show chat */
+    .chat-sidebar.mobile-hidden { display: none; }
+    .chat-main.mobile-active { display: flex; }
+    
+    .mobile-back-btn { display: flex !important; }
+    
+    /* Adjust chat item for better mobile touch */
+    .chat-item { padding: 14px 16px; margin-bottom: 6px; }
+    .avatar-stack { width: 52px; height: 52px; }
+    .avatar-img { font-size: 1.1rem; }
+    .chat-item-name { font-size: 1rem; }
+    .chat-item-meta { font-size: 0.8rem; margin-top: 3px; }
+    .chat-item-preview { font-size: 0.85rem; margin-top: 5px; }
+    .chat-item-time { font-size: 0.75rem; }
+    
+    /* Chat header adjustments */
+    .chat-header { padding: 1rem; gap: 0.75rem; }
+    .chat-header-name { font-size: 1rem; }
+    .chat-header-info p { font-size: 0.8rem; }
+    
+    /* Message bubbles */
+    #messageBox { padding: 1rem; gap: 0.75rem; }
+    .msg-bubble { font-size: 0.95rem; padding: 0.8rem 1rem; max-width: 85%; }
+    .msg-meta { font-size: 0.7rem; }
+    .msg-avatar { width: 36px; height: 36px; font-size: 0.9rem; }
+    
+    /* Input area - larger touch targets */
+    .chat-footer { padding: 1rem; }
+    .input-shell { padding: 8px 8px 8px 16px; }
+    .chat-input { font-size: 1rem; padding: 10px 0; }
+    .input-icon-btn { width: 42px; height: 42px; }
+    .send-btn { width: 46px; height: 46px; }
+    .mic-btn { width: 46px; height: 46px; }
+    
+    /* Sidebar header */
+    .sidebar-header { padding: 1rem; }
+    .sidebar-title { font-size: 1.4rem; margin-bottom: 1.25rem; }
+    .search-container input { font-size: 1rem; padding: 0.75rem 1rem 0.75rem 2.75rem; }
+    .search-icon { left: 1rem; width: 1.2rem; height: 1.2rem; }
+    
+    /* Tabs */
+    .conv-tabs { padding: 0 1rem 1rem; gap: 1.25rem; }
+    .conv-tab { font-size: 0.8rem; padding-bottom: 0.6rem; }
+    
+    /* Action buttons */
+    .action-btn { width: 42px; height: 42px; }
+    .chat-actions { gap: 8px; }
+    
+    /* Gallery panel */
+    .gallery-panel { width: 100%; border-left: none; }
+    
+    /* Order details modal */
+    .order-details-modal-content { max-width: 95%; margin: 0 1rem; }
+    
+    /* Message content column max width */
+    .msg-content-col { max-width: 80%; }
+    .msg-row.self .msg-content-col { max-width: 80%; }
 }
 
-    .mobile-menu-btn { display: none; }
+.mobile-back-btn { display: none; }
 
     /* Media Gallery Panel */
     .gallery-panel { 
@@ -408,8 +478,8 @@ body.chat-page main#main-content { padding-top: 0 !important; background: #fff !
         <main class="chat-main">
             <!-- Header -->
             <header class="chat-header">
-                <button type="button" class="action-btn mobile-menu-btn" onclick="toggleSidebar(true)">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke-width="2"/></svg>
+                <button type="button" class="action-btn mobile-back-btn" onclick="closeMobileChat()" title="Back to messages">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
                 <div class="avatar-stack">
                     <div class="avatar-img" id="activeAvatar">?</div>
@@ -603,7 +673,7 @@ function loadConversations() {
                 const c = data.conversations.find(x => x.order_id == activeOrderId);
                 if (c) {
                     const name = c.staff_name || 'PrintFlow Team';
-                    const meta = c.service_name || 'Order';
+                    const meta = c.product_name || 'Order';
                     openChatComponent(c.order_id, name, meta, c.is_archived);
                 }
             }
@@ -635,7 +705,7 @@ function renderConvList(items) {
                         <span class="chat-item-name">${escapeHtml(c.staff_name || 'PrintFlow Team')}</span>
                         <span class="chat-item-time">${formatTimeAgo(c.last_message_at)}</span>
                     </div>
-                    <div class="chat-item-meta">Order #${c.order_id} • ${escapeHtml(c.service_name)}</div>
+                    <div class="chat-item-meta">Order #${c.order_id} • ${escapeHtml(c.product_name)}</div>
                     <div class="chat-item-preview">
                         ${c.unread_count > 0 ? `<span class="bg-[#0a2530] text-[#fff] text-[0.65rem] px-1.5 py-0.5 rounded-full font-black mr-1">${c.unread_count}</span>` : ''}
                         ${escapeHtml(c.last_message || 'Start chatting...')}
@@ -724,7 +794,12 @@ function openChatComponent(id, name, meta, isArchived) {
     loadMessages();
     setupPoll();
     
-    if (window.innerWidth <= 900) toggleSidebar(false);
+    // Mobile: Show chat, hide sidebar
+    if (window.innerWidth <= 900) {
+        document.getElementById('sidebar').classList.add('mobile-hidden');
+        document.querySelector('.chat-main').classList.add('mobile-active');
+    }
+    
     history.replaceState(null, '', `?order_id=${id}`);
 }
 
@@ -1026,7 +1101,21 @@ function resetChat() {
 }
 
 function toggleSidebar(open) {
-    document.getElementById('sidebar').classList.toggle('open', open);
+    // Desktop behavior (not used on mobile anymore)
+    if (window.innerWidth > 900) {
+        document.getElementById('sidebar').classList.toggle('open', open);
+    }
+}
+
+function closeMobileChat() {
+    // Mobile: Return to conversation list
+    if (window.innerWidth <= 900) {
+        document.getElementById('sidebar').classList.remove('mobile-hidden');
+        document.querySelector('.chat-main').classList.remove('mobile-active');
+        
+        // Update URL to remove order_id
+        history.replaceState(null, '', window.location.pathname);
+    }
 }
 
 function scrollToBottom(smooth) {

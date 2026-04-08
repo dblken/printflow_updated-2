@@ -77,10 +77,88 @@ require_once __DIR__ . '/../includes/header.php';
         gap: 20px;
     }
 
-    @media (max-width: 640px) {
+    /* Tablet: 2 cards per row */
+    @media (max-width: 1023px) and (min-width: 641px) {
         .shopee-grid {
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: 16px;
+        }
+    }
+
+    /* Mobile: 1 card per row (full width) */
+    @media (max-width: 640px) {
+        .shopee-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        
+        .shopee-card {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            min-height: auto;
+        }
+        
+        /* Optimize card layout for mobile */
+        .shopee-img {
+            aspect-ratio: 1.5;
+            width: 100%;
+            height: auto;
+            max-height: 280px;
+            object-fit: cover;
+        }
+        
+        .shopee-body {
+            padding: 14px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .shopee-name {
+            font-size: 1.05rem;
+            line-height: 1.4rem;
+            height: 2.8rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            margin-bottom: 8px;
+        }
+        
+        .shopee-category {
+            font-size: 0.8rem;
+        }
+        
+        .shopee-price-row {
+            margin-top: auto;
+        }
+        
+        .shopee-price {
+            font-size: 1.25rem;
+        }
+        
+        .shopee-footer {
+            padding: 10px 14px;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        
+        .shopee-btn {
+            padding: 10px 0;
+            font-size: 0.85rem;
+            min-height: 42px;
+        }
+        
+        .rating-stars {
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+        
+        .rating-stars svg {
+            width: 15px !important;
+            height: 15px !important;
         }
     }
 
@@ -93,6 +171,7 @@ require_once __DIR__ . '/../includes/header.php';
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        height: 100%;
     }
 
     .shopee-card:hover {
@@ -227,11 +306,17 @@ require_once __DIR__ . '/../includes/header.php';
                     $sold_count = (int)$product['sold_count'];
                     $avg_rating = (float)$product['avg_rating'];
                     $review_count = (int)$product['review_count'];
+                    $stock = (int)$product['stock_quantity'];
+                    $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k' : $sold_count;
+                    $stock_display = $stock >= 1000 ? number_format($stock / 1000, 1) . 'k' : $stock;
                 ?>
                     <div class="shopee-card" onclick="window.location.href='order_create.php?product_id=<?php echo $product['product_id']; ?>'">
                         <img src="<?php echo htmlspecialchars($display_img); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="shopee-img">
                         <div class="shopee-body">
-                            <span class="shopee-category"><?php echo htmlspecialchars($product['category']); ?></span>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <span class="shopee-category"><?php echo htmlspecialchars($product['category']); ?></span>
+                                <span style="font-size: 0.75rem; font-weight: 600; color: <?php echo $stock > 10 ? '#059669' : ($stock > 0 ? '#f59e0b' : '#dc2626'); ?>"><?php echo $stock_display; ?> in stock</span>
+                            </div>
                             <h3 class="shopee-name"><?php echo htmlspecialchars($product['name']); ?></h3>
                             
                             <div class="rating-stars">
@@ -241,7 +326,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     </svg>
                                 <?php endfor; ?>
                                 <span class="rating-text"><?php echo $review_count > 0 ? "($review_count)" : ''; ?></span>
-                                <span style="margin-left: auto; font-size: 0.75rem; color: var(--shopee-muted);"><?php echo $sold_count; ?> sold</span>
+                                <span style="margin-left: auto; font-size: 0.75rem; color: var(--shopee-muted);"><?php echo $sold_display; ?> sold</span>
                             </div>
 
                             <div class="shopee-price-row">

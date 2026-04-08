@@ -98,7 +98,7 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 <link rel="stylesheet" href="/printflow/public/assets/css/chat.css">
 
-<div class="min-h-screen py-8">
+<div class="min-h-screen py-8" style="background: #ffffff;">
     <div class="container mx-auto px-4" style="max-width: 1080px;">
         <!-- Header with back button -->
         <div style="display:flex; align-items:center; margin-bottom: 2rem; gap: 1rem;">

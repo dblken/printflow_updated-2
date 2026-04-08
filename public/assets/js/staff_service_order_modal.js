@@ -62,6 +62,7 @@ function printflowStaffServiceOrderModalMixin(opts) {
 
         svcApprove: async function () {
             if (!this.svc || !this.svc.id) return;
+            if (!confirm('Approve this service order and start production?\n\nThis will deduct materials from inventory.')) return;
             var j = await postOp(this, { order_id: this.svc.id, op: 'approve' });
             if (!j.success) {
                 alert(j.error || 'Failed');

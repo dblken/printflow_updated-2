@@ -50,7 +50,7 @@ $error_message = '';
 
 try {
     if ($action === 'Approve') {
-        $new_status = 'Paid – In Process';
+        $new_status = 'Processing';
         $payment_status = 'Paid';
         
         // Update order
@@ -63,19 +63,37 @@ try {
         }
         
         if ($success) {
-            $msg = "Your payment has been verified. Your order is now in process!";
+            $msg = "Your payment has been verified. Your order is now in production!";
             if (!empty($order['customer_id'])) {
                 create_notification((int)$order['customer_id'], 'Customer', $msg, 'Order', false, false, $order_id);
             }
             add_order_system_message($order_id, $msg);
-            log_activity($staff_id, 'Payment Approved', "Approved payment for Order #{$order_id}");
-            // Keep linked job_orders in sync (any active job — not only VERIFY_PAY / SUBMITTED)
-            db_execute(
-                "UPDATE job_orders SET payment_proof_status = 'VERIFIED', payment_status = 'PAID', status = 'IN_PRODUCTION'
-                 WHERE order_id = ? AND status NOT IN ('COMPLETED', 'CANCELLED')",
+            log_activity($staff_id, 'Payment Approved', "Approved payment for Order #{$order_id}, moved to Processing");
+            
+            // Update linked job_orders and trigger inventory deduction via JobOrderService
+            require_once __DIR__ . '/../includes/JobOrderService.php';
+            $jobs = db_query(
+                "SELECT id FROM job_orders WHERE order_id = ? AND status NOT IN ('COMPLETED', 'CANCELLED')",
                 'i',
                 [$order_id]
             );
+            
+            if (!empty($jobs)) {
+                foreach ($jobs as $job) {
+                    // Update payment fields first
+                    db_execute(
+                        "UPDATE job_orders SET payment_proof_status = 'VERIFIED', payment_status = 'PAID', amount_paid = estimated_total WHERE id = ?",
+                        'i',
+                        [$job['id']]
+                    );
+                    // Move job to IN_PRODUCTION (triggers inventory deduction)
+                    try {
+                        JobOrderService::updateStatus($job['id'], 'IN_PRODUCTION');
+                    } catch (Exception $e) {
+                        error_log("PrintFlow: Failed to process job #{$job['id']}: " . $e->getMessage());
+                    }
+                }
+            }
         }
     } else {
         // Rejected - move back to To Pay or Pending
@@ -94,7 +112,7 @@ try {
         if ($success) {
             $msg = "Your payment proof was rejected. Reason: " . $reason;
             if (!empty($order['customer_id'])) {
-                create_notification((int)$order['customer_id'], 'Customer', $msg, 'Payment Issue', false, false, $order_id);
+                create_notification((int)$order['customer_id'], 'Customer', $msg, 'Order', false, false, $order_id);
             }
             add_order_system_message($order_id, "[PAYMENT REJECTION] " . $reason);
             log_activity($staff_id, 'Payment Rejected', "Rejected payment for Order #{$order_id}. Reason: {$reason}");

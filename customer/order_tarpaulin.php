@@ -65,13 +65,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($unit === 'in') {
                     $area = $area / 144;
                 }
-                $unit_price = 20.00;
+                $price_per_sqft = 20.00;
+                $unit_price = $area * $price_per_sqft;  // Price per piece
                 
                 $_SESSION['cart'][$item_key] = [
                     'type' => 'Service',
                     'source_page' => 'services',
                     'name' => 'Tarpaulin Printing',
-                    'price' => $area * $unit_price * $quantity,
+                    'price' => $unit_price,  // Unit price, not total
                     'quantity' => $quantity,
                     'category' => 'Tarpaulin',
                     'branch_id' => $branch_id,

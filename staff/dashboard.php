@@ -54,7 +54,7 @@ switch ($timeframe) {
 
 // Get dashboard statistics (scoped to this staff member's branch)
 $pending_orders_result = db_query(
-    "SELECT COUNT(*) as count FROM orders WHERE status IN ('Pending', 'Pending Review') AND branch_id = ?",
+    "SELECT COUNT(*) as count FROM orders WHERE status IN ('Pending', 'Pending Review', 'To Verify') AND branch_id = ?",
     'i',
     [$staffBranchId]
 );
@@ -327,6 +327,7 @@ $page_title = 'Staff Dashboard - PrintFlow';
                         <select name="status" id="filter-status" class="input-field">
                             <option value="">All Statuses</option>
                             <option value="Pending" <?php echo $status_filter === 'Pending' ? 'selected' : ''; ?>>Pending</option>
+                            <option value="To Verify" <?php echo $status_filter === 'To Verify' ? 'selected' : ''; ?>>To Verify</option>
                             <option value="Processing" <?php echo $status_filter === 'Processing' ? 'selected' : ''; ?>>Processing</option>
                             <option value="Ready for Pickup" <?php echo $status_filter === 'Ready for Pickup' ? 'selected' : ''; ?>>Ready</option>
                             <option value="Completed" <?php echo $status_filter === 'Completed' ? 'selected' : ''; ?>>Completed</option>

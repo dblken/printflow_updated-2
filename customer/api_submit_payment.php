@@ -77,7 +77,7 @@ $payment_type = ($payment_choice === 'half') ? '50_percent' : 'full_payment';
 if (!$is_job) {
     // 3. Update regular order
     $sql = "UPDATE orders SET 
-            status = 'Downpayment Submitted', 
+            status = 'To Verify', 
             payment_type = ?,
             downpayment_amount = ?, 
             payment_proof = ?, 
@@ -126,7 +126,7 @@ if ($update_success) {
     if (!$is_job) {
         $first_item = db_query("SELECT customization_data FROM order_items WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
         $custom_data = !empty($first_item[0]['customization_data']) ? json_decode($first_item[0]['customization_data'], true) : [];
-        $service_name = get_service_name_from_customization($custom_data, 'Service Order');
+        $service_name = get_service_name_from_customization($custom_data, 'Product Order');
     } else {
         $service_name = normalize_service_name($order['service_type'] ?? 'Custom Job');
     }
@@ -156,6 +156,19 @@ if ($update_success) {
     
     // Log activity (if staff logged in, otherwise skip)
     log_activity($customer_id, 'Payment Submitted', "Submitted proof for {$type_label} #{$order_id}");
+
+    // Clear the cart items now that payment is submitted
+    if (!empty($_SESSION['last_order_item_key'])) {
+        $item_keys = explode(',', $_SESSION['last_order_item_key']);
+        foreach ($item_keys as $key) {
+            $key = trim($key);
+            if (isset($_SESSION['cart'][$key])) {
+                unset($_SESSION['cart'][$key]);
+            }
+        }
+        unset($_SESSION['last_order_item_key']);
+        sync_cart_to_db($customer_id);
+    }
 
     echo json_encode([
         'success' => true, 

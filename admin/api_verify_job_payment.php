@@ -104,34 +104,46 @@ if ($action === 'verify_payment') {
         }
     }
     
-    // Move to production when required payment is met (TO_PAY or VERIFY_PAY after customer proof)
+    // Move to approved when required payment is met
     $new_order_status = (string)$job['status'];
     $new_order_status_norm = $normalize_workflow_status($new_order_status);
+    $should_move_to_approved = false;
     if (in_array($new_order_status_norm, ['TO_PAY', 'VERIFY_PAY', 'TO_VERIFY', 'PENDING_VERIFICATION', 'DOWNPAYMENT_SUBMITTED'], true) && $new_amount_paid >= $required_payment) {
-        $new_order_status = 'IN_PRODUCTION';
+        $new_order_status = 'APPROVED';
+        $should_move_to_approved = true;
     }
     
     // Execute update transaction
     try {
+        // Update payment fields first
         db_execute("UPDATE job_orders SET 
                     amount_paid = ?, 
                     payment_status = ?, 
                     payment_proof_status = 'VERIFIED',
                     payment_verified_at = NOW(),
-                    payment_verified_by = ?,
-                    status = ?
+                    payment_verified_by = ?
                     WHERE id = ?", 
-        'dsisi', [$new_amount_paid, $new_payment_status, $user_id, $new_order_status, $job_id]);
+        'dsii', [$new_amount_paid, $new_payment_status, $user_id, $job_id]);
+        
+        // If moving to approved, deduct inventory then move to approved
+        if ($should_move_to_approved) {
+            require_once __DIR__ . '/../includes/JobOrderService.php';
+            JobOrderService::updateStatus($job_id, 'IN_PRODUCTION');
+            JobOrderService::updateStatus($job_id, 'APPROVED');
+        }
 
         // If linked to a store order, sync the store order status
-        if ($job['order_id']) {
+        if ($job['order_id'] && !$should_move_to_approved) {
             $store_status = 'Paid – In Process';
-            if ($new_order_status === 'IN_PRODUCTION') $store_status = 'Processing';
+            if ($new_order_status === 'APPROVED') $store_status = 'Approved';
             if ($new_order_status === 'TO_RECEIVE') $store_status = 'Ready for Pickup';
             if ($new_order_status === 'COMPLETED') $store_status = 'Completed';
             
-            db_execute("UPDATE orders SET status = ?, amount_paid = ?, payment_status = ? WHERE order_id = ?", 
-                'sdsi', [$store_status, $new_amount_paid, ($new_payment_status === 'PAID' ? 'Paid' : 'Partial'), $job['order_id']]);
+            db_execute("UPDATE orders SET status = ?, payment_status = ? WHERE order_id = ?", 
+                'ssi', [$store_status, ($new_payment_status === 'PAID' ? 'Paid' : 'Partial'), $job['order_id']]);
+        } elseif ($job['order_id'] && $should_move_to_approved) {
+            db_execute("UPDATE orders SET payment_status = ? WHERE order_id = ?", 
+                'si', [($new_payment_status === 'PAID' ? 'Paid' : 'Partial'), $job['order_id']]);
         }
         
         // Log activity (user_id must be a valid staff users.user_id)
@@ -146,7 +158,7 @@ if ($action === 'verify_payment') {
             log_activity($user_id, 'Job status update', "Job #{$job_id} moved to {$new_order_status} after payment verification.");
         }
         if ($new_order_status !== $job['status'] && !empty($job['customer_id'])) {
-            create_notification((int)$job['customer_id'], 'Customer', "Custom Job #{$job_id} is now in production!", 'Job Order', true, true);
+            create_notification((int)$job['customer_id'], 'Customer', "Custom Job #{$job_id} payment verified and approved!", 'Job Order', true, true);
         }
         
         echo json_encode(['success' => true]);

@@ -43,6 +43,7 @@ try {
             $name = $data['name'] ?? null;
             $customization = $data['customization'] ?? null;
             $custom_json = $customization ? json_encode($customization) : null;
+            $is_service = !empty($data['is_service']);
 
             // Fetch product info if missing price or name
             if ($price === null || $name === null) {
@@ -89,7 +90,8 @@ try {
                     'price' => $price,
                     'qty' => $qty,
                     'stock' => $stock,
-                    'customization' => $customization
+                    'customization' => $customization,
+                    'is_service' => $is_service
                 ];
             }
             break;
@@ -110,6 +112,16 @@ try {
                 }
                 $item['qty'] = $qty;
             }
+            break;
+
+        case 'update_price':
+            $index = isset($data['index']) ? (int)$data['index'] : -1;
+            if ($index < 0 || !isset($_SESSION['pos_cart'][$index])) {
+                throw new Exception('Invalid cart item.');
+            }
+            $price = (float)$data['price'];
+            if ($price < 0) throw new Exception('Price cannot be negative.');
+            $_SESSION['pos_cart'][$index]['price'] = $price;
             break;
 
         case 'remove':

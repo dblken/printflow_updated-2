@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Search</title>
+</head>
+<body>
+    <h1>Search Test</h1>
+    <input type="text" id="search" placeholder="Type to search..." style="width:400px;padding:10px;font-size:16px;">
+    <div id="results" style="margin-top:20px;border:1px solid #ccc;padding:10px;"></div>
+
+    <script>
+        const input = document.getElementById('search');
+        const results = document.getElementById('results');
+        let timer = null;
+
+        input.addEventListener('input', function() {
+            clearTimeout(timer);
+            const q = input.value.trim();
+            
+            if (!q) {
+                results.innerHTML = 'Type something...';
+                return;
+            }
+
+            results.innerHTML = 'Searching...';
+
+            timer = setTimeout(function() {
+                fetch('/printflow/public/api/search.php?q=' + encodeURIComponent(q))
+                    .then(r => r.json())
+                    .then(data => {
+                        console.log('Response:', data);
+                        if (data.results && data.results.length > 0) {
+                            results.innerHTML = '<pre>' + JSON.stringify(data.results, null, 2) + '</pre>';
+                        } else {
+                            results.innerHTML = 'No results found';
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error:', err);
+                        results.innerHTML = 'Error: ' + err.message;
+                    });
+            }, 300);
+        });
+    </script>
+</body>
+</html>

@@ -65,12 +65,125 @@ $order_row = $order_row[0];
 $op = $input['op'] ?? '';
 
 if ($op === 'approve') {
+    // When approving, move to Processing and trigger inventory deduction
     db_execute("UPDATE service_orders SET status = 'Processing' WHERE id = ?", 'i', [$order_id]);
+    
+    // Deduct inventory for service orders (similar to job orders moving to IN_PRODUCTION)
+    require_once __DIR__ . '/../../includes/InventoryManager.php';
+    require_once __DIR__ . '/../../includes/RollService.php';
+    
+    try {
+        // Get materials assigned to this service order
+        $materials = db_query(
+            "SELECT * FROM job_order_materials WHERE std_order_id = ? AND deducted_at IS NULL",
+            'i',
+            [$order_id]
+        );
+        
+        if ($materials) {
+            foreach ($materials as $m) {
+                $item = InventoryManager::getItem($m['item_id']);
+                if (!$item) continue;
+
+                if ($item['track_by_roll']) {
+                    $lengthNeeded = (float)($m['computed_required_length_ft'] ?: $m['quantity']);
+
+                    if ($lengthNeeded <= 0) {
+                        db_execute("UPDATE job_order_materials SET deducted_at = NOW() WHERE id = ?", 'i', [$m['id']]);
+                        continue;
+                    }
+
+                    try {
+                        RollService::deductFIFO(
+                            $m['item_id'],
+                            $lengthNeeded,
+                            'SERVICE_ORDER',
+                            $order_id,
+                            "Deducted for Service Order #{$order_id}"
+                        );
+                    } catch (Exception $e) {
+                        throw new Exception(
+                            "Cannot process Service Order #{$order_id}: Roll stock depleted for '{$item['name']}'. " .
+                            "Please receive new stock before approving. (" . $e->getMessage() . ")"
+                        );
+                    }
+                    
+                    // Handle lamination if present
+                    $metadata = is_string($m['metadata']) ? json_decode($m['metadata'], true) : $m['metadata'];
+                    if (is_array($metadata) && isset($metadata['lamination_item_id']) && !empty($metadata['lamination_length_ft'])) {
+                        $lamItem = InventoryManager::getItem($metadata['lamination_item_id']);
+                        if ($lamItem) {
+                            try {
+                                if ($lamItem['track_by_roll']) {
+                                    RollService::deductFIFO(
+                                        $lamItem['id'],
+                                        $metadata['lamination_length_ft'],
+                                        'SERVICE_ORDER',
+                                        $order_id,
+                                        "Lamination deducted for Service Order #{$order_id}"
+                                    );
+                                } else {
+                                    InventoryManager::issueStock(
+                                        $lamItem['id'], 
+                                        $metadata['lamination_length_ft'], 
+                                        $lamItem['unit_of_measure'], 
+                                        'SERVICE_ORDER', 
+                                        $order_id, 
+                                        "Lamination deducted for Service Order #{$order_id}"
+                                    );
+                                }
+                            } catch (Exception $e) {
+                                throw new Exception(
+                                    "Cannot process Service Order #{$order_id}: Lamination stock depleted for '{$lamItem['name']}'. " .
+                                    "Please receive new stock before approving. (" . $e->getMessage() . ")"
+                                );
+                            }
+                        }
+                    }
+
+                    db_execute("UPDATE job_order_materials SET deducted_at = NOW() WHERE id = ?", 'i', [$m['id']]);
+                } else {
+                    // Non-roll deduction
+                    InventoryManager::issueStock(
+                        $m['item_id'], 
+                        $m['quantity'], 
+                        $m['uom'], 
+                        'SERVICE_ORDER', 
+                        $order_id, 
+                        "Deducted for Service Order #{$order_id}"
+                    );
+                    db_execute("UPDATE job_order_materials SET deducted_at = NOW() WHERE id = ?", 'i', [$m['id']]);
+                }
+            }
+        }
+
+        // Process Ink Deductions
+        $inks = db_query("SELECT * FROM job_order_ink_usage WHERE std_order_id = ?", 'i', [$order_id]);
+        if ($inks) {
+            foreach ($inks as $ink) {
+                $inkItem = InventoryManager::getItem($ink['item_id']);
+                if (!$inkItem) continue;
+
+                InventoryManager::issueStock(
+                    $ink['item_id'],
+                    $ink['quantity_used'],
+                    $inkItem['unit_of_measure'] ?? 'bottle',
+                    'SERVICE_ORDER',
+                    $order_id,
+                    "{$ink['ink_color']} ink used for Service Order #{$order_id}"
+                );
+            }
+        }
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit;
+    }
+    
     if (function_exists('create_notification')) {
         create_notification(
             (int)$order_row['customer_id'],
             'Customer',
-            "Your service order #{$order_id} has been approved and is now processing.",
+            "Your service order #{$order_id} has been approved and is now in production. Materials have been allocated.",
             'Order',
             true,
             false

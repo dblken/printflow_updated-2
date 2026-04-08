@@ -167,9 +167,13 @@ if ($action === 'update') {
 // -----------------------------------------------------------------------
 if ($action === 'remove') {
     $key = $input['cart_key'] ?? '';
-    unset($_SESSION['cart'][$key]);
-    if ($customer_id) sync_cart_to_db($customer_id);
-    echo json_encode(['success' => true, 'cart_count' => cart_count()]);
+    if (isset($_SESSION['cart'][$key])) {
+        unset($_SESSION['cart'][$key]);
+        if ($customer_id) sync_cart_to_db($customer_id);
+        echo json_encode(['success' => true, 'cart_count' => cart_count()]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Item not found in cart.']);
+    }
     exit;
 }
 

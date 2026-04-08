@@ -35,15 +35,18 @@ $dir          = strtoupper($_GET['dir'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
 $page         = max(1, (int)($_GET['page'] ?? 1));
 $per_page     = 15;
 
-// Build Query
-$sql = "SELECT t.*, i.name as item_name, i.unit_of_measure as unit, 
+// Build Query - Support both inv_items and products
+$sql = "SELECT t.*, 
+               COALESCE(i.name, p.name) as item_name, 
+               COALESCE(i.unit_of_measure, 'pcs') as unit, 
                CONCAT(u.first_name, ' ', u.last_name) as created_by_name,
                r.roll_code as roll_code
         FROM inventory_transactions t
-        JOIN inv_items i ON t.item_id = i.id
+        LEFT JOIN inv_items i ON t.item_id = i.id AND t.ref_type != 'order'
+        LEFT JOIN products p ON t.item_id = p.product_id AND t.ref_type = 'order'
         LEFT JOIN users u ON t.created_by = u.user_id
         LEFT JOIN inv_rolls r ON t.roll_id = r.id
-        WHERE 1=1";
+        WHERE (i.id IS NOT NULL OR p.product_id IS NOT NULL)";
 $params = [];
 $types = '';
 

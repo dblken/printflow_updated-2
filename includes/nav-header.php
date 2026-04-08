@@ -136,6 +136,55 @@ if ($initials === '') {
             padding: .75rem 1rem 1rem;
         }
         #main-header .pf-mobile-panel.open { display: block; }
+        #main-header .pf-mobile-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem;
+            margin-bottom: 0.75rem;
+            background: rgba(83,197,224,0.08);
+            border: 1px solid rgba(83,197,224,0.2);
+            border-radius: 0.75rem;
+        }
+        #main-header .pf-mobile-profile-avatar {
+            width: 2.75rem;
+            height: 2.75rem;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid rgba(83,197,224,.45);
+            background: linear-gradient(135deg, rgba(83,197,224,.24), rgba(50,161,196,.4));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #e6f7fc;
+            font-size: .85rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        #main-header .pf-mobile-profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #main-header .pf-mobile-profile-info {
+            flex: 1;
+            min-width: 0;
+        }
+        #main-header .pf-mobile-profile-name {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #eaf6fb;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #main-header .pf-mobile-profile-email {
+            font-size: 0.75rem;
+            color: rgba(83,197,224,0.7);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         #main-header .pf-mobile-search {
             display: flex;
             align-items: center;
@@ -184,35 +233,92 @@ if ($initials === '') {
         @media (max-width: 1023px) {
             #main-header .pf-burger-btn { display: inline-flex; }
             #main-header .pf-header-shell {
-                display: grid;
-                grid-template-columns: 1fr auto;
-                align-items: center;
-                column-gap: .6rem;
-                row-gap: .5rem;
-            }
-            #main-header .pf-header-left { min-width: 0; }
-            #main-header .pf-header-right {
-                display: contents;
-                margin-left: 0;
-            }
-            #main-header .pf-burger-btn {
-                grid-column: 2;
-                grid-row: 1;
-                justify-self: end;
-            }
-            #main-header .pf-mobile-icon-row {
-                grid-column: 1 / -1;
-                grid-row: 2;
                 display: flex;
                 align-items: center;
-                justify-content: flex-end;
-                gap: .42rem;
+                justify-content: space-between;
+                gap: 0.5rem;
+                max-width: 100%;
+            }
+            #main-header .pf-header-left {
+                display: flex;
+                align-items: center;
+                flex: 0 1 auto;
+                min-width: 0;
+            }
+            #main-header .pf-header-left a {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                white-space: nowrap;
+            }
+            #main-header .pf-header-left img,
+            #main-header .pf-header-left svg {
+                width: 32px;
+                height: 32px;
+                flex-shrink: 0;
             }
             #main-header .pf-header-left .text-xl,
-            #main-header .pf-header-left .text-2xl { font-size: 1.1rem !important; }
+            #main-header .pf-header-left .text-2xl {
+                font-size: 1.1rem !important;
+                white-space: nowrap;
+            }
+            #main-header .pf-header-right {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                flex: 0 0 auto;
+                margin-left: auto;
+            }
+            #main-header .pf-header-right [data-pf-profile-wrap] {
+                display: none !important;
+            }
+            #main-header .pf-mobile-icon-row {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            #main-header .pf-burger-btn {
+                order: 999;
+            }
             #main-header .pf-dropdown-menu {
                 right: 0;
                 left: auto;
+            }
+            #main-header .pf-icon-btn {
+                width: 2.4rem;
+                height: 2.4rem;
+            }
+            #main-header .pf-burger-btn {
+                width: 2.4rem;
+                height: 2.4rem;
+            }
+        }
+        @media (max-width: 380px) {
+            #main-header .pf-header-shell {
+                gap: 0.4rem;
+            }
+            #main-header .pf-header-left img,
+            #main-header .pf-header-left svg {
+                width: 28px;
+                height: 28px;
+            }
+            #main-header .pf-header-left .text-xl,
+            #main-header .pf-header-left .text-2xl {
+                font-size: 1rem !important;
+            }
+            #main-header .pf-header-right {
+                gap: 0.4rem;
+            }
+            #main-header .pf-mobile-icon-row {
+                gap: 0.4rem;
+            }
+            #main-header .pf-icon-btn {
+                width: 2.2rem;
+                height: 2.2rem;
+            }
+            #main-header .pf-burger-btn {
+                width: 2.2rem;
+                height: 2.2rem;
             }
         }
     </style>
@@ -306,7 +412,7 @@ if ($initials === '') {
                             name="<?php echo htmlspecialchars($search_param); ?>"
                             value="<?php echo htmlspecialchars($search_query); ?>"
                             class="pf-search-input"
-                            placeholder="<?php echo htmlspecialchars(is_customer() ? 'Search services, products, orders...' : $search_placeholder); ?>"
+                            placeholder="<?php echo htmlspecialchars(is_customer() ? 'Search services, products...' : $search_placeholder); ?>"
                             aria-label="Search"
                             autocomplete="off">
                     </form>
@@ -340,7 +446,9 @@ if ($initials === '') {
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 3 1.5 1.5m0 0 2.07 10.358A2.25 2.25 0 0 0 8.027 16.5h8.946a2.25 2.25 0 0 0 2.206-1.642L21 8.25H6.375m-2.625-3.75H21M9 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm8.25 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/>
                             </svg>
                         </a>
-                        <span id="cart-count-badge" class="pf-badge" style="display:flex;"><?php echo $cart_display; ?></span>
+                        <?php if ($cart_count > 0): ?>
+                        <span id="cart-count-badge" class="pf-badge"><?php echo $cart_display; ?></span>
+                        <?php endif; ?>
                     </div>
                     <?php endif; ?>
                     <!-- Notifications -->
@@ -414,13 +522,6 @@ if ($initials === '') {
                                 </svg>
                                 Messages
                             </a>
-                            <a href="<?php echo $base_url; ?>/customer/reviews.php"
-                               class="pf-dropdown-link">
-                                <svg class="pf-dropdown-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-                                </svg>
-                                Reviews
-                            </a>
                             <?php endif; ?>
                             <a href="<?php echo $base_url; ?>/<?php echo strtolower($user_type); ?>/profile.php"
                                class="pf-dropdown-link">
@@ -456,18 +557,43 @@ if ($initials === '') {
     </nav>
     <?php if ($is_logged_in && is_customer()): ?>
     <div class="pf-mobile-panel" data-pf-mobile-panel>
+        <!-- Profile Section -->
+        <div class="pf-mobile-profile">
+            <div class="pf-mobile-profile-avatar">
+                <?php if (!empty($current_user['profile_picture'])): ?>
+                    <img src="<?php echo $asset_base; ?>/assets/uploads/profiles/<?php echo htmlspecialchars($current_user['profile_picture']); ?>?t=<?php echo time(); ?>" 
+                         alt="Profile">
+                <?php else: ?>
+                    <span><?php echo htmlspecialchars($initials); ?></span>
+                <?php endif; ?>
+            </div>
+            <div class="pf-mobile-profile-info">
+                <div class="pf-mobile-profile-name"><?php echo htmlspecialchars($first . ' ' . $last); ?></div>
+                <div class="pf-mobile-profile-email"><?php echo htmlspecialchars($current_user['email'] ?? ''); ?></div>
+            </div>
+        </div>
+
+        <!-- Search -->
         <form class="pf-mobile-search" action="<?php echo htmlspecialchars($search_action); ?>" method="get" autocomplete="off">
             <svg style="width:1rem;height:1rem;color:rgba(255,255,255,.72);" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"></path>
             </svg>
             <input type="search" name="<?php echo htmlspecialchars($search_param); ?>" value="<?php echo htmlspecialchars($search_query); ?>" placeholder="<?php echo htmlspecialchars($search_placeholder); ?>" aria-label="Search">
         </form>
+
+        <!-- Navigation Links -->
         <div class="pf-mobile-links">
             <a class="pf-mobile-link" href="<?php echo $base_url; ?>/customer/services.php">Services</a>
             <a class="pf-mobile-link" href="<?php echo $base_url; ?>/customer/products.php">Products</a>
             <a class="pf-mobile-link" href="<?php echo $base_url; ?>/customer/orders.php">Orders</a>
             <a class="pf-mobile-link" href="<?php echo $base_url; ?>/customer/messages.php">Messages</a>
-            <a class="pf-mobile-link" href="<?php echo $base_url; ?>/customer/reviews.php">Reviews</a>
+            <a class="pf-mobile-link" href="<?php echo $base_url; ?>/customer/profile.php">Profile</a>
+            <div style="height:1px;background:rgba(83,197,224,0.15);margin:0.5rem 0;"></div>
+            <button onclick="document.getElementById('logout-confirm-modal').style.display='flex'" type="button"
+                    class="pf-mobile-link" 
+                    style="width:100%;border:none;cursor:pointer;color:rgba(239,68,68,.9);background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);">
+                Logout
+            </button>
         </div>
     </div>
     <?php endif; ?>
@@ -488,7 +614,7 @@ if ($initials === '') {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
             </svg>
         </div>
-        <h3 style="font-size:1.25rem;font-weight:800;color:#f8fafc;margin:0 0 0.75rem;letter-spacing:-0.02em;">Sign Out</h3>
+        <h3 style="font-size:1.25rem;font-weight:800;color:#ffffff !important;margin:0 0 0.75rem;letter-spacing:-0.02em;">Sign Out</h3>
         <p style="font-size:0.95rem;color:#cbd5e1;margin:0 0 2rem;line-height:1.6;">Are you sure you want to sign out of your account?</p>
         <!-- Buttons -->
         <div style="display:flex;gap:1rem;">
@@ -499,7 +625,7 @@ if ($initials === '') {
                 Cancel
             </button>
             <a href="<?php echo $url_logout; ?>"
-               style="flex:1;padding:0.75rem 1rem;border-radius:12px;background:#EF4444;color:#fff;font-size:0.875rem;font-weight:700;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;transition:all 0.2s;box-shadow:0 8px 15px -3px rgba(239,68,68,0.3);"
+               style="flex:1;padding:0.75rem 1rem;border-radius:12px;background:#EF4444;color:#fff !important;font-size:0.875rem;font-weight:700;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;transition:all 0.2s;box-shadow:0 8px 15px -3px rgba(239,68,68,0.3);"
                onmouseover="this.style.background='#DC2626';this.style.transform='translateY(-1px)';this.style.boxShadow='0 10px 20px -2px rgba(239,68,68,0.4)'"
                onmouseout="this.style.background='#EF4444';this.style.transform='translateY(0)';this.style.boxShadow='0 8px 15px -3px rgba(239,68,68,0.3)'">
                 Sign Out
@@ -580,10 +706,30 @@ if ($initials === '') {
     // ── Cart count badge ─────────────────────────────────────────
     window.updateCartBadge = function(count) {
         var badge = document.getElementById('cart-count-badge');
-        if (!badge) return;
         count = parseInt(count) || 0;
-        badge.textContent = count > 99 ? '99+' : count;
-        badge.style.display = 'flex';
+        
+        if (count > 0) {
+            // Create badge if it doesn't exist
+            if (!badge) {
+                var cartLink = document.querySelector('a[href*="cart.php"]');
+                if (cartLink) {
+                    var container = cartLink.parentElement;
+                    badge = document.createElement('span');
+                    badge.id = 'cart-count-badge';
+                    badge.className = 'pf-badge';
+                    container.appendChild(badge);
+                }
+            }
+            if (badge) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.style.display = 'flex';
+            }
+        } else {
+            // Remove badge if count is 0
+            if (badge) {
+                badge.remove();
+            }
+        }
     };
 
     // Poll cart count on load and every 5s
@@ -602,11 +748,30 @@ if ($initials === '') {
     <?php endif; ?>
 
     // ── Realtime search ──────────────────────────────────────────
-    <?php if ($is_logged_in && is_customer()): ?>
+    <?php if ($show_header_search): ?>
     (function(){
+        console.log('Search script initializing...');
         var input = document.getElementById('pf-search-input');
+        console.log('Search input element:', input);
         var dropdown = document.getElementById('pf-search-dropdown');
-        if (!input || !dropdown) return;
+        console.log('Search dropdown element:', dropdown);
+        if (!input) {
+            console.error('Search input not found!');
+            return;
+        }
+        if (!dropdown) {
+            console.log('Dropdown not found, creating it...');
+            dropdown = document.createElement('div');
+            dropdown.id = 'pf-search-dropdown';
+            dropdown.style.cssText = 'display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#0a2530;border:1px solid rgba(83,197,224,0.3);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.5);z-index:9999;overflow:hidden;';
+            var wrap = input.closest('.pf-search-wrap');
+            if (wrap) {
+                wrap.appendChild(dropdown);
+                console.log('Dropdown created and appended');
+            } else {
+                console.error('Could not find .pf-search-wrap parent');
+            }
+        }
 
         var timer = null;
         var icons = {
@@ -617,12 +782,22 @@ if ($initials === '') {
         var colors = { service: '#53c5e0', product: '#a78bfa', order: '#34d399' };
 
         function doSearch(q) {
+            console.log('Search triggered for:', q);
             if (!q.trim()) { dropdown.style.display = 'none'; return; }
+            console.log('Fetching:', '/printflow/public/api/search.php?q=' + encodeURIComponent(q));
             fetch('/printflow/public/api/search.php?q=' + encodeURIComponent(q))
-            .then(function(r){ return r.json(); })
+            .then(function(r){ 
+                console.log('Response status:', r.status);
+                return r.json(); 
+            })
             .then(function(data) {
+                console.log('Search results:', data);
                 var results = data.results || [];
-                if (!results.length) { dropdown.style.display = 'none'; return; }
+                if (!results.length) { 
+                    console.log('No results, hiding dropdown');
+                    dropdown.style.display = 'none'; 
+                    return; 
+                }
                 var html = '';
                 results.forEach(function(r) {
                     var color = colors[r.type] || '#fff';
@@ -636,13 +811,18 @@ if ($initials === '') {
                           + '<span style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:' + color + ';opacity:0.7;flex-shrink:0;">' + r.type + '</span>'
                           + '</a>';
                 });
+                console.log('Showing dropdown with', results.length, 'results');
                 dropdown.innerHTML = html;
                 dropdown.style.display = 'block';
             })
-            .catch(function(){ dropdown.style.display = 'none'; });
+            .catch(function(err){ 
+                console.error('Search error:', err);
+                dropdown.style.display = 'none'; 
+            });
         }
 
         input.addEventListener('input', function() {
+            console.log('Input event fired, value:', input.value);
             clearTimeout(timer);
             timer = setTimeout(function(){ doSearch(input.value); }, 220);
         });

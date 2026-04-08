@@ -29,12 +29,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             unset($item);
         }
-    } elseif (isset($_POST['remove_item'])) {
-        $pid = $_POST['remove_item'];
-        unset($_SESSION['cart'][$pid]);
+        header("Location: cart.php");
+        exit;
     }
-    header("Location: cart.php");
-    exit;
+    // Remove item handler removed - now handled via AJAX only
 }
 
 $cart_items = $_SESSION['cart'] ?? [];
@@ -89,6 +87,12 @@ require_once __DIR__ . '/../includes/header.php';
     .cart-theme-page thead {
         background: #f8fafc !important;
         color: #475569 !important;
+    }
+    .cart-row {
+        cursor: pointer !important;
+    }
+    .cart-row td {
+        pointer-events: auto !important;
     }
     .cart-theme-page .cart-row {
         border-bottom: 1px solid #e2e8f0 !important;
@@ -189,6 +193,305 @@ require_once __DIR__ . '/../includes/header.php';
     .trash-btn:hover {
         background: rgba(239, 68, 68, 0.2);
         transform: scale(1.1);
+    }
+
+    /* Mobile Responsive Card Layout */
+    @media (max-width: 768px) {
+        .cart-theme-page table {
+            display: block;
+        }
+        
+        .cart-theme-page thead {
+            display: none;
+        }
+        
+        .cart-theme-page tbody {
+            display: block;
+        }
+        
+        .cart-theme-page .cart-row {
+            display: block;
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+            position: relative;
+        }
+        
+        .cart-theme-page .cart-row td {
+            display: block;
+            padding: 0 !important;
+            border: none !important;
+            text-align: left !important;
+        }
+        
+        /* TOP SECTION: Checkbox + Image + Name + Tag */
+        .cart-theme-page .cart-row td:nth-child(1) {
+            position: absolute;
+            top: 0.5rem;
+            left: 0.5rem;
+            width: auto;
+        }
+        
+        .cart-theme-page .cart-row td:nth-child(2) {
+            padding-left: 2rem !important;
+            padding-bottom: 0.4rem !important;
+            margin-bottom: 0.4rem;
+            border-bottom: 1px solid #f1f5f9 !important;
+            position: relative !important;
+        }
+        
+        .cart-theme-page .cart-row td:nth-child(2) > div {
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 0.4rem !important;
+        }
+        
+        /* Reduce image size */
+        .cart-theme-page .cart-row td:nth-child(2) > div:first-child {
+            width: 36px !important;
+            height: 36px !important;
+            min-width: 36px;
+            border-radius: 4px;
+        }
+        
+        .cart-theme-page .cart-row td:nth-child(2) > div:nth-child(2) {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+        
+        /* Product name - allow wrapping */
+        .cart-theme-page .cart-row td:nth-child(2) > div:nth-child(2) > div:first-child {
+            font-size: 0.85rem !important;
+            font-weight: 600 !important;
+            line-height: 1.3;
+            color: #0f172a !important;
+            padding-right: 0 !important;
+            white-space: normal !important;
+            word-wrap: break-word;
+        }
+        
+        /* Product badge - position in upper right */
+        .cart-theme-page .cart-row td:nth-child(2) > span {
+            position: absolute !important;
+            top: 0.5rem !important;
+            right: 0.5rem !important;
+            height: 16px !important;
+            padding: 0 0.35rem !important;
+            font-size: 0.55rem !important;
+            line-height: 16px !important;
+        }
+        
+        /* Category text - smaller */
+        .cart-theme-page .cart-row td:nth-child(2) > div:nth-child(2) > div:nth-child(2),
+        .cart-theme-page .cart-row td:nth-child(2) > div:nth-child(2) > div:nth-child(3) {
+            font-size: 0.65rem !important;
+            line-height: 1.3;
+        }
+        
+        /* MIDDLE SECTION: Price and Quantity in rows */
+        .cart-theme-page .cart-row td:nth-child(3),
+        .cart-theme-page .cart-row td:nth-child(4) {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.3rem 0 !important;
+        }
+        
+        .cart-theme-page .cart-row td:nth-child(3)::before {
+            content: 'Price:';
+            font-weight: 500;
+            color: #64748b;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+        
+        .cart-theme-page .cart-row td:nth-child(3) span {
+            font-size: 0.8rem !important;
+            font-weight: 600 !important;
+            text-align: right;
+        }
+        
+        .cart-theme-page .cart-row td:nth-child(4) {
+            padding-bottom: 0.4rem !important;
+            margin-bottom: 0.4rem;
+            border-bottom: 1px solid #f1f5f9 !important;
+        }
+        
+        .cart-theme-page .cart-row td:nth-child(4)::before {
+            content: 'Qty:';
+            font-weight: 500;
+            color: #64748b;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+        
+        /* BOTTOM SECTION: Total + Delete in same row */
+        .cart-theme-page .cart-row td:nth-child(5) {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.3rem 0 0 !important;
+            border: none !important;
+        }
+        
+        .cart-theme-page .cart-row td:nth-child(5)::before {
+            content: 'Total:';
+            font-weight: 500;
+            color: #64748b;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+        
+        .cart-theme-page .cart-row td:nth-child(5) > div {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .cart-theme-page .cart-row td:nth-child(5) span {
+            font-size: 0.9rem !important;
+            font-weight: 700 !important;
+            color: #0f172a !important;
+            text-align: right;
+        }
+        
+        .cart-theme-page .cart-row td:nth-child(6) {
+            display: none !important;
+        }
+        
+        /* Quantity controls - compact */
+        .qty-control {
+            gap: 6px;
+            padding: 2px 4px;
+        }
+        
+        .qty-btn {
+            width: 26px;
+            height: 26px;
+            font-size: 0.95rem;
+        }
+        
+        .qty-val {
+            font-size: 0.85rem;
+            min-width: 18px;
+        }
+        
+        /* Trash button - compact */
+        .trash-btn {
+            padding: 6px;
+            min-height: 32px;
+            min-width: 32px;
+            border-radius: 6px;
+        }
+        
+        .trash-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+        
+        /* Checkbox - compact */
+        .cart-checkbox {
+            width: 16px;
+            height: 16px;
+        }
+        
+        /* Footer actions */
+        .cart-theme-page .card > div:last-child {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 1rem !important;
+            text-align: center !important;
+        }
+        
+        .cart-theme-page .card > div:last-child > a,
+        .cart-theme-page .card > div:last-child > div {
+            width: 100%;
+            text-align: center !important;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .cart-theme-page .card > div:last-child > a {
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .cart-theme-page #checkout-btn {
+            width: 100%;
+            padding: 0.875rem 1.5rem;
+            font-size: 0.95rem;
+            min-height: 46px;
+        }
+        
+        .cart-theme-page .btn-secondary {
+            width: 100%;
+            padding: 0.75rem 1.25rem;
+            text-align: center;
+            display: block;
+            min-height: 46px;
+            font-size: 0.9rem;
+        }
+        
+        /* Cart total section */
+        .cart-theme-page .card > div:last-child > div {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            align-items: center;
+        }
+        
+        .cart-theme-page .card > div:last-child > div > div:first-child {
+            order: 2;
+            font-size: 0.8rem !important;
+            text-align: center;
+        }
+        
+        .cart-theme-page .card > div:last-child > div > div:nth-child(2) {
+            order: 1;
+            font-size: 1.35rem !important;
+            text-align: center;
+        }
+        
+        .cart-theme-page .card > div:last-child > div > div:nth-child(3) {
+            order: 3;
+            font-size: 0.7rem !important;
+            text-align: center;
+        }
+        
+        .cart-theme-page .card > div:last-child > div > #mixed-items-warning {
+            order: 4;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            text-align: center !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        
+        .cart-theme-page .card > div:last-child > div > #mixed-items-warning > div {
+            text-align: center !important;
+        }
+        
+        .cart-theme-page .card > div:last-child > div > #mixed-items-warning > div > div {
+            text-align: center !important;
+        }
+        
+        .cart-theme-page .card > div:last-child > div > #checkout-btn {
+            order: 5;
+        }
+        
+        /* Page title */
+        .cart-theme-page h1 {
+            font-size: 1.5rem !important;
+            margin-bottom: 1rem !important;
+        }
     }
 
     #removeModal > div:last-child {
@@ -434,12 +737,51 @@ require_once __DIR__ . '/../includes/header.php';
                                         }
                                     }
                                     $info_json = htmlspecialchars(json_encode($info_lines), ENT_QUOTES, 'UTF-8');
+                                    
+                                    // Determine product_id or service_id for redirect
+                                    $data_product_id = '';
+                                    $data_service_id = '';
+                                    $onclick_handler = '';
+                                    
+                                    if ($item_origin === 'Product' && !empty($item['product_id'])) {
+                                        $data_product_id = (int)$item['product_id'];
+                                        $onclick_handler = "window.location.href='order_create.php?product_id={$data_product_id}&buy_now=1';";
+                                    } elseif ($item_origin === 'Service') {
+                                        // Try to get service_id from multiple sources
+                                        if (!empty($item['customization']['service_id'])) {
+                                            $data_service_id = (int)$item['customization']['service_id'];
+                                        } elseif (!empty($item['service_id'])) {
+                                            $data_service_id = (int)$item['service_id'];
+                                        } elseif (!empty($item['product_id'])) {
+                                            $data_service_id = (int)$item['product_id'];
+                                        }
+                                        
+                                        // Fallback: Extract service_id from cart key (e.g., service_5_1234567890_123)
+                                        if ($data_service_id <= 0 && preg_match('/^service_(\d+)_/', $pid, $matches)) {
+                                            $data_service_id = (int)$matches[1];
+                                        }
+                                        
+                                        if ($data_service_id > 0) {
+                                            $onclick_handler = "window.location.href='/printflow/customer/order/{$data_service_id}';";
+                                        }
+                                    }
                                 ?>
-                                    <tr class="cart-row" data-id="<?php echo $pid; ?>" data-price="<?php echo $item['price']; ?>" data-custom="<?php echo $is_unpriced_row ? '1' : '0'; ?>" data-item-name="<?php echo htmlspecialchars($item_name, ENT_QUOTES, 'UTF-8'); ?>" data-item-category="<?php echo htmlspecialchars($item_category, ENT_QUOTES, 'UTF-8'); ?>" data-info-lines="<?php echo $info_json; ?>" data-modify-link="<?php echo htmlspecialchars($modify_link, ENT_QUOTES, 'UTF-8'); ?>" style="border-bottom:1px solid rgba(83,197,224,.14); transition: background 0.2s; cursor:pointer; <?php echo !$is_selected ? 'opacity: 0.6; background: rgba(255,255,255,.035);' : ''; ?>">
-                                        <td style="padding:1rem; text-align:center;">
+                                    <tr class="cart-row" 
+                                        data-id="<?php echo $pid; ?>" 
+                                        data-price="<?php echo $item['price']; ?>" 
+                                        data-custom="<?php echo $is_unpriced_row ? '1' : '0'; ?>" 
+                                        data-product-id="<?php echo $data_product_id; ?>" 
+                                        data-service-id="<?php echo $data_service_id; ?>" 
+                                        data-item-origin="<?php echo $item_origin; ?>" 
+                                        data-item-name="<?php echo htmlspecialchars($item_name, ENT_QUOTES, 'UTF-8'); ?>" 
+                                        data-item-category="<?php echo htmlspecialchars($item_category, ENT_QUOTES, 'UTF-8'); ?>" 
+                                        data-info-lines="<?php echo $info_json; ?>" 
+                                        data-modify-link="<?php echo htmlspecialchars($modify_link, ENT_QUOTES, 'UTF-8'); ?>" 
+                                        style="border-bottom:1px solid rgba(83,197,224,.14); transition: background 0.2s; <?php echo !$is_selected ? 'opacity: 0.6; background: rgba(255,255,255,.035);' : ''; ?>">
+                                        <td style="padding:1rem; text-align:center;" onclick="event.stopPropagation();">
                                             <input type="checkbox" class="cart-checkbox item-checkbox" onchange="toggleItem('<?php echo $pid; ?>', this.checked)" <?php echo $is_selected ? 'checked' : ''; ?>>
                                         </td>
-                                        <td style="padding:1rem; display:flex; align-items:center; gap:1rem;">
+                                        <td style="padding:1rem; display:flex; align-items:center; gap:1rem; cursor:pointer; position:relative;" onclick="handleCartRowClick(this.closest('tr'), event);">
                                             <?php
                                             $prod_id = (int)($item['product_id'] ?? 0);
                                             $product_img = "";
@@ -499,13 +841,8 @@ require_once __DIR__ . '/../includes/header.php';
                                                     <img src="/printflow/public/assets/images/icon-192.png" style="width:70%; height:70%; object-fit:contain; opacity:0.8;" alt="Logo">
                                                 <?php endif; ?>
                                             </div>
-                                            <div>
-                                                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-                                                    <div style="font-weight:600; color:#0f172a;"><?php echo htmlspecialchars($item['name'] ?? 'Unknown Product'); ?></div>
-                                                    <span style="display:inline-flex; align-items:center; height:20px; padding:0 0.55rem; border-radius:999px; border:1px solid <?php echo $item_type_border; ?>; background:<?php echo $item_type_bg; ?>; color:<?php echo $item_type_text; ?>; font-size:0.68rem; font-weight:700; letter-spacing:0.02em; text-transform:uppercase;">
-                                                        <?php echo $item_origin; ?>
-                                                    </span>
-                                                </div>
+                                            <div style="flex:1;">
+                                                <div style="font-weight:600; color:#0f172a; white-space:nowrap; padding-right:4rem;"><?php echo htmlspecialchars($item['name'] ?? 'Unknown Product'); ?></div>
                                                 <?php if (!empty($item['variant_name'])): ?>
                                                     <div style="font-size:0.75rem; color:#475569;"><?php echo htmlspecialchars((string)$item['variant_name']); ?></div>
                                                 <?php endif; ?>
@@ -513,8 +850,11 @@ require_once __DIR__ . '/../includes/header.php';
                                                     <div style="font-size:0.75rem; color:#64748b;"><?php echo htmlspecialchars($item['category']); ?></div>
                                                 <?php endif; ?>
                                             </div>
+                                            <span style="position:absolute; top:0.5rem; right:0.5rem; display:inline-flex; align-items:center; height:20px; padding:0 0.55rem; border-radius:999px; border:1px solid <?php echo $item_type_border; ?>; background:<?php echo $item_type_bg; ?>; color:<?php echo $item_type_text; ?>; font-size:0.68rem; font-weight:700; letter-spacing:0.02em; text-transform:uppercase;">
+                                                <?php echo $item_origin; ?>
+                                            </span>
                                         </td>
-                                        <td style="padding:1rem; text-align:center;">
+                                        <td style="padding:1rem; text-align:center;" onclick="event.stopPropagation();">
                                             <?php 
                                             if ($is_unpriced_row): ?>
                                                 <span style="font-size:0.75rem; color:#64748b; font-style:italic;">To be confirmed</span>
@@ -522,27 +862,28 @@ require_once __DIR__ . '/../includes/header.php';
                                                 <span style="color:#0f172a; font-weight:600;"><?php echo str_replace('PHP', '₱', format_currency($item['price'])); ?></span>
                                             <?php endif; ?>
                                         </td>
-                                        <td style="padding:1rem; text-align:center;">
+                                        <td style="padding:1rem; text-align:center;" onclick="event.stopPropagation();">
                                             <div class="qty-control">
                                                 <button type="button" class="qty-btn" onclick="updateQty('<?php echo $pid; ?>', -1)" <?php echo $item['quantity'] <= 1 ? 'disabled' : ''; ?>>−</button>
                                                 <span class="qty-val" id="qty-<?php echo $pid; ?>"><?php echo $item['quantity']; ?></span>
                                                 <button type="button" class="qty-btn" onclick="updateQty('<?php echo $pid; ?>', 1)" <?php echo $item['quantity'] >= 99 ? 'disabled' : ''; ?>>+</button>
                                             </div>
                                         </td>
-                                        <td style="padding:1rem; text-align:right; font-weight:600;" id="total-<?php echo $pid; ?>">
-                                            <?php if ($is_unpriced_row): ?>
-                                                <span style="font-size:0.75rem; color:#64748b; font-style:italic;">To be confirmed</span>
-                                            <?php else: ?>
-                                                <span style="color:#0f172a; font-weight:600;"><?php echo str_replace('PHP', '₱', format_currency($item['price'] * $item['quantity'])); ?></span>
-                                            <?php endif; ?>
+                                        <td style="padding:1rem; text-align:right; font-weight:600;" id="total-<?php echo $pid; ?>" onclick="event.stopPropagation();">
+                                            <div>
+                                                <?php if ($is_unpriced_row): ?>
+                                                    <span style="font-size:0.75rem; color:#64748b; font-style:italic;">To be confirmed</span>
+                                                <?php else: ?>
+                                                    <span style="color:#0f172a; font-weight:600;"><?php echo str_replace('PHP', '₱', format_currency($item['price'] * $item['quantity'])); ?></span>
+                                                <?php endif; ?>
+                                                <button type="button" class="trash-btn" onclick="confirmRemove('<?php echo $pid; ?>')" title="Remove">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </div>
                                         </td>
-                                        <td style="padding:1rem; text-align:center;">
-                                            <button type="button" class="trash-btn" onclick="confirmRemove('<?php echo $pid; ?>')" title="Remove">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
-                                        </td>
+                                        <td style="display:none;"></td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -558,10 +899,20 @@ require_once __DIR__ . '/../includes/header.php';
                             <?php if ($has_custom): ?>
                                 <div style="font-size:0.75rem; color:#64748b; font-style:italic; margin-top:-0.5rem; margin-bottom:1rem;">+ Custom items (Price will be confirmed by the shop)</div>
                             <?php endif; ?>
+                            
+                            <!-- Mixed Items Warning -->
+                            <div id="mixed-items-warning" style="display:none; align-items:flex-start; gap:0.5rem; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:0.75rem; margin-bottom:1rem; text-align:left;">
+                                <span style="font-size:1.25rem; flex-shrink:0; line-height:1;">⚠️</span>
+                                <div style="flex:1;">
+                                    <div style="font-size:0.8rem; font-weight:700; color:#92400e; margin-bottom:0.25rem;">Products and custom services cannot be processed together.</div>
+                                    <div style="font-size:0.75rem; color:#b45309; line-height:1.4;">Please checkout products separately or customize services to get the price first.</div>
+                                </div>
+                            </div>
+                            
                             <?php if ($is_restricted): ?>
                                 <button type="button" class="btn-primary" style="padding:0.75rem 2rem; opacity:0.5; cursor:not-allowed;" disabled>Proceed to Checkout</button>
                             <?php else: ?>
-                                <a href="checkout.php" id="checkout-btn" class="btn-primary" style="padding:0.75rem 2rem; <?php echo $total <= 0 ? 'opacity: 0.5; pointer-events: none;' : ''; ?>">Proceed to Checkout</a>
+                                <button type="button" onclick="proceedToReview()" id="checkout-btn" class="btn-primary" style="padding:0.75rem 2rem; <?php echo $total <= 0 ? 'opacity: 0.5; pointer-events: none;' : ''; ?>">Proceed to Checkout</button>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -579,10 +930,7 @@ require_once __DIR__ . '/../includes/header.php';
         <p style="color:#b9d4df; margin-bottom:1.5rem; line-height:1.5;">Are you sure you want to remove this item from your shopping cart?</p>
         <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
             <button type="button" onclick="closeRemoveModal()" style="padding:0.5rem 1.25rem; border-radius:8px; background:rgba(255,255,255,.08); color:#d9e6ef; font-weight:600; border:1px solid rgba(83,197,224,.24); cursor:pointer; transition:background 0.2s;">Cancel</button>
-            <form method="POST" id="removeForm" style="margin:0;">
-                <input type="hidden" name="remove_item" id="removeItemId" value="">
-                <button type="submit" style="padding:0.5rem 1.25rem; border-radius:8px; background:#ef4444; color:white; font-weight:600; border:none; cursor:pointer; transition:background 0.2s;">Delete</button>
-            </form>
+            <button type="button" onclick="handleRemoveItem()" style="padding:0.5rem 1.25rem; border-radius:8px; background:#ef4444; color:white; font-weight:600; border:none; cursor:pointer; transition:background 0.2s;">Delete</button>
         </div>
     </div>
 </div>
@@ -654,13 +1002,50 @@ function closeCartInfoModal() {
     if (modal) modal.style.display = 'none';
 }
 
+// Handle remove button click
+var removeItemId = '';
+
 function confirmRemove(pid) {
-    document.getElementById('removeItemId').value = pid;
+    removeItemId = pid;
     document.getElementById('removeModal').style.display = 'flex';
 }
+
 function closeRemoveModal() {
     document.getElementById('removeModal').style.display = 'none';
-    document.getElementById('removeItemId').value = '';
+    removeItemId = '';
+}
+
+async function handleRemoveItem() {
+    if (!removeItemId) return;
+    
+    try {
+        const res = await fetch('api_cart.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'remove', cart_key: removeItemId, csrf_token: PF_CSRF_TOKEN })
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (window.updateCartBadge) updateCartBadge(data.cart_count);
+            const row = document.querySelector(`.cart-row[data-id="${removeItemId}"]`);
+            if (row) row.remove();
+            closeRemoveModal();
+            const remainingRows = document.querySelectorAll('.cart-row');
+            if (remainingRows.length === 0) {
+                window.location.reload();
+            } else {
+                recalculateTotal();
+                checkSelectAllState();
+            }
+        } else {
+            showCartToast(data.message || 'Failed to remove item.', true);
+            closeRemoveModal();
+        }
+    } catch (err) {
+        console.error(err);
+        showCartToast('An error occurred.', true);
+        closeRemoveModal();
+    }
 }
 
 async function updateQty(pid, delta) {
@@ -808,11 +1193,23 @@ function checkSelectAllState() {
 
 function recalculateTotal() {
     let subtotal = 0;
+    let hasProduct = false;
+    let hasService = false;
+    
     const rows = document.querySelectorAll('.cart-row');
     rows.forEach(row => {
         const checkbox = row.querySelector('.item-checkbox');
         if (checkbox.checked) {
             const isCustom = row.dataset.custom === '1';
+            const itemOrigin = row.querySelector('[style*="text-transform:uppercase"]')?.textContent?.trim();
+            
+            // Track if we have products or services
+            if (itemOrigin === 'Product') {
+                hasProduct = true;
+            } else if (itemOrigin === 'Service') {
+                hasService = true;
+            }
+            
             if (!isCustom) {
                 const pid = row.dataset.id;
                 const price = parseFloat(row.dataset.price);
@@ -824,15 +1221,30 @@ function recalculateTotal() {
     
     document.getElementById('cart-total').textContent = PHP(subtotal);
     
-    // Disable/Enable checkout button
+    // Check if mixing products and services
+    const hasMixedItems = hasProduct && hasService;
     const checkoutBtn = document.getElementById('checkout-btn');
+    const mixedWarning = document.getElementById('mixed-items-warning');
+    
     if (checkoutBtn) {
-        if (subtotal <= 0) {
+        if (hasMixedItems) {
+            // Disable checkout if mixing products and services
             checkoutBtn.style.opacity = '0.5';
             checkoutBtn.style.pointerEvents = 'none';
+            checkoutBtn.style.cursor = 'not-allowed';
+            if (mixedWarning) mixedWarning.style.display = 'flex';
+        } else if (subtotal <= 0) {
+            // Disable if no priced items selected
+            checkoutBtn.style.opacity = '0.5';
+            checkoutBtn.style.pointerEvents = 'none';
+            checkoutBtn.style.cursor = 'not-allowed';
+            if (mixedWarning) mixedWarning.style.display = 'none';
         } else {
+            // Enable checkout
             checkoutBtn.style.opacity = '1';
             checkoutBtn.style.pointerEvents = 'auto';
+            checkoutBtn.style.cursor = 'pointer';
+            if (mixedWarning) mixedWarning.style.display = 'none';
         }
     }
 }
@@ -841,14 +1253,94 @@ function PHP(amount) {
     return '₱' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function proceedToReview() {
+    // Get all selected items
+    const selectedRows = document.querySelectorAll('.cart-row .item-checkbox:checked');
+    if (selectedRows.length === 0) {
+        showCartToast('Please select at least one item to checkout.', true);
+        return;
+    }
+    
+    // Check if mixing products and services
+    let hasProduct = false;
+    let hasService = false;
+    selectedRows.forEach(checkbox => {
+        const row = checkbox.closest('.cart-row');
+        const itemOrigin = row.querySelector('[style*="text-transform:uppercase"]')?.textContent?.trim();
+        if (itemOrigin === 'Product') hasProduct = true;
+        if (itemOrigin === 'Service') hasService = true;
+    });
+    
+    if (hasProduct && hasService) {
+        showCartToast('Cannot checkout products and services together. Please select only one type.', true);
+        return;
+    }
+    
+    // Collect all selected item keys
+    const itemKeys = [];
+    selectedRows.forEach(checkbox => {
+        const row = checkbox.closest('.cart-row');
+        itemKeys.push(row.dataset.id);
+    });
+    
+    // Redirect to order review with all selected items (comma-separated)
+    window.location.href = 'order_review.php?item=' + encodeURIComponent(itemKeys.join(','));
+}
+
+function handleCartRowClick(row, event) {
+    const itemOrigin = row.getAttribute('data-item-origin');
+    const productId = row.getAttribute('data-product-id');
+    const serviceId = row.getAttribute('data-service-id');
+    const cartKey = row.getAttribute('data-id');
+    
+    console.log('=== CART ROW CLICKED ===');
+    console.log('Item Origin:', itemOrigin);
+    console.log('Product ID:', productId);
+    console.log('Service ID:', serviceId);
+    console.log('Cart Key:', cartKey);
+    
+    if (itemOrigin === 'Service') {
+        if (serviceId && serviceId !== '' && serviceId !== '0') {
+            const url = '/printflow/customer/order/' + serviceId + '?edit_item=' + encodeURIComponent(cartKey);
+            console.log('✓ Redirecting to:', url);
+            window.location.href = url;
+        } else {
+            console.error('✗ Service ID is invalid:', serviceId);
+            const match = cartKey.match(/^service_(\d+)_/);
+            if (match && match[1]) {
+                const extractedId = match[1];
+                const url = '/printflow/customer/order/' + extractedId + '?edit_item=' + encodeURIComponent(cartKey);
+                console.log('✓ Extracted service_id:', extractedId, '- Redirecting to:', url);
+                window.location.href = url;
+            } else {
+                alert('Cannot view this service item.');
+            }
+        }
+    } else if (itemOrigin === 'Product') {
+        if (productId && productId !== '' && productId !== '0') {
+            const url = 'order_create.php?product_id=' + productId + '&edit_item=' + encodeURIComponent(cartKey);
+            console.log('✓ Redirecting to product:', url);
+            window.location.href = url;
+        } else {
+            console.warn('✗ Product has no valid ID');
+        }
+    } else {
+        console.warn('✗ Unknown item origin:', itemOrigin);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     updateAllPlusBtns();
-    document.querySelectorAll('.cart-row').forEach(function(row) {
-        row.addEventListener('click', function(e) {
-            if (e.target.closest('button, a, input, label, .qty-control, .trash-btn, .cart-checkbox')) return;
-            openCartInfoModal(row);
-        });
-    });
+    
+    // Update cart badge on page load
+    if (window.updateCartBadge) {
+        const cartTotal = getCartTotal();
+        updateCartBadge(cartTotal);
+    }
+    
+    // Check for mixed items on page load
+    recalculateTotal();
+    
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') closeCartInfoModal();
     });

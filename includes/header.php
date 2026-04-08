@@ -75,6 +75,10 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
         /* Internal pages: landing-like transparent header by default */
         body:not(.lp-page) #main-header { box-shadow: none !important; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgba(255,255,255,0.10); }
         
+        /* Prevent content from scrolling under sticky header */
+        body:not(.lp-page) #main-content { padding-top: 0; }
+        body.customer-theme #main-content { scroll-margin-top: 80px; }
+        
         /* Transparent hero nav for landing page only */
         body.lp-page #main-header.lp-hero-nav:not(.sticky-active) { background: transparent !important; border-bottom-color: rgba(255,255,255,0.1) !important; box-shadow: none !important; }
         body.lp-page #main-header.sticky-active { background: #0a2530 !important; box-shadow: 0 4px 20px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(83,197,224,0.1); }

@@ -9,9 +9,30 @@ require_once __DIR__ . '/service_field_config_helper.php';
 /**
  * Render a single field based on configuration
  */
-function render_service_field($field_key, $config, $branches = []) {
+function render_service_field($field_key, $config, $branches = [], $existing_data = []) {
     if (!$config['visible']) {
         return '';
+    }
+    
+    // Extract saved values from existing_data
+    $saved_value = '';
+    $saved_customization = $existing_data['customization'] ?? [];
+    
+    // Get the label to match against customization keys
+    $field_label = $config['label'];
+    
+    // Try to find saved value
+    if ($field_key === 'branch') {
+        $saved_value = $existing_data['branch_id'] ?? '';
+    } elseif ($field_key === 'quantity') {
+        $saved_value = $existing_data['quantity'] ?? 1;
+    } elseif ($field_key === 'needed_date') {
+        $saved_value = $saved_customization['needed_date'] ?? '';
+    } elseif ($field_key === 'notes') {
+        $saved_value = $saved_customization['notes'] ?? '';
+    } else {
+        // For custom fields, check customization array by label
+        $saved_value = $saved_customization[$field_label] ?? '';
     }
     
     $label = htmlspecialchars($config['label']);
@@ -73,10 +94,12 @@ function render_service_field($field_key, $config, $branches = []) {
     switch ($config['type']) {
         case 'select':
             if ($field_key === 'branch') {
-                $html .= '<select name="branch_id" class="shopee-opt-btn" ' . $required_attr . ' style="width: 175px; cursor: pointer;">';
+                $selected_branch = $existing_data['branch_id'] ?? '';
+                $html .= '<select name="branch_id" id="branch_id" class="shopee-opt-btn" ' . $required_attr . ' style="width: 175px; cursor: pointer;">';
                 $html .= '<option value="">Select Branch</option>';
                 foreach ($branches as $b) {
-                    $html .= '<option value="' . (int)$b['id'] . '">' . htmlspecialchars($b['branch_name']) . '</option>';
+                    $selected = ($selected_branch == $b['id']) ? ' selected' : '';
+                    $html .= '<option value="' . (int)$b['id'] . '"' . $selected . '>' . htmlspecialchars($b['branch_name']) . '</option>';
                 }
                 $html .= '</select>';
             } else {
@@ -99,19 +122,16 @@ function render_service_field($field_key, $config, $branches = []) {
         case 'radio':
             $html .= '<div class="shopee-opt-group">';
             foreach ($config['options'] ?? [] as $idx => $option) {
-                // Handle both old format (string) and new format (object with nested fields)
                 $optionValue = is_array($option) ? ($option['value'] ?? '') : $option;
                 $nestedFields = is_array($option) ? ($option['nested_fields'] ?? []) : [];
                 
                 if ($optionValue === '') continue;
-                
-                // Skip if this option is already defined in a nested field
-                // BUT ONLY if it doesn't have nested fields itself (otherwise it's a parent, keep it)
                 if (empty($nestedFields) && isset($nestedValuesSet[strtolower(trim($optionValue))])) continue;
                 
                 $value = htmlspecialchars($optionValue);
-                $html .= '<label class="shopee-opt-btn">';
-                $html .= '<input type="radio" name="' . htmlspecialchars($field_key) . '" value="' . $value . '" style="display:none;" ' . $required_attr . ' onchange="updateOptVisual(this); handleNestedFields(this, \'' . htmlspecialchars($field_key) . '\', ' . $idx . ')">';
+                $is_checked = ($saved_value == $optionValue) ? ' checked' : '';
+                $html .= '<label class="shopee-opt-btn' . ($is_checked ? ' active' : '') . '">';
+                $html .= '<input type="radio" name="' . htmlspecialchars($field_key) . '" value="' . $value . '"' . $is_checked . ' style="display:none;" ' . $required_attr . ' onchange="updateOptVisual(this); handleNestedFields(this, \'' . htmlspecialchars($field_key) . '\', ' . $idx . ')">';
                 $html .= '<span>' . $value . '</span>';
                 $html .= '</label>';
             }
@@ -231,6 +251,33 @@ function render_service_field($field_key, $config, $branches = []) {
             $unit = $config['unit'] ?? 'ft';
             $allowOthers = $config['allow_others'] ?? true;
             
+            // Parse saved dimension (e.g., "2×3 ft" or "2x3")
+            $saved_width = '';
+            $saved_height = '';
+            $is_custom_dimension = false;
+            
+            if ($saved_value) {
+                // Remove unit and normalize separators
+                $dim_value = preg_replace('/\s*(ft|in|cm|m)\s*$/i', '', $saved_value);
+                $dim_value = str_replace(['×', 'X', '*', '-'], 'x', $dim_value);
+                $parts = explode('x', $dim_value);
+                if (count($parts) === 2) {
+                    $saved_width = trim($parts[0]);
+                    $saved_height = trim($parts[1]);
+                    
+                    // Check if it's a preset or custom
+                    $is_preset = false;
+                    foreach ($config['options'] ?? [] as $option) {
+                        $opt_normalized = str_replace(['×', 'X', '*', '-'], 'x', trim($option));
+                        if (strtolower($opt_normalized) === strtolower($saved_width . 'x' . $saved_height)) {
+                            $is_preset = true;
+                            break;
+                        }
+                    }
+                    $is_custom_dimension = !$is_preset;
+                }
+            }
+            
             $html .= '<div class="shopee-opt-group mb-3">';
             
             if (!empty($config['options']) && is_array($config['options'])) {
@@ -244,35 +291,38 @@ function render_service_field($field_key, $config, $branches = []) {
                         $h = trim($parts[1]);
                         if ($w && $h) {
                             $displayLabel = $w . '×' . $h;
-                            $html .= '<button type="button" class="shopee-opt-btn" data-width="' . htmlspecialchars($w) . '" data-height="' . htmlspecialchars($h) . '" onclick="selectDimension(' . htmlspecialchars($w) . ', ' . htmlspecialchars($h) . ', event)">' . $displayLabel . '</button>';
+                            $is_active = (!$is_custom_dimension && $saved_width == $w && $saved_height == $h) ? ' active' : '';
+                            $html .= '<button type="button" class="shopee-opt-btn' . $is_active . '" data-width="' . htmlspecialchars($w) . '" data-height="' . htmlspecialchars($h) . '" onclick="selectDimension(' . htmlspecialchars($w) . ', ' . htmlspecialchars($h) . ', event)">' . $displayLabel . '</button>';
                         }
                     }
                 }
             }
             
             if ($allowOthers) {
-                $html .= '<button type="button" class="shopee-opt-btn" id="dim-others-btn" onclick="selectDimensionOthers(event)">Others</button>';
+                $others_active = $is_custom_dimension ? ' active' : '';
+                $html .= '<button type="button" class="shopee-opt-btn' . $others_active . '" id="dim-others-btn" onclick="selectDimensionOthers(event)">Others</button>';
             }
             $html .= '</div>';
             
             if ($allowOthers) {
-                $html .= '<div id="dim-others-inputs" style="display: none; border-top: 1px dashed #eee; padding-top: 1rem; margin-top: 1rem;">';
+                $others_display = $is_custom_dimension ? 'block' : 'none';
+                $html .= '<div id="dim-others-inputs" style="display: ' . $others_display . '; border-top: 1px dashed #eee; padding-top: 1rem; margin-top: 1rem;">';
                 $html .= '<div style="display: flex; gap: 0.75rem; align-items: flex-start; max-width: 400px;">';
                 $html .= '<div style="flex: 1;">';
                 $html .= '<label class="dim-label" style="display: block; margin-bottom: 0.5rem; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase;">WIDTH</label>';
-                $html .= '<input type="text" inputmode="numeric" id="custom_width" class="input-field" placeholder="' . htmlspecialchars($unit) . '" maxlength="2" pattern="[0-9]*" oninput="validateDimensionInput(this)" style="text-align: center;">';
+                $html .= '<input type="text" inputmode="numeric" id="custom_width" class="input-field" placeholder="' . htmlspecialchars($unit) . '" maxlength="2" pattern="[0-9]*" value="' . ($is_custom_dimension ? htmlspecialchars($saved_width) : '') . '" oninput="validateDimensionInput(this)" style="text-align: center;">';
                 $html .= '</div>';
                 $html .= '<div style="padding-top: 1.75rem; color: #cbd5e1; font-weight: bold; font-size: 1.25rem;">×</div>';
                 $html .= '<div style="flex: 1;">';
                 $html .= '<label class="dim-label" style="display: block; margin-bottom: 0.5rem; font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase;">HEIGHT</label>';
-                $html .= '<input type="text" inputmode="numeric" id="custom_height" class="input-field" placeholder="' . htmlspecialchars($unit) . '" maxlength="2" pattern="[0-9]*" oninput="validateDimensionInput(this)" style="text-align: center;">';
+                $html .= '<input type="text" inputmode="numeric" id="custom_height" class="input-field" placeholder="' . htmlspecialchars($unit) . '" maxlength="2" pattern="[0-9]*" value="' . ($is_custom_dimension ? htmlspecialchars($saved_height) : '') . '" oninput="validateDimensionInput(this)" style="text-align: center;">';
                 $html .= '</div>';
                 $html .= '</div>';
                 $html .= '</div>';
             }
             
-            $html .= '<input type="hidden" name="width" id="width_hidden" ' . $required_attr . '>';
-            $html .= '<input type="hidden" name="height" id="height_hidden" ' . $required_attr . '>';
+            $html .= '<input type="hidden" name="width" id="width_hidden" value="' . htmlspecialchars($saved_width) . '" ' . $required_attr . '>';
+            $html .= '<input type="hidden" name="height" id="height_hidden" value="' . htmlspecialchars($saved_height) . '" ' . $required_attr . '>';
             $html .= '<input type="hidden" name="unit" id="unit_hidden" value="' . htmlspecialchars($unit) . '">';
             break;
             
@@ -282,28 +332,29 @@ function render_service_field($field_key, $config, $branches = []) {
             
         case 'date':
             $html .= '<div class="shopee-opt-group">';
-            $html .= '<input type="date" name="' . htmlspecialchars($field_key) . '" id="' . htmlspecialchars($field_key) . '" class="shopee-opt-btn" ' . $required_attr . ' min="' . date('Y-m-d') . '" style="cursor: pointer; width: 175px;">';
+            $html .= '<input type="date" name="' . htmlspecialchars($field_key) . '" id="' . htmlspecialchars($field_key) . '" class="shopee-opt-btn" ' . $required_attr . ' min="' . date('Y-m-d') . '" value="' . htmlspecialchars($saved_value) . '" style="cursor: pointer; width: 175px;">';
             $html .= '</div>';
             break;
             
         case 'quantity':
+            $saved_qty = $existing_data['quantity'] ?? 1;
             $html .= '<div class="shopee-opt-group">';
             $html .= '<div class="quantity-container shopee-opt-btn" style="display: inline-flex; justify-content: space-between; gap: 1rem; width: 175px; cursor: default;">';
             $html .= '<button type="button" class="qty-btn-minus" style="background: none; border: none; color: #6b7280; font-size: 1.125rem; font-weight: 600; cursor: pointer; padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;" onclick="decreaseQty()">&minus;</button>';
-            $html .= '<input type="number" id="quantity-input" name="quantity" class="qty-input-field" style="border: none; text-align: center; width: 60px; font-size: 0.875rem; font-weight: 500; color: #374151; background: transparent; outline: none; -moz-appearance: textfield;" min="1" max="100" value="1" onwheel="return false;" oninput="validateQuantity(this)" onkeydown="return event.key === \'Backspace\' || event.key === \'Delete\' || event.key === \'ArrowLeft\' || event.key === \'ArrowRight\' || event.key === \'Tab\' || (event.key >= \'0\' && event.key <= \'9\');">';
+            $html .= '<input type="number" id="quantity-input" name="quantity" class="qty-input-field" style="border: none; text-align: center; width: 60px; font-size: 0.875rem; font-weight: 500; color: #374151; background: transparent; outline: none; -moz-appearance: textfield;" min="1" max="100" value="' . (int)$saved_qty . '" onwheel="return false;" oninput="validateQuantity(this)" onkeydown="return event.key === \'Backspace\' || event.key === \'Delete\' || event.key === \'ArrowLeft\' || event.key === \'ArrowRight\' || event.key === \'Tab\' || (event.key >= \'0\' && event.key <= \'9\');">';
             $html .= '<button type="button" class="qty-btn-plus" style="background: none; border: none; color: #6b7280; font-size: 1.125rem; font-weight: 600; cursor: pointer; padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;" onclick="increaseQty()">+</button>';
             $html .= '</div>';
             $html .= '</div>';
             break;
             
         case 'textarea':
-            $html .= '<textarea name="' . htmlspecialchars($field_key) . '" rows="4" class="shopee-opt-btn notes-textarea" placeholder="Any special instructions..." maxlength="500" ' . $required_attr . ' style="max-width: 600px; height: 100px; resize: none; align-items: flex-start; justify-content: flex-start; text-align: left; padding: 0.75rem;"></textarea>';
+            $html .= '<textarea name="' . htmlspecialchars($field_key) . '" rows="4" class="shopee-opt-btn notes-textarea" placeholder="Any special instructions..." maxlength="500" ' . $required_attr . ' style="max-width: 600px; height: 100px; resize: none; align-items: flex-start; justify-content: flex-start; text-align: left; padding: 0.75rem;">' . htmlspecialchars($saved_value) . '</textarea>';
             break;
             
         case 'text':
         case 'number':
             $type = $config['type'] === 'number' ? 'number' : 'text';
-            $html .= '<input type="' . $type . '" name="' . htmlspecialchars($field_key) . '" class="input-field" ' . $required_attr . ' style="max-width: 400px;">';
+            $html .= '<input type="' . $type . '" name="' . htmlspecialchars($field_key) . '" class="input-field" value="' . htmlspecialchars($saved_value) . '" ' . $required_attr . ' style="max-width: 400px;">';
             break;
     }
     
@@ -315,7 +366,7 @@ function render_service_field($field_key, $config, $branches = []) {
 /**
  * Render all fields for a service
  */
-function render_service_fields($service_id, $branches = []) {
+function render_service_fields($service_id, $branches = [], $existing_data = []) {
     $configs = get_service_field_config($service_id);
     
     if (empty($configs)) {
@@ -355,17 +406,17 @@ function render_service_fields($service_id, $branches = []) {
     
     // 1. Branch field first
     foreach ($branch_field as $key => $config) {
-        $html .= render_service_field($key, $config, $branches);
+        $html .= render_service_field($key, $config, $branches, $existing_data);
     }
     
     // 2. Custom fields
     foreach ($custom_fields as $key => $config) {
-        $html .= render_service_field($key, $config, $branches);
+        $html .= render_service_field($key, $config, $branches, $existing_data);
     }
     
     // 3. Default bottom fields last
     foreach ($default_bottom_fields as $key => $config) {
-        $html .= render_service_field($key, $config, $branches);
+        $html .= render_service_field($key, $config, $branches, $existing_data);
     }
     
     return $html;
@@ -375,13 +426,13 @@ function render_service_fields($service_id, $branches = []) {
  * Get JavaScript for dynamic field behavior
  */
 function get_service_field_scripts() {
-    return <<<'JS'
+    return <<<'JSEND'
 <script>
 let dimensionMode = 'preset';
 
 function updateOptVisual(input) {
     const name = input.name;
-    document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+    document.querySelectorAll('input[name="' + name + '"]').forEach(r => {
         const wrap = r.closest('.shopee-opt-btn');
         if (wrap) wrap.classList.toggle('active', r.checked);
     });
@@ -389,7 +440,7 @@ function updateOptVisual(input) {
 
 function handleNestedFields(radio, fieldKey, optionIndex) {
     // Hide all nested field containers for this field first
-    document.querySelectorAll(`[id^="nested-${fieldKey}-"]`).forEach(container => {
+    document.querySelectorAll('[id^="nested-' + fieldKey + '-"]').forEach(container => {
         container.style.display = 'none';
         // Clear nested field values when hiding
         container.querySelectorAll('input, select, textarea').forEach(input => {
@@ -406,7 +457,7 @@ function handleNestedFields(radio, fieldKey, optionIndex) {
     
     // Only show the nested fields for the currently selected option
     if (radio.checked) {
-        const nestedContainer = document.getElementById(`nested-${fieldKey}-${optionIndex}`);
+        const nestedContainer = document.getElementById('nested-' + fieldKey + '-' + optionIndex);
         if (nestedContainer) {
             nestedContainer.style.display = 'block';
         }
@@ -590,11 +641,11 @@ function hideFieldRow(row) {
             
             // Get current value again
             let currentVal = '';
-            const radio = document.querySelector(`input[name="${parentField}"]:checked`);
+            const radio = document.querySelector('input[name="' + parentField + '"]:checked');
             if (radio) {
                 currentVal = radio.value;
             } else {
-                const select = document.querySelector(`select[name="${parentField}"]`);
+                const select = document.querySelector('select[name="' + parentField + '"]');
                 if (select) currentVal = select.value;
             }
             
@@ -676,5 +727,5 @@ document.addEventListener('DOMContentLoaded', function() {
     updateConditionalFields();
 });
 </script>
-JS;
+JSEND;
 }

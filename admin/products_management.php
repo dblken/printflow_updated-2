@@ -241,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
                 // Update without changing photo
                 $result = db_execute(
                     "UPDATE products SET name = ?, sku = ?, category = ?, description = ?, price = ?, stock_quantity = ?, low_stock_level = ?, status = ?, updated_at = NOW() WHERE product_id = ?",
-                    'ssssdiiisi',
+                    'ssssdiisi',
                     [$name, $sku_val, $category, $description, $price, $stock_quantity, $low_stock_level, $status, $product_id]
                 );
             }

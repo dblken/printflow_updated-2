@@ -56,7 +56,13 @@ if (!empty($order_result)) {
         WHERE oi.order_id = ?
     ", 'i', [$order_id]);
     
-    $total_amount = (float)$order['total_amount'];
+    // Dynamically calculate total from items to ensure accuracy
+    $calculated_total = 0;
+    foreach ($items as $item) {
+        $calculated_total += (float)$item['unit_price'] * (int)$item['quantity'];
+    }
+
+    $total_amount = ($calculated_total > 0) ? $calculated_total : (float)$order['total_amount'];
     $payment_status = $order['payment_status']; // 'Paid', 'Unpaid'
     $order_status = $order['status'];
     $show_payment_form = ($payment_status !== 'Paid' && !in_array($order_status, ['Downpayment Submitted', 'To Verify', 'Cancelled']));
@@ -101,31 +107,24 @@ require_once __DIR__ . '/../includes/header.php';
         padding-bottom: 5rem;
     }
     .payment-header {
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-        margin-bottom: 2.5rem;
-        border-bottom: 1px solid rgba(83, 197, 224, 0.15);
-        padding-bottom: 1.5rem;
+        margin-bottom: 1.5rem;
     }
     .payment-card {
-        background: rgba(10, 37, 48, 0.48);
-        backdrop-filter: blur(12px);
-        border-radius: 24px;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+        background: #ffffff !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 12px !important;
+        box-shadow: none;
         overflow: hidden;
-        border: 1px solid rgba(83, 197, 224, 0.2);
         margin-bottom: 2rem;
-        transition: transform 0.3s ease;
     }
     .payment-section-title {
-        font-size: 1.25rem;
-        font-weight: 800;
-        color: #eaf6fb;
-        margin-bottom: 1.5rem;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #111827 !important;
+        margin-bottom: 1rem;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 8px;
     }
     .amount-badge {
         background: linear-gradient(135deg, rgba(83, 197, 224, 0.1), rgba(50, 161, 196, 0.05));
@@ -153,10 +152,10 @@ require_once __DIR__ . '/../includes/header.php';
     .pm-tab-btn {
         flex: 1;
         padding: 14px;
-        border-radius: 14px;
-        border: 1px solid rgba(83, 197, 224, 0.24);
-        background: rgba(255, 255, 255, 0.05);
-        color: #bfdce8;
+        border-radius: 8px;
+        border: 1px solid #d1d5db;
+        background: #ffffff;
+        color: #374151;
         font-weight: 700;
         cursor: pointer;
         transition: all 0.25s;
@@ -164,10 +163,10 @@ require_once __DIR__ . '/../includes/header.php';
         font-size: 0.9rem;
     }
     .pm-tab-btn.active {
-        border-color: #53c5e0;
-        background: #53c5e0;
-        color: #030d11;
-        box-shadow: 0 4px 15px rgba(83, 197, 224, 0.3);
+        border-color: #0ea5e9;
+        background: #0ea5e9;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
     }
     .input-group {
         margin-bottom: 1.75rem;
@@ -176,94 +175,185 @@ require_once __DIR__ . '/../includes/header.php';
         display: block;
         font-size: 0.85rem;
         font-weight: 700;
-        color: #eaf6fb;
+        color: #374151;
         margin-bottom: 0.75rem;
         letter-spacing: 0.01em;
     }
     .custom-input {
         width: 100%;
         padding: 14px 18px;
-        background: rgba(13, 43, 56, 0.94);
-        border: 1px solid rgba(83, 197, 224, 0.3);
-        border-radius: 14px;
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
         font-weight: 600;
-        color: #eaf6fb;
+        color: #1f2937;
         transition: all 0.25s;
         font-size: 1rem;
     }
     .custom-input:focus {
-        border-color: #53c5e0;
+        border-color: #0ea5e9;
         outline: none;
-        background: rgba(13, 43, 56, 1);
-        box-shadow: 0 0 0 4px rgba(83, 197, 224, 0.1);
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
     }
     .dropzone {
-        border: 2px dashed rgba(83, 197, 224, 0.3);
-        border-radius: 20px;
+        border: 2px dashed #d1d5db;
+        border-radius: 12px;
         padding: 3rem 1.5rem;
         text-align: center;
         cursor: pointer;
         transition: all 0.25s;
-        background: rgba(255, 255, 255, 0.03);
+        background: #f9fafb;
     }
     .dropzone:hover {
-        border-color: #53c5e0;
-        background: rgba(83, 197, 224, 0.06);
+        border-color: #0ea5e9;
+        background: #f0f9ff;
+    }
+
+    /* Show More/Less Button */
+    .show-more-btn {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(83, 197, 224, 0.08);
+        border: 1px dashed rgba(83, 197, 224, 0.3);
+        border-radius: 10px;
+        color: #0369a1;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .show-more-btn:hover {
+        background: rgba(83, 197, 224, 0.15);
+        border-color: rgba(83, 197, 224, 0.5);
+    }
+    .show-more-btn svg {
+        transition: transform 0.3s;
+    }
+    .show-more-btn.expanded svg {
+        transform: rotate(180deg);
+    }
+    .items-hidden {
+        display: none;
+    }
+    
+    @media (max-width: 640px) {
+        h1 {
+            font-size: 1rem !important;
+        }
+        
+        .payment-card {
+            margin-bottom: 0.5rem !important;
+        }
+        
+        .payment-container > div:first-child > div:first-child {
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 0.75rem !important;
+            margin-bottom: 1rem !important;
+        }
+        
+        .payment-container > div:first-child > div:first-child a {
+            position: static !important;
+            margin-bottom: 0 !important;
+        }
+        
+        .payment-container > div:first-child > div:first-child h1 {
+            position: static !important;
+            transform: none !important;
+            left: auto !important;
+            width: auto !important;
+            text-align: right !important;
+            font-size: 1rem !important;
+            white-space: nowrap !important;
+            margin-left: auto !important;
+        }
     }
 </style>
 
 <div class="min-h-screen py-8">
     <div class="container mx-auto px-4 payment-container">
         
-        <div class="payment-header">
-            <a href="order_details.php?id=<?php echo $order_id; ?>" class="btn-secondary" style="padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; display: flex; align-items: center; gap: 4px;">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Back
-            </a>
-            <h1 class="ct-page-title" style="margin:0; flex:1; text-align:center;">Complete Payment</h1>
-            <div style="min-width: 100px; text-align: right;">
-                <?php echo status_badge($order['status'], 'order'); ?>
-            </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 380px; gap: 2rem;">
+        <div style="max-width: 650px; margin: 0 auto;">
             
-            <div class="space-y-6">
-                <!-- Order Items Summary -->
-                <div class="payment-card p-6">
-                    <h2 class="payment-section-title">
-                        Order Summary
-                    </h2>
-                    <div class="space-y-4">
-                        <?php if (!$is_job_order): ?>
-                            <?php foreach ($items as $item): ?>
+            <div style="display: flex; align-items: center; justify-content: space-between; position: relative; margin-bottom: 2rem;">
+                <?php 
+                $back_url = 'orders.php';
+                if (!empty($_SESSION['last_order_item_key'])) {
+                    $back_url = 'order_review.php?item=' . urlencode($_SESSION['last_order_item_key']);
+                }
+                ?>
+                <a href="<?php echo $back_url; ?>" style="text-decoration: none; display: flex; align-items: center; gap: 4px; color: #374151; font-weight: 600; transition: color 0.2s;" onmouseover="this.style.color='#111827'" onmouseout="this.style.color='#374151'">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    Back
+                </a>
+                <h1 class="text-2xl font-bold text-gray-800" style="margin: 0; position: absolute; left: 50%; transform: translateX(-50%);">Complete Payment</h1>
+            </div>
+            
+            <!-- Single Consolidated Card -->
+            <div class="payment-card p-6">
+                <!-- Order Summary Section -->
+                <!-- Grand Total -->
+                <div style="background: linear-gradient(135deg, #0f3340, #0a2530); border: 1px solid rgba(83, 197, 224, 0.3); border-radius: 12px; padding: 1.25rem; margin-bottom: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.25); text-align: center;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: #9fc4d4; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 0.5rem;">Order Total Amount</span>
+                    <span style="font-size: 2.25rem; font-weight: 900; color: #53c5e0; letter-spacing: -0.01em;">₱ <?php echo number_format($total_amount, 2); ?></span>
+                </div>
+
+                <div class="space-y-4" style="margin-bottom: 2rem;">
+                    <?php if (!$is_job_order): ?>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="font-size: 0.9rem; font-weight: 700; color: #111827;">Items (<?php echo count($items); ?>)</h3>
+                        </div>
+                        <?php 
+                        $item_index = 0;
+                        foreach ($items as $item): 
+                            $item_index++;
+                            $is_hidden = ($item_index > 3);
+                        ?>
+                            <div class="<?php echo $is_hidden ? 'items-hidden' : ''; ?>" style="margin-bottom: 1rem; border-bottom: 1px solid #f3f4f6; padding-bottom: 1rem; <?php echo ($item_index === count($items)) ? 'border-bottom: none;' : ''; ?>">
                                 <?php render_order_item_clean($item, false, true); ?>
-                            <?php endforeach; ?>
-                        <?php else: ?>
+                            </div>
+                        <?php endforeach; ?>
+
+                        <?php if (count($items) > 3): ?>
+                        <button type="button" class="show-more-btn" onclick="toggleItems(this)" style="margin-bottom: 1rem;">
+                            <span class="show-more-text">Show All <?php echo count($items); ?> Items</span>
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        <?php endif; ?>
+                    <?php else: ?>
                             <!-- Job Order item style -->
                             <!-- Job Order item style (Matches the new dark renderer) -->
-                            <div style="background: rgba(255, 255, 255, 0.02); overflow: hidden; border: 1px solid rgba(83, 197, 224, 0.24); border-radius: 16px; margin-bottom: 1.25rem;">
-                                <div style="padding: 1.25rem; display: flex; gap: 1.25rem; align-items: flex-start; border-bottom: 1px solid rgba(83, 197, 224, 0.15);">
-                                    <div style="width: 130px; height: 130px; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.2); border: 1px solid rgba(83, 197, 224, 0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <div style="background: #0a2530; padding: 0; overflow: hidden; border: 1px solid rgba(83, 197, 224, 0.24); border-radius: 16px; margin-bottom: 1.25rem; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+                                <div style="padding: 1.25rem; display: flex; gap: 1.25rem; align-items: flex-start; border-bottom: 1px solid rgba(83, 197, 224, 0.15); background: rgba(255,255,255,0.02);">
+                                    <div style="width: 130px; height: 130px; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.35); border: 1px solid rgba(83, 197, 224, 0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);">
                                         <?php if (!empty($order['artwork_path'])): ?>
-                                            <img src="/printflow/<?php echo htmlspecialchars($order['artwork_path']); ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                                            <img src="/printflow/<?php echo htmlspecialchars($order['artwork_path']); ?>" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease-in-out;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
                                         <?php else: ?>
-                                            <span style="font-size: 2.2rem;">🛠️</span>
+                                            <span style="font-size: 2.2rem; color: rgba(255,255,255,0.15);">🛠️</span>
                                         <?php endif; ?>
                                     </div>
-                                    <div style="flex: 1; min-width: 0;">
-                                        <h3 style="font-size: 1.35rem; font-weight: 800; color: #eaf6fb; margin-bottom: 0.3rem;"><?php echo htmlspecialchars($order['job_title']); ?></h3>
-                                        <div style="display: inline-flex; font-size: 0.72rem; font-weight: 700; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 20px; background: rgba(83, 197, 224, 0.12); border: 1px solid rgba(83, 197, 224, 0.18); margin-bottom: 1.25rem;">
+                                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                                        <h3 style="font-size: 0.95rem; line-height: 1.3rem; font-weight: 600; color: #ffffff !important; margin: 0 0 0.3rem 0;"><?php echo htmlspecialchars($order['job_title']); ?></h3>
+                                        <div style="display: inline-flex; font-size: 0.72rem; font-weight: 700; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 20px; background: rgba(83, 197, 224, 0.12); border: 1px solid rgba(83, 197, 224, 0.18); margin-bottom: 1.25rem; align-self: flex-start;">
                                             <?php echo htmlspecialchars($order['service_type']); ?>
                                         </div>
-                                        <div style="display: flex; flex-wrap: wrap; gap: 1.5rem;">
-                                            <div>
+                                        <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: auto;">
+                                            <div style="flex: 1; min-width: 80px;">
                                                 <div style="font-size: 0.68rem; color: #9fc4d4; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Quantity</div>
-                                                <div style="font-size: 1.1rem; color: #eaf6fb; font-weight: 700;"><?php echo $order['quantity']; ?></div>
+                                                <div style="font-size: 1rem; color: #eaf6fb; font-weight: 700;"><?php echo $order['quantity']; ?></div>
                                             </div>
-                                            <div>
+                                            <div style="flex: 1; min-width: 100px;">
                                                 <div style="font-size: 0.68rem; color: #53c5e0; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Estimated Total</div>
-                                                <div style="font-size: 1.1rem; color: #53c5e0; font-weight: 800;"><?php echo format_currency($total_amount); ?></div>
+                                                <div style="font-size: 1rem; color: #53c5e0; font-weight: 800;"><?php echo format_currency($total_amount); ?></div>
                                             </div>
                                         </div>
                                     </div>
@@ -284,113 +374,108 @@ require_once __DIR__ . '/../includes/header.php';
                                     </div>
                                 </div>
                             </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <!-- Payment Submission Form -->
-                <div class="payment-card p-6" style="position: sticky; top: 1.5rem;">
-                    <div class="amount-badge">
-                        <div class="amount-label">Amount Due</div>
-                        <div class="amount-value"><?php echo format_currency($total_amount); ?></div>
-                    </div>
-
-                    <?php if ($payment_status === 'Paid'): ?>
-                        <div style="text-align: center; padding: 2rem;">
-                            <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
-                            <h3 style="font-weight: 800; color: #059669; margin-bottom: 0.5rem;">Payment Completed</h3>
-                            <p style="color: #64748b; font-size: 0.875rem;">This order has already been fully paid.</p>
-                            <a href="<?php echo !$is_job_order ? 'order_details.php?id=' . $order_id : 'services.php'; ?>" class="btn-primary w-full mt-6 text-center block" style="text-decoration: none;">View Order Details</a>
-                        </div>
-                    <?php elseif (!$show_payment_form): ?>
-                        <div style="text-align: center; padding: 2rem;">
-                            <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
-                            <h3 style="font-weight: 800; color: #1e293b; margin-bottom: 0.5rem;">Payment Verifying</h3>
-                            <p style="color: #64748b; font-size: 0.875rem;">Your payment proof is currently under review by our staff.</p>
-                            <a href="<?php echo !$is_job_order ? 'order_details.php?id=' . $order_id : 'services.php'; ?>" class="btn-primary w-full mt-6 text-center block" style="text-decoration: none;">Track Order Status</a>
-                        </div>
-                    <?php else: ?>
-                        <form id="paymentForm" enctype="multipart/form-data">
-                            <input type="hidden" name="order_id" value="<?php echo $order_id; ?>">
-                            <input type="hidden" name="is_job" value="<?php echo $is_job_order ? '1' : '0'; ?>">
-                            <?php echo csrf_field(); ?>
-
-                            <h2 class="payment-section-title" style="margin-bottom: 1rem; font-size: 1rem;">1. Choose Method</h2>
-                            
-                            <?php 
-                            $qr_dir = __DIR__ . '/../public/assets/uploads/qr/';
-                            $payment_cfg_path = $qr_dir . 'payment_methods.json';
-                            $payment_methods = file_exists($payment_cfg_path) ? json_decode(file_get_contents($payment_cfg_path), true) : [];
-                            $enabled_methods = array_filter($payment_methods ?: [], function($m) { return !empty($m['enabled']); });
-                            ?>
-
-                            <?php if (empty($enabled_methods)): ?>
-                                <div style="background: #fff1f2; border: 1px solid #ffe4e6; border-radius: 12px; padding: 1rem; color: #be123c; font-size: 0.875rem; font-weight: 600; margin-bottom: 1.5rem;">
-                                    Online payment is currently unavailable. Please contact the shop.
-                                </div>
-                            <?php else: ?>
-                                <div style="display: flex; gap: 8px; margin-bottom: 1.5rem;">
-                                    <?php $first = true; foreach ($enabled_methods as $index => $pm): ?>
-                                        <button type="button" onclick="selectPM(<?php echo $index; ?>)" id="btn-pm-<?php echo $index; ?>" class="pm-tab-btn <?php echo $first ? 'active' : ''; ?>">
-                                            <?php echo htmlspecialchars($pm['provider']); ?>
-                                        </button>
-                                    <?php $first = false; endforeach; ?>
-                                </div>
-
-                                <div id="pm-details-container" style="background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(83, 197, 224, 0.2); border-radius: 18px; padding: 1.75rem; margin-bottom: 2.25rem; text-align: center;">
-                                    <?php $first = true; foreach ($enabled_methods as $index => $pm): ?>
-                                        <div id="pm-info-<?php echo $index; ?>" style="display: <?php echo $first ? 'block' : 'none'; ?>;">
-                                            <?php if (!empty($pm['file'])): ?>
-                                                <img src="/printflow/public/assets/uploads/qr/<?php echo htmlspecialchars($pm['file']); ?>" style="width: 170px; height: 170px; object-fit: contain; margin: 0 auto 1.25rem; display: block; border-radius: 16px; border: 4px solid rgba(255,255,255,0.05); box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
-                                            <?php endif; ?>
-                                            <div style="font-weight: 900; color: #eaf6fb; font-size: 1.2rem; letter-spacing: 0.02em;"><?php echo htmlspecialchars($pm['provider']); ?></div>
-                                            <div style="color: #9fc4d4; font-size: 0.9rem; font-weight: 600; margin-top: 6px;"><?php echo htmlspecialchars($pm['label']); ?></div>
-                                        </div>
-                                    <?php $first = false; endforeach; ?>
-                                </div>
-                            <?php endif; ?>
-
-                            <h2 class="payment-section-title" style="margin-bottom: 1rem; font-size: 1rem;">2. Payment Info</h2>
-                            
-                            <div class="input-group">
-                                <label class="input-label">Amount to Pay (PHP)</label>
-                                <select name="amount" id="paymentAmountInput" class="custom-input" required onchange="document.getElementById('pchoice').value = this.options[this.selectedIndex].dataset.choice;">
-                                    <option value="<?php echo number_format($order['total_amount'], 2, '.', ''); ?>" data-choice="full">Full Payment (<?php echo format_currency($order['total_amount']); ?>)</option>
-                                    <option value="<?php echo number_format($order['total_amount'] * 0.5, 2, '.', ''); ?>" data-choice="half">50% Downpayment (<?php echo format_currency($order['total_amount'] * 0.5); ?>)</option>
-                                </select>
-                                <input type="hidden" name="payment_choice" id="pchoice" value="full">
-                                <p style="font-size: 0.75rem; color: #64748b; margin-top: 6px; font-weight: 600;">Select whether you want to pay in full or the minimum 50% downpayment required to start production.</p>
-                            </div>
-
-                            <div class="input-group">
-                                <label class="input-label">Upload Reference Receipt</label>
-                                <input type="file" name="payment_proof" id="proofInput" style="display: none;" accept="image/*" required>
-                                <div id="dropzone" class="dropzone" onclick="document.getElementById('proofInput').click()">
-                                    <div id="placeholder" style="display: block;">
-                                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📸</div>
-                                        <div style="font-weight: 700; color: #1e293b; font-size: 0.875rem;">Click to upload receipt</div>
-                                        <div style="font-size: 0.75rem; color: #64748b;">JPG, PNG or PDF</div>
-                                    </div>
-                                    <div id="preview" style="display: none; align-items: center; justify-content: center; flex-direction: column; width: 100%; overflow: hidden;">
-                                        <img id="previewImg" src="" style="max-height: 120px; border-radius: 8px; margin-bottom: 10px; max-width: 100%; object-fit: contain;">
-                                        <p id="fileName" style="font-size: 0.8125rem; font-weight: 700; color: #1e293b; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px;"></p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button type="submit" id="submitBtn" class="btn-primary w-full py-4 text-center block font-black uppercase tracking-widest mt-4" <?php echo empty($enabled_methods) ? 'disabled style="opacity:0.5;"' : ''; ?>>
-                                Submit Payment Proof
-                            </button>
-
-                                <p style="text-align: center; font-size: 0.75rem; color: #53c5e0; font-weight: 700; margin-top: 1.25rem; opacity: 0.8;">
-                                    <svg style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
-                                    Secure Payment Verification
-                                </p>
-                        </form>
                     <?php endif; ?>
                 </div>
+
+                <!-- Divider -->
+                <div style="border-top: 1px solid #e5e7eb; margin: 2rem 0;"></div>
+
+                <!-- Payment Section -->
+                <?php if ($payment_status === 'Paid'): ?>
+                    <div style="text-align: center; padding: 2rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                        <h3 style="font-weight: 800; color: #059669; margin-bottom: 0.5rem;">Payment Completed</h3>
+                        <p style="color: #64748b; font-size: 0.875rem;">This order has already been fully paid.</p>
+                        <a href="<?php echo !$is_job_order ? 'order_details.php?id=' . $order_id : 'services.php'; ?>" class="btn-primary w-full mt-6 text-center block" style="text-decoration: none;">View Order Details</a>
+                    </div>
+                <?php elseif (!$show_payment_form): ?>
+                    <div style="text-align: center; padding: 2rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+                        <h3 style="font-weight: 800; color: #1e293b; margin-bottom: 0.5rem;">Payment Verifying</h3>
+                        <p style="color: #64748b; font-size: 0.875rem;">Your payment proof is currently under review by our staff.</p>
+                        <a href="<?php echo !$is_job_order ? 'order_details.php?id=' . $order_id : 'services.php'; ?>" class="btn-primary w-full mt-6 text-center block" style="text-decoration: none;">Track Order Status</a>
+                    </div>
+                <?php else: ?>
+                    <form id="paymentForm" enctype="multipart/form-data">
+                        <input type="hidden" name="order_id" value="<?php echo $order_id; ?>">
+                        <input type="hidden" name="is_job" value="<?php echo $is_job_order ? '1' : '0'; ?>">
+                        <?php echo csrf_field(); ?>
+
+                        <h2 class="payment-section-title" style="margin-bottom: 1rem; font-size: 1rem;">1. Choose Method</h2>
+                        
+                        <?php 
+                        $qr_dir = __DIR__ . '/../public/assets/uploads/qr/';
+                        $payment_cfg_path = $qr_dir . 'payment_methods.json';
+                        $payment_methods = file_exists($payment_cfg_path) ? json_decode(file_get_contents($payment_cfg_path), true) : [];
+                        $enabled_methods = array_filter($payment_methods ?: [], function($m) { return !empty($m['enabled']); });
+                        
+                        // Determine if this is a product order (no customization) or service order
+                        $is_product_order = true;
+                        if (!$is_job_order && !empty($items)) {
+                            foreach ($items as $item) {
+                                $custom_data = json_decode($item['customization_data'] ?? '{}', true);
+                                if (!empty($custom_data) && count($custom_data) > 0) {
+                                    $is_product_order = false;
+                                    break;
+                                }
+                            }
+                        } elseif ($is_job_order) {
+                            $is_product_order = false;
+                        }
+                        ?>
+
+                        <?php if (empty($enabled_methods)): ?>
+                            <div style="background: #fff1f2; border: 1px solid #ffe4e6; border-radius: 12px; padding: 1rem; color: #be123c; font-size: 0.875rem; font-weight: 600; margin-bottom: 1.5rem;">
+                                Online payment is currently unavailable. Please contact the shop.
+                            </div>
+                        <?php else: ?>
+                            <div style="display: flex; gap: 8px; margin-bottom: 1.5rem;">
+                                <?php $first = true; foreach ($enabled_methods as $index => $pm): ?>
+                                    <button type="button" onclick="selectPM(<?php echo $index; ?>)" id="btn-pm-<?php echo $index; ?>" class="pm-tab-btn <?php echo $first ? 'active' : ''; ?>">
+                                        <?php echo htmlspecialchars($pm['provider']); ?>
+                                    </button>
+                                <?php $first = false; endforeach; ?>
+                            </div>
+
+                            <div id="pm-details-container" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.75rem; margin-bottom: 2.25rem; text-align: center;">
+                                <?php $first = true; foreach ($enabled_methods as $index => $pm): ?>
+                                    <div id="pm-info-<?php echo $index; ?>" style="display: <?php echo $first ? 'block' : 'none'; ?>;">
+                                        <?php if (!empty($pm['file'])): ?>
+                                            <img src="/printflow/public/assets/uploads/qr/<?php echo htmlspecialchars($pm['file']); ?>" style="width: 170px; height: 170px; object-fit: contain; margin: 0 auto 1.25rem; display: block; border-radius: 12px; border: 2px solid #e5e7eb; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+                                        <?php endif; ?>
+                                        <div style="font-weight: 800; color: #1f2937; font-size: 1.1rem; letter-spacing: 0.01em;"><?php echo htmlspecialchars($pm['provider']); ?></div>
+                                        <div style="color: #6b7280; font-size: 0.9rem; font-weight: 600; margin-top: 6px;"><?php echo htmlspecialchars($pm['label']); ?></div>
+                                    </div>
+                                <?php $first = false; endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <!-- Simplified Flow: Always Full Payment -->
+                        <input type="hidden" name="amount" value="<?php echo number_format($order['total_amount'], 2, '.', ''); ?>">
+                        <input type="hidden" name="payment_choice" value="full">
+
+                        <h2 class="payment-section-title" style="margin-bottom: 1rem; font-size: 1rem;">2. Upload Reference Receipt</h2>
+                        <div class="input-group">
+                            <label class="input-label">Upload Reference Receipt</label>
+                            <input type="file" name="payment_proof" id="proofInput" style="display: none;" accept="image/*" required>
+                            <div id="dropzone" class="dropzone" onclick="document.getElementById('proofInput').click()">
+                                <div id="placeholder" style="display: block;">
+                                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📸</div>
+                                    <div style="font-weight: 700; color: #1e293b; font-size: 0.875rem;">Click to upload receipt</div>
+                                    <div style="font-size: 0.75rem; color: #64748b;">JPG, PNG or PDF</div>
+                                </div>
+                                <div id="preview" style="display: none; align-items: center; justify-content: center; flex-direction: column; width: 100%; overflow: hidden;">
+                                    <img id="previewImg" src="" style="max-height: 120px; border-radius: 8px; margin-bottom: 10px; max-width: 100%; object-fit: contain;">
+                                    <p id="fileName" style="font-size: 0.8125rem; font-weight: 700; color: #1e293b; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px;"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="shopee-btn-primary" style="width: 100%; padding: 0.75rem; white-space: nowrap; text-decoration: none; text-align: center; display: block; font-weight: 700; font-size: 0.9rem; border-radius: 8px; border: none; background: #0a2530 !important; color: #fff !important; text-transform: uppercase; letter-spacing: 0.02em; cursor: pointer; box-shadow: 0 4px 12px rgba(10, 37, 48, 0.3); transition: all 0.2s;" <?php echo empty($enabled_methods) ? 'disabled style="opacity:0.5;"' : ''; ?>>
+                            Submit Payment Proof
+                        </button>
+                    </form>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -398,6 +483,25 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <script>
+    function toggleItems(btn) {
+        const hiddenItems = document.querySelectorAll('.items-hidden');
+        const isExpanded = btn.classList.contains('expanded');
+        const textSpan = btn.querySelector('.show-more-text');
+        const totalItems = <?php echo count($items); ?>;
+        
+        if (isExpanded) {
+            // Collapse
+            hiddenItems.forEach(item => item.style.display = 'none');
+            btn.classList.remove('expanded');
+            textSpan.textContent = 'Show All ' + totalItems + ' Items';
+        } else {
+            // Expand
+            hiddenItems.forEach(item => item.style.display = 'block');
+            btn.classList.add('expanded');
+            textSpan.textContent = 'Show Less';
+        }
+    }
+
     function selectPM(idx) {
         document.querySelectorAll('.pm-tab-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('btn-pm-' + idx).classList.add('active');

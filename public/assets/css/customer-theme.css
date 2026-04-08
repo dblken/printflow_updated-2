@@ -997,3 +997,335 @@ body.customer-theme select.input-field {
     .shopee-form-row { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
     .shopee-form-label { width: auto !important; }
 }
+
+/* ============================================================
+   MOBILE RESPONSIVE FIXES FOR ORDER SERVICE PAGE
+   ============================================================ */
+@media (max-width: 640px) {
+    /* 1. MAIN LAYOUT - Single Column */
+    .shopee-layout-container {
+        padding: 1rem 0.75rem;
+    }
+    
+    .shopee-card {
+        grid-template-columns: 1fr !important;
+        gap: 1.5rem !important;
+        padding: 1rem !important;
+    }
+    
+    /* 2. IMAGE FIX - Reduce size and center */
+    .shopee-image-section {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .shopee-main-image-wrap,
+    #image-carousel {
+        height: 280px !important;
+        max-height: 280px !important;
+        width: 100% !important;
+    }
+    
+    .shopee-image-section .sticky {
+        position: relative !important;
+        top: 0 !important;
+    }
+    
+    /* 3. BUTTON FIX - Stack vertically, full width */
+    .shopee-form-row:has(button[type="submit"]) {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+    }
+    
+    .shopee-form-row:has(button[type="submit"]) > div:first-child {
+        display: none !important;
+    }
+    
+    .shopee-form-row .flex.gap-4 {
+        flex-direction: column !important;
+        width: 100% !important;
+        gap: 0.75rem !important;
+    }
+    
+    .shopee-btn-primary,
+    .shopee-btn-outline {
+        width: 100% !important;
+        flex: none !important;
+        min-width: 100% !important;
+        height: 48px !important;
+    }
+    
+    /* 4. FORM FIELDS - Full width, vertical stack */
+    .shopee-form-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.5rem !important;
+        margin-bottom: 1.25rem !important;
+    }
+    
+    .shopee-form-label {
+        width: 100% !important;
+        text-align: left !important;
+        padding-top: 0 !important;
+        font-size: 0.875rem !important;
+        font-weight: 600 !important;
+        color: #374151 !important;
+    }
+    
+    .shopee-form-field {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    .shopee-form-section {
+        padding-right: 0 !important;
+    }
+    
+    /* Input fields full width */
+    .input-field,
+    select.input-field,
+    textarea.input-field,
+    input[type="date"],
+    input[type="text"],
+    input[type="number"],
+    input[type="file"] {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* Override inline styles for date and quantity fields */
+    .shopee-opt-btn[style*="width: 175px"],
+    input[type="date"][style*="width: 175px"],
+    select[style*="width: 175px"],
+    .quantity-container[style*="width: 175px"] {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* Quantity control - full width on mobile */
+    .shopee-qty-control,
+    .quantity-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        display: flex !important;
+    }
+    
+    .shopee-qty-input,
+    .qty-input-field {
+        flex: 1 !important;
+        width: auto !important;
+    }
+    
+    /* 5. RATINGS SECTION - Stack and wrap */
+    .poc-section-title {
+        font-size: 1rem !important;
+    }
+    
+    /* Rating summary container - stack vertically and center rating */
+    div[style*="display:flex;gap:2rem"] {
+        flex-direction: column !important;
+        gap: 1rem !important;
+        align-items: center !important;
+    }
+    
+    /* Center the rating score section */
+    div[style*="display:flex;gap:2rem"] > div:first-child {
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+    }
+    
+    /* Filter buttons container - full width */
+    div[style*="display:flex;gap:2rem"] > div:last-child {
+        width: 100% !important;
+        flex: none !important;
+        min-width: 100% !important;
+    }
+    
+    /* Rating filter buttons - wrap properly */
+    div[style*="display:flex;flex-wrap:wrap;gap:0.5rem"] {
+        gap: 0.5rem !important;
+        width: 100% !important;
+    }
+    
+    .poc-filter-btn {
+        font-size: 0.8125rem !important;
+        padding: 0.5rem 0.75rem !important;
+        white-space: nowrap;
+        flex: 0 1 auto !important;
+    }
+    
+    /* 6. REVIEW CARD - Better mobile layout */
+    .poc-review-item {
+        padding: 1rem 0 !important;
+    }
+    
+    .poc-review-item > div[style*="display:flex"] {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+    }
+    
+    .poc-review-item img[style*="width:48px"],
+    .poc-review-item div[style*="width:48px"] {
+        width: 40px !important;
+        height: 40px !important;
+    }
+    
+    /* 7. LONG NAME FIX - Ellipsis for overflow */
+    .poc-review-item div[style*="font-weight:600"] {
+        max-width: 100% !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Username in review */
+    .poc-review-item > div > div:last-child > div:first-child {
+        max-width: 100% !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+    
+    /* 8. OVERFLOW PREVENTION */
+    .shopee-layout-container,
+    .shopee-card,
+    .shopee-image-section,
+    .shopee-form-section {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+    
+    /* Prevent horizontal scroll */
+    body.customer-theme {
+        overflow-x: hidden !important;
+    }
+    
+    /* Breadcrumb */
+    .text-sm.text-gray-500.mb-6 {
+        font-size: 0.8125rem !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* Product title */
+    .shopee-form-section h1 {
+        font-size: 1.25rem !important;
+        line-height: 1.4 !important;
+        margin-bottom: 0.75rem !important;
+    }
+    
+    /* Rating stars and sold count */
+    .flex.items-center.gap-4 {
+        flex-wrap: wrap !important;
+        gap: 0.75rem !important;
+    }
+    
+    /* Option buttons - better wrapping */
+    .shopee-opt-group {
+        gap: 0.5rem !important;
+    }
+    
+    .shopee-opt-btn {
+        min-width: calc(50% - 0.25rem) !important;
+        flex: 1 1 calc(50% - 0.25rem) !important;
+    }
+    
+    /* Quantity control */
+    .shopee-qty-control,
+    .quantity-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        display: flex !important;
+    }
+    
+    .shopee-qty-input,
+    .qty-input-field {
+        flex: 1 !important;
+        width: auto !important;
+    }
+    
+    /* Description section */
+    div[style*="margin-top:20px"] {
+        margin-top: 1rem !important;
+        padding: 1rem !important;
+    }
+    
+    /* Carousel arrows - smaller on mobile */
+    .carousel-arrow {
+        width: 28px !important;
+        height: 28px !important;
+    }
+    
+    .carousel-arrow svg {
+        width: 14px !important;
+        height: 14px !important;
+    }
+    
+    /* Image counter */
+    div[style*="position:absolute;bottom:32px"] {
+        bottom: 16px !important;
+        right: 12px !important;
+        font-size: 0.75rem !important;
+        padding: 3px 8px !important;
+    }
+    
+    /* Rating summary box */
+    div[style*="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px"] {
+        padding: 1rem !important;
+    }
+    
+    div[style*="font-size:3rem;font-weight:700"] {
+        font-size: 2.5rem !important;
+    }
+    
+    /* Review images */
+    .poc-review-item img[style*="max-width:200px"] {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    
+    /* Error message */
+    .bg-red-50 {
+        font-size: 0.875rem !important;
+        padding: 0.75rem 1rem !important;
+    }
+    
+    /* Field errors */
+    .field-error {
+        font-size: 0.8125rem !important;
+        margin-top: 0.375rem !important;
+    }
+    
+    /* Dimension inputs */
+    .dim-label {
+        font-size: 0.75rem !important;
+    }
+    
+    /* Notes textarea */
+    .notes-textarea {
+        min-height: 80px !important;
+        max-height: 80px !important;
+        font-size: 0.875rem !important;
+    }
+    
+    /* Pagination */
+    .pagination {
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+        justify-content: center !important;
+    }
+    
+    /* Empty state */
+    .poc-empty {
+        padding: 2rem 1rem !important;
+    }
+    
+    .poc-empty svg {
+        width: 48px !important;
+        height: 48px !important;
+    }
+}

@@ -241,12 +241,16 @@ try {
                         NULL as due_date,
                         NULL as priority,
                         o.total_amount as estimated_total,
-                        (SELECT MIN(jo.id) FROM job_orders jo WHERE jo.order_id = o.order_id) AS job_order_id
+                        (SELECT MIN(jo.id) FROM job_orders jo WHERE jo.order_id = o.order_id) AS job_order_id,
+                        o.payment_proof as payment_proof_path,
+                        o.downpayment_amount as payment_submitted_amount,
+                        COALESCE(o.order_source, 'customer') as order_source
                     FROM orders o
                     LEFT JOIN order_items oi ON o.order_id = oi.order_id
                     LEFT JOIN products p ON oi.product_id = p.product_id
                     LEFT JOIN customers c ON o.customer_id = c.customer_id
-                    WHERE o.status IN (
+                    WHERE (o.order_type IS NULL OR o.order_type = 'product' OR o.order_type = 'custom')
+                    AND o.status IN (
                         'Pending', 'Pending Review', 'Pending Approval', 'For Revision',
                         'Approved', 'Design Approved',
                         'To Pay', 'Downpayment Submitted', 'Pending Verification', 'To Verify',
@@ -262,8 +266,21 @@ try {
                 : (db_query($sql) ?: []);
             
             foreach ($pending_orders as &$order) {
-                $order['readiness'] = 'READY'; // Regular orders don't have material tracking
+                $order['readiness'] = 'READY';
                 $order['estimated_cost'] = 0;
+                
+                // Fallback: detect legacy POS orders missing order_source
+                if (empty($order['order_source']) || $order['order_source'] === 'customer') {
+                    $pos_check = db_query(
+                        "SELECT 1 FROM customizations WHERE order_id = ? AND customization_details LIKE '%\"source\":\"POS\"%' LIMIT 1",
+                        'i', [$order['order_id']]
+                    );
+                    if (!empty($pos_check)) {
+                        $order['order_source'] = 'pos';
+                        // Backfill the DB so future loads are instant
+                        db_execute("UPDATE orders SET order_source = 'pos' WHERE order_id = ? AND (order_source IS NULL OR order_source = 'customer')", 'i', [$order['order_id']]);
+                    }
+                }
                 
                 // Fetch dynamic correct names based on ordered items customizations
                 $payload = JobOrderService::getStoreOrderItemsPayload($order['order_id']);
@@ -282,6 +299,59 @@ try {
                 }
             }
             unset($order);
+
+            // Customizations from POS (customizations table)
+            $custom_sql = "SELECT 
+                    cust.customization_id AS id,
+                    cust.order_id,
+                    cust.customer_id,
+                    c.first_name,
+                    c.last_name,
+                    c.customer_type,
+                    c.transaction_count,
+                    TRIM(CONCAT(COALESCE(c.first_name, ''), ' ', COALESCE(c.last_name, ''))) AS customer_full_name,
+                    TRIM(CONCAT_WS(', ', NULLIF(TRIM(c.street_address), ''), NULLIF(TRIM(c.barangay), ''), NULLIF(TRIM(c.city), ''))) AS customer_contact,
+                    'CUSTOMIZATION' AS order_type,
+                    cust.service_type AS service_type,
+                    cust.service_type AS job_title,
+                    '1' AS width_ft,
+                    '1' AS height_ft,
+                    1 AS quantity,
+                    CASE 
+                        WHEN cust.status IN ('Pending Review', 'Pending', 'Pending Approval', 'For Revision') THEN 'PENDING'
+                        WHEN cust.status = 'Approved' THEN 'APPROVED'
+                        WHEN cust.status = 'To Pay' THEN 'TO_PAY'
+                        WHEN cust.status IN ('Pending Verification', 'Downpayment Submitted') THEN 'VERIFY_PAY'
+                        WHEN cust.status IN ('Processing', 'In Production') THEN 'IN_PRODUCTION'
+                        WHEN cust.status IN ('Ready for Pickup', 'Ready For Pickup') THEN 'TO_RECEIVE'
+                        WHEN cust.status = 'Completed' THEN 'COMPLETED'
+                        WHEN cust.status IN ('Rejected', 'Cancelled') THEN 'CANCELLED'
+                        ELSE 'PENDING'
+                    END AS status,
+                    'PAID' AS payment_proof_status,
+                    'NO' AS payment_status,
+                    '' AS materials,
+                    cust.created_at AS created_at,
+                    cust.created_at AS order_date,
+                    NULL AS due_date,
+                    NULL AS priority,
+                    0 AS estimated_total,
+                    'pos' AS order_source
+                FROM customizations cust
+                LEFT JOIN customers c ON cust.customer_id = c.customer_id
+                LEFT JOIN orders o ON cust.order_id = o.order_id
+                WHERE cust.status IN ('Pending Review', 'Pending', 'Pending Approval', 'For Revision', 'Approved', 'Processing', 'In Production', 'Ready for Pickup', 'Ready For Pickup')"
+                . ($joStaffBranch !== null ? " AND o.branch_id = ?" : "") . "
+                ORDER BY cust.created_at DESC
+                LIMIT 50";
+            $custom_orders = $joStaffBranch !== null
+                ? (db_query($custom_sql, 'i', [$joStaffBranch]) ?: [])
+                : (db_query($custom_sql) ?: []);
+            foreach ($custom_orders as &$co) {
+                $co['readiness'] = 'READY';
+                $co['estimated_cost'] = 0;
+            }
+            unset($co);
 
             // Service purchases (service_orders) — same dashboard shape; order_type SERVICE
             service_order_ensure_tables();
@@ -330,7 +400,7 @@ try {
             }
             unset($so);
 
-            $merged = array_merge($pending_orders, $svc_orders);
+            $merged = array_merge($pending_orders, $custom_orders, $svc_orders);
             usort($merged, function ($a, $b) {
                 $ta = strtotime($a['created_at'] ?? $a['order_date'] ?? 'now');
                 $tb = strtotime($b['created_at'] ?? $b['order_date'] ?? 'now');
@@ -352,6 +422,171 @@ try {
             if (!$order) throw new Exception("Order not found.");
             $order['readiness'] = JobOrderService::getMaterialReadiness($id);
             echo json_encode(['success' => true, 'data' => $order]);
+            break;
+
+        case 'update_customization':
+            if (!in_array($_SESSION['user_type'] ?? '', ['Admin', 'Staff', 'Manager'])) {
+                throw new Exception('Unauthorized');
+            }
+            $cust_id = (int)($_POST['id'] ?? 0);
+            $raw_status = sanitize($_POST['status'] ?? '');
+            $price = isset($_POST['price']) ? (float)$_POST['price'] : null;
+            if (!$cust_id || !$raw_status) throw new Exception('ID and status required.');
+
+            // Normalize frontend enum values to DB-stored strings
+            $status_to_db = [
+                'PENDING'       => 'Pending',
+                'APPROVED'      => 'Approved',
+                'TO_PAY'        => 'To Pay',
+                'VERIFY_PAY'    => 'Pending Verification',
+                'IN_PRODUCTION' => 'Processing',
+                'TO_RECEIVE'    => 'Ready for Pickup',
+                'COMPLETED'     => 'Completed',
+                'CANCELLED'     => 'Cancelled',
+            ];
+            $new_status = $status_to_db[$raw_status] ?? $raw_status;
+
+            // Check if payment proof already exists for this customization's order
+            $order_check = db_query(
+                "SELECT o.order_id, o.payment_proof_path, o.downpayment_amount 
+                 FROM orders o 
+                 JOIN customizations c ON o.order_id = c.order_id 
+                 WHERE c.customization_id = ? LIMIT 1",
+                'i', [$cust_id]
+            );
+
+            $has_payment_proof = !empty($order_check) && !empty($order_check[0]['payment_proof_path']);
+            $payment_amount    = !empty($order_check) ? (float)($order_check[0]['downpayment_amount'] ?? 0) : 0;
+            $linked_order_id   = !empty($order_check) ? (int)$order_check[0]['order_id'] : null;
+
+            // If TO_PAY but proof already uploaded, skip straight to verification
+            if ($new_status === 'To Pay' && $has_payment_proof && $payment_amount > 0) {
+                $new_status = 'Pending Verification';
+            }
+
+            db_execute('UPDATE customizations SET status = ?, updated_at = NOW() WHERE customization_id = ?', 'si', [$new_status, $cust_id]);
+
+            if ($price !== null && $linked_order_id) {
+                db_execute('UPDATE orders SET total_amount = ? WHERE order_id = ?', 'di', [$price, $linked_order_id]);
+                // Also update the order_items unit_price so POS cart reflects the correct price
+                db_execute('UPDATE order_items SET unit_price = ? WHERE order_id = ? LIMIT 1', 'di', [$price, $linked_order_id]);
+            }
+
+            // Sync orders.status for key transitions
+            if ($linked_order_id) {
+                $order_status_sync = [
+                    'To Pay'               => 'To Pay',
+                    'Pending Verification' => 'Pending Verification',
+                    'Processing'           => 'Processing',
+                    'Ready for Pickup'     => 'Ready for Pickup',
+                    'Completed'            => 'Completed',
+                    'Cancelled'            => 'Cancelled',
+                ];
+                if (isset($order_status_sync[$new_status])) {
+                    db_execute('UPDATE orders SET status = ? WHERE order_id = ?', 'si', [$order_status_sync[$new_status], $linked_order_id]);
+                }
+            }
+
+            echo json_encode(['success' => true]);
+            break;
+
+        case 'get_customization':
+            // Get customization entry details (from POS services)
+            if (!in_array($_SESSION['user_type'] ?? '', ['Admin', 'Staff', 'Manager'])) {
+                throw new Exception("Unauthorized");
+            }
+            $cust_id = (int)($_GET['id'] ?? 0);
+            if (!$cust_id) throw new Exception("Customization ID required.");
+
+            $cust_row = db_query("
+                SELECT cust.*,
+                       c.first_name, c.last_name, c.customer_type, c.contact_number, c.email, c.transaction_count,
+                       CONCAT(c.first_name, ' ', c.last_name) AS customer_full_name,
+                       COALESCE(NULLIF(TRIM(c.contact_number), ''), NULLIF(TRIM(c.email), '')) AS customer_contact,
+                       TRIM(CONCAT_WS(', ', NULLIF(TRIM(c.street_address), ''), NULLIF(TRIM(c.barangay), ''), NULLIF(TRIM(c.city), ''))) AS customer_address,
+                       o.total_amount AS order_total,
+                       o.payment_proof_path, o.downpayment_amount,
+                       o.order_source
+                FROM customizations cust
+                LEFT JOIN customers c ON cust.customer_id = c.customer_id
+                LEFT JOIN orders o ON cust.order_id = o.order_id
+                WHERE cust.customization_id = ?
+            ", 'i', [$cust_id]);
+
+            if (empty($cust_row)) throw new Exception("Customization not found.");
+            $cust = $cust_row[0];
+
+            // Parse customization details
+            $details = json_decode($cust['customization_details'] ?? '{}', true) ?: [];
+
+            // Map DB status → frontend enum
+            $status_map = [
+                'Pending Review'        => 'PENDING',
+                'Pending'               => 'PENDING',
+                'Pending Approval'      => 'PENDING',
+                'For Revision'          => 'PENDING',
+                'Approved'              => 'APPROVED',
+                'To Pay'                => 'TO_PAY',
+                'Pending Verification'  => 'VERIFY_PAY',
+                'Downpayment Submitted' => 'VERIFY_PAY',
+                'Processing'            => 'IN_PRODUCTION',
+                'In Production'         => 'IN_PRODUCTION',
+                'Ready for Pickup'      => 'TO_RECEIVE',
+                'Ready For Pickup'      => 'TO_RECEIVE',
+                'Completed'             => 'COMPLETED',
+                'Cancelled'             => 'CANCELLED',
+                'Rejected'              => 'CANCELLED',
+            ];
+            $mapped_status = $status_map[$cust['status'] ?? ''] ?? 'PENDING';
+
+            // Determine payment proof status
+            $payment_proof_status = 'NONE';
+            if (!empty($cust['payment_proof_path'])) {
+                $payment_proof_status = in_array($mapped_status, ['IN_PRODUCTION', 'TO_RECEIVE', 'COMPLETED'])
+                    ? 'VERIFIED' : 'SUBMITTED';
+            }
+
+            // Use order total if set (price was already approved)
+            $estimated_total = (float)($cust['order_total'] ?? 0);
+
+            $items = [[
+                'order_item_id' => $cust['order_item_id'] ?? null,
+                'product_name'  => $cust['service_type'] ?? 'Service',
+                'quantity'      => 1,
+                'customization' => $details,
+            ]];
+
+            $data = [
+                'id'                       => $cust['customization_id'],
+                'order_id'                 => $cust['order_id'],
+                'order_type'               => 'CUSTOMIZATION',
+                'customer_full_name'       => $cust['customer_full_name'] ?? '',
+                'customer_contact'         => $cust['customer_contact'] ?? '',
+                'customer_address'         => $cust['customer_address'] ?? '',
+                'customer_type'            => ($cust['transaction_count'] ?? 0) <= 1 ? 'NEW' : 'RETURNING',
+                'service_type'             => $cust['service_type'] ?? 'Service',
+                'job_title'                => $cust['service_type'] ?? 'Service',
+                'width_ft'                 => '1',
+                'height_ft'                => '1',
+                'quantity'                 => 1,
+                'status'                   => $mapped_status,
+                'estimated_total'          => $estimated_total,
+                'amount_paid'              => 0,
+                'notes'                    => '',
+                'store_order_notes'        => '',
+                'payment_proof_status'     => $payment_proof_status,
+                'payment_proof_path'       => $cust['payment_proof_path'] ?? null,
+                'payment_submitted_amount' => (float)($cust['downpayment_amount'] ?? 0),
+                'payment_status'           => 'NO',
+                'readiness'                => 'READY',
+                'order_source'             => $cust['order_source'] ?? 'pos',
+                'items'                    => $items,
+                'materials'                => [],
+                'ink_usage'                => [],
+                'customization_details'    => $details,
+            ];
+
+            echo json_encode(['success' => true, 'data' => $data]);
             break;
 
         case 'get_regular_order':
@@ -424,6 +659,7 @@ try {
                 'payment_proof_uploaded_at' => $o['payment_submitted_at'] ?? null,
                 'payment_status'       => 'NO',
                 'readiness'            => 'READY',
+                'order_source'         => $o['order_source'] ?? 'customer',
                 'items'                => $items_out,
             ];
             echo json_encode(['success' => true, 'data' => $data]);
@@ -543,6 +779,11 @@ try {
             jo_api_require_staff_branch($joStaffBranch, $id);
             // Setting the price also means updating the required payment to match exactly
             $res = db_execute("UPDATE job_orders SET estimated_total = ?, required_payment = ? WHERE id = ?", 'ddi', [$price, $price, $id]);
+            // Also update the orders table so the customer sees the correct price
+            $job = db_query("SELECT order_id FROM job_orders WHERE id = ?", 'i', [$id]);
+            if (!empty($job) && !empty($job[0]['order_id'])) {
+                db_execute("UPDATE orders SET total_amount = ? WHERE order_id = ?", 'di', [$price, $job[0]['order_id']]);
+            }
             echo json_encode(['success' => (bool)$res]);
             break;
 

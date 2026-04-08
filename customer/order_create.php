@@ -10,6 +10,14 @@ require_role('Customer');
 require_once __DIR__ . '/../includes/require_id_verified.php';
 
 $product_id = (int)($_GET['product_id'] ?? 0);
+$edit_item_key = $_GET['edit_item'] ?? '';
+
+// Load existing cart data if editing
+$existing_data = [];
+if ($edit_item_key && isset($_SESSION['cart'][$edit_item_key])) {
+    $existing_data = $_SESSION['cart'][$edit_item_key];
+}
+
 if ($product_id < 1) { header('Location: products.php'); exit; }
 
 $product = db_query(
@@ -29,6 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
 
     if ($branch_id < 1) {
         $error = 'Please select a branch.';
+    } elseif ($quantity > (int)$product['stock_quantity']) {
+        $error = 'Quantity exceeds available stock.';
+    } elseif ((int)$product['stock_quantity'] <= 0) {
+        $error = 'This product is currently out of stock.';
     } else {
         $item_key = 'product_' . $product_id . '_' . time() . '_' . rand(100, 999);
         $customization = [];
@@ -174,8 +186,12 @@ require_once __DIR__ . '/../includes/header.php';
                         <div class="shopee-form-field">
                             <select name="branch_id" class="shopee-opt-btn" required style="width: 175px; cursor: pointer;">
                                 <option value="">Select Branch</option>
-                                <?php foreach ($branches as $b): ?>
-                                    <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['branch_name']); ?></option>
+                                <?php 
+                                $saved_branch = $existing_data['branch_id'] ?? '';
+                                foreach ($branches as $b): 
+                                    $selected = ($saved_branch == $b['id']) ? ' selected' : '';
+                                ?>
+                                    <option value="<?php echo $b['id']; ?>"<?php echo $selected; ?>><?php echo htmlspecialchars($b['branch_name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -186,11 +202,12 @@ require_once __DIR__ . '/../includes/header.php';
                         <div class="shopee-form-field">
                             <div class="shopee-opt-group">
                                 <div class="quantity-container shopee-opt-btn" style="display: inline-flex; justify-content: space-between; gap: 1rem; width: 175px; cursor: default;">
-                                    <button type="button" style="background: none; border: none; color: #6b7280; font-size: 1.125rem; font-weight: 600; cursor: pointer; padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;" onclick="const i=document.getElementById('poc-qty');if(parseInt(i.value)>1)i.value=parseInt(i.value)-1;">&minus;</button>
-                                    <input type="number" id="poc-qty" name="quantity" class="qty-input-field" style="border: none; text-align: center; width: 60px; font-size: 0.875rem; font-weight: 500; color: #374151; background: transparent; outline: none; -moz-appearance: textfield;" min="1" max="999" value="<?php echo (int)($_POST['quantity'] ?? ($_GET['qty'] ?? 1)); ?>" onwheel="return false;">
-                                    <button type="button" style="background: none; border: none; color: #6b7280; font-size: 1.125rem; font-weight: 600; cursor: pointer; padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;" onclick="const i=document.getElementById('poc-qty');i.value=Math.min(999,(parseInt(i.value)||1)+1);">+</button>
+                                    <button type="button" style="background: none; border: none; color: #6b7280; font-size: 1.125rem; font-weight: 600; cursor: pointer; padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;" onclick="const i=document.getElementById('poc-qty');if(parseInt(i.value)>1){i.value=parseInt(i.value)-1;hideStockWarning();}">&minus;</button>
+                                    <input type="number" id="poc-qty" name="quantity" class="qty-input-field" style="border: none; text-align: center; width: 60px; font-size: 0.875rem; font-weight: 500; color: #374151; background: transparent; outline: none; -moz-appearance: textfield;" min="1" max="<?php echo (int)$product['stock_quantity']; ?>" value="<?php echo (int)($existing_data['quantity'] ?? $_POST['quantity'] ?? $_GET['qty'] ?? 1); ?>" onwheel="return false;" oninput="const max=<?php echo (int)$product['stock_quantity']; ?>;if(parseInt(this.value)>max){this.value=max;showStockWarning(max);}else{hideStockWarning();}">
+                                    <button type="button" style="background: none; border: none; color: #6b7280; font-size: 1.125rem; font-weight: 600; cursor: pointer; padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;" onclick="const i=document.getElementById('poc-qty');const max=<?php echo (int)$product['stock_quantity']; ?>;if(parseInt(i.value)<max){i.value=parseInt(i.value)+1;hideStockWarning();}else{showStockWarning(max);}">+</button>
                                 </div>
                             </div>
+                            <div id="stock-warning" style="display: none; font-size: 0.75rem; color: #dc2626; margin-top: 0.5rem; font-weight: 600;"></div>
                         </div>
                     </div>
 
@@ -198,15 +215,20 @@ require_once __DIR__ . '/../includes/header.php';
                         <div style="width: 130px;"></div>
                         <div class="flex gap-4 flex-1">
                             <a href="products.php" class="shopee-btn-outline" style="flex: 1; min-width: 0;">Back</a>
-                            <button type="submit" name="action" value="add_to_cart" class="shopee-btn-outline" style="flex: 1.2; min-width: 140px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; white-space: nowrap; padding: 0.5rem 1.25rem;" title="Add to Cart">
-                                <svg style="width: 1.125rem; height: 1.125rem; flex-shrink: 0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                </svg>
-                                <span>Add to Cart</span>
-                            </button>
-                            <button type="submit" name="action" value="buy_now" class="shopee-btn-primary" style="flex: 1; min-width: 0; white-space: nowrap; display: flex; align-items: center; justify-content: center; padding: 0.5rem 1.25rem;">
-                                <span>Buy Now</span>
-                            </button>
+                            <?php if ((int)$product['stock_quantity'] > 0): ?>
+                                <button type="submit" name="action" value="add_to_cart" class="shopee-btn-outline" style="flex: 1.2; min-width: 140px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; white-space: nowrap; padding: 0.5rem 1.25rem;" title="Add to Cart">
+                                    <svg style="width: 1.125rem; height: 1.125rem; flex-shrink: 0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                    </svg>
+                                    <span>Add to Cart</span>
+                                </button>
+                                <button type="submit" name="action" value="buy_now" class="shopee-btn-primary" style="flex: 1; min-width: 0; white-space: nowrap; display: flex; align-items: center; justify-content: center; padding: 0.5rem 1.25rem;">
+                                    <span>Buy Now</span>
+                                </button>
+                            <?php else: ?>
+                                <button type="button" disabled class="shopee-btn-outline" style="flex: 1.2; min-width: 140px; opacity: 0.5; cursor: not-allowed; padding: 0.5rem 1.25rem;">Out of Stock</button>
+                                <button type="button" disabled class="shopee-btn-primary" style="flex: 1; min-width: 0; opacity: 0.5; cursor: not-allowed; padding: 0.5rem 1.25rem;">Out of Stock</button>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </form>
@@ -363,6 +385,21 @@ require_once __DIR__ . '/../includes/header.php';
 </style>
 
 <script>
+function showStockWarning(max) {
+    const warning = document.getElementById('stock-warning');
+    if (warning) {
+        warning.textContent = 'Maximum stock available: ' + max;
+        warning.style.display = 'block';
+    }
+}
+
+function hideStockWarning() {
+    const warning = document.getElementById('stock-warning');
+    if (warning) {
+        warning.style.display = 'none';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('productOrderForm');
     if (form) {

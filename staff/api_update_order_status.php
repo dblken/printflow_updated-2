@@ -47,7 +47,7 @@ $status_map = [
 $new_status = $status_map[$raw_status] ?? $raw_status;
 
 $allowed = ['Pending', 'Pending Review', 'Pending Approval', 'For Revision', 'Approved', 'To Pay',
-    'Processing', 'In Production', 'Printing', 'Ready for Pickup', 'Completed', 'Cancelled'];
+    'To Verify', 'Processing', 'In Production', 'Printing', 'Ready for Pickup', 'Completed', 'Cancelled'];
 
 ensure_order_status_values($allowed);
 

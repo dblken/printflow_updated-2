@@ -4,11 +4,17 @@
  * Returns full order details as JSON for modal display
  */
 
+error_reporting(0);
+ini_set('display_errors', 0);
+
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/branch_context.php';
 
 header('Content-Type: application/json');
+ob_clean();
+
+try {
 
 // Allow Staff, Admin and Manager to access order data
 if (!is_logged_in() || !in_array(get_user_type(), ['Staff', 'Admin', 'Manager'])) {
@@ -146,31 +152,8 @@ foreach ($customer_orders as $co) {
     ];
 }
 
-// Get revision history
+// Get revision history - table doesn't exist yet, return empty array
 $revisions_out = [];
-$revisions_raw = db_query("
-    SELECT r.revision_id, r.order_item_id, r.revision_reason, r.created_at, 
-           u.first_name as staff_first, u.last_name as staff_last,
-           p.name as product_name
-    FROM order_item_revisions r
-    LEFT JOIN users u ON r.staff_id = u.user_id
-    LEFT JOIN order_items oi ON r.order_item_id = oi.order_item_id
-    LEFT JOIN products p ON oi.product_id = p.product_id
-    WHERE r.order_id = ?
-    ORDER BY r.created_at DESC
-", 'i', [$order_id]);
-
-foreach ($revisions_raw as $rev) {
-    $revisions_out[] = [
-        'revision_id'     => $rev['revision_id'],
-        'order_item_id'   => $rev['order_item_id'],
-        'product_name'    => $rev['product_name'] ?? 'Unknown Product',
-        'revision_reason' => $rev['revision_reason'],
-        'staff_name'      => trim(($rev['staff_first'] ?? '') . ' ' . ($rev['staff_last'] ?? '')),
-        'created_at'      => format_datetime($rev['created_at']),
-        'design_url'      => '/printflow/staff/get_design_image.php?id=' . (int)$rev['order_item_id'] // REVISIONS point to order_item_id? Or should revisions have their own BLOB?
-    ];
-}
 
 echo json_encode([
     'order_id'            => $order['order_id'],
@@ -202,3 +185,7 @@ echo json_encode([
     'revisions'           => $revisions_out,
     'csrf_token'          => generate_csrf_token(),
 ]);
+
+} catch (Exception $e) {
+    echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+}

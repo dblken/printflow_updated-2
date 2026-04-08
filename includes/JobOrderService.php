@@ -365,15 +365,28 @@ class JobOrderService {
         try {
             // Materials are now handled at TO_PAY stage, so we don't block APPROVED.
             if ($newStatus === 'IN_PRODUCTION') {
-                // Payment check removed per user request
+                // Deduct materials when moving to production
+                self::processDeductions($orderId);
             }
 
             if ($newStatus === 'COMPLETED') {
-                // Only PAID orders can be marked COMPLETED
+                // For POS orders (walk-in) or orders already in TO_RECEIVE status, skip payment check
+                $currentStatus = strtoupper((string)($order['status'] ?? ''));
+                $isPOSOrder = !empty($order['order_id']) && db_query(
+                    "SELECT 1 FROM orders WHERE order_id = ? AND order_type = 'custom' AND payment_method IN ('Cash', 'GCash', 'Maya') LIMIT 1",
+                    'i',
+                    [$order['order_id']]
+                );
+                
+                // Allow completion if: already in TO_RECEIVE (Ready for Pickup), or is a POS order, or payment is PAID
                 $payment = strtoupper((string)($order['payment_status'] ?? ''));
-                if ($payment !== 'PAID') {
+                $canComplete = ($currentStatus === 'TO_RECEIVE') || !empty($isPOSOrder) || ($payment === 'PAID');
+                
+                if (!$canComplete) {
                     throw new Exception('Cannot mark as Completed: payment must be Paid. Current payment status: ' . ($order['payment_status'] ?? 'Unpaid'));
                 }
+                
+                // Process deductions again (idempotent - will skip already deducted items)
                 self::processDeductions($orderId);
                 if ($order['customer_id']) {
                     self::updateCustomerStatus($order['customer_id']);
@@ -436,6 +449,7 @@ class JobOrderService {
      */
     private static function processDeductions($orderId) {
         $materials = db_query("SELECT * FROM job_order_materials WHERE job_order_id = ? AND deducted_at IS NULL", 'i', [$orderId]);
+        
         if ($materials) {
             foreach ($materials as $m) {
                 $item = InventoryManager::getItem($m['item_id']);
@@ -469,14 +483,15 @@ class JobOrderService {
                     }
                     
                     // --- PRINTED STICKER: LAMINATION DEDUCTION ---
-                    if (isset($m['metadata']['lamination_item_id']) && $m['metadata']['lamination_length_ft'] > 0) {
-                        $lamItem = InventoryManager::getItem($m['metadata']['lamination_item_id']);
+                    $metadata = is_string($m['metadata']) ? json_decode($m['metadata'], true) : $m['metadata'];
+                    if (is_array($metadata) && isset($metadata['lamination_item_id']) && !empty($metadata['lamination_length_ft'])) {
+                        $lamItem = InventoryManager::getItem($metadata['lamination_item_id']);
                         if ($lamItem) {
                             try {
                                 if ($lamItem['track_by_roll']) {
                                     RollService::deductFIFO(
                                         $lamItem['id'],
-                                        $m['metadata']['lamination_length_ft'],
+                                        $metadata['lamination_length_ft'],
                                         'JOB_ORDER',
                                         $orderId,
                                         "Lamination deducted for Job #{$orderId}"
@@ -484,7 +499,7 @@ class JobOrderService {
                                 } else {
                                     InventoryManager::issueStock(
                                         $lamItem['id'], 
-                                        $m['metadata']['lamination_length_ft'], 
+                                        $metadata['lamination_length_ft'], 
                                         $lamItem['unit_of_measure'], 
                                         'JOB_ORDER', 
                                         $orderId, 
@@ -520,7 +535,6 @@ class JobOrderService {
         // Process Ink Deductions
         $inks = db_query("SELECT * FROM job_order_ink_usage WHERE job_order_id = ?", 'i', [$orderId]);
         if ($inks) {
-            // Delete previous internal state notes for ink to avoid duplicates if completed twice somehow, although shouldn't happen
             foreach ($inks as $ink) {
                 // Determine item from inventory
                 $inkItem = InventoryManager::getItem($ink['item_id']);

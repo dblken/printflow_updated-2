@@ -1,0 +1,243 @@
+Array
+(
+    [0] => Array
+        (
+            [Field] => order_id
+            [Type] => int
+            [Null] => NO
+            [Key] => PRI
+            [Default] => 
+            [Extra] => auto_increment
+        )
+
+    [1] => Array
+        (
+            [Field] => customer_id
+            [Type] => int
+            [Null] => NO
+            [Key] => MUL
+            [Default] => 
+            [Extra] => 
+        )
+
+    [2] => Array
+        (
+            [Field] => order_date
+            [Type] => timestamp
+            [Null] => YES
+            [Key] => 
+            [Default] => CURRENT_TIMESTAMP
+            [Extra] => DEFAULT_GENERATED
+        )
+
+    [3] => Array
+        (
+            [Field] => updated_at
+            [Type] => timestamp
+            [Null] => NO
+            [Key] => 
+            [Default] => CURRENT_TIMESTAMP
+            [Extra] => DEFAULT_GENERATED on update CURRENT_TIMESTAMP
+        )
+
+    [4] => Array
+        (
+            [Field] => total_amount
+            [Type] => decimal(10,2)
+            [Null] => NO
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [5] => Array
+        (
+            [Field] => downpayment_amount
+            [Type] => decimal(10,2)
+            [Null] => YES
+            [Key] => 
+            [Default] => 0.00
+            [Extra] => 
+        )
+
+    [6] => Array
+        (
+            [Field] => status
+            [Type] => varchar(100)
+            [Null] => NO
+            [Key] => 
+            [Default] => Pending
+            [Extra] => 
+        )
+
+    [7] => Array
+        (
+            [Field] => payment_status
+            [Type] => enum('Unpaid','Paid','Refunded','Pending Verification')
+            [Null] => YES
+            [Key] => 
+            [Default] => Unpaid
+            [Extra] => 
+        )
+
+    [8] => Array
+        (
+            [Field] => payment_method_id
+            [Type] => int
+            [Null] => YES
+            [Key] => MUL
+            [Default] => 
+            [Extra] => 
+        )
+
+    [9] => Array
+        (
+            [Field] => payment_reference
+            [Type] => varchar(100)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [10] => Array
+        (
+            [Field] => payment_method
+            [Type] => varchar(50)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [11] => Array
+        (
+            [Field] => payment_proof_path
+            [Type] => varchar(255)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [12] => Array
+        (
+            [Field] => notes
+            [Type] => text
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [13] => Array
+        (
+            [Field] => discount_id
+            [Type] => int
+            [Null] => YES
+            [Key] => MUL
+            [Default] => 
+            [Extra] => 
+        )
+
+    [14] => Array
+        (
+            [Field] => branch_id
+            [Type] => int
+            [Null] => NO
+            [Key] => MUL
+            [Default] => 1
+            [Extra] => 
+        )
+
+    [15] => Array
+        (
+            [Field] => cancelled_by
+            [Type] => varchar(100)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [16] => Array
+        (
+            [Field] => cancel_reason
+            [Type] => text
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [17] => Array
+        (
+            [Field] => cancelled_at
+            [Type] => timestamp
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [18] => Array
+        (
+            [Field] => design_status
+            [Type] => varchar(50)
+            [Null] => YES
+            [Key] => 
+            [Default] => Pending
+            [Extra] => 
+        )
+
+    [19] => Array
+        (
+            [Field] => revision_reason
+            [Type] => text
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [20] => Array
+        (
+            [Field] => estimated_completion
+            [Type] => date
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [21] => Array
+        (
+            [Field] => payment_type
+            [Type] => enum('full_payment','50_percent','upon_pickup')
+            [Null] => YES
+            [Key] => 
+            [Default] => full_payment
+            [Extra] => 
+        )
+
+    [22] => Array
+        (
+            [Field] => payment_proof
+            [Type] => varchar(255)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [23] => Array
+        (
+            [Field] => payment_submitted_at
+            [Type] => timestamp
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+)

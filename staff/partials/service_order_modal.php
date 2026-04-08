@@ -135,7 +135,7 @@
                 <div style="padding:16px 24px;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;gap:8px;">
                     <div style="display:flex;gap:8px; flex-wrap:wrap; align-items:center;">
                         <div x-show="svc.show_approve_block" style="display:flex; gap:8px;">
-                            <button type="button" @click="svcApprove()" class="btn-action indigo" style="padding:6px 12px; font-weight:600;">✓ Approve to Set Price</button>
+                            <button type="button" @click="svcApprove()" class="btn-action indigo" style="padding:6px 12px; font-weight:600;">✓ Approve & Start Production</button>
                             <button type="button" @click="svcReject()" class="btn-action" style="padding:6px 12px; color:#ef4444; background:#fef2f2; border:1px solid #fee2e2; font-weight:600;">✕ Request Revision</button>
                         </div>
                         <button type="button" x-show="svc.show_cancel_only" @click="svcCancelOrder()" class="btn-action red" style="padding:6px 12px;">✕ Cancel</button>

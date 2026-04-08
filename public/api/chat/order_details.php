@@ -95,12 +95,12 @@ foreach ($items ?: [] as $item) {
     $custom_data = json_decode($item['customization_data'] ?? '{}', true) ?: [];
     unset($custom_data['design_upload'], $custom_data['reference_upload']);
 
-    $service_name = get_service_name_from_customization($custom_data, 'Order Item');
-    $service_name = normalize_service_name($service_name, 'Order Item');
+    $product_name = get_service_name_from_customization($custom_data, 'Order Item');
+    $product_name = normalize_service_name($product_name, 'Order Item');
     if ((empty($item['product_name']) || in_array(strtolower(trim($item['product_name'])), ['custom order', 'customer order', 'service order', 'order item'])) && !empty($custom_data['service_type'])) {
-        $service_name = normalize_service_name($custom_data['service_type'], 'Order Item');
+        $product_name = normalize_service_name($custom_data['service_type'], 'Order Item');
     } elseif (!empty($item['product_name']) && !in_array(strtolower(trim($item['product_name'])), ['custom order', 'customer order', 'service order', 'order item'])) {
-        $service_name = normalize_service_name($item['product_name'], 'Order Item');
+        $product_name = normalize_service_name($item['product_name'], 'Order Item');
     }
 
     $design_url = null;
@@ -116,7 +116,7 @@ foreach ($items ?: [] as $item) {
 
     $items_out[] = [
         'order_item_id'     => (int)$item['order_item_id'],
-        'service_name'      => $service_name,
+        'product_name'      => $product_name,
         'category'          => $item['category'] ?? '',
         'quantity'          => (int)$item['quantity'],
         'unit_price'        => $show_price ? format_currency($item['unit_price']) : null,

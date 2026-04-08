@@ -49,12 +49,14 @@ function _ft_detect_social(string $url): array {
         .ft-wrap { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem; box-sizing: border-box; }
         .ft-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
         @media (min-width: 768px) { .ft-grid { grid-template-columns: repeat(4, 1fr); gap: 2.5rem; } }
-        .ft-brand { font-size: 1.25rem; font-weight: 700; color: #53C5E0; margin: 0 0 0.5rem 0; }
+        .ft-footer .ft-brand { font-size: 1.25rem; font-weight: 700; color: #e5e7eb !important; margin: 0 0 0.5rem 0; }
+        .ft-footer h3.ft-brand { color: #e5e7eb !important; }
         .ft-desc { font-size: 0.875rem; color: #94a3b8; line-height: 1.55; margin: 0; max-width: 260px; }
-        .ft-title { font-size: 0.9375rem; font-weight: 700; color: #ffffff; margin: 0 0 1rem 0; text-transform: uppercase; letter-spacing: 0.03em; }
+        .ft-footer .ft-title { font-size: 0.9375rem; font-weight: 700; color: #e5e7eb !important; margin: 0 0 1rem 0; text-transform: uppercase; letter-spacing: 0.03em; }
+        .ft-footer h3.ft-title { color: #e5e7eb !important; }
         .ft-list { list-style: none; padding: 0; margin: 0; }
         .ft-list li { margin-bottom: 0.5rem; }
-        .ft-list a { font-size: 0.875rem; color: #94a3b8; text-decoration: none; }
+        .ft-list a { font-size: 0.875rem; color: #94a3b8; text-decoration: none; transition: color 0.2s; }
         .ft-list a:hover { color: #53C5E0; }
         .ft-list-item { font-size: 0.875rem; color: #94a3b8; display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.625rem; line-height: 1.4; }
         .ft-ico-svg { flex-shrink: 0; width: 15px; height: 15px; color: #53C5E0; margin-top: 1px; }
@@ -67,16 +69,28 @@ function _ft_detect_social(string $url): array {
         @media (min-width: 768px) { .ft-bottom { flex-direction: row; justify-content: space-between; align-items: center; text-align: left; } }
         @media (max-width: 767px) {
             .ft-wrap { padding: 2rem 1rem 6rem; }
-            .ft-grid { gap: 1.5rem; }
-            .ft-brand, .ft-title { text-align: left; }
-            .ft-desc, .ft-list-item, .ft-bottom p {
+            .ft-grid { gap: 2rem; }
+            .ft-grid > div:first-child { text-align: center; }
+            .ft-grid > div:first-child .ft-desc { margin: 0 auto; max-width: 100%; text-align: justify; }
+            .ft-grid > div:first-child .ft-social { justify-content: center; }
+            .ft-brand, .ft-title { text-align: center; }
+            .ft-desc {
                 text-align: justify;
-                text-justify: inter-word;
                 line-height: 1.65;
                 max-width: none;
             }
+            .ft-list-item, .ft-bottom p {
+                text-align: center;
+                line-height: 1.65;
+                max-width: none;
+            }
+            .ft-list { text-align: center; }
+            .ft-list li { text-align: center; }
+            .ft-list a { display: inline-block; }
+            .ft-list-item { justify-content: center; text-align: center; display: inline-flex; max-width: fit-content; margin-left: auto; margin-right: auto; }
             .ft-social { margin-top: .85rem; }
             .ft-list li { margin-bottom: .65rem; }
+            .ft-grid > div { padding: 0 0.5rem; text-align: center; }
         }
     </style>
     <footer class="ft-footer">
@@ -209,9 +223,11 @@ function _ft_detect_social(string $url): array {
     </a>
 
     <!-- Support chat button (RIGHT) -->
+    <?php if (empty($hide_chatbot)): ?>
     <div id="chatbot-btn" class="ft-bubble ft-bubble-right" title="Open support chat">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" style="width: 32px; height: 32px; color: #00232b; transition: all 0.3s ease;"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
     </div>
+    <?php endif; ?>
 
     <!-- Support chat window -->
     <div id="chatbot-window" class="lp-chatbot-hidden" style="position: fixed; bottom: 100px; right: 20px; width: 380px; max-width: calc(100vw - 40px); max-height: 85vh; background: white; border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); display: flex; flex-direction: column; z-index: 9998; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; opacity: 0; transform: translateY(20px) scale(0.95); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none;">
@@ -294,7 +310,7 @@ function _ft_detect_social(string $url): array {
     }
     .ft-bubble-left { 
         left: 20px; 
-        background: linear-gradient(135deg, #00313d, #00232b);
+        background: linear-gradient(135deg, #0a2530, #00232b);
         color: #53C5E0; 
         border: 1.5px solid rgba(83,197,224,.4);
         box-shadow: 0 4px 16px rgba(0,0,0,.5), 0 0 12px rgba(83,197,224,.15);
@@ -344,6 +360,7 @@ function _ft_detect_social(string $url): array {
     </style>
 
     <!-- Support chat widget script -->
+    <?php if (empty($hide_chatbot)): ?>
     <script>
     (function() {
         var btn = document.getElementById('chatbot-btn');
@@ -400,6 +417,7 @@ function _ft_detect_social(string $url): array {
 
         // Toggle support chat on button click
         var checkInterval = null;
+        if (btn) {
         btn.addEventListener('click', function() {
             isOpen = !isOpen;
             if (isOpen) {
@@ -417,14 +435,17 @@ function _ft_detect_social(string $url): array {
                 if (checkInterval) clearInterval(checkInterval);
             }
         });
+        }
 
         // Close support chat
+        if (close) {
         close.addEventListener('click', function() {
             isOpen = false;
             win.classList.remove('lp-chatbot-visible');
             setTimeout(() => win.classList.add('lp-chatbot-hidden'), 300);
             if (checkInterval) clearInterval(checkInterval);
         });
+        }
 
         // Load FAQs and populate questions
         function loadFAQs() {
@@ -560,6 +581,7 @@ function _ft_detect_social(string $url): array {
         }
 
         // Send button and input Enter key
+        if (sendBtn) {
         sendBtn.addEventListener('click', function() {
             if (input.value.trim()) {
                 if (!isLoggedIn) {
@@ -627,7 +649,9 @@ function _ft_detect_social(string $url): array {
                 });
             }
         });
+        }
 
+        if (input) {
         input.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && input.value.trim()) {
                 if (!isLoggedIn) {
@@ -638,12 +662,15 @@ function _ft_detect_social(string $url): array {
                 sendBtn.click();
             }
         });
+        }
 
+        if (input) {
         input.addEventListener('input', function() {
             if (this.value.trim()) {
                 sendBtn.style.transform = 'scale(1)';
             }
         });
+        }
 
         // Check for replies to previous threads when support chat opens
         function checkReplies() {
@@ -683,6 +710,7 @@ function _ft_detect_social(string $url): array {
         }
     })();
     </script>
+    <?php endif; ?>
 
     <!-- PWA -->
     <script src="<?php echo $base_url; ?>/public/assets/js/pwa.js"></script>

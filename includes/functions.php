@@ -10,6 +10,7 @@ date_default_timezone_set('Asia/Manila');
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/email_sms_config.php';
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/ensure_order_source_column.php'; // Ensure order_source column exists
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -263,12 +264,23 @@ function create_notification($user_id, $user_type, $message, $type = 'System', $
  * Uses each user's role for web push subscription matching.
  */
 function notify_staff_new_order(int $order_id, string $customer_first_name): void {
-    // Get service name from context
+    // Get service name and order type from context
     $first_item = db_query("SELECT customization_data FROM order_items WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
-    $service_name = 'Service Order';
+    $service_name = 'Product Order';
+    $is_service_order = false;
+    
     if (!empty($first_item)) {
         $custom_data = !empty($first_item[0]['customization_data']) ? json_decode($first_item[0]['customization_data'], true) : [];
-        $service_name = get_service_name_from_customization($custom_data, 'Service Order');
+        $service_name = get_service_name_from_customization($custom_data, 'Product Order');
+        
+        // Check if this is a service order (has customization data)
+        $is_service_order = !empty($custom_data) && is_array($custom_data) && count($custom_data) > 0;
+    }
+    
+    // Also check order_type field
+    $order_data = db_query("SELECT order_type FROM orders WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
+    if (!empty($order_data) && $order_data[0]['order_type'] === 'custom') {
+        $is_service_order = true;
     }
 
     $users = db_query(
@@ -321,58 +333,44 @@ function staff_notification_target_url(array $n): string {
              return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=ORDER&status=PENDING';
         }
 
-        $payment_submitted = (stripos($msg, 'submitted payment') !== false || stripos($msg, 'payment proof') !== false);
-
-        if ($payment_submitted) {
-            $job_by_pk = db_query(
-                'SELECT id, order_id FROM job_orders WHERE id = ? LIMIT 1',
-                'i',
-                [$data_id]
-            );
-            if (!empty($job_by_pk)) {
-                $is_job_line = (stripos($msg, 'job order') !== false);
-                if ($is_job_line) {
-                    return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=JOB&status=TO_VERIFY';
-                }
-                $oid = (int)($job_by_pk[0]['order_id'] ?? 0);
-                if ($oid > 0) {
-                    return $base . '/staff/customizations.php?order_id=' . $oid . '&job_type=ORDER&status=TO_VERIFY';
-                }
-                return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=JOB&status=TO_VERIFY';
-            }
-            $ord_row = db_query(
-                'SELECT order_id FROM orders WHERE order_id = ? LIMIT 1',
-                'i',
-                [$data_id]
-            );
-            if (!empty($ord_row)) {
-                return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=ORDER&status=TO_VERIFY';
-            }
-        }
-
         // Check if the data_id belongs to job_orders table (custom/specialty jobs)
-        // Job orders are managed in customizations.php
         $job_row = db_query(
             "SELECT id FROM job_orders WHERE id = ? LIMIT 1",
             'i',
             [$data_id]
         );
         if (!empty($job_row)) {
-            // It is a job order — send to customizations with auto-open
             return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=JOB';
         }
 
-        // Check if the data_id belongs to store orders table
+        // Check if the data_id belongs to store orders table and get order_type + source
         $ord_row = db_query(
-            "SELECT order_id FROM orders WHERE order_id = ? LIMIT 1",
+            "SELECT order_id, order_type, order_source FROM orders WHERE order_id = ? LIMIT 1",
             'i',
             [$data_id]
         );
         if (!empty($ord_row)) {
-            return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=ORDER';
+            $order_type = $ord_row[0]['order_type'] ?? 'product';
+            $order_source = $ord_row[0]['order_source'] ?? 'customer';
+            
+            // Route based on order type: custom -> customizations.php, product -> orders.php
+            if ($order_type === 'custom') {
+                // Check if this is a new order notification
+                if (stripos($msg, 'placed an order') !== false) {
+                    // Customer orders (from order_service_dynamic.php) -> PENDING tab
+                    // POS orders (from staff/pos.php) -> All tabs (no status filter)
+                    if ($order_source === 'pos' || $order_source === 'walk-in') {
+                        return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=ORDER';
+                    } else {
+                        return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=ORDER&status=PENDING';
+                    }
+                }
+                return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=ORDER';
+            }
+            return $base . '/staff/orders.php?order_id=' . $data_id;
         }
 
-        // Fallback: treat as a job order (most common case for staff notifications)
+        // Fallback: treat as a job order
         return $base . '/staff/customizations.php?order_id=' . $data_id . '&job_type=JOB';
     }
 
@@ -551,7 +549,15 @@ function sync_cart_to_db($customer_id) {
         if ($pid <= 0) continue;
         $exists = db_query("SELECT product_id FROM products WHERE product_id = ? LIMIT 1", 'i', [$pid]);
         if (empty($exists)) continue;
-        db_execute("INSERT INTO customer_cart (customer_id, product_id, variant_id, quantity, updated_at) VALUES (?, ?, ?, ?, NOW())", 'iiii', [$customer_id, $pid, $vid, $qty]);
+        
+        // Use INSERT ... ON DUPLICATE KEY UPDATE to avoid duplicate key errors
+        db_execute(
+            "INSERT INTO customer_cart (customer_id, product_id, variant_id, quantity, updated_at) 
+             VALUES (?, ?, ?, ?, NOW()) 
+             ON DUPLICATE KEY UPDATE quantity = VALUES(quantity), updated_at = NOW()",
+            'iiii',
+            [$customer_id, $pid, $vid, $qty]
+        );
     }
 }
 
@@ -1004,8 +1010,12 @@ function status_badge($status, $type = 'order') {
     ];
     
     $style = $colors[$type][$status] ?? 'background: #f9fafb; color: #374151; border: 1px solid #f3f4f6;';
-    // Display "Pending" instead of "Pending Review" for consistency
-    $display = ($status === 'Pending Review') ? 'Pending' : $status;
+    // Display "Pending" instead of "Pending Review" and "To Verify" for consistency
+    if ($status === 'Pending Review' || $status === 'To Verify') {
+        $display = 'Pending';
+    } else {
+        $display = $status;
+    }
     
     return "<span class='status-badge-pill' style='{$style}'>" . htmlspecialchars($display) . "</span>";
 }

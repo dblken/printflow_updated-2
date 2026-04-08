@@ -51,7 +51,7 @@ switch ($timeframe) {
 }
 
 // 1. Stats
-$pending_orders = db_query("SELECT COUNT(*) as count FROM orders WHERE status IN ('Pending', 'Pending Review') AND branch_id = ?", 'i', [$staffBranchId])[0]['count'] ?? 0;
+$pending_orders = db_query("SELECT COUNT(*) as count FROM orders WHERE status IN ('Pending', 'Pending Review', 'To Verify') AND branch_id = ?", 'i', [$staffBranchId])[0]['count'] ?? 0;
 $completed_today = db_query("SELECT COUNT(*) as count FROM orders WHERE status = 'Completed' AND $timeframe_sql_no_alias AND branch_id = ?", 'i', [$staffBranchId])[0]['count'] ?? 0;
 $total_orders = db_query("SELECT COUNT(*) as count FROM orders WHERE $timeframe_sql_no_alias AND branch_id = ?", 'i', [$staffBranchId])[0]['count'] ?? 0;
 $total_revenue = db_query("SELECT SUM(total_amount) as total FROM orders WHERE $timeframe_sql_no_alias AND status != 'Cancelled' AND branch_id = ?", 'i', [$staffBranchId])[0]['total'] ?? 0;

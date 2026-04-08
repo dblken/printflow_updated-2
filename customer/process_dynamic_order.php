@@ -150,7 +150,131 @@ $_SESSION['cart'][$item_key] = $cart_item;
 
 // Redirect based on action
 if ($action === 'buy_now') {
-    header("Location: order_review.php?item=" . urlencode($item_key));
+    // For service orders, create order directly instead of going to review page
+    // This restores the original behavior
+    
+    // Check customer restrictions again
+    if (is_customer_restricted($customer_id)) {
+        $_SESSION['error'] = "Account restricted. Cannot place order.";
+        header("Location: order_dynamic.php?product_id=" . $product_id);
+        exit;
+    }
+    
+    global $conn;
+    
+    // Get customer info
+    $customer = db_query("SELECT * FROM customers WHERE customer_id = ?", 'i', [$customer_id])[0] ?? [];
+    
+    // Create order
+    $order_sql = "INSERT INTO orders (customer_id, branch_id, reference_id, order_date, total_amount, downpayment_amount, status, payment_status, payment_type, notes, order_type)
+                  VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)";
+    $order_id = db_execute($order_sql, 'iiiddsssss', [
+        $customer_id,
+        $branch_id,
+        $product_id,
+        0, // total_amount - will be set by staff
+        0, // downpayment_amount
+        'To Pay', // status
+        'Unpaid', // payment_status
+        'full_payment', // payment_type
+        null, // notes
+        'custom' // order_type
+    ]);
+    
+    if ($order_id) {
+        // Prepare customization data
+        $custom_data = [
+            'Branch_ID' => $branch_id,
+            'form_type' => 'dynamic',
+            'config_id' => $config_id,
+            'service_type' => $product['name']
+        ];
+        
+        // Add all form fields to customization
+        foreach ($form_data as $key => $value) {
+            if (is_array($value) && isset($value['type']) && $value['type'] === 'file') {
+                // Skip file data in JSON, will be stored separately
+                continue;
+            }
+            $custom_data[$key] = $value;
+        }
+        
+        $custom_json = json_encode($custom_data);
+        
+        // Handle file uploads
+        $upload_dir = __DIR__ . '/../uploads/orders';
+        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+        
+        $design_file_path = null;
+        $design_binary = null;
+        $design_mime = null;
+        $design_name = null;
+        
+        foreach ($form_data as $key => $value) {
+            if (is_array($value) && isset($value['type']) && $value['type'] === 'file') {
+                if (file_exists($value['tmp_path'])) {
+                    $design_binary = file_get_contents($value['tmp_path']);
+                    $ext = strtolower(pathinfo($value['name'], PATHINFO_EXTENSION));
+                    $new_name = uniqid('design_') . '_' . time() . '.' . $ext;
+                    if (copy($value['tmp_path'], $upload_dir . '/' . $new_name)) {
+                        $design_file_path = '/printflow/uploads/orders/' . $new_name;
+                    }
+                    $design_mime = $value['mime'];
+                    $design_name = $value['name'];
+                    @unlink($value['tmp_path']);
+                }
+                break; // Only handle first file
+            }
+        }
+        
+        // Insert order item
+        $unit_price = 0; // Will be set by staff
+        
+        if ($design_binary) {
+            $stmt = $conn->prepare(
+                "INSERT INTO order_items (order_id, product_id, quantity, unit_price, customization_data, 
+                                        design_image, design_image_mime, design_image_name, design_file)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            );
+            if ($stmt) {
+                $null = NULL;
+                $stmt->bind_param('iiidsssss', $order_id, $product_id, $quantity, $unit_price, $custom_json, $null, $design_mime, $design_name, $design_file_path);
+                $stmt->send_long_data(5, $design_binary);
+                $stmt->execute();
+                $stmt->close();
+            }
+        } else {
+            db_execute(
+                "INSERT INTO order_items (order_id, product_id, quantity, unit_price, customization_data, design_file) 
+                 VALUES (?, ?, ?, ?, ?, ?)",
+                'iiidss',
+                [$order_id, $product_id, $quantity, $unit_price, $custom_json, $design_file_path]
+            );
+        }
+        
+        // Clear cart item
+        unset($_SESSION['cart'][$item_key]);
+        sync_cart_to_db($customer_id);
+        
+        // Create notification for staff
+        $customer_name = trim(($customer['first_name'] ?? '') . ' ' . ($customer['last_name'] ?? ''));
+        if (empty($customer_name)) $customer_name = 'Customer';
+        
+        $notification_msg = "New order #$order_id from $customer_name";
+        create_notification(null, 'Staff', $notification_msg, 'Order', false, false, $order_id);
+        
+        // Log activity
+        log_activity($customer_id, 'Order Placed', "Customer placed order #$order_id");
+        
+        // Set success message and redirect
+        $_SESSION['order_success'] = "Order #$order_id placed successfully! Our team will review and price your order shortly.";
+        header("Location: orders.php");
+        exit;
+    } else {
+        $_SESSION['error'] = "Failed to place order. Please try again.";
+        header("Location: order_dynamic.php?product_id=" . $product_id);
+        exit;
+    }
 } else {
     header("Location: cart.php");
 }

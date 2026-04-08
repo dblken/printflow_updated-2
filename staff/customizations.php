@@ -469,8 +469,9 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                 <th class="pl-6 pr-4 py-4 w-[12%] border-b border-gray-100">Order #</th>
                                 <th class="px-4 py-4 w-[30%] border-b border-gray-100">Customization Info</th>
                                 <th class="px-4 py-4 w-[18%] border-b border-gray-100 text-center">Status</th>
-                                <th class="px-4 py-4 w-[20%] border-b border-gray-100">Customer</th>
-                                <th class="px-4 py-4 w-[15%] border-b border-gray-100 text-right">Created</th>
+                                <th class="px-4 py-4 w-[8%] border-b border-gray-100 text-center">Source</th>
+                                <th class="px-4 py-4 w-[16%] border-b border-gray-100">Customer</th>
+                                <th class="px-4 py-4 w-[12%] border-b border-gray-100 text-right">Created</th>
                                 <th class="px-4 py-4 w-[10%] border-b border-gray-100 text-center uppercase tracking-widest text-[10px]">Action</th>
                             </tr>
                         </thead>
@@ -479,7 +480,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                 <tr @click="viewDetails(jo.id, jo.order_type || 'JOB')" class="group transition-all hover:bg-gray-50/50 relative cursor-pointer">
                                     <td class="pl-6 pr-4 py-4 relative">
                                         <div class="row-indicator"></div>
-                                        <span class="table-text-main" x-text="(jo.order_type === 'ORDER' ? '#ORD-' : (jo.order_type === 'SERVICE' ? '#SRV-' : '#JO-')) + jo.id.toString().padStart(5, '0')"></span>
+                                        <span class="table-text-main" x-text="(jo.order_type === 'ORDER' ? '#ORD-' : (jo.order_type === 'SERVICE' ? '#SRV-' : (jo.order_type === 'CUSTOMIZATION' ? '#CUST-' : '#JO-'))) + jo.id.toString().padStart(5, '0')"></span>
                                     </td>
                                     <td class="px-4 py-4">
                                         <div class="flex items-center gap-3">
@@ -508,6 +509,14 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                            (jo.status === 'TO_RECEIVE' ? 'To Pickup' : jo.status)))))">
                                         </div>
                                     </td>
+                                    <td class="px-4 py-4 text-center">
+                                        <template x-if="['pos','walk-in'].includes((jo.order_source || '').toLowerCase())">
+                                            <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;">🖥 POS</span>
+                                        </template>
+                                        <template x-if="!['pos','walk-in'].includes((jo.order_source || '').toLowerCase())">
+                                            <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;background:#dbeafe;color:#1e40af;">🌐 Online</span>
+                                        </template>
+                                    </td>
                                     <td class="px-4 py-4">
                                         <div class="table-text-main" x-text="jo.first_name + ' ' + (jo.last_name || '')"></div>
                                         <div class="table-text-sub" style="margin-top:4px;max-width:220px;word-break:break-word;" x-show="jo.customer_contact" x-text="jo.customer_contact"></div>
@@ -525,7 +534,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                 </tr>
                             </template>
                             <tr x-show="filteredOrders.length === 0">
-                                <td colspan="6" class="px-6 py-24 text-center">
+                                <td colspan="7" class="px-6 py-24 text-center">
                                     <span class="table-text-sub uppercase tracking-widest">No matching jobs in this stage</span>
                                 </td>
                             </tr>
@@ -611,7 +620,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
 
                     <!-- Dynamic Order Details (service-specific fields from customization_data) -->
-                    <template x-if="currentJo.items && currentJo.items.length > 0">
+                    <template x-if="currentJo.items && currentJo.items.length > 0 && currentJo.status !== 'APPROVED'">
                         <div style="margin-bottom:20px; padding:16px; border-radius:12px; border:1px solid #e5e7eb; background:#f9fafb;">
                             <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:12px;">Order Details (Customer Specifications)</label>
                             <template x-for="(item, idx) in currentJo.items" :key="item.order_item_id || idx">
@@ -659,7 +668,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
 
                     <!-- Notes -->
-                    <div style="margin-bottom:20px;" x-show="combinedCustomerNotes().trim() !== '' && combinedCustomerNotes() !== 'No specific instructions.'">
+                    <div style="margin-bottom:20px;" x-show="currentJo.status !== 'APPROVED' && combinedCustomerNotes().trim() !== '' && combinedCustomerNotes() !== 'No specific instructions.'">
                         <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:6px;">Order Notes</label>
                         <div style="font-size:13px;color:#6b7280;background:#fffbeb;border:1px solid #fef3c7;padding:10px 14px;border-radius:8px;word-break:break-word;overflow-wrap:break-word;white-space:pre-wrap;" x-text="combinedCustomerNotes()"></div>
                     </div>
@@ -813,6 +822,8 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                         <div style="position:relative;">
                                             <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-weight:700; color:#0f766e;">₱</span>
                                             <input type="number" x-model.number="jobPriceInput" 
+                                                   min="0" step="0.01"
+                                                   @input="jobPriceInput = parseFloat($event.target.value) || 0"
                                                    style="width:100%; padding:12px 12px 12px 32px; border:2px solid #06A1A1; border-radius:10px; font-size:20px; font-weight:800; color:#0f766e; outline:none;">
                                         </div>
                                     </div>
@@ -846,8 +857,8 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         <div style="margin-bottom:20px; padding:18px; border-radius:12px; border:1px solid #fbd38d; background:#fffaf0;">
                             <label style="font-size:11px;font-weight:700;color:#9c4221;text-transform:uppercase;display:block;margin-bottom:12px;">Step 5: Production In Progress</label>
                             <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <div style="font-size:14px; color:#9c4221; font-weight:500;">Currently in production phase.</div>
-                                <button @click="jobAction('TO_RECEIVE')" class="btn-action amber">📦 Mark as Ready for Pickup</button>
+                                <div style="font-size:14px; color:#9c4221; font-weight:500;">Materials have been deducted from inventory.</div>
+                                <button @click="markReadyForPickup()" class="btn-action amber">📦 Mark as Ready for Pickup</button>
                             </div>
                         </div>
                     </template>
@@ -953,11 +964,11 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 <div style="padding:16px 24px;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;gap:8px;">
                     <!-- Left: Status actions -->
                     <div style="display:flex;gap:8px; flex-wrap:wrap; align-items:center;">
-                        <div x-show="isPendingReviewStatus(currentJo)" style="display:flex; gap:8px;">
+                        <div x-show="isPendingReviewStatus(currentJo) && !isVerifyStageRow(currentJo)" style="display:flex; gap:8px;">
                             <button type="button" @click="jobAction('APPROVED')" class="btn-action indigo" style="padding:6px 12px; font-weight:600;">✓ Approve to Set Price</button>
                             <button type="button" @click="openRevisionModal()" class="btn-action" style="padding:6px 12px; color:#ef4444; background:#fef2f2; border:1px solid #fee2e2; font-weight:600;">✕ Request Revision</button>
                         </div>
-                        <button type="button" x-show="currentJo.status !== 'CANCELLED' && currentJo.status !== 'COMPLETED'" @click="jobAction('CANCELLED')" class="btn-action red" style="padding:6px 12px;">✕ Cancel</button>
+                        <button type="button" x-show="currentJo.status !== 'CANCELLED' && currentJo.status !== 'COMPLETED' && !isVerifyStageRow(currentJo)" @click="jobAction('CANCELLED')" class="btn-action red" style="padding:6px 12px;">✕ Cancel</button>
                     </div>
                     <!-- Right: Close -->
                     <button @click="showDetailsModal = false" class="btn-secondary">Close</button>
@@ -1099,8 +1110,10 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
 <script src="<?php echo htmlspecialchars((defined('BASE_URL') ? BASE_URL : '/printflow') . '/public/assets/js/staff_service_order_modal.js'); ?>"></script>
 <script>
-    function joManager(defaultStatus = 'PENDING') {
-        return {
+    document.addEventListener('alpine:init', function () {
+        Alpine.data('joManager', function (defaultStatus) {
+            defaultStatus = defaultStatus || 'ALL';
+            return {
             ...printflowStaffServiceOrderModalMixin({
                 async afterSvcMutation() { await this.loadOrders(); }
             }),
@@ -1368,51 +1381,28 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 return ['Pending Review', 'Pending Approval', 'For Revision'].includes(s);
             },
 
-            /** Row is in payment-verification stage (TO_VERIFY tab + merge dedupe). */
+            /** Row is in payment-verification stage — strictly status-based only. */
             isVerifyStageRow(row) {
                 if (!row) return false;
                 const s = String(row.status || '').toUpperCase().replace(/\s+/g, '_');
-                const p = String(row.payment_proof_status || '').trim().toUpperCase();
-                const stage = s === 'VERIFY_PAY' || s === 'TO_VERIFY' || s === 'PENDING_VERIFICATION' || s === 'DOWNPAYMENT_SUBMITTED';
-                const proofPresent = Boolean(row.payment_proof_path || row.payment_proof);
-                const amountSubmitted = Number(row.payment_submitted_amount || 0);
-
-                // If proof already verified/rejected, never show verify action.
-                if (p === 'VERIFIED' || p === 'REJECTED') return false;
-
-                // Normal: status indicates verify stage and proof is marked SUBMITTED.
-                if (stage) return p === 'SUBMITTED';
-
-                // Inconsistent rows: if proof is present with a positive submitted amount,
-                // still treat it as verify-stage so staff can complete verification.
-                if (proofPresent && amountSubmitted > 0) return true;
-
-                // Fallback: if payment_proof_status is SUBMITTED, consider it verify-stage.
-                return p === 'SUBMITTED';
+                return s === 'VERIFY_PAY' || s === 'TO_VERIFY' || s === 'PENDING_VERIFICATION' || s === 'DOWNPAYMENT_SUBMITTED';
             },
 
-            /** Store/job row is actively in production (matches IN_PRODUCTION tab). */
+            /** Store/job row is actively in production — strictly status-based only. */
             isInProductionRow(row) {
                 if (!row) return false;
                 const raw = String(row.status || '').trim();
                 const t = raw.toUpperCase().replace(/\s+/g, '_');
-                const p = String(row.payment_proof_status || '').toUpperCase();
-                // Job row lagged after verify but proof is verified on job_orders
-                if (p === 'VERIFIED' && (t === 'TO_PAY' || t === 'APPROVED')) return true;
                 if (t === 'IN_PRODUCTION' || t === 'PROCESSING' || t === 'PRINTING') return true;
-                // orders.status after verify: "Paid – In Process" (en-dash) or "Paid - In Process" (ASCII) if SQL CASE did not normalize
                 if (/PAID[-–_\s]+IN[-–_\s]+PROCESS/i.test(raw)) return true;
                 return false;
             },
 
-            /** Waiting for customer payment — exclude proof submitted (TO_VERIFY) or already verified (production). */
+            /** Waiting for customer payment — strictly status-based only. */
             isToPayRow(row) {
                 if (!row) return false;
                 const s = String(row.status || '').toUpperCase().replace(/\s+/g, '_');
-                const p = String(row.payment_proof_status || '').toUpperCase();
-                if (!(s === 'TO_PAY' || s === 'APPROVED')) return false;
-                if (p === 'SUBMITTED' || p === 'VERIFIED') return false;
-                return true;
+                return s === 'TO_PAY';
             },
 
             get availableMaterialsForCurrentOrder() {
@@ -1538,34 +1528,36 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         return tb - ta;
                     });
 
-                    // Merge JOB + ORDER for same store order_id: keep the row that reflects payment verification.
+                    // Set of order IDs that have at least one job_order
                     const storeIdsWithJob = new Set(
                         jobOrders
                             .filter(j => j.order_id != null && j.order_id !== '')
                             .map(j => String(j.order_id))
                     );
 
+                    // Set of order IDs present in the regular orders list
+                    const regularOrderIds = new Set(
+                        regularOrders
+                            .map(o => String(o.order_id ?? o.id))
+                    );
+
                     this.orders = sorted
                         .filter(row => {
-                            if (row.order_type !== 'ORDER') return true;
-                            const oid = String(row.order_id ?? row.id ?? '');
-                            if (!storeIdsWithJob.has(oid)) return true;
-                            if (!this.isVerifyStageRow(row)) return false;
-                            const jobRow = sorted.find(
-                                r => r.order_type === 'JOB' && r.order_id != null && String(r.order_id) === oid
-                            );
-                            if (jobRow && this.isVerifyStageRow(jobRow)) return false;
+                            // Rule 1: Always keep ORDER rows if they are present.
+                            // They serve as the "Bulk" entry for production management.
+                            if (row.order_type === 'ORDER') return true;
+
+                            // Rule 2: For JOB rows, check if they belong to a store order.
+                            const oid = row.order_id != null && row.order_id !== '' ? String(row.order_id) : null;
+                            
+                            // If it's a standalone job (no store order), keep it.
+                            if (!oid) return true;
+
+                            // If it belongs to a store order, only keep it if the ORDER row is NOT present.
+                            // This prevents fragmentation when we want to manage it as a "Bulk" order.
+                            if (regularOrderIds.has(oid)) return false;
+
                             return true;
-                        })
-                        .filter(row => {
-                            if (row.order_type !== 'JOB') return true;
-                            if (row.order_id == null || row.order_id === '') return true;
-                            const oid = String(row.order_id);
-                            const orderRow = sorted.find(
-                                r => r.order_type === 'ORDER' && String(r.order_id ?? r.id) === oid
-                            );
-                            if (!orderRow || !this.isVerifyStageRow(orderRow)) return true;
-                            return this.isVerifyStageRow(row);
                         })
                         .map(o => ({
                             ...o,
@@ -1641,6 +1633,8 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     let matchStatus = false;
                     if (this.activeStatus === 'ALL') {
                         matchStatus = true;
+                    } else if (this.activeStatus === 'APPROVED') {
+                        matchStatus = jo.status === 'APPROVED';
                     } else if (this.activeStatus === 'TO_VERIFY') {
                         matchStatus = this.isVerifyStageRow(jo);
                     } else if (this.activeStatus === 'TO_PAY') {
@@ -1696,10 +1690,10 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     return matchSearch;
                 });
 
-                // Sorting
+                // Sorting - Always newest first (ignore sortOrder for consistency)
                 return filtered.sort((a, b) => {
                     const diff = (b._ts || 0) - (a._ts || 0);
-                    return this.sortOrder === 'newest' ? diff : -diff;
+                    return diff; // Always newest first
                 });
             },
 
@@ -1735,7 +1729,16 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             },
 
             getStatusCount(status) {
-                if (status === 'ALL') return this.orders.length;
+                if (status === 'ALL') {
+                    // Count each order exactly once based on which tab it belongs to
+                    return this.orders.filter(o => {
+                        const s = String(o.status || '').toUpperCase().replace(/\s+/g, '_');
+                        return ['PENDING','APPROVED','TO_PAY','VERIFY_PAY','TO_VERIFY','PENDING_VERIFICATION',
+                                'DOWNPAYMENT_SUBMITTED','IN_PRODUCTION','PROCESSING','PRINTING',
+                                'TO_RECEIVE','COMPLETED','CANCELLED'].includes(s) ||
+                               this.isInProductionRow(o);
+                    }).length;
+                }
                 if (status === 'TO_VERIFY') {
                     return this.orders.filter(o => this.isVerifyStageRow(o)).length;
                 }
@@ -1759,6 +1762,25 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 this.loadingDetails = true;
                 this.currentJo = {};
                 const base = document.body.getAttribute('data-base-url') || '/printflow';
+                
+                if (orderType === 'CUSTOMIZATION') {
+                    // Fetch customization entry details
+                    try {
+                        const detailRes = await (await fetch(`${base}/admin/job_orders_api.php?action=get_customization&id=${id}`)).json();
+                        if (detailRes.success) {
+                            this.currentJo = { ...detailRes.data, order_type: 'CUSTOMIZATION' };
+                            this.jobPriceInput = this.currentJo.estimated_total || 0;
+                        } else {
+                            this.showStaffAlert('Error', 'Customization details could not be loaded.');
+                            this.showDetailsModal = false;
+                        }
+                    } catch (e) {
+                        console.error('Error fetching customization detail:', e);
+                        this.showDetailsModal = false;
+                    }
+                    this.loadingDetails = false;
+                    return;
+                }
                 
                 if (orderType === 'ORDER') {
                     // Always fetch full order details to get `items` array and dynamic fields
@@ -1859,6 +1881,17 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             },
 
             async jobAction(status, machineId = null) {
+                if (this.currentJo.order_type === 'CUSTOMIZATION') {
+                    const fd = new FormData();
+                    fd.append('action', 'update_customization');
+                    fd.append('id', this.currentJo.id);
+                    fd.append('status', status === 'APPROVED' ? 'Approved' : status);
+                    const base = document.body.getAttribute('data-base-url') || '/printflow';
+                    const res = await (await fetch(base + '/admin/job_orders_api.php', { method: 'POST', body: fd })).json();
+                    if (res.success) { await this.loadOrders(); this.showDetailsModal = false; }
+                    else this.showStaffAlert('Error', res.error || 'Update failed.');
+                    return;
+                }
                 const jid = await this.resolveEffectiveJobId();
                 if (!jid) {
                     this.showStaffAlert('Production Job Error', 'Could not create or find a production job for this store order. Confirm the order has line items in Orders.');
@@ -1904,8 +1937,8 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
             async verifyPayment() {
                 this.showStaffConfirm(
-                    'Verify Payment',
-                    `Verify payment of ₱${this.currentJo.payment_submitted_amount}?`,
+                    'Verify Payment & Start Production',
+                    `Verify payment of ₱${this.currentJo.payment_submitted_amount}?\n\nThis will deduct materials from inventory and start production.`,
                     async () => {
                         const base = document.body.getAttribute('data-base-url') || '/printflow';
                         const ot = this.currentJo.order_type || 'JOB';
@@ -1934,8 +1967,9 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         if(res.success) {
                             this.activeStatus = 'IN_PRODUCTION';
                             await this.loadOrders();
+                            await this.loadAllInventoryItems();
                             await this.viewDetails(this.currentJo.id, this.currentJo.order_type || 'JOB');
-                            this.showStaffAlert('Success', 'Payment verified and balance updated.');
+                            this.showStaffAlert('Success', 'Payment verified. Materials deducted and production started.');
                         } else {
                             this.showStaffAlert('Verification Failed', res.error || 'Verification failed.');
                         }
@@ -2053,11 +2087,86 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             },
 
             async submitToPay() {
+                console.log('submitToPay called');
+                console.log('jobPriceInput value:', this.jobPriceInput);
+                console.log('jobPriceInput type:', typeof this.jobPriceInput);
+                
+                if (this.currentJo.order_type === 'CUSTOMIZATION') {
+                    const priceValue = parseFloat(this.jobPriceInput);
+                    console.log('Parsed price value:', priceValue);
+                    console.log('Is NaN?', isNaN(priceValue));
+                    
+                    if (!priceValue || priceValue <= 0 || isNaN(priceValue)) {
+                        this.showStaffAlert('Price Required', 'Please enter a valid price before approving.');
+                        return;
+                    }
+                    const fd = new FormData();
+                    fd.append('action', 'update_customization');
+                    fd.append('id', this.currentJo.id);
+                    fd.append('status', 'TO_PAY');
+                    fd.append('price', this.jobPriceInput);
+                    const base = document.body.getAttribute('data-base-url') || '/printflow';
+                    const res = await (await fetch(base + '/admin/job_orders_api.php', { method: 'POST', body: fd })).json();
+                    if (res.success) {
+                        const hasPaymentProof = this.currentJo.payment_proof_path || this.currentJo.payment_proof;
+                        const paymentAmount = parseFloat(this.currentJo.payment_submitted_amount || 0);
+                        const targetTab = (hasPaymentProof && paymentAmount > 0) ? 'TO_VERIFY' : 'TO_PAY';
+                        const successMessage = targetTab === 'TO_VERIFY'
+                            ? 'Price set! Payment proof detected — order moved to verification.'
+                            : 'Price set and order moved to payment stage.';
+
+                        this.showStaffAlert('Success', successMessage, async () => {
+                            const details = this.currentJo.customization_details || {};
+                            const urlParams = new URLSearchParams(window.location.search);
+                            const returnToPOS = urlParams.get('return_to_pos') === '1';
+
+                            if (details.source === 'POS' || returnToPOS) {
+                                // Update the matching cart item price by product_id, then redirect
+                                const savedState = sessionStorage.getItem('pos_cart_state');
+                                if (savedState) {
+                                    try {
+                                        const state = JSON.parse(savedState);
+                                        await fetch(base + '/staff/api/pos_cart_handler.php', {
+                                            method: 'POST',
+                                            headers: {'Content-Type': 'application/json'},
+                                            body: JSON.stringify({
+                                                action: 'update_price',
+                                                index: state.item_index,
+                                                price: priceValue
+                                            })
+                                        });
+                                    } catch (e) {
+                                        console.error('Error updating cart price:', e);
+                                    }
+                                    sessionStorage.removeItem('pos_cart_state');
+                                }
+                                window.location.href = base + '/staff/pos.php?from_customizations=1';
+                            } else {
+                                this.activeStatus = targetTab;
+                                await this.loadOrders();
+                                this.showDetailsModal = false;
+                            }
+                        });
+                    } else {
+                        this.showStaffAlert('Error', res.error || 'Failed.');
+                    }
+                    return;
+                }
                 const jid = await this.resolveEffectiveJobId();
                 if (!jid) {
                     this.showStaffAlert('Error', 'No linked production job for materials and pricing.');
                     return;
                 }
+                
+                // CRITICAL: Capture the price BEFORE any async operations that might reset it
+                const userEnteredPrice = parseFloat(this.jobPriceInput);
+                console.log('User entered price (captured early):', userEnteredPrice);
+                
+                // Check if this order came from POS BEFORE any operations
+                const urlParams = new URLSearchParams(window.location.search);
+                const returnToPOS = urlParams.get('return_to_pos') === '1';
+                const fromPOS = returnToPOS || (this.currentJo.order_type === 'ORDER' && this.currentJo.source === 'POS');
+                
                 // Save all pending materials from the queue
                 for (const pm of this.pendingMaterials) {
                     const fd = new FormData();
@@ -2106,13 +2215,75 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 // Re-fetch to get latest materials
                 await this.viewDetails(this.currentJo.id, this.currentJo.order_type || 'JOB');
 
+                // IMPORTANT: viewDetails resets jobPriceInput, so use the captured value
+                console.log('Price before materials check:', userEnteredPrice);
+
                 if ((!this.currentJo.materials || this.currentJo.materials.length === 0) && (!this.currentJo.ink_usage || this.currentJo.ink_usage.length === 0)) {
                     this.showStaffAlert('Production Required', 'Please add at least one production material or ink before submitting to pay.');
                     return;
                 }
 
-                await this.setJobPrice(jid);
+                // Validate price is set - use the captured value from the beginning
+                if (!userEnteredPrice || userEnteredPrice <= 0 || isNaN(userEnteredPrice)) {
+                    this.showStaffAlert('Price Required', 'Please enter a valid price before submitting to pay.');
+                    return;
+                }
+                
+                // Restore the price value that was reset by viewDetails
+                this.jobPriceInput = userEnteredPrice;
+
+                // Update price for both job_orders AND orders table
+                const priceUpdated = await this.updatePrice();
+                if (!priceUpdated) {
+                    this.showStaffAlert('Error', 'Failed to update price. Please try again.');
+                    return;
+                }
+                
                 await this.updateStatus(jid, 'TO_PAY');
+                // Refresh the modal to show updated price
+                await this.viewDetails(this.currentJo.id, this.currentJo.order_type || 'JOB');
+                
+                // Close the modal after successful submission
+                this.showDetailsModal = false;
+                
+                // Check if we need to redirect back to POS
+                if (fromPOS) {
+                    const base = document.body.getAttribute('data-base-url') || '/printflow';
+                    const savedState = sessionStorage.getItem('pos_cart_state');
+                    
+                    if (savedState) {
+                        try {
+                            const state = JSON.parse(savedState);
+                            const itemIndex = state.item_index;
+                            
+                            // Update cart via API
+                            await fetch(base + '/staff/api/pos_cart_handler.php', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({
+                                    action: 'update_price',
+                                    index: itemIndex,
+                                    price: userEnteredPrice
+                                })
+                            });
+                            
+                            // Redirect back to POS
+                            window.location.href = base + '/staff/pos.php?from_customizations=1';
+                            return; // Exit early to prevent showing alert
+                        } catch (e) {
+                            console.error('Error updating cart:', e);
+                            window.location.href = base + '/staff/pos.php';
+                            return;
+                        }
+                    } else {
+                        // No saved state, just redirect
+                        window.location.href = base + '/staff/pos.php';
+                        return;
+                    }
+                }
+                
+                // Show success message (only if not redirecting to POS)
+                this.showStaffAlert('Success', 'Order approved and moved to payment stage!');
             },
 
             async loadAllInventoryItems() {
@@ -2180,26 +2351,41 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 const oid = this.currentJo.order_id || this.currentJo.id;
                 const price = parseFloat(this.jobPriceInput);
                 
+                if (!price || price <= 0) {
+                    this.showStaffAlert('Invalid Price', 'Please enter a valid price greater than 0.');
+                    return false;
+                }
+                
                 if (this.currentJo.order_type === 'ORDER') {
                    const fd = new FormData();
                    fd.append('action', 'update_order_price');
                    fd.append('order_id', oid);
                    fd.append('price', price);
                    const res = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fd })).json();
-                   if (!res.success) this.showStaffAlert('Error', 'Failed to update price: ' + res.error);
-                   else {
-                       this.currentJo.total_amount = price;
-                       this.currentJo.estimated_total = price;
-                       console.log('Price updated successfully');
+                   if (!res.success) {
+                       this.showStaffAlert('Error', 'Failed to update price: ' + res.error);
+                       return false;
                    }
+                   this.currentJo.total_amount = price;
+                   this.currentJo.estimated_total = price;
+                   console.log('Price updated successfully to:', price);
+                   return true;
                 } else {
-                    await this.setJobPrice(jid);
+                    const success = await this.setJobPrice(jid);
+                    if (success !== false) {
+                        this.currentJo.estimated_total = price;
+                        console.log('Job price updated successfully to:', price);
+                        return true;
+                    }
+                    return false;
                 }
             },
 
             async setJobPrice(jid) {
-                if (!jid) return;
+                if (!jid) return false;
                 const price = parseFloat(this.jobPriceInput);
+                if (!price || price <= 0) return false;
+                
                 const fd = new FormData();
                 fd.append('action', 'set_price');
                 fd.append('id', jid);
@@ -2207,8 +2393,11 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 const res = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fd })).json();
                 if (res.success) {
                     this.currentJo.estimated_total = price;
+                    console.log('Job price set to:', price);
+                    return true;
                 } else {
                     this.showStaffAlert('Error', 'Error setting price: ' + res.error);
+                    return false;
                 }
             },
 
@@ -2361,10 +2550,20 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 }
             },
 
+            async markReadyForPickup() {
+                this.showStaffConfirm(
+                    'Mark Ready for Pickup',
+                    'Mark this order as ready for customer pickup?',
+                    async () => {
+                        await this.jobAction('TO_RECEIVE');
+                    }
+                );
+            },
+
             async completeOrder(machineId = null) {
                 this.showStaffConfirm(
                     'Complete Order',
-                    'This will permanently deduct materials from inventory. Proceed?',
+                    'Mark this order as completed and fulfilled?',
                     async () => {
                         const jid = await this.resolveEffectiveJobId();
                         if (!jid) {
@@ -2373,15 +2572,14 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         }
                         const ok = await this.updateStatus(jid, 'COMPLETED', machineId);
                         if (ok) {
-                            await this.loadAllInventoryItems();
-                            this.availableRolls = {};
                             this.showDetailsModal = false;
                         }
                     }
                 );
             }
-        }
-    }
+        };
+        });
+    });
     /*
      * Do NOT call Alpine.initTree here when document.readyState !== 'loading' (Turbo body swap).
      * Inline scripts run before turbo:load's setTimeout; initTree(root) + initTree(.main-content) double-mounts x-for (tripled tabs, zero counts).

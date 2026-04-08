@@ -271,10 +271,10 @@ function render_order_item_clean($item, $is_cart_item = false, $show_price = tru
     ];
     $skip = ['design_upload', 'reference_upload', 'notes', 'additional_notes', 'other_instructions', 'design_notes', 'Branch_ID', 'service_type', 'product_type', 'unit', 'install_province', 'install_city', 'install_barangay', 'install_street'];
     ?>
-    <div style="background: rgba(10, 37, 48, 0.48); backdrop-filter: blur(8px); padding: 0; overflow: hidden; border: 1px solid rgba(83, 197, 224, 0.24); border-radius: 16px; margin-bottom: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+    <div style="background: #0a2530; padding: 0; overflow: hidden; border: 1px solid rgba(83, 197, 224, 0.24); border-radius: 16px; margin-bottom: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 100%; max-width: 100%; box-sizing: border-box;">
         <!-- Core Info -->
-        <div style="padding: 1.25rem; display: flex; gap: 1.25rem; align-items: flex-start; border-bottom: 1px solid rgba(83, 197, 224, 0.15); background: rgba(255,255,255,0.02);">
-            <div style="width: 130px; height: 130px; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.25); border: 1px solid rgba(83, 197, 224, 0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: inset 0 2px 10px rgba(0,0,0,0.15);">
+        <div class="order-item-header" style="padding: 1.25rem; display: flex; gap: 1.25rem; align-items: flex-start; border-bottom: 1px solid rgba(83, 197, 224, 0.15); background: rgba(255,255,255,0.02);">
+            <div class="order-item-image" style="width: 130px; height: 130px; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.35); border: 1px solid rgba(83, 197, 224, 0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);">
                 <?php if ($design_url): ?>
                     <img src="<?php echo $design_url; ?>" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease-in-out;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
                 <?php else: ?>
@@ -282,29 +282,27 @@ function render_order_item_clean($item, $is_cart_item = false, $show_price = tru
                 <?php endif; ?>
             </div>
             
-            <div style="flex: 1; min-width: 0;">
-                <h3 style="font-size: 1.35rem; font-weight: 800; color: #eaf6fb; margin-bottom: 0.3rem; letter-spacing: -0.01em;"><?php echo htmlspecialchars($name); ?></h3>
-                <div style="display: inline-flex; font-size: 0.72rem; font-weight: 700; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 20px; background: rgba(83, 197, 224, 0.12); border: 1px solid rgba(83, 197, 224, 0.18); margin-bottom: 1.25rem;">
+            <div class="order-item-content" style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                <h3 style="font-size: 0.95rem; line-height: 1.3rem; font-weight: 600; color: #ffffff !important; margin: 0 0 0.3rem 0; word-wrap: break-word;"><?php echo htmlspecialchars($name); ?></h3>
+                <div style="display: inline-flex; font-size: 0.72rem; font-weight: 700; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 20px; background: rgba(83, 197, 224, 0.12); border: 1px solid rgba(83, 197, 224, 0.18); margin-bottom: 1.25rem; align-self: flex-start;">
                     <?php echo htmlspecialchars($category); ?>
                 </div>
                 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
-                    <?php if ($show_price): ?>
-                    <div>
-                        <div style="font-size: 0.68rem; color: #9fc4d4; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Unit Price</div>
-                        <div style="font-size: 1rem; color: #eaf6fb; font-weight: 700;"><?php echo format_currency($unit_price); ?></div>
-                    </div>
-                    <?php endif; ?>
+                <div class="order-item-details" style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: auto;">
                     <?php if ($show_quantity): ?>
-                    <div>
-                        <div style="font-size: 0.68rem; color: #9fc4d4; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Quantity</div>
-                        <div style="font-size: 1rem; color: #eaf6fb; font-weight: 700;"><?php echo $quantity; ?></div>
+                    <div class="review-detail-row" style="flex: 1; min-width: 80px;">
+                        <div class="review-detail-label" style="font-size: 0.68rem; color: #9fc4d4; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Quantity</div>
+                        <div class="review-detail-value" style="font-size: 1rem; color: #eaf6fb; font-weight: 700;"><?php echo $quantity; ?></div>
                     </div>
                     <?php endif; ?>
                     <?php if ($show_price): ?>
-                    <div>
-                        <div style="font-size: 0.68rem; color: #53c5e0; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total</div>
-                        <div style="font-size: 1rem; color: #53c5e0; font-weight: 800;"><?php echo format_currency($subtotal); ?></div>
+                    <div class="review-detail-row" style="flex: 1; min-width: 100px;">
+                        <div class="review-detail-label" style="font-size: 0.68rem; color: #9fc4d4; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Unit Price</div>
+                        <div class="review-detail-value" style="font-size: 1rem; color: #eaf6fb; font-weight: 700;"><?php echo format_currency($unit_price); ?></div>
+                    </div>
+                    <div class="review-total-row" style="flex: 1; min-width: 100px;">
+                        <div class="review-total-label" style="font-size: 0.68rem; color: #53c5e0; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total</div>
+                        <div class="review-total-value" style="font-size: 1rem; color: #53c5e0; font-weight: 800;"><?php echo format_currency($subtotal); ?></div>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -334,7 +332,7 @@ function render_order_item_clean($item, $is_cart_item = false, $show_price = tru
                 <?php endforeach; ?>
                 
                 <?php if (!$has_specs): ?>
-                    <p style="font-size: 0.9rem; color: #9fc4d4; font-style: italic;">No specific customizations.</p>
+                    <p style="font-size: 0.9rem; color: #9fc4d4; font-style: italic; white-space: nowrap;">No specific customizations.</p>
                 <?php endif; ?>
             </div>
 
@@ -366,3 +364,49 @@ function render_order_item_clean($item, $is_cart_item = false, $show_price = tru
     </div>
     <?php
 }
+
+?>
+<style>
+@media (max-width: 768px) {
+    .order-item-header {
+        flex-direction: column !important;
+        gap: 1rem !important;
+    }
+    .order-item-image {
+        width: 100% !important;
+        max-width: 200px !important;
+        height: 200px !important;
+        margin: 0 auto !important;
+    }
+    .order-item-content {
+        width: 100% !important;
+    }
+    .order-item-details {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+    }
+    .review-detail-row,
+    .review-total-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        padding: 0.5rem 0 !important;
+        border-bottom: 1px solid rgba(83, 197, 224, 0.1) !important;
+    }
+    .review-detail-row:last-child,
+    .review-total-row:last-child {
+        border-bottom: none !important;
+    }
+    .review-detail-label,
+    .review-total-label {
+        text-align: left !important;
+    }
+    .review-detail-value,
+    .review-total-value {
+        text-align: right !important;
+    }
+}
+</style>
+<?php
