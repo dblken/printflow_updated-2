@@ -5,9 +5,31 @@
     "scripts": {
         "build": "npx tailwindcss -i ./public/assets/css/input.css -o ./public/assets/css/output.css",
         "watch": "npx tailwindcss -i ./public/assets/css/input.css -o ./public/assets/css/output.css --watch",
-        "build:phone": "cd phone-verify-app && npm run build"
+        "build:phone": "cd phone-verify-app && npm run build",
+        "start": "node server.js"
     },
     "devDependencies": {
         "tailwindcss": "^3.4.15"
+    },
+    "main": "postcss.config.js",
+    "directories": {
+        "doc": "docs"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/dblken/printflow_updated-2.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "commonjs",
+    "bugs": {
+        "url": "https://github.com/dblken/printflow_updated-2/issues"
+    },
+    "homepage": "https://github.com/dblken/printflow_updated-2#readme",
+    "dependencies": {
+        "cors": "^2.8.6",
+        "express": "^5.2.1",
+        "socket.io": "^4.8.3"
     }
 }

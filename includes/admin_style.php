@@ -1,4 +1,5 @@
 <?php require_once __DIR__ . '/favicon_links.php'; ?>
+<?php if (function_exists('render_order_item_styles')) render_order_item_styles(); ?>
 <?php
 /**
  * Alpine.js Core Loading (admin / manager / staff shell).
@@ -10,6 +11,20 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
     ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="<?php echo $__pf_asset_js; ?>/alpine.min.js" defer></script>
+<script>
+    window.getProfileImage = function(image) {
+        if (!image || image === 'null' || image === 'undefined') {
+            return '/printflow/public/assets/uploads/profiles/default.png';
+        }
+        if (typeof image !== 'string') return '/printflow/public/assets/uploads/profiles/default.png';
+        if (image.startsWith('/') || image.startsWith('http')) return image;
+        // Check if it's already a public path but missing root
+        if (image.includes('assets/uploads/profiles/')) {
+            return (image.startsWith('/') ? '' : '/') + image;
+        }
+        return '/printflow/public/assets/uploads/profiles/' + image;
+    };
+</script>
 <?php
     unset($__pf_asset_js);
 }
@@ -64,7 +79,7 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
     body { 
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
         background: var(--bg-color); 
         color: var(--text-main);
     }
@@ -157,7 +172,8 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
         margin-bottom: 8px;
     }
     
-    .page-title, h1, h2 { font-size: 24px; font-weight: 600; color: var(--text-main); }
+    .page-title, h1, h2 { font-size: 24px; font-weight: 700; color: var(--text-main); letter-spacing: -0.025em; }
+    .page-subtitle { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
     
     .content-area, main { padding: 0 32px 32px 32px; }
     
@@ -672,7 +688,150 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
     .dashboard-container { height: 100%; overflow: hidden; }
     .main-content { height: 100%; overflow-y: scroll; scroll-behavior: smooth; } /* Always show scrollbar track */
 
-    /* ── Global summary / KPI card accent (all admin-style pages) ───────── */
+    /* ── KPI figure figures — one canonical rule in this file ── */
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 1024px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px) { .kpi-row { grid-template-columns: 1fr; } }
+
+    .kpi-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; display: block; text-decoration: none; color: inherit; }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #00232b, #53C5E0); }
+    .kpi-card.indigo::before { background: linear-gradient(90deg, #00232b, #53C5E0); }
+    .kpi-card.emerald::before { background: linear-gradient(90deg, #059669, #34d399); }
+    .kpi-card.amber::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .kpi-card.rose::before { background: linear-gradient(90deg, #e11d48, #fb7185); }
+    .kpi-card.blue::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+    
+    .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: #9ca3af; margin-bottom: 6px; display: block; background: none !important; -webkit-text-fill-color: initial !important; }
+    .kpi-value { font-size: 24px; font-weight: 800; color: #1f2937; line-height: 1.2; display: block; }
+    .kpi-sub { font-size: 12px; color: #6b7280; margin-top: 4px; display: block; }
+
+    /* Clickable KPI cards */
+    a.kpi-card.kpi-card--link {
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0,35,43,.06);
+        transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.2s ease, opacity 0.2s ease;
+    }
+    a.kpi-card.kpi-card--link:hover {
+        transform: scale(1.02);
+        box-shadow: 0 10px 28px rgba(0,35,43,.12);
+    }
+    a.kpi-card.kpi-card--link:active { transform: scale(0.99); }
+    
+    .kpi-card-inner { position: relative; display: block; padding-bottom: 24px; }
+    .kpi-card-cta { 
+        position: absolute; 
+        right: 0; 
+        bottom: 0; 
+        font-size: 11px; 
+        font-weight: 600; 
+        color: #6b7280; 
+        opacity: 0.5; 
+        transition: opacity 0.2s; 
+    }
+    a.kpi-card.kpi-card--link:hover .kpi-card-cta { opacity: 1; color: #00232b; }
+    a.kpi-card.kpi-card--link:focus { outline: none; }
+    a.kpi-card.kpi-card--link:focus-visible {
+        outline: 2px solid #53C5E0;
+        outline-offset: 3px;
+    }
+    @media (hover: hover) {
+        a.kpi-card.kpi-card--link .kpi-card-cta { opacity: 0.4; }
+        a.kpi-card.kpi-card--link:hover .kpi-card-cta,
+        a.kpi-card.kpi-card--link:focus-visible .kpi-card-cta { opacity: 1; color: #00232b; }
+    }
+    @media (hover: none) {
+        a.kpi-card.kpi-card--link .kpi-card-cta { opacity: 0.75; }
+    }
+
+    /* ── Filter & Sort Toolbars ── */
+    .toolbar-container { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+    .toolbar-group { display: flex; align-items: center; gap: 10px; }
+    
+    .toolbar-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #374151;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+        height: 38px;
+    }
+    .toolbar-btn:hover { border-color: #9ca3af; background: #f9fafb; }
+    .toolbar-btn.active { border-color: #0d9488; color: #0d9488; background: #f0fdfa; }
+    .toolbar-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+    
+    .filter-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        background: #0d9488;
+        color: #fff;
+        border-radius: 50%;
+        font-size: 10px;
+        font-weight: 700;
+        margin-left: 6px;
+        padding: 0 4px;
+    }
+
+    /* Standardized Filter Panel */
+    .dropdown-panel {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+        z-index: 200;
+        overflow: hidden;
+    }
+    .filter-panel { width: 320px; }
+    .sort-dropdown { min-width: 200px; padding: 6px 0; }
+    
+    .filter-header { padding: 14px 18px; border-bottom: 1px solid #f3f4f6; font-size: 14px; font-weight: 700; color: #111827; }
+    .filter-section { padding: 14px 18px; border-bottom: 1px solid #f3f4f6; }
+    .filter-section:last-child { border-bottom: none; }
+    .filter-section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .filter-label { font-size: 13px; font-weight: 600; color: #374151; display: block; margin-bottom: 8px; }
+    .filter-reset-link { font-size: 12px; font-weight: 600; color: #0d9488; cursor: pointer; background: none; border: none; padding: 0; }
+    .filter-reset-link:hover { text-decoration: underline; }
+    
+    .filter-input { width: 100%; height: 34px; border: 1px solid #e5e7eb; border-radius: 7px; font-size: 13px; padding: 0 10px; color: #1f2937; box-sizing: border-box; transition: border-color 0.15s; }
+    .filter-input:focus { outline: none; border-color: #0d9488; }
+    
+    .filter-select { width: 100%; height: 34px; border: 1px solid #e5e7eb; border-radius: 7px; font-size: 13px; padding: 0 10px; color: #1f2937; background: #fff; box-sizing: border-box; cursor: pointer; }
+    .filter-select:focus { outline: none; border-color: #0d9488; }
+    
+    .filter-footer { padding: 14px 18px; background: #f9fafb; display: flex; gap: 8px; border-top: 1px solid #f3f4f6; }
+    .filter-btn-reset { flex: 1; height: 36px; border: 1px solid #e5e7eb; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; color: #374151; cursor: pointer; transition: all 0.2s; }
+    .filter-btn-reset:hover { background: #f3f4f6; }
+    .filter-btn-apply { flex: 1; height: 36px; border: none; background: #0d9488; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .filter-btn-apply:hover { background: #0f766e; }
+    
+    .sort-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        font-size: 13px;
+        color: #374151;
+        cursor: pointer;
+        transition: background 0.1s;
+    }
+    .sort-option:hover { background: #f9fafb; }
+    .sort-option.active { color: #0d9488; font-weight: 600; background: #f0fdfa; }
+    .sort-option .check { margin-left: auto; color: #0d9488; }
+
+    /* ── Global summary / KPI card accent ── */
     .kpi-card::before,
     .kpi-card.indigo::before,
     .kpi-card.emerald::before,
@@ -699,6 +858,49 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
         position: relative;
         overflow: hidden;
     }
+    /* Clickable KPI Cards & Hover Effects */
+    .kpi-card--link { cursor: pointer; text-decoration: none; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); background: #fff; overflow: hidden; position: relative; }
+    .kpi-card--link:hover { transform: translateY(-4px); box-shadow: 0 12px 20px -8px rgba(0,0,0,0.1); border-color: transparent; }
+    .kpi-card--link .kpi-card-cta { display: block; margin-top: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; transition: opacity 0.2s; }
+    .kpi-card--link:hover .kpi-card-cta { opacity: 1; }
+    
+    .kpi-card-inner { display: flex; flex-direction: column; height: 100%; transition: transform 0.25s ease; }
+    .kpi-card--link:hover .kpi-card-inner { transform: scale(1.02); }
+
+    /* KPI Pulse Effect */
+    @keyframes kpiPulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(0.98); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .metric-pulse { animation: kpiPulse 0.4s ease-in-out; }
+
+    /* Standardized Search Input */
+    .toolbar-search { position: relative; width: 240px; }
+    .toolbar-search input {
+        width: 100%;
+        height: 38px;
+        padding: 0 12px 0 36px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 13px;
+        outline: none;
+        transition: all 0.2s;
+        background: #fff;
+        color: #1f2937;
+    }
+    .toolbar-search input:focus { border-color: #0d9488; box-shadow: 0 0 0 2px rgba(13,148,136,0.1); }
+    .toolbar-search svg {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        pointer-events: none;
+        width: 14px;
+        height: 14px;
+    }
+
     .stats-grid .stat-card::before,
     .stat-card:not(.no-stat-accent)::before {
         content: '';

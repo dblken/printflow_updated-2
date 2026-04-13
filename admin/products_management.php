@@ -137,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
                     
                     $result = db_execute(
                         "INSERT INTO products (name, sku, category, description, price, stock_quantity, low_stock_level, status, photo_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
-                        'ssssdiiis',
+                        'ssssdiiss',
                         [$name, $sku_val, $category, $description, $price, $stock_quantity, $low_stock_level, $status, $photo_path]
                     );
 
@@ -234,7 +234,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
                 // Update with new photo
                 $result = db_execute(
                     "UPDATE products SET name = ?, sku = ?, category = ?, description = ?, price = ?, stock_quantity = ?, low_stock_level = ?, status = ?, photo_path = ?, updated_at = NOW() WHERE product_id = ?",
-                    'ssssdiiisi',
+                    'ssssdiissi',
                     [$name, $sku_val, $category, $description, $price, $stock_quantity, $low_stock_level, $status, $photo_path, $product_id]
                 );
             } else {
@@ -362,6 +362,7 @@ if (isset($_GET['get_next_sku'])) {
     // Format with hyphen and leading zeros (4 digits): TARP-0004
     $newSku = $prefix . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
     
+    if (ob_get_length()) ob_clean();
     echo json_encode(['success' => true, 'sku' => $newSku]);
     exit;
 }
@@ -509,7 +510,9 @@ if (isset($_GET['ajax'])) {
                         default => 'background:#f3f4f6;color:#374151;'
                     };
                     ?>
-                    <tr class="<?php echo $isLowOrOut ? 'low-stock-row' : ''; ?>" onclick="openViewModal(<?php echo htmlspecialchars(json_encode($product), ENT_QUOTES); ?>)">
+                    <tr class="<?php echo $isLowOrOut ? 'low-stock-row' : ''; ?>" 
+                        data-product='<?php echo htmlspecialchars(json_encode($product), ENT_QUOTES); ?>'
+                        onclick="openViewModal(JSON.parse(this.dataset.product))">
                         <td style="color:#1f2937;"><?php echo $product['product_id']; ?></td>
                         <td><?php echo htmlspecialchars($product['sku'] ?? '—'); ?></td>
                         <td style="font-weight:500;color:#1f2937;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo htmlspecialchars($product['name']); ?></td>
@@ -526,7 +529,9 @@ if (isset($_GET['ajax'])) {
                             <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;<?php echo $sc; ?>"><?php echo $product['status']; ?></span>
                         </td>
                         <td style="text-align:right;white-space:nowrap;" onclick="event.stopPropagation();">
-                            <button class="btn-action blue" onclick='openProductModal("edit", <?php echo htmlspecialchars(json_encode($product), ENT_QUOTES); ?>)'><?php echo $is_manager ? 'Stock' : 'Edit'; ?></button>
+                            <button class="btn-action blue"
+                                data-product='<?php echo htmlspecialchars(json_encode($product), ENT_QUOTES); ?>'
+                                onclick='openProductModal("edit", JSON.parse(this.dataset.product))'><?php echo $is_manager ? 'Stock' : 'Edit'; ?></button>
                             <?php if (!$is_manager): ?>
                             <?php if ($product['status'] !== 'Archived'): ?>
                                 <form method="POST" class="inline product-status-form" data-pf-skip-guard data-action="<?php echo $product['status'] === 'Activated' ? 'Deactivate' : 'Activate'; ?>" data-product-name="<?php echo htmlspecialchars($product['name'], ENT_QUOTES); ?>" onsubmit="showProductStatusModal(event, this);return false;">
@@ -568,6 +573,10 @@ if (isset($_GET['ajax'])) {
     $pp = array_filter(['search'=>$search,'category'=>$cat_filter,'status'=>$status_filter,'stock_status'=>$stock_filter,'sort'=>$sort_by,'date_from'=>$date_from,'date_to'=>$date_to], function($v) { return $v !== null && $v !== ''; });
     echo render_pagination($page, $total_pages, $pp);
     $pagination_html = ob_get_clean();
+    
+    // Clear any accidental output (notices/warnings) to ensure valid JSON
+    if (ob_get_length()) ob_clean();
+    
     echo json_encode([
         'success'    => true,
         'table'      => $table_html,
@@ -1108,7 +1117,7 @@ if (isset($_GET['ajax'])) {
                 return {
                     sortOpen: false,
                     filterOpen: false,
-                    activeSort: '<?php echo $sort_by; ?>',
+                    activeSort: <?php echo json_encode((string)$sort_by); ?>,
                     hasActiveFilters: <?php echo count(array_filter([$search,$cat_filter,$status_filter,$stock_filter,$date_from,$date_to], function($v) { return $v !== null && $v !== ''; })) > 0 ? 'true' : 'false'; ?>,
                 };
             }
@@ -1126,7 +1135,7 @@ if (isset($_GET['ajax'])) {
 
             // ── Filter & Sort JS ─────────────────────────────────────────
             /* var: Turbo re-runs this script; let would conflict across visits. */
-            var activeSort = '<?php echo $sort_by; ?>';
+            var activeSort = <?php echo json_encode((string)$sort_by); ?>;
             var searchDebounceTimer = null;
 
             function buildFilterURL(page = 1) {
@@ -1413,7 +1422,9 @@ if (isset($_GET['ajax'])) {
                                         default => 'background:#f3f4f6;color:#374151;'
                                     };
                                     ?>
-                                    <tr class="<?php echo $isLowOrOut ? 'low-stock-row' : ''; ?>" onclick="openViewModal(<?php echo htmlspecialchars(json_encode($product), ENT_QUOTES); ?>)">
+                                    <tr class="<?php echo $isLowOrOut ? 'low-stock-row' : ''; ?>" 
+                                        data-product='<?php echo htmlspecialchars(json_encode($product), ENT_QUOTES); ?>'
+                                        onclick="openViewModal(JSON.parse(this.dataset.product))">
                                         <td style="color:#1f2937;"><?php echo $product['product_id']; ?></td>
                                         <td><?php echo htmlspecialchars($product['sku'] ?? '—'); ?></td>
                                         <td style="font-weight:500;color:#1f2937;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo htmlspecialchars($product['name']); ?></td>
@@ -1440,7 +1451,8 @@ if (isset($_GET['ajax'])) {
                                         </td>
                                         <td style="text-align:right;white-space:nowrap;" onclick="event.stopPropagation();">
                                             <button class="btn-action blue"
-                                                onclick='openProductModal("edit", <?php echo htmlspecialchars(json_encode($product), ENT_QUOTES); ?>)'><?php echo $is_manager ? 'Stock' : 'Edit'; ?></button>
+                                                data-product='<?php echo htmlspecialchars(json_encode($product), ENT_QUOTES); ?>'
+                                                onclick='openProductModal("edit", JSON.parse(this.dataset.product))'><?php echo $is_manager ? 'Stock' : 'Edit'; ?></button>
                                             <?php if (!$is_manager): ?>
                                             <?php if ($product['status'] !== 'Archived'): ?>
                                                 <form method="POST" class="inline product-status-form" data-pf-skip-guard data-action="<?php echo $product['status'] === 'Activated' ? 'Deactivate' : 'Activate'; ?>" data-product-name="<?php echo htmlspecialchars($product['name'], ENT_QUOTES); ?>" onsubmit="showProductStatusModal(event, this);return false;">

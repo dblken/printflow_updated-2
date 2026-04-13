@@ -61,7 +61,16 @@ $total_result = db_query($count_sql, $count_types, $count_params);
 $total_items = $total_result[0]['total'] ?? 0;
 $total_pages = ceil($total_items / $items_per_page);
 
-$sql .= " ORDER BY name ASC LIMIT ? OFFSET ?";
+$sort = $_GET['sort'] ?? 'az';
+$sort_clause = match($sort) {
+    'za'      => " ORDER BY name DESC",
+    'price_high' => " ORDER BY price DESC",
+    'price_low'  => " ORDER BY price ASC",
+    'stock_low'  => " ORDER BY stock_quantity ASC",
+    default   => " ORDER BY name ASC"
+};
+
+$sql .= $sort_clause . " LIMIT ? OFFSET ?";
 $params[] = $items_per_page;
 $params[] = $offset;
 $types .= 'ii';
@@ -89,29 +98,129 @@ $page_title = 'Products & Inventory - Staff';
     <!-- Main Content -->
     <div class="main-content">
         <header>
-            <h1 class="page-title">Products & Inventory</h1>
+            <div>
+                <h1 class="page-title">Products & Inventory</h1>
+                <p class="page-subtitle">View and monitor items and stock levels</p>
+            </div>
         </header>
 
-        <main>
-            <!-- Filters -->
-            <div class="card">
-                <form method="GET" id="productFilterForm" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:flex-end;">
-                    <div>
-                        <label>Search</label>
-                        <input type="text" id="productSearchInput" name="search" class="input-field" placeholder="Name or SKU..." value="<?php echo htmlspecialchars($search); ?>">
+        <main x-data="{ filterOpen: false, sortOpen: false, hasActiveFilters: <?php echo (!empty($search) || !empty($category)) ? 'true' : 'false'; ?> }">
+            <?php
+            // Calculate KPIs for products
+            $total_products = db_query("SELECT COUNT(*) as count FROM products WHERE status = 'Activated'")[0]['count'] ?? 0;
+            $low_stock_count = db_query("SELECT COUNT(*) as count FROM products WHERE status = 'Activated' AND stock_quantity < ?", 'i', [10])[0]['count'] ?? 0;
+            $fixed_count = db_query("SELECT COUNT(*) as count FROM products WHERE status = 'Activated' AND product_type = 'fixed'")[0]['count'] ?? 0;
+            $variable_count = db_query("SELECT COUNT(*) as count FROM products WHERE status = 'Activated' AND product_type = 'variable'")[0]['count'] ?? 0;
+            ?>
+
+            <!-- Standardized KPI Row -->
+            <div class="kpi-row">
+                <div class="kpi-card indigo">
+                    <span class="kpi-label">Total Products</span>
+                    <span class="kpi-value"><?php echo number_format($total_products); ?></span>
+                    <span class="kpi-sub"><?php echo $fixed_count; ?> fixed, <?php echo $variable_count; ?> variable</span>
+                </div>
+                <div class="kpi-card rose">
+                    <span class="kpi-label">Low Stock</span>
+                    <span class="kpi-value"><?php echo $low_stock_count; ?></span>
+                    <span class="kpi-sub">Items below threshold (10)</span>
+                </div>
+                <div class="kpi-card emerald">
+                    <span class="kpi-label">In Stock</span>
+                    <span class="kpi-value"><?php echo number_format($total_products - $low_stock_count); ?></span>
+                    <span class="kpi-sub">Sufficient quantity available</span>
+                </div>
+                <div class="kpi-card amber">
+                    <span class="kpi-label">Inventory Status</span>
+                    <span class="kpi-value" style="font-size:18px; line-height:36px;"><?php echo round((($total_products - $low_stock_count) / max(1, $total_products)) * 100); ?>%</span>
+                    <span class="kpi-sub">Overall availability health</span>
+                </div>
+            </div>
+
+            <!-- Standardized Toolbar -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="toolbar-container">
+                    <h3 style="font-size:16px;font-weight:700;color:#1f2937;margin:0;">
+                        Inventory List
+                    </h3>
+                    <div class="toolbar-group" style="margin-left: auto;">
+    
+
+                        <!-- Sort Button -->
+                        <div style="position:relative;">
+                            <button class="toolbar-btn" :class="{ active: sortOpen || ('<?php echo $sort; ?>' !== 'az') }" @click="sortOpen = !sortOpen; filterOpen = false">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+                                Sort by
+                            </button>
+                            <div class="dropdown-panel sort-dropdown" x-show="sortOpen" x-cloak @click.outside="sortOpen = false">
+                                <?php
+                                $sorts = [
+                                    'az'         => 'A → Z',
+                                    'za'         => 'Z → A',
+                                    'price_high' => 'Price: High to Low',
+                                    'price_low'  => 'Price: Low to High',
+                                    'stock_low'  => 'Lowest Stock First',
+                                ];
+                                foreach ($sorts as $key => $label): ?>
+                                <a href="products.php?sort=<?php echo urlencode($key); ?><?php echo !empty($category) ? '&category='.urlencode($category) : ''; ?><?php echo !empty($search) ? '&search='.urlencode($search) : ''; ?>" class="sort-option <?php echo $sort === $key ? 'active' : ''; ?>" style="text-decoration:none;">
+                                    <?php echo htmlspecialchars($label); ?>
+                                    <svg x-show="'<?php echo $sort; ?>' === '<?php echo $key; ?>'" class="check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                </a>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <!-- Filter Button -->
+                        <div style="position:relative;">
+                            <button class="toolbar-btn" :class="{ active: filterOpen || hasActiveFilters }" @click="filterOpen = !filterOpen; sortOpen = false">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                Filter
+                                <template x-if="hasActiveFilters">
+                                    <span class="filter-badge"><?php echo (int)!empty($category) + (int)!empty($search); ?></span>
+                                </template>
+                            </button>
+
+                            <!-- Filter Panel -->
+                            <div class="dropdown-panel filter-panel" x-show="filterOpen" x-cloak @click.outside="filterOpen = false">
+                                <form id="products-filter-form" method="GET" action="products.php">
+                                    <?php if (!empty($sort) && $sort !== 'az'): ?>
+                                        <input type="hidden" name="sort" value="<?php echo htmlspecialchars($sort); ?>">
+                                    <?php endif; ?>
+                                    <div class="filter-header">Filter Products</div>
+                                    
+                                    <!-- Category -->
+                                    <div class="filter-section">
+                                        <div class="filter-section-head">
+                                            <span class="filter-label" style="margin:0;">Category</span>
+                                            <button type="button" onclick="document.forms['products-filter-form'].elements['category'].value=''; document.getElementById('products-filter-form').submit()" class="filter-reset-link">Reset</button>
+                                        </div>
+                                        <select name="category" class="filter-select" onchange="document.getElementById('products-filter-form').submit()">
+                                            <option value="">All Categories</option>
+                                            <?php foreach ($categories as $cat): ?>
+                                                <option value="<?php echo htmlspecialchars($cat['category']); ?>" <?php echo $category === $cat['category'] ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($cat['category']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+
+                                    <!-- Keyword search -->
+                                    <div class="filter-section">
+                                        <div class="filter-section-head">
+                                            <span class="filter-label" style="margin:0;">Keyword search</span>
+                                            <button type="button" onclick="document.getElementById('productSearchInput').value=''; document.getElementById('products-filter-form').submit()" class="filter-reset-link">Reset</button>
+                                        </div>
+                                        <input type="text" id="productSearchInput" name="search" class="filter-input" placeholder="Search..." value="<?php echo htmlspecialchars($search); ?>" onchange="document.getElementById('products-filter-form').submit()">
+                                    </div>
+
+                                    <div class="filter-footer">
+                                        <a href="products.php" class="filter-btn-reset" style="display:flex; align-items:center; justify-content:center; text-decoration:none; width: 100%;">Reset all filters</a>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label>Category</label>
-                        <select name="category" id="productCategorySelect" class="input-field">
-                            <option value="">All Categories</option>
-                            <?php foreach ($categories as $cat): ?>
-                                <option value="<?php echo htmlspecialchars($cat['category']); ?>" <?php echo $category === $cat['category'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($cat['category']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </form>
+                </div>
             </div>
 
             <!-- Products Table -->

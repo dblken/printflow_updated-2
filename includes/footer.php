@@ -729,7 +729,7 @@ function _ft_detect_social(string $url): array {
         $_pf_utype = function_exists('get_user_type') ? (get_user_type() ?? 'Customer') : 'Customer';
     ?>
     <script>window.PFConfig = { userId: <?php echo $_pf_uid; ?>, userType: <?php echo json_encode($_pf_utype); ?> };</script>
-    <script src="<?php echo $base_url; ?>/public/assets/js/notifications.js" defer></script>
+    <script src="<?php echo $base_url; ?>/public/assets/js/notifications.js?v=<?php echo isset($ver) ? (int)$ver : time(); ?>" defer></script>
     <script src="<?php echo $base_url; ?>/public/assets/js/inactivity_logout.js" defer></script>
     <?php endif; ?>
     <script src="<?php echo $base_url ?? '/printflow'; ?>/public/assets/js/order_validation.js?v=<?php echo time(); ?>" defer></script>

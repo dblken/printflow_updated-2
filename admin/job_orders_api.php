@@ -45,7 +45,7 @@ try {
     switch ($action) {
         case 'list_orders':
             $status = sanitize($_GET['status'] ?? '');
-            $sql = "SELECT jo.*, c.first_name, c.last_name, c.customer_type, c.transaction_count,
+            $sql = "SELECT jo.*, c.first_name, c.last_name, IF(c.transaction_count >= 3, 'REGULAR', 'NEW') as customer_type, c.transaction_count,
                            TRIM(CONCAT_WS(', ', NULLIF(TRIM(c.street_address), ''), NULLIF(TRIM(c.barangay), ''), NULLIF(TRIM(c.city), ''))) AS customer_address,
                            COALESCE(NULLIF(TRIM(c.contact_number), ''), NULLIF(TRIM(c.email), '')) AS customer_contact
                     FROM job_orders jo 
@@ -208,7 +208,7 @@ try {
                         o.customer_id,
                         c.first_name,
                         c.last_name,
-                        c.customer_type,
+                        IF(c.transaction_count >= 3, 'REGULAR', 'NEW') as customer_type,
                         c.transaction_count,
                         CONCAT(c.first_name, ' ', c.last_name) as customer_full_name,
                         TRIM(CONCAT_WS(', ', NULLIF(TRIM(c.street_address), ''), NULLIF(TRIM(c.barangay), ''), NULLIF(TRIM(c.city), ''))) as customer_contact,
@@ -250,11 +250,13 @@ try {
                     LEFT JOIN products p ON oi.product_id = p.product_id
                     LEFT JOIN customers c ON o.customer_id = c.customer_id
                     WHERE (o.order_type IS NULL OR o.order_type = 'product' OR o.order_type = 'custom')
+                    AND (o.order_source IS NULL OR o.order_source != 'pos' OR EXISTS (SELECT 1 FROM customizations cu WHERE cu.order_id = o.order_id))
                     AND o.status IN (
                         'Pending', 'Pending Review', 'Pending Approval', 'For Revision',
                         'Approved', 'Design Approved',
                         'To Pay', 'Downpayment Submitted', 'Pending Verification', 'To Verify',
-                        'Processing', 'In Production', 'Printing', 'Paid – In Process', 'Paid - In Process', 'Ready for Pickup'
+                        'Processing', 'In Production', 'Printing', 'Paid – In Process', 'Paid - In Process', 
+                        'Ready for Pickup', 'Completed', 'Cancelled'
                     )"
                     . ($joStaffBranch !== null ? " AND o.branch_id = ?" : "") . "
                     GROUP BY o.order_id
@@ -307,7 +309,7 @@ try {
                     cust.customer_id,
                     c.first_name,
                     c.last_name,
-                    c.customer_type,
+                    IF(c.transaction_count >= 3, 'REGULAR', 'NEW') as customer_type,
                     c.transaction_count,
                     TRIM(CONCAT(COALESCE(c.first_name, ''), ' ', COALESCE(c.last_name, ''))) AS customer_full_name,
                     TRIM(CONCAT_WS(', ', NULLIF(TRIM(c.street_address), ''), NULLIF(TRIM(c.barangay), ''), NULLIF(TRIM(c.city), ''))) AS customer_contact,
@@ -361,7 +363,7 @@ try {
                     so.customer_id,
                     c.first_name,
                     c.last_name,
-                    c.customer_type,
+                    IF(c.transaction_count >= 3, 'REGULAR', 'NEW') as customer_type,
                     c.transaction_count,
                     TRIM(CONCAT(COALESCE(c.first_name, ''), ' ', COALESCE(c.last_name, ''))) AS customer_full_name,
                     TRIM(CONCAT_WS(', ', NULLIF(TRIM(c.street_address), ''), NULLIF(TRIM(c.barangay), ''), NULLIF(TRIM(c.city), ''))) AS customer_contact,
@@ -500,7 +502,7 @@ try {
 
             $cust_row = db_query("
                 SELECT cust.*,
-                       c.first_name, c.last_name, c.customer_type, c.contact_number, c.email, c.transaction_count,
+                       c.first_name, c.last_name, IF(c.transaction_count >= 3, 'REGULAR', 'NEW') as customer_type, c.contact_number, c.email, c.transaction_count, c.profile_picture,
                        CONCAT(c.first_name, ' ', c.last_name) AS customer_full_name,
                        COALESCE(NULLIF(TRIM(c.contact_number), ''), NULLIF(TRIM(c.email), '')) AS customer_contact,
                        TRIM(CONCAT_WS(', ', NULLIF(TRIM(c.street_address), ''), NULLIF(TRIM(c.barangay), ''), NULLIF(TRIM(c.city), ''))) AS customer_address,
@@ -563,7 +565,8 @@ try {
                 'customer_full_name'       => $cust['customer_full_name'] ?? '',
                 'customer_contact'         => $cust['customer_contact'] ?? '',
                 'customer_address'         => $cust['customer_address'] ?? '',
-                'customer_type'            => ($cust['transaction_count'] ?? 0) <= 1 ? 'NEW' : 'RETURNING',
+                'customer_profile_picture' => get_profile_image($cust['profile_picture'] ?? null),
+                'customer_type'            => ($cust['transaction_count'] ?? 0) < 3 ? 'NEW' : 'REGULAR',
                 'service_type'             => $cust['service_type'] ?? 'Service',
                 'job_title'                => $cust['service_type'] ?? 'Service',
                 'width_ft'                 => '1',
@@ -597,7 +600,7 @@ try {
             $order_id = (int)($_GET['id'] ?? 0);
             if (!$order_id) throw new Exception("Order ID required.");
             $order_row = db_query("
-                SELECT o.*, c.first_name, c.last_name, c.customer_type, c.contact_number, c.email,
+                SELECT o.*, c.first_name, c.last_name, IF(c.transaction_count >= 3, 'REGULAR', 'NEW') as customer_type, c.contact_number, c.email, c.profile_picture,
                        CONCAT(c.first_name, ' ', c.last_name) as customer_full_name,
                        COALESCE(NULLIF(TRIM(c.contact_number), ''), NULLIF(TRIM(c.email), '')) as customer_contact,
                        TRIM(CONCAT_WS(', ', NULLIF(TRIM(c.street_address), ''), NULLIF(TRIM(c.barangay), ''), NULLIF(TRIM(c.city), ''))) AS customer_address
@@ -628,19 +631,56 @@ try {
                 $payment_proof_status = 'VERIFIED';
             }
 
+            $job_row = db_query("SELECT id FROM job_orders WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
+            $effective_job_id = $job_row[0]['id'] ?? null;
+            if ($effective_job_id === null) {
+                // Try to backfill if missing but theoretically belongs to a job
+                $effective_job_id = JobOrderService::ensureJobsForStoreOrder($order_id);
+            }
+
             $payload = JobOrderService::getStoreOrderItemsPayload($order_id);
             $items_out = $payload['items'];
             $width_ft = $payload['width_ft'];
             $height_ft = $payload['height_ft'];
             $total_qty = (int)($payload['line_qty'] ?? 0);
             $service_name = $payload['service_type'] ?: 'Custom Order';
+            
+            // Fetch materials and ink linked via job_order_id
+            $mats = [];
+            if ($effective_job_id) {
+                $mats = db_query(
+                    "SELECT m.*, i.name as item_name, i.track_by_roll, r.roll_code 
+                     FROM job_order_materials m 
+                     JOIN inv_items i ON m.item_id = i.id 
+                     LEFT JOIN inv_rolls r ON m.roll_id = r.id 
+                     WHERE m.job_order_id = ?", 
+                    'i', [$effective_job_id]
+                ) ?: [];
+                foreach ($mats as &$m) {
+                    $m['metadata'] = $m['metadata'] ? json_decode($m['metadata'], true) : null;
+                }
+            }
+
+            $inks = [];
+            if ($effective_job_id) {
+                $inks = db_query(
+                    "SELECT u.*, i.name as item_name
+                     FROM job_order_ink_usage u
+                     JOIN inv_items i ON u.item_id = i.id
+                     WHERE u.job_order_id = ?",
+                     'i', [$effective_job_id]
+                ) ?: [];
+            }
+
             $data = [
                 'id'                   => $o['order_id'],
+                'job_order_id'         => $effective_job_id,
                 'order_id'             => $o['order_id'],
                 'order_type'           => 'ORDER',
                 'customer_full_name'   => $o['customer_full_name'] ?? trim(($o['first_name'] ?? '') . ' ' . ($o['last_name'] ?? '')),
                 'customer_contact'     => $o['customer_contact'] ?? '',
-                'customer_type'        => ($o['transaction_count'] ?? 0) <= 1 ? 'NEW' : 'RETURNING',
+                'customer_profile_picture' => $o['profile_picture'] ?? null,
+                'customer_type'        => ($o['transaction_count'] ?? 0) < 3 ? 'NEW' : 'REGULAR',
                 'service_type'         => $service_name,
                 'job_title'            => implode(', ', array_map(function($i) { return $i['product_name'] . ' - ' . $i['quantity'] . 'pcs'; }, $items_out)),
                 'width_ft'             => $width_ft,
@@ -661,6 +701,8 @@ try {
                 'readiness'            => 'READY',
                 'order_source'         => $o['order_source'] ?? 'customer',
                 'items'                => $items_out,
+                'materials'            => $mats,
+                'ink_usage'            => $inks,
             ];
             echo json_encode(['success' => true, 'data' => $data]);
             break;
@@ -691,9 +733,27 @@ try {
             $order_id = (int)($_POST['order_id'] ?? 0);
             $price = (float)($_POST['price'] ?? 0);
             if (!$order_id) throw new Exception("Order ID required.");
-            $sql = "UPDATE orders SET total_amount = ? WHERE order_id = ?";
-            $res = db_execute($sql, 'di', [$price, $order_id]);
-            echo json_encode(['success' => $res]);
+            db_execute("UPDATE orders SET total_amount = ? WHERE order_id = ?", 'di', [$price, $order_id]);
+
+            // Sync order_items.unit_price so payment.php total calculation reflects the staff-set price.
+            // payment.php calculates total from items first; if items still have old price, it shows wrong amount.
+            $_items = db_query("SELECT order_item_id, quantity FROM order_items WHERE order_id = ?", 'i', [$order_id]);
+            if (!empty($_items)) {
+                $_total_qty = array_sum(array_column($_items, 'quantity'));
+                if ($_total_qty > 0) {
+                    $_remaining = $price;
+                    $_count = count($_items);
+                    foreach ($_items as $_idx => $_it) {
+                        $_is_last = ($_idx === $_count - 1);
+                        $_item_total = $_is_last ? $_remaining : round($price * $_it['quantity'] / $_total_qty, 2);
+                        $_unit = ($_it['quantity'] > 0) ? round($_item_total / $_it['quantity'], 4) : 0;
+                        db_execute("UPDATE order_items SET unit_price = ? WHERE order_item_id = ?", 'di', [$_unit, $_it['order_item_id']]);
+                        $_remaining -= $_item_total;
+                    }
+                }
+            }
+
+            echo json_encode(['success' => true]);
             break;
 
         case 'create_order':

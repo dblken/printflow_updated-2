@@ -487,6 +487,45 @@ function get_customer_id() {
 }
 
 /**
+ * Get the full path for a profile image, with fallback to default.png
+ * @param string|null $image Filename only (e.g. 'abc.png') or null
+ * @return string Full path e.g. /printflow/public/assets/uploads/profiles/abc.png
+ */
+function get_profile_image($image) {
+    $base = '/printflow/public/assets/uploads/profiles/';
+    // Handle empty, null or 'undefined' string cases
+    if (empty($image) || (is_string($image) && (strtolower($image) === 'null' || strtolower($image) === 'undefined'))) {
+        return $base . 'default.png';
+    }
+    if (!is_string($image)) {
+        return $base . 'default.png';
+    }
+
+    $image = trim($image);
+
+    // If it's already a full path or absolute URL, return it
+    if (strpos($image, 'http') === 0 || strpos($image, '/printflow') === 0) {
+        return $image;
+    }
+
+    $normalized = ltrim($image, '/');
+
+    if (strpos($normalized, 'printflow/') === 0) {
+        return '/' . $normalized;
+    }
+
+    if (strpos($normalized, 'public/assets/uploads/profiles/') === 0) {
+        return '/printflow/' . $normalized;
+    }
+
+    if (strpos($normalized, 'assets/uploads/profiles/') === 0) {
+        return '/printflow/public/' . $normalized;
+    }
+
+    return $base . $normalized;
+}
+
+/**
  * Load customer cart from database into session.
  * Call after customer login or when session cart is empty.
  * @param int $customer_id
@@ -1010,9 +1049,16 @@ function status_badge($status, $type = 'order') {
     ];
     
     $style = $colors[$type][$status] ?? 'background: #f9fafb; color: #374151; border: 1px solid #f3f4f6;';
-    // Display "Pending" instead of "Pending Review" and "To Verify" for consistency
-    if ($status === 'Pending Review' || $status === 'To Verify') {
-        $display = 'Pending';
+    if ($status === 'Pending' || $status === 'Pending Review') {
+        $display = 'TO VERIFY';
+    } elseif ($status === 'Ready for Pickup') {
+        $display = 'TO PICK UP';
+    } elseif ($status === 'To Verify') {
+        $display = 'TO VERIFY';
+    } elseif ($status === 'Completed') {
+        $display = 'COMPLETED';
+    } elseif ($status === 'Cancelled') {
+        $display = 'CANCELLED';
     } else {
         $display = $status;
     }
@@ -1063,6 +1109,502 @@ function get_unread_notification_count($user_id, $user_type) {
     }
     
     return (!empty($result) && isset($result[0]['count'])) ? (int)$result[0]['count'] : 0;
+}
+
+/**
+ * Select expression for the product image column across schema variants.
+ */
+function get_notification_product_image_column_sql(): string {
+    static $product_image_column = null;
+    if ($product_image_column !== null) {
+        return $product_image_column;
+    }
+
+    $has_photo_path = !empty(db_query("SHOW COLUMNS FROM products LIKE 'photo_path'"));
+    $has_product_image = !empty(db_query("SHOW COLUMNS FROM products LIKE 'product_image'"));
+
+    $product_image_column = 'NULL';
+    if ($has_photo_path && $has_product_image) {
+        $product_image_column = "COALESCE(p.photo_path, p.product_image)";
+    } elseif ($has_photo_path) {
+        $product_image_column = "p.photo_path";
+    } elseif ($has_product_image) {
+        $product_image_column = "p.product_image";
+    }
+
+    return $product_image_column;
+}
+
+/**
+ * Normalize stored asset paths into web-safe PrintFlow URLs.
+ */
+function normalize_notification_image_url($path, $default = ''): string {
+    $path = trim((string)$path);
+    if ($path === '') {
+        return (string)$default;
+    }
+
+    if (strpos($path, ',') !== false) {
+        foreach (explode(',', $path) as $candidate) {
+            $candidate = trim((string)$candidate);
+            if ($candidate !== '') {
+                $path = $candidate;
+                break;
+            }
+        }
+    }
+
+    $path = str_replace('\\', '/', $path);
+    if ($path === '') {
+        return (string)$default;
+    }
+
+    if (preg_match('#^(https?:)?//#i', $path) || strpos($path, 'data:') === 0) {
+        return $path;
+    }
+
+    if (strpos($path, '/printflow/') === 0) {
+        return $path;
+    }
+
+    if (strpos($path, '/') === 0) {
+        if (strpos($path, '/uploads/') === 0 || strpos($path, '/public/') === 0) {
+            return '/printflow' . $path;
+        }
+        return $path;
+    }
+
+    return '/printflow/' . ltrim($path, '/');
+}
+
+/**
+ * Human-readable relative time for notifications.
+ */
+function notification_time_elapsed_string($datetime, $full = false): string {
+    $now = new DateTime;
+    $ago = new DateTime($datetime);
+    $diff = $now->diff($ago);
+
+    $diff->w = floor($diff->d / 7);
+    $diff->d -= $diff->w * 7;
+
+    $string = [
+        'y' => 'year',
+        'm' => 'month',
+        'w' => 'week',
+        'd' => 'day',
+        'h' => 'hour',
+        'i' => 'minute',
+        's' => 'second',
+    ];
+
+    foreach ($string as $key => &$value) {
+        if ($diff->$key) {
+            $value = $diff->$key . ' ' . $value . ($diff->$key > 1 ? 's' : '');
+        } else {
+            unset($string[$key]);
+        }
+    }
+
+    if (!$full) {
+        $string = array_slice($string, 0, 1);
+    }
+
+    return $string ? implode(', ', $string) . ' ago' : 'just now';
+}
+
+/**
+ * Match customer order statuses to the tab names used by orders.php.
+ */
+function customer_notification_status_tab(string $status): string {
+    $status = strtolower(trim($status));
+    if ($status === '') {
+        return 'all';
+    }
+
+    if (in_array($status, ['pending', 'pending approval', 'pending review', 'for revision'], true)) {
+        return 'pending';
+    }
+    if ($status === 'approved') {
+        return 'approved';
+    }
+    if (in_array($status, ['to verify', 'downpayment submitted', 'pending verification'], true)) {
+        return 'toverify';
+    }
+    if ($status === 'to pay' || strpos($status, 'to pay') !== false) {
+        return 'topay';
+    }
+    if (
+        in_array($status, ['in production', 'processing', 'printing'], true) ||
+        strpos($status, 'process') !== false ||
+        strpos($status, 'production') !== false ||
+        strpos($status, 'printing') !== false
+    ) {
+        return 'production';
+    }
+    if ($status === 'ready for pickup' || strpos($status, 'pickup') !== false) {
+        return 'pickup';
+    }
+    if (in_array($status, ['completed', 'to rate', 'rated'], true)) {
+        return 'completed';
+    }
+    if ($status === 'cancelled') {
+        return 'cancelled';
+    }
+
+    return 'all';
+}
+
+/**
+ * Normalize service names for notification service matching.
+ */
+function normalize_notification_service_lookup_name(string $service_name): string {
+    $service_name = normalize_service_name($service_name, $service_name);
+    $service_name = strtolower(trim((string)$service_name));
+    $service_name = preg_replace('/[^a-z0-9]+/', ' ', $service_name);
+    $service_name = preg_replace('/\s+/', ' ', (string)$service_name);
+    return trim((string)$service_name);
+}
+
+/**
+ * Resolve the best matching service row and image for a customer notification.
+ *
+ * @return array{service_id:int,image:string}
+ */
+function get_customer_notification_service_match(int $service_id = 0, string $service_name = ''): array {
+    static $match_cache = [];
+    static $service_rows = null;
+    static $has_display_image = null;
+    static $has_hero_image = null;
+
+    $service_name = trim((string)$service_name);
+    $lookup_name = normalize_notification_service_lookup_name($service_name);
+    $cache_key = $service_id . '|' . $lookup_name;
+    if (isset($match_cache[$cache_key])) {
+        return $match_cache[$cache_key];
+    }
+
+    if ($has_display_image === null) {
+        $has_display_image = !empty(db_query("SHOW COLUMNS FROM services LIKE 'display_image'"));
+    }
+    if ($has_hero_image === null) {
+        $has_hero_image = !empty(db_query("SHOW COLUMNS FROM services LIKE 'hero_image'"));
+    }
+
+    if ($service_rows === null) {
+        $select_fields = ['service_id', 'name'];
+        if ($has_display_image) {
+            $select_fields[] = 'display_image';
+        }
+        if ($has_hero_image) {
+            $select_fields[] = 'hero_image';
+        }
+
+        $status_filter = !empty(db_query("SHOW COLUMNS FROM services LIKE 'status'")) ? " WHERE status = 'Activated'" : '';
+        $service_rows = db_query("SELECT " . implode(', ', $select_fields) . " FROM services" . $status_filter . " ORDER BY service_id DESC");
+        if (!is_array($service_rows)) {
+            $service_rows = [];
+        }
+    }
+
+    $matched_row = null;
+    if ($service_id > 0) {
+        foreach ($service_rows as $row) {
+            if ((int)($row['service_id'] ?? 0) === $service_id) {
+                $matched_row = $row;
+                break;
+            }
+        }
+    }
+
+    if ($matched_row === null && $lookup_name !== '') {
+        $target_tokens = array_values(array_filter(explode(' ', $lookup_name), static function ($token) {
+            return strlen($token) >= 3;
+        }));
+        $best_score = 0;
+
+        foreach ($service_rows as $row) {
+            $candidate_name = normalize_notification_service_lookup_name((string)($row['name'] ?? ''));
+            if ($candidate_name === '') {
+                continue;
+            }
+
+            $score = 0;
+            if ($candidate_name === $lookup_name) {
+                $score = 1000;
+            } elseif (strpos($candidate_name, $lookup_name) !== false || strpos($lookup_name, $candidate_name) !== false) {
+                $score = 800;
+            } else {
+                foreach ($target_tokens as $token) {
+                    if (strpos($candidate_name, $token) !== false) {
+                        $score += 25;
+                    }
+                }
+            }
+
+            if ($score > $best_score) {
+                $best_score = $score;
+                $matched_row = $row;
+            }
+        }
+    }
+
+    $resolved_id = (int)($matched_row['service_id'] ?? 0);
+    $resolved_image = '';
+
+    if (!empty($matched_row)) {
+        if ($has_display_image && !empty($matched_row['display_image'])) {
+            $resolved_image = normalize_notification_image_url($matched_row['display_image']);
+        }
+        if ($resolved_image === '' && $has_hero_image && !empty($matched_row['hero_image'])) {
+            $resolved_image = normalize_notification_image_url($matched_row['hero_image']);
+        }
+    }
+
+    if ($resolved_image === '') {
+        $resolved_image = get_service_image_url($service_name);
+    }
+
+    $match_cache[$cache_key] = [
+        'service_id' => $resolved_id,
+        'image' => $resolved_image,
+    ];
+
+    return $match_cache[$cache_key];
+}
+
+/**
+ * Resolve the most appropriate service image for a customer notification.
+ */
+function get_customer_notification_service_image(int $service_id = 0, string $service_name = ''): string {
+    $match = get_customer_notification_service_match($service_id, $service_name);
+    return (string)($match['image'] ?? get_service_image_url($service_name));
+}
+
+/**
+ * Shared customer notification dataset used by notifications page and dropdowns.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function get_customer_notifications_for_display(int $customer_id, int $limit = 10, int $offset = 0): array {
+    $product_image_column = get_notification_product_image_column_sql();
+
+    $notifications = db_query(
+        "
+        SELECT
+            n.*,
+            o.order_id,
+            o.order_type,
+            o.status AS current_order_status,
+            CASE
+                WHEN n.type = 'Job Order' THEN jo.job_title
+                ELSE (
+                    SELECT p.name
+                    FROM order_items oi
+                    LEFT JOIN products p ON oi.product_id = p.product_id
+                    WHERE oi.order_id = n.data_id
+                    ORDER BY oi.order_item_id ASC
+                    LIMIT 1
+                )
+            END AS service_name,
+            CASE WHEN n.type = 'Job Order' THEN jo.service_type ELSE NULL END AS jo_service_category,
+            CASE
+                WHEN n.type = 'Job Order' THEN jo.artwork_path
+                ELSE (
+                    SELECT {$product_image_column}
+                    FROM products p
+                    INNER JOIN order_items oi ON oi.product_id = p.product_id
+                    WHERE oi.order_id = n.data_id
+                    ORDER BY oi.order_item_id ASC
+                    LIMIT 1
+                )
+            END AS product_image,
+            (
+                SELECT oi.customization_data
+                FROM order_items oi
+                WHERE oi.order_id = n.data_id
+                ORDER BY oi.order_item_id ASC
+                LIMIT 1
+            ) AS first_item_customization,
+            (
+                SELECT oi.order_item_id
+                FROM order_items oi
+                WHERE oi.order_id = n.data_id
+                ORDER BY oi.order_item_id ASC
+                LIMIT 1
+            ) AS first_item_id,
+            (
+                SELECT oi.product_id
+                FROM order_items oi
+                WHERE oi.order_id = n.data_id
+                ORDER BY oi.order_item_id ASC
+                LIMIT 1
+            ) AS first_item_product_id,
+            (
+                SELECT oi.design_image
+                FROM order_items oi
+                WHERE oi.order_id = n.data_id
+                  AND oi.design_image IS NOT NULL
+                ORDER BY oi.order_item_id ASC
+                LIMIT 1
+            ) AS design_image,
+            jo.status AS job_order_status
+        FROM notifications n
+        LEFT JOIN orders o
+            ON n.data_id = o.order_id
+           AND n.type IN ('Order', 'Payment', 'Status', 'Message', 'Rating', 'Payment Issue')
+        LEFT JOIN job_orders jo
+            ON n.data_id = jo.id
+           AND n.type = 'Job Order'
+        WHERE n.customer_id = ?
+        ORDER BY n.created_at DESC
+        LIMIT ? OFFSET ?
+        ",
+        'iii',
+        [$customer_id, $limit, $offset]
+    );
+
+    $processed = [];
+    foreach ($notifications as $notification) {
+        $name_data = !empty($notification['first_item_customization'])
+            ? json_decode((string)$notification['first_item_customization'], true)
+            : [];
+        if (!is_array($name_data)) {
+            $name_data = [];
+        }
+
+        $raw_service_name = trim((string)($name_data['service_type'] ?? $notification['jo_service_category'] ?? $notification['service_name'] ?? ''));
+        if ($raw_service_name === '' || in_array(strtolower($raw_service_name), ['custom order', 'customer order', 'service order', 'order item', 'order update'], true)) {
+            $raw_service_name = get_service_name_from_customization($name_data, $notification['service_name'] ?? 'Order Update');
+        }
+        $display_name = normalize_service_name($raw_service_name, 'Order Update');
+
+        $order_type = (string)($notification['order_type'] ?? '');
+        $first_item_product_id = (int)($notification['first_item_product_id'] ?? 0);
+        $service_id = 0;
+        $product_id = 0;
+        $service_match = [
+            'service_id' => 0,
+            'image' => get_service_image_url($raw_service_name ?: $display_name),
+        ];
+
+        if ($notification['type'] === 'Job Order') {
+            $service_id = 0;
+            $product_id = 0;
+        } elseif ($order_type === 'custom' || ($order_type === '' && !empty($name_data['service_type']))) {
+            $service_id = (int)($name_data['service_id'] ?? 0);
+            $service_match = get_customer_notification_service_match($service_id, $raw_service_name ?: $display_name);
+            $service_id = (int)($service_match['service_id'] ?? $service_id);
+        } else {
+            $product_id = $first_item_product_id;
+        }
+
+        $fallback_image = ($service_match['image'] ?? '') !== ''
+            ? (string)$service_match['image']
+            : get_customer_notification_service_image($service_id, $raw_service_name ?: $display_name);
+        $final_image_url = '';
+
+        if (!empty($notification['design_image']) && !empty($notification['first_item_id'])) {
+            $final_image_url = '/printflow/staff/get_design_image.php?id=' . (int)$notification['first_item_id'];
+        } elseif (!empty($notification['product_image']) && $product_id > 0) {
+            $final_image_url = normalize_notification_image_url($notification['product_image']);
+        } elseif (!empty($notification['product_image']) && $notification['type'] === 'Job Order') {
+            $final_image_url = normalize_notification_image_url($notification['product_image']);
+        } elseif ($service_id > 0) {
+            $final_image_url = (string)($service_match['image'] ?? $fallback_image);
+        }
+
+        if ($final_image_url === '') {
+            $final_image_url = $fallback_image;
+        }
+
+        $link = '/printflow/customer/notifications.php?mark_read=' . (int)$notification['notification_id'];
+        $message_text = (string)($notification['message'] ?? '');
+        $message_text_lower = strtolower($message_text);
+        $notif_type = (string)($notification['type'] ?? '');
+
+        $is_rating_notification = (
+            $notif_type === 'Rating' ||
+            strpos($message_text_lower, 'rate your experience') !== false ||
+            strpos($message_text_lower, 'rate your order') !== false ||
+            strpos($message_text_lower, 'replied to your review') !== false
+        );
+
+        $is_payment_notification = (
+            $notif_type === 'Payment' ||
+            $notif_type === 'Payment Issue' ||
+            strpos($message_text_lower, 'payment required') !== false ||
+            strpos($message_text_lower, 'to_pay') !== false ||
+            strpos($message_text_lower, 'to pay') !== false ||
+            strpos($message_text_lower, 'rejected') !== false ||
+            strpos($message_text_lower, 'proceed to payment') !== false ||
+            strpos($message_text_lower, 'ready for payment') !== false ||
+            strpos($message_text_lower, 'submit payment') !== false ||
+            strpos($message_text_lower, 'payment of') !== false
+        );
+
+        $current_status = (string)($notification['current_order_status'] ?? $notification['job_order_status'] ?? '');
+        if ($current_status !== '' && (stripos($current_status, 'to pay') !== false || stripos($current_status, 'to_pay') !== false)) {
+            $is_payment_notification = true;
+        }
+
+        $data_id = (int)($notification['data_id'] ?? 0);
+        if ($data_id > 0) {
+            if ($is_rating_notification) {
+                $review_data = db_query(
+                    "SELECT id, review_type, reference_id FROM reviews WHERE order_id = ? LIMIT 1",
+                    'i',
+                    [$data_id]
+                );
+                if (!empty($review_data)) {
+                    $review = $review_data[0];
+                    $review_id = (int)$review['id'];
+                    if (($review['review_type'] ?? '') === 'custom') {
+                        $link = '/printflow/customer/order_service_dynamic.php?service_id=' . (int)$review['reference_id'] . '&mark_read=' . (int)$notification['notification_id'] . '#review-' . $review_id;
+                    } else {
+                        $link = '/printflow/customer/order_create.php?product_id=' . (int)$review['reference_id'] . '&mark_read=' . (int)$notification['notification_id'] . '#review-' . $review_id;
+                    }
+                } else {
+                    $link = '/printflow/customer/rate_order.php?order_id=' . $data_id . '&mark_read=' . (int)$notification['notification_id'];
+                }
+            } elseif ($is_payment_notification) {
+                $link = '/printflow/customer/payment.php?order_id=' . $data_id . '&mark_read=' . (int)$notification['notification_id'];
+            } elseif ($notif_type === 'Order' || $notif_type === 'Status') {
+                $tab = customer_notification_status_tab($current_status);
+                $link = '/printflow/customer/orders.php?tab=' . $tab . '&highlight=' . $data_id . '&mark_read=' . (int)$notification['notification_id'];
+            } elseif ($notif_type === 'Job Order') {
+                $link = '/printflow/customer/order_details.php?id=' . $data_id . '&mark_read=' . (int)$notification['notification_id'];
+            } elseif ($notif_type === 'Message') {
+                $link = '/printflow/customer/chat.php?order_id=' . $data_id . '&mark_read=' . (int)$notification['notification_id'];
+            }
+        }
+
+        $order_id = (int)($notification['order_id'] ?? $data_id);
+
+        $processed[] = [
+            'id' => (int)$notification['notification_id'],
+            'notification_id' => (int)$notification['notification_id'],
+            'order_id' => $order_id > 0 ? $order_id : null,
+            'data_id' => $data_id > 0 ? $data_id : null,
+            'type' => $notif_type,
+            'product_id' => $product_id > 0 ? $product_id : null,
+            'service_id' => $service_id > 0 ? $service_id : null,
+            'title' => $display_name,
+            'display_name' => $display_name,
+            'message' => $message_text,
+            'image' => $final_image_url,
+            'display_image' => $final_image_url,
+            'fallback' => $fallback_image,
+            'fallback_image' => $fallback_image,
+            'link' => $link,
+            'target_link' => $link,
+            'time_ago' => notification_time_elapsed_string($notification['created_at']),
+            'created_at' => $notification['created_at'],
+            'is_read' => (int)$notification['is_read'],
+        ];
+    }
+
+    return $processed;
 }
 
 /**
@@ -1502,4 +2044,16 @@ function pf_admin_url(string $script, array $query = [], ?string $fragment = nul
         $url .= '#' . ltrim($fragment, '#');
     }
     return $url;
+}
+
+/**
+ * Format string to Title Case (Proper Case)
+ * @param string|null $text
+ * @return string
+ */
+function formatToTitleCase($text) {
+    if ($text === null || $text === '') return '';
+    // Capitalize each word and lowercase the rest
+    // Using mb_convert_case with MB_CASE_TITLE handles multi-word properly
+    return mb_convert_case(trim($text), MB_CASE_TITLE, "UTF-8");
 }

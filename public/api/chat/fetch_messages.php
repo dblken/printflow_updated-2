@@ -39,6 +39,7 @@ $sql = "SELECT m.*,
         p.message AS reply_message, 
         p.image_path AS reply_image,
         p.sender_id AS reply_sender_id,
+        m.is_pinned,
         CASE 
             WHEN m.sender = 'Customer' THEN (SELECT CONCAT(first_name, ' ', last_name) FROM customers WHERE customer_id = m.sender_id)
             WHEN m.sender = 'Staff' THEN (SELECT CONCAT(first_name, ' ', last_name) FROM users WHERE user_id = m.sender_id)
@@ -79,10 +80,7 @@ if ($messages_raw) {
             if (strpos($image_path, '/printflow/') !== 0) $image_path = '/printflow/' . ltrim($image_path, '/');
         }
 
-        $sender_avatar = $msg['sender_avatar'] ?? null;
-        if ($sender_avatar && strpos($sender_avatar, '/') === false) {
-            $sender_avatar = 'public/assets/uploads/profiles/' . $sender_avatar;
-        }
+        $sender_avatar = get_profile_image($msg['sender_avatar'] ?? null);
 
         $messages[] = [
             'id' => $msg['message_id'],
@@ -104,7 +102,8 @@ if ($messages_raw) {
             'reply_sender_id' => $msg['reply_sender_id'] ?? null,
             'sender_name' => $msg['sender_name'],
             'sender_role' => $msg['sender_role'],
-            'sender_avatar' => $sender_avatar
+            'sender_avatar' => $sender_avatar,
+            'is_pinned' => (bool)($msg['is_pinned'] ?? false)
         ];
     }
 }
@@ -160,9 +159,7 @@ if ($partner_type === 'Staff') {
     if ($av_res) $partner['avatar'] = $av_res[0]['profile_picture'];
 }
 
-if ($partner['avatar'] && strpos($partner['avatar'], '/') === false) {
-    $partner['avatar'] = 'public/assets/uploads/profiles/' . $partner['avatar'];
-}
+$partner['avatar'] = get_profile_image($partner['avatar'] ?? null);
 
 // 4. Fetch order metadata (archive status)
 $has_archived_col = !empty(db_query("SHOW COLUMNS FROM orders LIKE 'is_archived'"));
@@ -179,6 +176,26 @@ if (!empty($seen_query) && $seen_query[0]['last_seen']) {
     $last_seen_id = (int)$seen_query[0]['last_seen'];
 }
 
+// 6. Fetch all pinned messages for the Pinned Bar
+$pinned_sql = "SELECT m.message_id as id, m.message, m.image_path, m.file_type, m.created_at,
+                CASE 
+                    WHEN m.sender = 'Customer' THEN (SELECT CONCAT(first_name, ' ', last_name) FROM customers WHERE customer_id = m.sender_id)
+                    WHEN m.sender = 'Staff' THEN (SELECT CONCAT(first_name, ' ', last_name) FROM users WHERE user_id = m.sender_id)
+                    ELSE 'System' 
+                END as sender_name
+              FROM order_messages m 
+              WHERE m.order_id = ? AND m.is_pinned = 1 
+              ORDER BY m.created_at DESC";
+$pinned_messages_raw = db_query($pinned_sql, 'i', [$order_id]) ?: [];
+$pinned_messages = [];
+foreach ($pinned_messages_raw as $pm) {
+    if ($pm['image_path'] && !preg_match('#^https?://#i', $pm['image_path'])) {
+        if (strpos($pm['image_path'], '/printflow/') !== 0) $pm['image_path'] = '/printflow/' . ltrim($pm['image_path'], '/');
+    }
+    $pm['created_at'] = date('M j, h:i A', strtotime($pm['created_at']));
+    $pinned_messages[] = $pm;
+}
+
     ob_end_clean();
     echo json_encode([
         'success' => true,
@@ -186,7 +203,8 @@ if (!empty($seen_query) && $seen_query[0]['last_seen']) {
         'reactions' => $reactions,
         'partner' => $partner,
         'is_archived' => $is_archived,
-        'last_seen_message_id' => $last_seen_id
+        'last_seen_message_id' => $last_seen_id,
+        'pinned_messages' => $pinned_messages
     ]);
 
 } catch (Exception $e) {

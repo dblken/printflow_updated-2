@@ -11,12 +11,16 @@ if (!$is_pending && isset($_SESSION['user_type']) && $_SESSION['user_type'] === 
     $staff_branch_label = (string) (init_branch_context(false)['branch_name'] ?? '');
 }
 
-// Unread notification count for badge
+// Unread notification count for badge & Profile Picture
 if (!function_exists('db_query')) require_once __DIR__ . '/db.php';
 $_staff_unread_notif = 0;
+$_staff_profile_pic = '';
 if (isset($_SESSION['user_id'])) {
-    $r = db_query("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0", 'i', [$_SESSION['user_id']]);
-    $_staff_unread_notif = (int)($r[0]['count'] ?? 0);
+    $r = db_query("SELECT profile_picture FROM users WHERE user_id = ?", 'i', [$_SESSION['user_id']]);
+    $_staff_profile_pic = $r[0]['profile_picture'] ?? '';
+
+    $r2 = db_query("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0", 'i', [$_SESSION['user_id']]);
+    $_staff_unread_notif = (int)($r2[0]['count'] ?? 0);
 }
 ?>
 <div id="printflow-persistent-sidebar" data-turbo-permanent>
@@ -127,8 +131,12 @@ if (isset($_SESSION['user_id'])) {
     
     <div class="sidebar-footer">
         <a href="/printflow/staff/profile.php" class="user-profile" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 6px; transition: background 0.2s;">
-            <div class="user-avatar">
-                <?php echo $user_initial; ?>
+            <div class="user-avatar" style="overflow:hidden; display:flex; align-items:center; justify-content:center; padding:0;">
+                <?php if (!empty($_staff_profile_pic)): ?>
+                    <img src="<?php echo get_profile_image($_staff_profile_pic); ?>?t=<?php echo time(); ?>" style="width:100%; height:100%; object-fit:cover;" alt="Avatar" onerror="this.onerror=null;this.src='/printflow/public/assets/uploads/profiles/default.png'">
+                <?php else: ?>
+                    <?php echo $user_initial; ?>
+                <?php endif; ?>
             </div>
             <div class="user-info">
                 <div class="user-name-display"><?php echo htmlspecialchars($user_name); ?></div>

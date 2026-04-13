@@ -206,13 +206,17 @@ class JobOrderService {
     /**
      * Add a material to a job order with advanced metadata.
      */
-    public static function addMaterial($orderId, $itemId, $qty, $uom, $rollId = null, $notes = '', $metadata = null, $orderType = null) {
-        if ($orderType === null) {
-            // Auto-detect based on existence in job_orders table
-            $isJob = db_query("SELECT id FROM job_orders WHERE id = ?", 'i', [$orderId]);
-            $orderType = (!empty($isJob)) ? 'JOB' : 'ORDER';
-        }
+    public static function addMaterial($id, $itemId, $qty, $uom, $rollId = null, $notes = '', $metadata = null, $type = 'JOB') {
+        global $conn;
         
+        $jobId = (int)$id;
+        if ($type === 'ORDER') {
+            // Find or backfill job for this store order
+            $backfilled = self::ensureJobsForStoreOrder($id);
+            if (!$backfilled) throw new Exception("Could not find or create a job for order $id");
+            $jobId = $backfilled;
+        }
+
         $item = InventoryManager::getItem($itemId);
         if (!$item) throw new Exception("Item not found.");
         
@@ -222,8 +226,6 @@ class JobOrderService {
         // Calculate computed length if track_by_roll
         $computed_len = 0;
         if ($track_by_roll) {
-            // For roll-based, if uom is ft, quantity is often the length
-            // But we might have separate height/qty in metadata
             if (isset($metadata['height_ft'])) {
                 $computed_len = $metadata['height_ft'] * $qty;
             } else {
@@ -233,22 +235,20 @@ class JobOrderService {
 
         $metaJson = $metadata ? json_encode($metadata) : null;
 
-        $colId = ($orderType === 'ORDER') ? 'std_order_id' : 'job_order_id';
-
         // Check for duplicates
         if ($rollId) {
-            $exists = db_query("SELECT id FROM job_order_materials WHERE $colId = ? AND item_id = ? AND roll_id = ?", 'iii', [$orderId, $itemId, $rollId]);
+            $exists = db_query("SELECT id FROM job_order_materials WHERE job_order_id = ? AND item_id = ? AND roll_id = ?", 'iii', [$jobId, $itemId, $rollId]);
         } else {
-            $exists = db_query("SELECT id FROM job_order_materials WHERE $colId = ? AND item_id = ? AND roll_id IS NULL", 'ii', [$orderId, $itemId]);
+            $exists = db_query("SELECT id FROM job_order_materials WHERE job_order_id = ? AND item_id = ? AND roll_id IS NULL", 'ii', [$jobId, $itemId]);
         }
         
         if (!empty($exists)) {
-            return $exists[0]['id']; // Return existing ID instead of creating duplicate
+            return $exists[0]['id'];
         }
 
-        $sql = "INSERT INTO job_order_materials ($colId, item_id, roll_id, quantity, uom, computed_required_length_ft, unit_cost_at_assignment, notes, metadata) 
+        $sql = "INSERT INTO job_order_materials (job_order_id, item_id, roll_id, quantity, uom, computed_required_length_ft, unit_cost_at_assignment, notes, metadata) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        return db_execute($sql, 'iiidsddss', [$orderId, $itemId, $rollId, $qty, $uom, $computed_len, $cost, $notes, $metaJson]);
+        return db_execute($sql, 'iiidsddss', [$jobId, $itemId, $rollId, $qty, $uom, $computed_len, $cost, $notes, $metaJson]);
     }
 
     /**
@@ -752,7 +752,7 @@ class JobOrderService {
         
         // Check for upgrade
         $res = db_query("SELECT transaction_count FROM customers WHERE customer_id = ?", 'i', [$customerId]);
-        if ($res && $res[0]['transaction_count'] >= 5) {
+        if ($res && $res[0]['transaction_count'] >= 3) {
             db_execute("UPDATE customers SET customer_type = 'REGULAR' WHERE customer_id = ?", 'i', [$customerId]);
         }
     }
@@ -776,25 +776,25 @@ class JobOrderService {
     /**
      * Save Ink Usage for an Order
      */
-    public static function saveInkUsage($orderId, $inkData, $orderType = null) {
-        $conn = $GLOBALS['conn'] ?? null;
+    public static function saveInkUsage($id, $inkData, $type = 'JOB') {
+        global $conn;
         if (!$conn) return false;
 
-        if ($orderType === null) {
-            // Auto-detect based on existence in job_orders table
-            $isJob = db_query("SELECT id FROM job_orders WHERE id = ?", 'i', [$orderId]);
-            $orderType = (!empty($isJob)) ? 'JOB' : 'ORDER';
+        $jobId = (int)$id;
+        if ($type === 'ORDER') {
+            // Find or backfill job for this store order
+            $backfilled = self::ensureJobsForStoreOrder($id);
+            if (!$backfilled) throw new Exception("Could not find or create a job for order $id");
+            $jobId = $backfilled;
         }
-
-        $colId = ($orderType === 'ORDER') ? 'std_order_id' : 'job_order_id';
 
         $conn->begin_transaction();
         try {
-            // Remove existing ink records for easy replace strategy
-            db_execute("DELETE FROM job_order_ink_usage WHERE $colId = ?", 'i', [$orderId]);
+            // Remove existing ink records
+            db_execute("DELETE FROM job_order_ink_usage WHERE job_order_id = ?", 'i', [$jobId]);
 
             if (!empty($inkData) && is_array($inkData)) {
-                $sql = "INSERT INTO job_order_ink_usage ($colId, item_id, ink_color, quantity_used) VALUES (?, ?, ?, ?)";
+                $sql = "INSERT INTO job_order_ink_usage (job_order_id, item_id, ink_color, quantity_used) VALUES (?, ?, ?, ?)";
                 $stmt = $conn->prepare($sql);
                 if ($stmt) {
                     foreach ($inkData as $ink) {
@@ -803,7 +803,7 @@ class JobOrderService {
                         $qty = (float)($ink['quantity'] ?? 0);
 
                         if ($itemId > 0 && $qty > 0 && !empty($color)) {
-                            $stmt->bind_param('iisd', $orderId, $itemId, $color, $qty);
+                            $stmt->bind_param('iisd', $jobId, $itemId, $color, $qty);
                             $stmt->execute();
                         }
                     }
@@ -813,7 +813,7 @@ class JobOrderService {
             $conn->commit();
             return true;
         } catch (Throwable $e) {
-            $conn->rollback();
+            if ($conn) $conn->rollback();
             throw $e;
         }
     }

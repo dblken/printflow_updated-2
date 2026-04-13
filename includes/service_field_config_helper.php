@@ -116,7 +116,35 @@ function save_service_field_config($service_id, $field_key, $config) {
         [$service_id, $field_key]
     );
     
-    $options_json = isset($config['options']) ? json_encode($config['options']) : null;
+    // Format the label
+    $formatted_label = formatToTitleCase($config['label']);
+    
+    // Format options if they exist
+    $formatted_options = null;
+    if (isset($config['options']) && is_array($config['options'])) {
+        $formatted_options = array_map(function($opt) {
+            if (is_array($opt)) {
+                // Handle nested field options
+                if (isset($opt['value'])) {
+                    $opt['value'] = formatToTitleCase($opt['value']);
+                }
+                if (isset($opt['nested_fields']) && is_array($opt['nested_fields'])) {
+                    foreach ($opt['nested_fields'] as &$nf) {
+                        if (isset($nf['label'])) {
+                            $nf['label'] = formatToTitleCase($nf['label']);
+                        }
+                        if (isset($nf['options']) && is_array($nf['options'])) {
+                            $nf['options'] = array_map('formatToTitleCase', $nf['options']);
+                        }
+                    }
+                }
+                return $opt;
+            }
+            return formatToTitleCase($opt);
+        }, $config['options']);
+    }
+    
+    $options_json = $formatted_options ? json_encode($formatted_options) : null;
     $unit = $config['unit'] ?? 'ft';
     $allow_others = isset($config['allow_others']) ? ($config['allow_others'] ? 1 : 0) : 1;
     
@@ -138,7 +166,7 @@ function save_service_field_config($service_id, $field_key, $config) {
             WHERE service_id = ? AND field_key = ?",
             'sssiissiissis',
             [
-                $config['label'],
+                $formatted_label,
                 $config['type'],
                 $options_json,
                 $config['visible'] ? 1 : 0,
@@ -162,7 +190,7 @@ function save_service_field_config($service_id, $field_key, $config) {
             [
                 $service_id,
                 $field_key,
-                $config['label'],
+                $formatted_label,
                 $config['type'],
                 $options_json,
                 $config['visible'] ? 1 : 0,

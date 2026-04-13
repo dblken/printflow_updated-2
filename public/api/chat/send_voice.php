@@ -1,64 +1,51 @@
 <?php
-require_once __DIR__ . '/../../../includes/auth.php';
-require_once __DIR__ . '/../../../includes/functions.php';
+/**
+ * Clean Signal Voice Upload
+ */
+error_reporting(0);
+ini_set('display_errors', 0);
+ob_start();
 
 header('Content-Type: application/json');
 
-if (!is_logged_in()) {
-    echo json_encode(['success' => false, 'error' => 'Unauthorized']);
-    exit();
-}
+try {
+    require_once __DIR__ . '/../../../includes/auth.php';
+    require_once __DIR__ . '/../../../includes/functions.php';
 
-if (!isset($_FILES['voice'])) {
-    echo json_encode(['success' => false, 'error' => 'No voice data received']);
-    exit();
-}
-
-$order_id = isset($_POST['order_id']) ? (int)$_POST['order_id'] : 0;
-if (!$order_id) {
-    echo json_encode(['success' => false, 'error' => 'Missing order ID']);
-    exit();
-}
-
-$file = $_FILES['voice'];
-$user_id = get_user_id();
-$user_type = get_user_type();
-$db_sender = ($user_type === 'Customer') ? 'Customer' : 'Staff';
-
-// Validate size (max ~10MB)
-if ($file['size'] > 10000000) {
-    echo json_encode(['success' => false, 'error' => 'File too large (Max 10MB)']);
-    exit();
-}
-
-// Ensure directory exists - use chat_media which is known to work
-$upload_dir = __DIR__ . '/../../../uploads/chat_media/';
-if (!is_dir($upload_dir)) {
-    if (!mkdir($upload_dir, 0755, true)) {
-        echo json_encode(['success' => false, 'error' => 'Could not create upload directory']);
-        exit();
-    }
-}
-
-$filename = uniqid() . ".webm";
-$target_path = $upload_dir . $filename;
-$relative_path = '/printflow/uploads/chat_media/' . $filename;
-
-if (move_uploaded_file($file['tmp_name'], $target_path)) {
-    // Save to DB
-    // Use message_type = 'voice' (just updated enum)
-    $sql = "INSERT INTO order_messages (order_id, sender, sender_id, message, message_type, message_file, file_type, read_receipt)
-            VALUES (?, ?, ?, '', 'voice', ?, 'none', 0)";
+    if (!is_logged_in()) throw new Exception('Unauthorized access.');
     
-    // Fallback if voice type is rejected (though ALTER should have worked)
-    // Actually we keep it as 'voice' since the ALTER worked.
+    $order_id = (int)($_POST['order_id'] ?? 0);
+    if (!$order_id) throw new Exception('Missing Order ID.');
+    if (!isset($_FILES['voice'])) throw new Exception('No voice data received.');
+
+    $user_id = get_user_id();
+    $user_type = get_user_type();
+    $db_sender = ($user_type === 'Customer') ? 'Customer' : 'Staff';
+
+    $file = $_FILES['voice'];
+    $upload_dir = __DIR__ . '/../../../uploads/chat_media/';
+    if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+
+    $filename = uniqid() . ".webm";
+    $relative_path = '/printflow/uploads/chat_media/' . $filename;
     
-    if (db_execute($sql, 'isss', [$order_id, $db_sender, $user_id, $relative_path])) {
-        echo json_encode(['success' => true, 'file' => $relative_path]);
+    if (move_uploaded_file($file['tmp_name'], $upload_dir . $filename)) {
+        $sql = "INSERT INTO order_messages (order_id, sender, sender_id, message, message_type, message_file, file_type, read_receipt)
+                VALUES (?, ?, ?, '', 'voice', ?, 'none', 0)";
+        
+        if (db_execute($sql, 'isss', [$order_id, $db_sender, $user_id, $relative_path])) {
+            ob_end_clean();
+            echo json_encode(['success' => true, 'file' => $relative_path]);
+        } else {
+            throw new Exception('Database insertion failed.');
+        }
     } else {
-        echo json_encode(['success' => false, 'error' => 'Database insertion failed: ' . ($conn->error ?? 'unknown')]);
+        throw new Exception('Failed to save file on server.');
     }
-} else {
-    $error_msg = error_get_last()['message'] ?? 'Check PHP upload limits or folder permissions';
-    echo json_encode(['success' => false, 'error' => 'Failed to save recording: ' . $error_msg]);
+} catch (Exception $e) {
+    ob_end_clean();
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+} catch (Throwable $t) {
+    ob_end_clean();
+    echo json_encode(['success' => false, 'error' => 'Critical Error: ' . $t->getMessage()]);
 }

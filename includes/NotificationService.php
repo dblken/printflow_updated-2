@@ -20,7 +20,7 @@ class NotificationService {
      */
     private static $statusMessages = [
         'APPROVED'     => 'Your customization order has been reviewed and approved.',
-        'TO_PAY'       => 'Your order is ready. Please proceed to payment of ₱{amount}. {order_no}',
+        'TO_PAY'       => 'Your order is ready. Please proceed to payment of ₱{amount}.',
         'VERIFY_PAY'   => 'Your payment has been received and is under verification.',
         'IN_PRODUCTION'=> 'Payment verified! Your order is now being processed.',
         'TO_RECEIVE'   => 'Great news! Your order is ready for pickup.',

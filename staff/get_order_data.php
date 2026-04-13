@@ -72,7 +72,8 @@ if ($branchFilter !== null) {
         SELECT o.*,
                c.first_name as cust_first, c.last_name as cust_last,
                c.email as cust_email, c.contact_number as cust_phone,
-               c.customer_id as cust_id
+               c.customer_id as cust_id, c.customer_type as cust_type, c.address as cust_address,
+               c.profile_picture as cust_profile_picture
         FROM orders o
         LEFT JOIN customers c ON o.customer_id = c.customer_id
         WHERE o.order_id = ? AND o.branch_id = ?
@@ -82,7 +83,8 @@ if ($branchFilter !== null) {
         SELECT o.*,
                c.first_name as cust_first, c.last_name as cust_last,
                c.email as cust_email, c.contact_number as cust_phone,
-               c.customer_id as cust_id
+               c.customer_id as cust_id, c.customer_type as cust_type, c.address as cust_address,
+               c.profile_picture as cust_profile_picture
         FROM orders o
         LEFT JOIN customers c ON o.customer_id = c.customer_id
         WHERE o.order_id = ?
@@ -97,7 +99,7 @@ $order = $order_result[0];
 
 // Get order items
 $items = db_query("
-    SELECT oi.*, p.name as product_name, p.sku, p.category
+    SELECT oi.*, p.name as product_name, p.sku, p.category, p.product_image, p.photo_path, p.product_type
     FROM order_items oi
     LEFT JOIN products p ON oi.product_id = p.product_id
     WHERE oi.order_id = ?
@@ -138,6 +140,16 @@ foreach ($items as $item) {
         'reference_url' => !empty($item['reference_image_file'])
                             ? '/printflow/public/serve_design.php?type=order_item&id=' . (int)$item['order_item_id'] . '&field=reference'
                             : null,
+        'product_image' => (function() use ($item) {
+            // photo_path is the primary image field (used by customer/products.php)
+            $img = $item['photo_path'] ?: $item['product_image'] ?: null;
+            if (empty($img)) return null;
+            // If it already has a full path starting with / or http, use as-is
+            if ($img[0] === '/' || strpos($img, 'http') === 0) return $img;
+            // Bare filename — assume products uploads folder
+            return '/printflow/public/assets/uploads/products/' . $img;
+        })(),
+        'product_type'  => $item['product_type'] ?? 'custom',
     ];
 }
 
@@ -155,12 +167,23 @@ foreach ($customer_orders as $co) {
 // Get revision history - table doesn't exist yet, return empty array
 $revisions_out = [];
 
+// Normalize status for product orders — production statuses are not valid for fixed products
+$display_status = $order['status'];
+if (($order['order_type'] ?? '') === 'product') {
+    $production_statuses = ['Processing', 'In Production', 'Printing', 'Approved Design'];
+    if (in_array($display_status, $production_statuses)) {
+        $display_status = 'Ready for Pickup';
+    }
+}
+
 echo json_encode([
     'order_id'            => $order['order_id'],
     'order_date'          => format_datetime($order['order_date']),
     'total_amount'        => format_currency($order['total_amount']),
     'total_raw'           => (float)$order['total_amount'],
-    'status'              => $order['status'],
+    'status'              => $display_status,
+    'order_type'          => $order['order_type'] ?? 'product',
+    'order_source'        => $order['order_source'] ?? 'online',
     'payment_status'      => $order['payment_status'],
     'payment_reference'   => $order['payment_reference'] ?? '',
     'payment_type'        => $order['payment_type'] ?? 'full_payment',
@@ -176,7 +199,10 @@ echo json_encode([
     'cust_initial'        => strtoupper(substr($order['cust_first'] ?? 'C', 0, 1)),
     'cust_email'          => $order['cust_email'] ?? '',
     'cust_phone'          => $order['cust_phone'] ?? '',
-    'payment_proof'       => !empty($order['payment_proof']) ? '/printflow' . $order['payment_proof'] : null,
+    'cust_type'           => $order['cust_type'] ?? 'REGULAR',
+    'cust_address'        => $order['cust_address'] ?? '',
+    'cust_profile_picture'=> get_profile_image($order['cust_profile_picture'] ?? null),
+    'payment_proof'       => !empty($order['payment_proof']) ? (strpos($order['payment_proof'], '/printflow') === 0 ? $order['payment_proof'] : '/printflow/' . ltrim($order['payment_proof'], '/')) : null,
     'payment_submitted_at'=> !empty($order['payment_submitted_at']) ? format_datetime($order['payment_submitted_at']) : '',
     'revision_count'      => (int)($order['revision_count'] ?? 0),
     'revision_reason'     => $order['revision_reason'] ?? '',

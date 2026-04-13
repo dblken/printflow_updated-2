@@ -91,85 +91,6 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
     <link rel="stylesheet" href="/printflow/public/assets/css/output.css">
     <?php include __DIR__ . '/../includes/admin_style.php'; ?>
     <style>
-        /* PREMIUM KPI SECTION (Fluid Layout) */
-        .kpi-premium-container {
-            background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
-            border-radius: 16px;
-            padding: 24px 28px;
-            margin-bottom: 24px;
-            position: relative;
-            overflow: hidden;
-            border-bottom: 1px solid rgba(6, 161, 161, 0.1);
-        }
-        .kpi-bg-shape {
-            position: absolute;
-            background: linear-gradient(135deg, rgba(6, 161, 161, 0.1), rgba(6, 161, 161, 0.05));
-            border-radius: 50%;
-            pointer-events: none;
-            filter: blur(50px);
-            z-index: 1;
-        }
-        .shape-1 { width: 400px; height: 400px; top: -150px; right: -50px; animation: float 18s infinite alternate; }
-        .shape-2 { width: 300px; height: 300px; bottom: -80px; left: -80px; animation: float 15s infinite alternate-reverse; }
-
-        .kpi-card-v2 {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            padding: 20px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            z-index: 2;
-        }
-        .kpi-card-v2:hover { 
-            transform: translateY(-4px); 
-            background: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 15px 30px -10px rgba(6, 161, 161, 0.12); 
-            border-color: #06A1A1;
-        }
-        .kpi-v2-value { 
-            font-size: 28px; 
-            font-weight: 950; 
-            color: #013a3a; 
-            line-height: 1; 
-            margin-bottom: 8px; 
-            letter-spacing: -0.04em;
-        }
-        .kpi-v2-label { 
-            font-size: 10px; 
-            font-weight: 800; 
-            color: #0d9488; 
-            text-transform: uppercase; 
-            letter-spacing: 0.1em;
-            opacity: 0.9;
-        }
-        .kpi-v2-sub { 
-            font-size: 11px; 
-            color: #475569; 
-            margin-top: 4px; 
-            font-weight: 600;
-            opacity: 0.6;
-        }
-        .kpi-card-indicator { position: absolute; top: 12px; right: 18px; width: 28px; height: 4px; border-radius: 2px; opacity: 0.4; }
-
-        @keyframes float {
-            from { transform: translate(0, 0) rotate(0deg); }
-            to { transform: translate(20px, 20px) rotate(10deg); }
-        }
-
-        .kpi-v2-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            position: relative;
-            z-index: 2;
-        }
-        @media (max-width: 1200px) { .kpi-v2-row { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 640px) { .kpi-v2-row { grid-template-columns: 1fr; } }
 
 
 
@@ -297,26 +218,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pf-tab-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
         [x-cloak] { display: none !important; }
-        /* High-Density Layout Overrides for Full-Screen Utility */
-        .dashboard-container { min-height: 100vh; background: #f8fafc; }
-        .main-content {
-            padding: 12px 14px 0 !important;
-            max-width: none !important;
-            width: 100%;
-        }
-        main { padding: 0 !important; }
-        header { padding: 12px 0 12px 0 !important; background: transparent !important; margin-bottom: 0 !important; }
-        .page-title { margin-bottom: 0 !important; }
-        
-        /* High-Density Card Styling */
-        .card { 
-            padding: 16px !important; 
-            border-radius: 12px !important; 
-            margin-bottom: 12px !important;
-            border: 1px solid #e2e8f0; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
-        }
-        .kpi-premium-container { margin-bottom: 12px !important; padding: 18px 24px !important; }
+
     </style>
 </head>
 <body data-base-url="<?php echo htmlspecialchars(BASE_URL); ?>" data-csrf="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
@@ -330,61 +232,49 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
     ?>
     <div class="main-content">
         <div id="staffJoCustomizationsPage" x-data="joManager('ALL')" x-init="init()" class="pf-staff-customizations-root" @keydown.escape.window="onSvcEscape()">
-        <header style="display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 20px;">
-            <h1 class="page-title" style="margin:0;">Customizations</h1>
-            <div style="flex: 1; max-width: 480px; position: relative;">
-                <input type="text" x-model="search" placeholder="Search Order # or Customer..." 
-                       style="width: 100%; padding: 12px 16px 12px 42px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s;"
-                       onfocus="this.style.borderColor='#06A1A1'; this.style.boxShadow='0 0 0 4px rgba(6,161,161,0.1)';"
-                       onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.02)';"
-                       @keyup.debounce.300ms="currentPage = 1">
-                <div style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                </div>
+        <header>
+            <div>
+                <h1 class="page-title">Customizations</h1>
+                <p class="page-subtitle">Track and manage all custom jobs</p>
             </div>
         </header>
 
         <main>
-            <!-- New Premium KPI Container -->
-            <div class="kpi-premium-container">
-                <div class="kpi-bg-shape shape-1"></div>
-                <div class="kpi-bg-shape shape-2"></div>
-                
-                <div class="kpi-v2-row">
-                    <div class="kpi-card-v2">
-                        <div class="kpi-card-indicator" style="background: #06A1A1;"></div>
-                        <div class="kpi-v2-label">Total Customizations</div>
-                        <div class="kpi-v2-value"><?php echo $total_jobs; ?></div>
-                        <div class="kpi-v2-sub"><?php echo $completed_jobs; ?> items finished</div>
-                    </div>
-                    <div class="kpi-card-v2">
-                        <div class="kpi-card-indicator" style="background: #d97706;"></div>
-                        <div class="kpi-v2-label">Pending Approval</div>
-                        <div class="kpi-v2-value" style="color: #d97706;"><?php echo $pending_jobs; ?></div>
-                        <div class="kpi-v2-sub">Awaiting review</div>
-                    </div>
-                    <div class="kpi-card-v2">
-                        <div class="kpi-card-indicator" style="background: #0369a1;"></div>
-                        <div class="kpi-v2-label">Approved</div>
-                        <div class="kpi-v2-value" style="color: #0369a1;"><?php echo $approval_jobs; ?></div>
-                        <div class="kpi-v2-sub">Ready for production</div>
-                    </div>
-                    <div class="kpi-card-v2">
-                        <div class="kpi-card-indicator" style="background: #059669;"></div>
-                        <div class="kpi-v2-label">In Production</div>
-                        <div class="kpi-v2-value" style="color: #059669;"><?php echo $in_production; ?></div>
-                        <div class="kpi-v2-sub">Aktive task tracks</div>
-                    </div>
+            <div class="kpi-row">
+                <div class="kpi-card indigo">
+                    <span class="kpi-card-inner">
+                        <span class="kpi-label">Total Customizations</span>
+                        <span class="kpi-value"><?php echo number_format($total_jobs); ?></span>
+                        <span class="kpi-sub"><?php echo number_format($completed_jobs); ?> items finished</span>
+                    </span>
+                </div>
+                <div class="kpi-card amber">
+                    <span class="kpi-card-inner">
+                        <span class="kpi-label">Pending Approval</span>
+                        <span class="kpi-value"><?php echo number_format($pending_jobs); ?></span>
+                        <span class="kpi-sub">Awaiting review</span>
+                    </span>
+                </div>
+                <div class="kpi-card blue">
+                    <span class="kpi-card-inner">
+                        <span class="kpi-label">Approved</span>
+                        <span class="kpi-value"><?php echo number_format($approval_jobs); ?></span>
+                        <span class="kpi-sub">Ready for production</span>
+                    </span>
+                </div>
+                <div class="kpi-card emerald">
+                    <span class="kpi-card-inner">
+                        <span class="kpi-label">In Production</span>
+                        <span class="kpi-value"><?php echo number_format($in_production); ?></span>
+                        <span class="kpi-sub">Active task tracks</span>
+                    </span>
                 </div>
             </div>
 
             <!-- Jobs List & Filters (matching Enterprise reference) -->
             <div class="card overflow-visible">
-                <div class="pf-custom-toolbar">
-                    <!-- Row 1: Status Stages (Full Visibility) -->
-                    <div class="pf-custom-tabs-row">
+                <div class="toolbar-container">
+                    <div class="toolbar-group">
                         <div class="pf-custom-tabs">
                             <button type="button" @click="activeStatus = 'ALL'" :class="activeStatus === 'ALL' ? 'active' : ''" class="pill-tab">
                                 <span>ALL</span>
@@ -426,38 +316,101 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         </div>
                     </div>
 
-                    <!-- Row 2: Secondary Selective Filters -->
-                    <div class="pf-custom-filters-row">
-                        <div class="pf-custom-search flex items-center gap-3 flex-wrap">
-                            <select x-model="serviceFilter" class="filter-select" title="Service Type">
-                                <option value="ALL">All Services</option>
-                                <option value="T-SHIRT PRINTING">T-Shirt Printing</option>
-                                <option value="TARPAULIN PRINTING">Tarpaulin</option>
-                                <option value="DECALS/STICKERS (PRINT/CUT)">Stickers/Decals</option>
-                                <option value="TRANSPARENT STICKER PRINTING">Transparent Stickers</option>
-                                <option value="SINTRA BOARD">Sintraboard</option>
-                                <option value="REFLECTORIZED SIGNAGE">Reflectorized</option>
-                                <option value="SOUVENIRS">Souvenirs</option>
-                            </select>
-
-                            <select x-model="dateFilter" class="filter-select" title="Date Range">
-                                <option value="ALL">All Dates</option>
-                                <option value="TODAY">Today</option>
-                                <option value="WEEK">This Week</option>
-                                <option value="MONTH">This Month</option>
-                                <option value="CUSTOM">Custom Range</option>
-                            </select>
-
-                            <div x-show="dateFilter === 'CUSTOM'" class="flex items-center gap-2">
-                                <input type="date" x-model="customDateFrom" class="filter-select" style="padding-right:12px;">
-                                <span class="text-gray-400">至</span>
-                                <input type="date" x-model="customDateTo" class="filter-select" style="padding-right:12px;">
+                    <div class="toolbar-group" style="margin-left: auto;">
+    
+                        <!-- Sort Menu -->
+                        <div style="position: relative;">
+                            <button @click="sortOpen = !sortOpen; filterOpen = false" class="toolbar-btn" :class="sortOrder !== 'newest' ? 'active' : ''">
+                                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/></svg>
+                                <span>Sort by</span>
+                            </button>
+                            <div x-show="sortOpen" @click.away="sortOpen = false" x-cloak class="dropdown-panel sort-dropdown" style="right: 0;">
+                                <div class="sort-option" :class="sortOrder === 'newest' ? 'active' : ''" @click="sortOrder = 'newest'; sortOpen = false">
+                                    <span>Newest to Oldest</span>
+                                    <svg x-show="sortOrder === 'newest'" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24" style="margin-left: auto; color: #0d9488;"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
+                                <div class="sort-option" :class="sortOrder === 'oldest' ? 'active' : ''" @click="sortOrder = 'oldest'; sortOpen = false">
+                                    <span>Oldest to Newest</span>
+                                    <svg x-show="sortOrder === 'oldest'" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24" style="margin-left: auto; color: #0d9488;"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
+                                <div class="sort-option" :class="sortOrder === 'az' ? 'active' : ''" @click="sortOrder = 'az'; sortOpen = false">
+                                    <span>A → Z</span>
+                                    <svg x-show="sortOrder === 'az'" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24" style="margin-left: auto; color: #0d9488;"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
+                                <div class="sort-option" :class="sortOrder === 'za' ? 'active' : ''" @click="sortOrder = 'za'; sortOpen = false">
+                                    <span>Z → A</span>
+                                    <svg x-show="sortOrder === 'za'" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24" style="margin-left: auto; color: #0d9488;"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
                             </div>
+                        </div>
 
-                            <select x-model="sortOrder" class="filter-select" title="Sort By">
-                                <option value="newest">Newest First</option>
-                                <option value="oldest">Oldest First</option>
-                            </select>
+                        <!-- Filter Menu -->
+                        <div style="position: relative;">
+                            <button @click="filterOpen = !filterOpen; sortOpen = false" class="toolbar-btn" :class="(serviceFilter !== 'ALL' || dateFilter !== 'ALL') ? 'active' : ''">
+                                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                                <span>Filter</span>
+                                <template x-if="serviceFilter !== 'ALL' || dateFilter !== 'ALL'">
+                                    <span class="filter-badge" x-text="(serviceFilter !== 'ALL' ? 1 : 0) + (dateFilter !== 'ALL' ? 1 : 0)"></span>
+                                </template>
+                            </button>
+                            <div x-show="filterOpen" @click.away="filterOpen = false" x-cloak class="dropdown-panel filter-panel" style="right: 0;">
+                                <div class="filter-header">Filter</div>
+                                
+                                <div class="filter-section">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                        <span class="filter-label" style="margin:0;">Service Type</span>
+                                        <button @click="serviceFilter = 'ALL'" class="filter-reset-link">Reset</button>
+                                    </div>
+                                    <select x-model="serviceFilter" class="filter-select">
+                                        <option value="ALL">All Services</option>
+                                        <option value="T-SHIRT PRINTING">T-Shirt Printing</option>
+                                        <option value="TARPAULIN PRINTING">Tarpaulin</option>
+                                        <option value="DECALS/STICKERS (PRINT/CUT)">Stickers/Decals</option>
+                                        <option value="TRANSPARENT STICKER PRINTING">Transparent Stickers</option>
+                                        <option value="SINTRA BOARD">Sintraboard</option>
+                                        <option value="REFLECTORIZED SIGNAGE">Reflectorized</option>
+                                        <option value="SOUVENIRS">Souvenirs</option>
+                                    </select>
+                                </div>
+
+                                <div class="filter-section">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                        <span class="filter-label" style="margin:0;">Date range</span>
+                                        <button @click="dateFilter = 'ALL'; customDateFrom = ''; customDateTo = ''" class="filter-reset-link">Reset</button>
+                                    </div>
+                                    <select x-model="dateFilter" class="filter-select" style="margin-bottom:8px;">
+                                        <option value="ALL">All Dates</option>
+                                        <option value="TODAY">Today</option>
+                                        <option value="WEEK">This Week</option>
+                                        <option value="MONTH">This Month</option>
+                                        <option value="CUSTOM">Custom Range</option>
+                                    </select>
+                                    <div x-show="dateFilter === 'CUSTOM'" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                                        <div>
+                                            <div style="font-size:11px; color:#6b7280; margin-bottom:4px;">From:</div>
+                                            <input type="date" x-model="customDateFrom" class="filter-input">
+                                        </div>
+                                        <div>
+                                            <div style="font-size:11px; color:#6b7280; margin-bottom:4px;">To:</div>
+                                            <input type="date" x-model="customDateTo" class="filter-input">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="filter-section">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                        <span class="filter-label" style="margin:0;">Keyword search</span>
+                                        <button @click="search = ''" class="filter-reset-link">Reset</button>
+                                    </div>
+                                    <input type="text" x-model="search" class="filter-input" placeholder="Search...">
+                                </div>
+
+                                <div class="filter-footer">
+                                    <button @click="serviceFilter = 'ALL'; dateFilter = 'ALL'; customDateFrom = ''; customDateTo = ''; search = '';" class="filter-btn-reset" style="width:100%;">
+                                        Reset all filters
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -498,7 +451,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                             'badge-topay':      jo.status === 'TO_PAY',
                                             'badge-verify':     jo.status === 'VERIFY_PAY',
                                             'badge-production': jo.status === 'IN_PRODUCTION',
-                                            'badge-pickup':     jo.status === 'TO_RECEIVE',
+                                            'badge-pickup':     jo.status === 'TO_RECEIVE' || jo.status === 'READY_TO_COLLECT',
                                             'badge-pending':    jo.status === 'PENDING',
                                             'badge-cancelled':  jo.status === 'CANCELLED'
                                         }" class="status-badge-pill" x-text="jo.status === 'COMPLETED' ? 'Fulfilled' : 
@@ -506,7 +459,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                            (jo.status === 'TO_PAY' ? 'To Pay' : 
                                            (jo.status === 'VERIFY_PAY' ? 'To Verify' : 
                                            (jo.status === 'IN_PRODUCTION' ? 'Processing' : 
-                                           (jo.status === 'TO_RECEIVE' ? 'To Pickup' : jo.status)))))">
+                                           (jo.status === 'TO_RECEIVE' || jo.status === 'READY_TO_COLLECT' ? 'To Pickup' : jo.status)))))">
                                         </div>
                                     </td>
                                     <td class="px-4 py-4 text-center">
@@ -607,7 +560,8 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
                     <!-- Customer Row -->
                     <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #f3f4f6;">
-                        <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#06A1A1,#047676);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:22px;flex-shrink:0;" x-text="currentJo.customer_full_name ? currentJo.customer_full_name[0].toUpperCase() : '?'"></div>
+                        <div x-show="!currentJo.customer_profile_picture || currentJo.customer_profile_picture === 'null' || currentJo.customer_profile_picture === 'undefined'" style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#06A1A1,#047676);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:22px;flex-shrink:0;" x-text="currentJo.customer_full_name ? currentJo.customer_full_name[0].toUpperCase() : '?'"></div>
+                        <img x-show="currentJo.customer_profile_picture && currentJo.customer_profile_picture !== 'null' && currentJo.customer_profile_picture !== 'undefined'" :src="getProfileImage(currentJo.customer_profile_picture)" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #06A1A1;background:#f3f4f6;flex-shrink:0;" onerror="this.src='/printflow/public/assets/uploads/profiles/default.png'">
                         <div>
                             <div style="font-size:16px;font-weight:700;color:#1f2937;" x-text="currentJo.customer_full_name"></div>
                             <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap;">
@@ -620,7 +574,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
 
                     <!-- Dynamic Order Details (service-specific fields from customization_data) -->
-                    <template x-if="currentJo.items && currentJo.items.length > 0 && currentJo.status !== 'APPROVED'">
+                    <template x-if="currentJo.items && currentJo.items.length > 0">
                         <div style="margin-bottom:20px; padding:16px; border-radius:12px; border:1px solid #e5e7eb; background:#f9fafb;">
                             <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:12px;">Order Details (Customer Specifications)</label>
                             <template x-for="(item, idx) in currentJo.items" :key="item.order_item_id || idx">
@@ -668,7 +622,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
 
                     <!-- Notes -->
-                    <div style="margin-bottom:20px;" x-show="currentJo.status !== 'APPROVED' && combinedCustomerNotes().trim() !== '' && combinedCustomerNotes() !== 'No specific instructions.'">
+                    <div style="margin-bottom:20px;" x-show="combinedCustomerNotes().trim() !== '' && combinedCustomerNotes() !== 'No specific instructions.'">
                         <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:6px;">Order Notes</label>
                         <div style="font-size:13px;color:#6b7280;background:#fffbeb;border:1px solid #fef3c7;padding:10px 14px;border-radius:8px;word-break:break-word;overflow-wrap:break-word;white-space:pre-wrap;" x-text="combinedCustomerNotes()"></div>
                     </div>
@@ -696,8 +650,8 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                         <div style="font-size:22px; font-weight:800; color:#1f2937;" x-text="'₱' + Number(currentJo.payment_submitted_amount || 0).toLocaleString()"></div>
                                     </div>
                                     <div style="display:flex; gap:10px;">
-                                        <button @click="verifyPayment()" class="btn-staff-action btn-staff-action-emerald" style="flex:1;">✓ Approve Payment</button>
-                                        <button @click="openRejectPaymentModal()" class="btn-staff-action btn-staff-action-red" style="flex:1;">✕ Reject</button>
+                                        <button @click="verifyPayment()" class="btn-staff-action btn-staff-action-emerald" style="flex:1;">Approve Payment</button>
+                                        <button @click="openRejectPaymentModal()" class="btn-staff-action btn-staff-action-red" style="flex:1;">Reject</button>
                                     </div>
                                 </div>
                             </div>
@@ -827,7 +781,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                                    style="width:100%; padding:12px 12px 12px 32px; border:2px solid #06A1A1; border-radius:10px; font-size:20px; font-weight:800; color:#0f766e; outline:none;">
                                         </div>
                                     </div>
-                                    <button @click="submitToPay()" class="btn-action emerald" style="padding:0 32px; height:52px; font-size:15px; font-weight:800; border-radius:12px; display:flex; align-items:center; gap:10px; box-shadow:0 10px 15px -3px rgba(16, 185, 129, 0.4);">
+                                    <button @click="submitToPay()" class="btn-action" style="padding:0 32px; height:52px; font-size:15px; background:#06A1A1; color:#fff; border:none; font-weight:800; border-radius:12px; display:flex; align-items:center; gap:10px; box-shadow:0 10px 15px -3px rgba(6, 161, 161, 0.4);">
                                         <span>Confirm Approval</span>
                                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                                     </button>
@@ -854,22 +808,22 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
                     <!-- 5. IN_PRODUCTION -->
                     <template x-if="currentJo.status === 'IN_PRODUCTION' || currentJo.status === 'Processing'">
-                        <div style="margin-bottom:20px; padding:18px; border-radius:12px; border:1px solid #fbd38d; background:#fffaf0;">
-                            <label style="font-size:11px;font-weight:700;color:#9c4221;text-transform:uppercase;display:block;margin-bottom:12px;">Step 5: Production In Progress</label>
+                        <div style="margin-bottom:20px; padding:18px; border-radius:12px; border:1px solid #06A1A1; background:#f0fbfb;">
+                            <label style="font-size:11px;font-weight:700;color:#0f766e;text-transform:uppercase;display:block;margin-bottom:12px;">Step 5: Production In Progress</label>
                             <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <div style="font-size:14px; color:#9c4221; font-weight:500;">Materials have been deducted from inventory.</div>
-                                <button @click="markReadyForPickup()" class="btn-action amber">📦 Mark as Ready for Pickup</button>
+                                <div style="font-size:14px; color:#0f766e; font-weight:500;">Materials have been deducted from inventory.</div>
+                                <button @click="markReadyForPickup()" class="btn-action" style="background:#06A1A1; color:#fff; border:none; font-weight:600; padding:6px 16px; border-radius:8px;">Mark as Ready for Pickup</button>
                             </div>
                         </div>
                     </template>
 
                     <!-- 6. TO_RECEIVE -->
                     <template x-if="currentJo.status === 'TO_RECEIVE'">
-                        <div style="margin-bottom:20px; padding:18px; border-radius:12px; border:1px solid #c4b5fd; background:#f5f3ff;">
-                            <label style="font-size:11px;font-weight:700;color:#5b21b6;text-transform:uppercase;display:block;margin-bottom:12px;">Step 6: Ready for Pickup</label>
+                        <div style="margin-bottom:20px; padding:18px; border-radius:12px; border:1px solid #06A1A1; background:#f0fbfb;">
+                            <label style="font-size:11px;font-weight:700;color:#0f766e;text-transform:uppercase;display:block;margin-bottom:12px;">Step 6: Ready for Pickup</label>
                             <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <div style="font-size:14px; color:#5b21b6; font-weight:500;">Customer has been notified to pick up the order.</div>
-                                <button @click="completeOrder()" class="btn-action emerald">✓ Mark Final Completed</button>
+                                <div style="font-size:14px; color:#0f766e; font-weight:500;">Customer has been notified to pick up the order.</div>
+                                <button @click="completeOrder()" class="btn-action" style="background:#06A1A1; color:#fff; border:none; font-weight:600; padding:6px 16px; border-radius:8px;">Mark Final Completed</button>
                             </div>
                         </div>
                     </template>
@@ -881,6 +835,17 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                             <div style="font-size:15px; font-weight:700; color:#15803d; display:flex; align-items:center; gap:8px;">
                                 <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
                                 Order Successfully Completed
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- CANCELLED -->
+                    <template x-if="currentJo.status === 'CANCELLED'">
+                        <div style="margin-bottom:20px; padding:18px; border-radius:12px; border:1px solid #fca5a5; background:#fef2f2;">
+                            <label style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;display:block;margin-bottom:4px;">Workflow Terminated</label>
+                            <div style="font-size:15px; font-weight:700; color:#dc2626; display:flex; align-items:center; gap:8px;">
+                                <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+                                Order Cancelled
                             </div>
                         </div>
                     </template>
@@ -965,10 +930,9 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     <!-- Left: Status actions -->
                     <div style="display:flex;gap:8px; flex-wrap:wrap; align-items:center;">
                         <div x-show="isPendingReviewStatus(currentJo) && !isVerifyStageRow(currentJo)" style="display:flex; gap:8px;">
-                            <button type="button" @click="jobAction('APPROVED')" class="btn-action indigo" style="padding:6px 12px; font-weight:600;">✓ Approve to Set Price</button>
-                            <button type="button" @click="openRevisionModal()" class="btn-action" style="padding:6px 12px; color:#ef4444; background:#fef2f2; border:1px solid #fee2e2; font-weight:600;">✕ Request Revision</button>
+                            <button type="button" @click="jobAction('APPROVED')" class="btn-action indigo" style="padding:6px 12px; font-weight:600;">Approve to Set Price</button>
+                            <button type="button" @click="openRevisionModal()" class="btn-action" style="padding:6px 12px; color:#ef4444; background:#fef2f2; border:1px solid #fee2e2; font-weight:600;">Request Revision</button>
                         </div>
-                        <button type="button" x-show="currentJo.status !== 'CANCELLED' && currentJo.status !== 'COMPLETED' && !isVerifyStageRow(currentJo)" @click="jobAction('CANCELLED')" class="btn-action red" style="padding:6px 12px;">✕ Cancel</button>
                     </div>
                     <!-- Right: Close -->
                     <button @click="showDetailsModal = false" class="btn-secondary">Close</button>
@@ -1028,7 +992,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
         <div>
             <!-- Backdrop -->
             <div x-show="showRejectPaymentModal" x-cloak
-                 style="position:fixed; inset:0; z-index:10001; background:rgba(17,24,39,0.7);"
+                 style="position:fixed; inset:0; z-index:10001; background:transparent;"
                  @click="closeRejectPaymentModal()"></div>
             <!-- Modal Panel -->
             <div x-show="showRejectPaymentModal" x-cloak
@@ -1123,6 +1087,8 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             itemsPerPage: 15,
             orders: [],
             sortOrder: 'newest',
+            sortOpen: false,
+            filterOpen: false,
             machines: [],
             showDetailsModal: false,
             loadingDetails: false,
@@ -1150,6 +1116,18 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             impactPreview: null,
             search: '',
             jobPriceInput: 0,
+            
+            // ── Profile Image Fallback ───────────────────────────────────
+            getProfileImage(image) {
+                if (!image || image === 'null' || image === 'undefined') {
+                    return '/printflow/public/assets/uploads/profiles/default.png';
+                }
+                if (typeof image !== 'string') return '/printflow/public/assets/uploads/profiles/default.png';
+                if (image.startsWith('/') || image.startsWith('http')) {
+                    return image;
+                }
+                return '/printflow/public/assets/uploads/profiles/' + image;
+            },
             
             // Ink Settings
             inkCategorySelected: '',
@@ -1641,6 +1619,8 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         matchStatus = this.isToPayRow(jo);
                     } else if (this.activeStatus === 'IN_PRODUCTION') {
                         matchStatus = this.isInProductionRow(jo);
+                    } else if (this.activeStatus === 'TO_RECEIVE') {
+                        matchStatus = jo.status === 'TO_RECEIVE' || jo.status === 'READY_TO_COLLECT';
                     } else {
                         matchStatus = jo.status === this.activeStatus;
                     }
@@ -1690,10 +1670,20 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     return matchSearch;
                 });
 
-                // Sorting - Always newest first (ignore sortOrder for consistency)
+                // Sorting
                 return filtered.sort((a, b) => {
-                    const diff = (b._ts || 0) - (a._ts || 0);
-                    return diff; // Always newest first
+                    if (this.sortOrder === 'oldest') {
+                        return (a._ts || 0) - (b._ts || 0);
+                    } else if (this.sortOrder === 'az') {
+                        const nameA = ((a.first_name || '') + ' ' + (a.last_name || '')).toLowerCase();
+                        const nameB = ((b.first_name || '') + ' ' + (b.last_name || '')).toLowerCase();
+                        return nameA.localeCompare(nameB);
+                    } else if (this.sortOrder === 'za') {
+                        const nameA = ((a.first_name || '') + ' ' + (a.last_name || '')).toLowerCase();
+                        const nameB = ((b.first_name || '') + ' ' + (b.last_name || '')).toLowerCase();
+                        return nameB.localeCompare(nameA);
+                    }
+                    return (b._ts || 0) - (a._ts || 0); // newest (default)
                 });
             },
 
@@ -1747,6 +1737,9 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 }
                 if (status === 'IN_PRODUCTION') {
                     return this.orders.filter(o => this.isInProductionRow(o)).length;
+                }
+                if (status === 'TO_RECEIVE') {
+                    return this.orders.filter(o => o.status === 'TO_RECEIVE' || o.status === 'READY_TO_COLLECT').length;
                 }
                 return this.orders.filter(o => o.status === status).length;
             },
@@ -1906,14 +1899,23 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     this.showStaffAlert('Error', 'Invalid job order id.');
                     return false;
                 }
+
+                const base = document.body.getAttribute('data-base-url') || '/printflow';
                 const fd = new FormData();
-                fd.append('action', 'update_status');
-                fd.append('id', id);
-                fd.append('status', status);
-                if(machineId) fd.append('machine_id', machineId);
-                if(reason) fd.append('reason', reason);
                 
-                const res = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fd })).json();
+                if (this.currentJo.order_type === 'CUSTOMIZATION') {
+                    fd.append('action', 'update_customization');
+                    fd.append('id', id);
+                    fd.append('status', status);
+                } else {
+                    fd.append('action', 'update_status');
+                    fd.append('id', id);
+                    fd.append('status', status);
+                    if(machineId) fd.append('machine_id', machineId);
+                    if(reason) fd.append('reason', reason);
+                }
+                
+                const res = await (await fetch(base + '/admin/job_orders_api.php', { method: 'POST', body: fd })).json();
                 if(res.success) {
                     await this.loadOrders();
                     if (this.showDetailsModal && (this.sameId(this.effectiveJobId(), id) || this.sameId(this.currentJo.id, id))) {
@@ -2165,7 +2167,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 // Check if this order came from POS BEFORE any operations
                 const urlParams = new URLSearchParams(window.location.search);
                 const returnToPOS = urlParams.get('return_to_pos') === '1';
-                const fromPOS = returnToPOS || (this.currentJo.order_type === 'ORDER' && this.currentJo.source === 'POS');
+                const fromPOS = returnToPOS || (this.currentJo.order_type === 'ORDER' && this.currentJo.order_source === 'pos') || (this.currentJo.order_type === 'CUSTOMIZATION' && this.currentJo.order_source === 'pos');
                 
                 // Save all pending materials from the queue
                 for (const pm of this.pendingMaterials) {
@@ -2369,6 +2371,20 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                    this.currentJo.total_amount = price;
                    this.currentJo.estimated_total = price;
                    console.log('Price updated successfully to:', price);
+                   return true;
+                } else if (this.currentJo.order_type === 'CUSTOMIZATION') {
+                   const fd = new FormData();
+                   fd.append('action', 'update_customization');
+                   fd.append('id', oid);
+                   fd.append('status', 'APPROVED');
+                   fd.append('price', price);
+                   const res = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fd })).json();
+                   if (!res.success) {
+                       this.showStaffAlert('Error', 'Failed to update customization price: ' + res.error);
+                       return false;
+                   }
+                   this.currentJo.estimated_total = price;
+                   console.log('Customization price updated successfully to:', price);
                    return true;
                 } else {
                     const success = await this.setJobPrice(jid);

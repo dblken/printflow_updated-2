@@ -35,7 +35,7 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
         $saved_value = $saved_customization[$field_label] ?? '';
     }
     
-    $label = htmlspecialchars($config['label']);
+    $label = htmlspecialchars(formatToTitleCase($config['label']));
     $required = $config['required'] ? ' *' : '';
     $required_attr = $config['required'] ? 'required' : '';
     
@@ -112,10 +112,25 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
                     // Skip if this option is already defined in a nested field
                     if (isset($nestedValuesSet[strtolower(trim($optionValue))])) continue;
                     
-                    $value = htmlspecialchars($optionValue);
+                    $value = htmlspecialchars(formatToTitleCase($optionValue));
                     $html .= '<option value="' . $value . '">' . $value . '</option>';
                 }
+                if ($config['allow_others'] ?? false) {
+                    $html .= '<option value="Others"' . (($saved_value === 'Others') ? ' selected' : '') . '>Others</option>';
+                }
                 $html .= '</select>';
+                
+                if ($config['allow_others'] ?? false) {
+                    $html .= '<div id="' . htmlspecialchars($field_key) . '_other_container" style="display:' . (($saved_value === 'Others') ? 'block' : 'none') . '; margin-top:10px;">';
+                    $html .= '<input type="text" name="' . htmlspecialchars($field_key) . '_other" class="input-field" placeholder="Please specify" value="' . htmlspecialchars($saved_customization[$config['label'] . ' (Other)'] ?? '') . '">';
+                    $html .= '</div>';
+                    
+                    // Add listener for select change
+                    $html .= '<script>document.addEventListener("DOMContentLoaded", function() { 
+                        const sel = document.querySelector(\'select[name="' . htmlspecialchars($field_key) . '"]\');
+                        if(sel) sel.addEventListener("change", function() { toggleOtherInput("' . htmlspecialchars($field_key) . '", this.value === "Others"); });
+                    });</script>';
+                }
             }
             break;
             
@@ -128,24 +143,38 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
                 if ($optionValue === '') continue;
                 if (empty($nestedFields) && isset($nestedValuesSet[strtolower(trim($optionValue))])) continue;
                 
-                $value = htmlspecialchars($optionValue);
+                $value = htmlspecialchars(formatToTitleCase($optionValue));
                 $is_checked = ($saved_value == $optionValue) ? ' checked' : '';
                 $html .= '<label class="shopee-opt-btn' . ($is_checked ? ' active' : '') . '">';
                 $html .= '<input type="radio" name="' . htmlspecialchars($field_key) . '" value="' . $value . '"' . $is_checked . ' style="display:none;" ' . $required_attr . ' onchange="updateOptVisual(this); handleNestedFields(this, \'' . htmlspecialchars($field_key) . '\', ' . $idx . ')">';
                 $html .= '<span>' . $value . '</span>';
                 $html .= '</label>';
             }
+
+            if ($config['allow_others'] ?? false) {
+                $is_others_checked = ($saved_value === 'Others') ? ' checked' : '';
+                $html .= '<label class="shopee-opt-btn' . ($is_others_checked ? ' active' : '') . '">';
+                $html .= '<input type="radio" name="' . htmlspecialchars($field_key) . '" value="Others"' . $is_others_checked . ' style="display:none;" onchange="updateOptVisual(this); toggleOtherInput(\'' . htmlspecialchars($field_key) . '\', true); handleNestedFields(this, \'' . htmlspecialchars($field_key) . '\', -1)">';
+                $html .= '<span>Others</span>';
+                $html .= '</label>';
+            }
             $html .= '</div>';
+            
+            if ($config['allow_others'] ?? false) {
+                $html .= '<div id="' . htmlspecialchars($field_key) . '_other_container" style="display:' . ($is_others_checked ? 'block' : 'none') . '; margin-top:10px;">';
+                $html .= '<input type="text" name="' . htmlspecialchars($field_key) . '_other" class="input-field" placeholder="Please specify" value="' . htmlspecialchars($saved_customization[$config['label'] . ' (Other)'] ?? '') . '">';
+                $html .= '</div>';
+            }
             
             // Render nested fields containers (initially hidden)
             foreach ($config['options'] ?? [] as $idx => $option) {
                 $nestedFields = is_array($option) ? ($option['nested_fields'] ?? []) : [];
                 if (!empty($nestedFields)) {
-                    $html .= '<div id="nested-' . htmlspecialchars($field_key) . '-' . $idx . '" class="nested-fields-container" style="display:none; margin-top:16px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">';
+                    $html .= '<div id="nested-' . htmlspecialchars($field_key) . '-' . $idx . '" class="nested-fields-container" style="display:none; margin-top:16px; padding:16px; background:rgba(0,49,61,0.4); border:1px solid rgba(83,197,224,0.15); border-radius:8px;">';
                     
                     foreach ($nestedFields as $nIdx => $nestedField) {
                         $nestedKey = $field_key . '_nested_' . $idx . '_' . $nIdx;
-                        $nestedLabel = htmlspecialchars($nestedField['label'] ?? '');
+                        $nestedLabel = htmlspecialchars(formatToTitleCase($nestedField['label'] ?? ''));
                         $nestedType = $nestedField['type'] ?? 'text';
                         $nestedRequired = ($nestedField['required'] ?? false) ? 'required' : '';
                         $nestedRequiredMark = ($nestedField['required'] ?? false) ? ' *' : '';
@@ -170,7 +199,7 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
                                 $html .= '<option value="">Select ' . $nestedLabel . '</option>';
                                 foreach ($nestedField['options'] ?? [] as $nOpt) {
                                     $nOptVal = is_array($nOpt) ? ($nOpt['value'] ?? '') : $nOpt;
-                                    $nVal = htmlspecialchars($nOptVal);
+                                    $nVal = htmlspecialchars(formatToTitleCase($nOptVal));
                                     $html .= '<option value="' . $nVal . '">' . $nVal . '</option>';
                                 }
                                 $html .= '</select>';
@@ -180,7 +209,7 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
                                 $html .= '<div class="shopee-opt-group">';
                                 foreach ($nestedField['options'] ?? [] as $nOpt) {
                                     $nOptVal = is_array($nOpt) ? ($nOpt['value'] ?? '') : $nOpt;
-                                    $nVal = htmlspecialchars($nOptVal);
+                                    $nVal = htmlspecialchars(formatToTitleCase($nOptVal));
                                     $html .= '<label class="shopee-opt-btn">';
                                     $html .= '<input type="radio" name="' . htmlspecialchars($nestedKey) . '" value="' . $nVal . '" style="display:none;" ' . $nestedRequired . ' onchange="updateOptVisual(this)">';
                                     $html .= '<span>' . $nVal . '</span>';
@@ -339,10 +368,10 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
         case 'quantity':
             $saved_qty = $existing_data['quantity'] ?? 1;
             $html .= '<div class="shopee-opt-group">';
-            $html .= '<div class="quantity-container shopee-opt-btn" style="display: inline-flex; justify-content: space-between; gap: 1rem; width: 175px; cursor: default;">';
-            $html .= '<button type="button" class="qty-btn-minus" style="background: none; border: none; color: #6b7280; font-size: 1.125rem; font-weight: 600; cursor: pointer; padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;" onclick="decreaseQty()">&minus;</button>';
-            $html .= '<input type="number" id="quantity-input" name="quantity" class="qty-input-field" style="border: none; text-align: center; width: 60px; font-size: 0.875rem; font-weight: 500; color: #374151; background: transparent; outline: none; -moz-appearance: textfield;" min="1" max="100" value="' . (int)$saved_qty . '" onwheel="return false;" oninput="validateQuantity(this)" onkeydown="return event.key === \'Backspace\' || event.key === \'Delete\' || event.key === \'ArrowLeft\' || event.key === \'ArrowRight\' || event.key === \'Tab\' || (event.key >= \'0\' && event.key <= \'9\');">';
-            $html .= '<button type="button" class="qty-btn-plus" style="background: none; border: none; color: #6b7280; font-size: 1.125rem; font-weight: 600; cursor: pointer; padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;" onclick="increaseQty()">+</button>';
+            $html .= '<div class="quantity-container" style="display: inline-flex; align-items: center; border: 1.5px solid #cbd5e1; border-radius: 8px; background: #ffffff; height: 42px; width: 175px; overflow: hidden; gap: 0;">';
+            $html .= '<button type="button" class="qty-btn-minus" style="flex: 0 0 44px; height: 100%; background: #f8fafc; border: none; border-right: 1px solid #e2e8f0; color: #374151; font-size: 1.25rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s;" onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'#f8fafc\'" onclick="decreaseQty()">&minus;</button>';
+            $html .= '<input type="number" id="quantity-input" name="quantity" class="qty-input-field" style="flex: 1; min-width: 0; height: 100%; border: none; text-align: center; font-size: 1rem; font-weight: 700; color: #111827; background: #ffffff; outline: none; -moz-appearance: textfield;" min="1" max="100" value="' . (int)$saved_qty . '" onwheel="return false;" oninput="validateQuantity(this)" onkeydown="return event.key === \'Backspace\' || event.key === \'Delete\' || event.key === \'ArrowLeft\' || event.key === \'ArrowRight\' || event.key === \'Tab\' || (event.key >= \'0\' && event.key <= \'9\');">';
+            $html .= '<button type="button" class="qty-btn-plus" style="flex: 0 0 44px; height: 100%; background: #f8fafc; border: none; border-left: 1px solid #e2e8f0; color: #374151; font-size: 1.25rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s;" onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'#f8fafc\'" onclick="increaseQty()">+</button>';
             $html .= '</div>';
             $html .= '</div>';
             break;
@@ -430,11 +459,35 @@ function get_service_field_scripts() {
 <script>
 let dimensionMode = 'preset';
 
+function toggleOtherInput(fieldKey, show) {
+    const container = document.getElementById(fieldKey + '_other_container');
+    if (container) {
+        container.style.display = show ? 'block' : 'none';
+        if (show) {
+            container.querySelector('input').focus();
+        } else {
+            container.querySelector('input').value = '';
+        }
+    }
+    
+    // If it's a radio group, and we pick something else, hide the 'other' container
+    if (!show) {
+        // Handled by onchange of other radios calling toggleOtherInput(..., false)
+    }
+}
+
+// Update updateOptVisual to hide other inputs if needed
+const originalUpdateOptVisual = window.updateOptVisual;
 function updateOptVisual(input) {
     const name = input.name;
     document.querySelectorAll('input[name="' + name + '"]').forEach(r => {
         const wrap = r.closest('.shopee-opt-btn');
         if (wrap) wrap.classList.toggle('active', r.checked);
+        
+        // Hide other input if this radio is checked and NOT 'Others'
+        if (r.checked && r.value !== 'Others') {
+            toggleOtherInput(name, false);
+        }
     });
 }
 

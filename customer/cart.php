@@ -66,7 +66,7 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <style>
-    body.customer-theme { background: #ffffff !important; }
+    /* body.customer-theme bg handled by customer-theme.css */
     .cart-theme-page {
         color: #1e293b;
     }
@@ -74,11 +74,12 @@ require_once __DIR__ . '/../includes/header.php';
         color: #0f172a !important;
     }
     .cart-theme-page .card {
-        background: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
+        background: rgba(0,49,61,0.85) !important;
+        border: 1px solid rgba(83,197,224,0.2) !important;
         border-radius: 1.25rem !important;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
         overflow: hidden;
+        backdrop-filter: blur(8px);
     }
     .cart-theme-page table {
         background: transparent !important;
@@ -211,9 +212,9 @@ require_once __DIR__ . '/../includes/header.php';
         
         .cart-theme-page .cart-row {
             display: block;
-            background: #ffffff !important;
-            border: 1px solid #e2e8f0 !important;
-            border-radius: 6px;
+            background: rgba(0,49,61,0.85) !important;
+            border: 1px solid rgba(83,197,224,0.2) !important;
+            border-radius: 8px;
             margin-bottom: 0.5rem;
             padding: 0.5rem;
             box-shadow: 0 1px 2px rgba(0,0,0,0.06);
@@ -1313,7 +1314,7 @@ function handleCartRowClick(row, event) {
                 console.log('✓ Extracted service_id:', extractedId, '- Redirecting to:', url);
                 window.location.href = url;
             } else {
-                alert('Cannot view this service item.');
+                showToast('Cannot view this service item.');
             }
         }
     } else if (itemOrigin === 'Product') {

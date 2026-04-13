@@ -160,32 +160,33 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <style>
-/* Orders Page — light/white background compatible */
+/* Orders Page — dark background compatible */
 .orders-theme-page {
-    --lp-text: #0f172a;
-    --lp-muted: #64748b;
-    --lp-border: #e2e8f0;
-    --lp-accent: #0a2530;
-    --lp-accent-l: #0e7490;
-    color: #0f172a;
+    --lp-text: #e0f2fe;
+    --lp-muted: #94a3b8;
+    --lp-border: rgba(83,197,224,0.18);
+    --lp-accent: #53c5e0;
+    --lp-accent-l: #7acae3;
+    color: #e0f2fe;
     position: relative;
     z-index: 1;
 }
 .orders-page-container { margin-top: 1rem; margin-bottom: 2rem; max-width: 1100px; margin-left: auto; margin-right: auto; padding: 0 1rem; }
 
 .unified-dashboard {
-    background: #ffffff;
-    border: 1px solid #e2e8f0 !important;
+    background: rgba(0,49,61,0.75);
+    border: 1px solid rgba(83,197,224,0.18) !important;
     border-radius: 12px !important;
     overflow: hidden;
     margin-bottom: 3rem;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    backdrop-filter: blur(8px);
 }
 
 .tt-tabs-wrapper {
     position: sticky; top: 0px; z-index: 40;
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0 !important;
+    background: rgba(0,28,36,0.95);
+    border-bottom: 1px solid rgba(83,197,224,0.15) !important;
     border-radius: 0 !important;
     padding: 0.75rem;
 }
@@ -205,40 +206,51 @@ require_once __DIR__ . '/../includes/header.php';
 }
 .tt-tabs::-webkit-scrollbar { display: none; }
 .tt-tab {
-    padding: 0.65rem 1rem;
-    font-size: 0.8rem;
-    color: #64748b;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.82rem;
+    color: #94a3b8;
     font-weight: 700;
     text-decoration: none;
-    border-radius: 6px !important;
-    transition: all 0.2s;
+    border-radius: 10px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.6rem;
+    border: 1px solid transparent;
 }
 @media (max-width: 640px) {
     .tt-tab { padding: 0.7rem 1.1rem; font-size: 0.85rem; }
 }
-.tt-tab:hover { color: #0f172a; background: #e2e8f0; }
-.tt-tab.active { background: #0a2530; color: #fff; }
+.tt-tab:hover { 
+    color: #eaf6fb; 
+    background: rgba(83,197,224,0.08); 
+    border-color: rgba(83,197,224,0.15);
+}
+.tt-tab.active { 
+    background: rgba(83, 197, 224, 0.15); 
+    color: #53c5e0; 
+    border-color: rgba(83, 197, 224, 0.4);
+    box-shadow: 0 4px 15px rgba(83, 197, 224, 0.1);
+}
 .tt-tab-count {
     font-size: 0.7rem;
-    background: rgba(0,0,0,0.08);
-    padding: 3px 7px;
-    border-radius: 4px !important;
-    opacity: 0.8;
+    background: rgba(255,255,255,0.05);
+    padding: 2px 7px;
+    border-radius: 6px !important;
+    font-weight: 800;
+    transition: all 0.3s;
 }
-@media (max-width: 640px) {
-    .tt-tab-count { font-size: 0.75rem; padding: 3px 8px; }
+.tt-tab.active .tt-tab-count { 
+    background: #53c5e0; 
+    color: #00151b;
 }
-.tt-tab.active .tt-tab-count { background: rgba(255,255,255,0.2); opacity: 1; }
 
-.orders-list-content { background: transparent; }
+.orders-list-content { background: transparent; min-height: 500px; }
 .ct-order-card {
     padding: 1.15rem 2rem;
-    transition: background 0.2s;
-    background: #ffffff !important;
+    transition: background 0.2s, border-color 0.2s;
+    background: transparent !important;
     border: none !important;
     border-radius: 0 !important;
     margin-bottom: 0 !important;
@@ -248,8 +260,8 @@ require_once __DIR__ . '/../includes/header.php';
 @media (max-width: 640px) {
     .ct-order-card { padding: 1.25rem 1rem; }
 }
-.ct-order-card + .ct-order-card { border-top: 1px solid #e2e8f0 !important; }
-.ct-order-card:hover { background: #f8fafc !important; }
+.ct-order-card + .ct-order-card { border-top: 1px solid rgba(83,197,224,0.1) !important; }
+.ct-order-card:hover { background: rgba(83,197,224,0.06) !important; }
 
 .card-top-row {
     display: flex;
@@ -349,12 +361,37 @@ require_once __DIR__ . '/../includes/header.php';
     }
     .action-button svg { width: 16px; height: 16px; }
 }
-.btn-chat { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-.btn-chat:hover { background: #e2e8f0; color: #0f172a; }
-.btn-main { background: #0a2530; color: #fff; border: 1px solid #0a2530; }
-.btn-main:hover { background: #0e3a4d; }
-.btn-rate-order { background: rgba(251,191,36,0.1); color: #b45309; border: 1px solid rgba(251,191,36,0.4); border-radius: 6px !important; }
-.btn-rate-order:hover { background: rgba(251,191,36,0.2); }
+.btn-chat { 
+    background: rgba(83, 197, 224, 0.1) !important; 
+    color: #eaf6fb !important; 
+    border: 1px solid rgba(83, 197, 224, 0.4) !important;
+    box-shadow: 0 0 10px rgba(83, 197, 224, 0.1);
+}
+.btn-chat:hover { 
+    background: #53c5e0 !important; 
+    color: #00151b !important; 
+    box-shadow: 0 0 20px rgba(83, 197, 224, 0.4);
+}
+.btn-main-blue { 
+    background: transparent !important; 
+    color: #eaf6fb !important; 
+    border: 1px solid #53c5e0 !important;
+}
+.btn-main-blue:hover { 
+    background: rgba(83, 197, 224, 0.1) !important; 
+    box-shadow: 0 0 15px rgba(83, 197, 224, 0.2);
+}
+.btn-rate-order { 
+    background: rgba(249, 115, 22, 0.1) !important; 
+    color: #f97316 !important; 
+    border: 1px solid rgba(249, 115, 22, 0.4) !important; 
+    border-radius: 10px !important; 
+}
+.btn-rate-order:hover { 
+    background: #f97316 !important; 
+    color: #fff !important; 
+    box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
+}
 
 .status-pill {
     display: inline-flex; align-items: center;
@@ -378,11 +415,17 @@ require_once __DIR__ . '/../includes/header.php';
 }
 
 .empty-view {
-    text-align: center; padding: 5rem 2rem;
-    background: transparent; border: none;
+    text-align: center; padding: 6rem 2rem;
+    background: rgba(0, 21, 27, 0.3); border-radius: 12px; border: 1px dashed rgba(83, 197, 224, 0.2);
 }
-.empty-view-title { font-size: 1.25rem; font-weight: 800; color: #0f172a; margin-bottom: 0.5rem; }
-.empty-view-sub { color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem; }
+.empty-view-title { font-size: 1.5rem; font-weight: 800; color: #eaf6fb; margin-bottom: 0.75rem; letter-spacing: 0.03em; }
+.empty-view-sub { color: #9fc4d4; font-size: 0.95rem; margin-bottom: 2rem; }
+.empty-view-btn {
+    display: inline-block; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 0.95rem; font-weight: 800; text-align: center; text-transform: uppercase; background: transparent; color: #eaf6fb; border: 2px solid #53c5e0; letter-spacing: 0.05em; transition: all 0.3s;
+}
+.empty-view-btn:hover {
+    background: rgba(83, 197, 224, 0.15); box-shadow: 0 0 20px rgba(83, 197, 224, 0.2);
+}
 
 /* Modal stays dark — it overlays everything */
 #itemsModal {
@@ -509,7 +552,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="empty-view">
                         <div class="empty-view-title">No orders found</div>
                         <div class="empty-view-sub">Orders from this category will show up here.</div>
-                        <a href="/printflow/customer/services.php" class="shopee-btn shopee-btn-buy" style="display: inline-block; text-decoration: none; padding: 7px 16px; border-radius: 3px; font-size: 0.8rem; font-weight: 600; text-align: center; text-transform: uppercase; background: #0a2530; color: #fff; border: none; cursor: pointer; transition: all 0.2s;">Browse Services</a>
+                        <a href="/printflow/customer/services.php" class="empty-view-btn">Browse Services</a>
                     </div>
                 <?php else: ?>
                     <?php foreach ($orders as $index => $order): ?>
@@ -574,14 +617,14 @@ require_once __DIR__ . '/../includes/header.php';
                                             Pay Now
                                         </a>
                                         <?php endif; ?>
-                                        <button class="action-button btn-main" style="padding: 0.45rem 0.85rem; font-size: 0.68rem;" onclick="openItemsModal(<?php echo $order['order_id']; ?>)">View Details</button>
+                                        <button class="action-button btn-main-blue" style="padding: 0.45rem 0.85rem; font-size: 0.68rem;" onclick="openItemsModal(<?php echo $order['order_id']; ?>)">View Details</button>
                                         <?php if (in_array($order['status'], ['Completed', 'To Rate', 'Rated'], true)): ?>
                                             <?php if (empty($order['rating_value'])): ?>
                                                 <a href="<?php echo BASE_URL; ?>/customer/rate_order.php?order_id=<?php echo $order['order_id']; ?>" class="action-button btn-rate-order" style="padding: 0.45rem 0.85rem; font-size: 0.68rem;">
                                                     ★ Rate
                                                 </a>
                                             <?php else: ?>
-                                                <a href="<?php echo BASE_URL; ?>/customer/reviews.php?order_id=<?php echo $order['order_id']; ?>" class="action-button btn-rate-order" style="padding: 0.45rem 0.85rem; font-size: 0.68rem; opacity: 0.7;">
+                                                <a href="<?php echo BASE_URL; ?>/customer/reviews.php?order_id=<?php echo $order['order_id']; ?>" class="action-button btn-rate-order" style="padding: 0.45rem 0.85rem; font-size: 0.68rem;">
                                                     ★ Rated
                                                 </a>
                                             <?php endif; ?>
@@ -774,42 +817,50 @@ function openItemsModal(orderId) {
             const reference = item.has_reference ? `<div class="block cursor-zoom-in" onclick="openLightbox('${item.reference_url}')"><div class="text-[9px] font-black text-slate-400 uppercase mb-1">Reference</div><img src="${item.reference_url}" class="im-thumb hover:scale-105 transition-transform" alt="Reference"></div>` : '';
 
             return `<tr>
-                <td style="min-width: 280px;">
-                    <div class="font-black text-white text-[15px] leading-tight mb-2 capitalize-first">${escIM(item.product_name)}</div>
-                    <div class="space-y-4">
-                        <div>
-                            <div class="text-[9px] font-bold text-slate-500 tracking-widest mb-1">Specifications</div>
-                            <div class="flex flex-wrap gap-1.5">${chips}</div>
+                <td style="min-width: 250px;">
+                    <div style="font-weight: 800; color: #fff; font-size: 0.95rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.02em;">${escIM(item.product_name)}</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem;">${chips}</div>
+                    
+                    ${design || reference ? `
+                        <div style="margin-top: 1rem;">
+                            <div style="font-size: 0.65rem; font-weight: 800; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">Uploaded Assets</div>
+                            <div style="display: flex; gap: 0.75rem;">${design}${reference}</div>
                         </div>
-                        ${design || reference ? `
-                            <div>
-                                <div class="text-[9px] font-bold text-slate-500 tracking-widest mb-1">Assets</div>
-                                <div class="flex gap-3">${design}${reference}</div>
-                            </div>
-                        ` : ''}
-                    </div>
+                    ` : ''}
                 </td>
-                <td class="text-center font-black text-slate-200 text-base">${item.quantity}</td>
-                <td class="font-black text-slate-300 text-[15px] whitespace-nowrap text-right">${escIM(item.unit_price).replace(' ', '&nbsp;')}</td>
-                <td class="font-black text-white text-[15px] whitespace-nowrap text-right">${escIM(item.subtotal).replace(' ', '&nbsp;')}</td>
+                <td style="text-align: center; vertical-align: middle;">
+                    <div style="font-size: 1.1rem; font-weight: 800; color: #eaf6fb;">${item.quantity}</div>
+                </td>
+                <td style="text-align: right; vertical-align: middle;">
+                    <div style="font-size: 0.9rem; font-weight: 700; color: #9fc4d4;">${escIM(item.unit_price)}</div>
+                </td>
+                <td style="text-align: right; vertical-align: middle;">
+                    <div style="font-size: 1rem; font-weight: 800; color: #53c5e0;">${escIM(item.subtotal)}</div>
+                </td>
             </tr>`;
         }).join('');
 
         document.getElementById('imBody').innerHTML = `
             <div class="im-dashboard">
-                <!-- Left: Order Items & Designs -->
                 <div class="im-main">
-                    <div class="overflow-x-auto">
+                    <div style="background: rgba(0, 28, 36, 0.5); border: 1px solid rgba(83, 197, 224, 0.15); border-radius: 12px; overflow: hidden;">
                         <table class="im-table">
-                            <thead><tr><th>Service detail</th><th class="text-center">Qty</th><th class="text-right">Price</th><th class="text-right">Total</th></tr></thead>
+                            <thead style="background: rgba(83, 197, 224, 0.05);">
+                                <tr>
+                                    <th style="padding: 1rem;">Service Description</th>
+                                    <th style="text-align: center; padding: 1rem;">Qty</th>
+                                    <th style="text-align: right; padding: 1rem;">Price</th>
+                                    <th style="text-align: right; padding: 1rem;">Total</th>
+                                </tr>
+                            </thead>
                             <tbody>${rows}</tbody>
                         </table>
                     </div>
-
+                    
                     ${data.notes ? `
-                        <div class="im-sec-card" style="border-left-color: var(--lp-accent-l); background: rgba(83, 197, 224, 0.03);">
-                            <div class="im-label text-blue-400">Order instructions</div>
-                            <div class="text-sm text-blue-100 font-medium italic capitalize-first">"${escIM(data.notes)}"</div>
+                        <div style="margin-top: 1.5rem; padding: 1.25rem; background: rgba(83, 197, 224, 0.05); border: 1px solid rgba(83, 197, 224, 0.2); border-left: 4px solid #53c5e0; border-radius: 12px;">
+                            <div style="font-size: 0.75rem; font-weight: 800; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Customer Notes</div>
+                            <div style="font-size: 0.95rem; color: #eaf6fb; font-style: italic; line-height: 1.6;">"${escIM(data.notes)}"</div>
                         </div>
                     ` : ''}
                 </div>
@@ -854,8 +905,8 @@ function openItemsModal(orderId) {
 
                         ${['Completed', 'To Rate', 'Rated'].includes(data.status) ? (
                             data.rating_data
-                                ? `<a href="/printflow/customer/reviews.php?order_id=${data.order_id}" class="w-full py-3 text-amber-400 text-xs font-black border border-amber-400/20 hover:bg-amber-400/10 transition-all tracking-widest flex items-center justify-center gap-2">★ View Your Review</a>`
-                                : `<a href="/printflow/customer/rate_order.php?order_id=${data.order_id}" class="w-full py-3 bg-amber-500/10 text-amber-400 text-xs font-black border border-amber-400/30 hover:bg-amber-400/20 transition-all tracking-widest flex items-center justify-center gap-2">★ Rate This Order</a>`
+                                ? `<a href="${data.rating_data.view_url}" class="w-full py-3.5 bg-[rgba(249,115,22,0.1)] text-[#f97316] text-[11px] font-black border border-[rgba(249,115,22,0.4)] hover:bg-[#f97316] hover:text-white transition-all tracking-widest flex items-center justify-center gap-2 rounded-xl">★ VIEW YOUR REVIEW</a>`
+                                : `<a href="/printflow/customer/rate_order.php?order_id=${data.order_id}" class="w-full py-3.5 bg-[rgba(249,115,22,0.1)] text-[#f97316] text-[11px] font-black border border-[rgba(249,115,22,0.4)] hover:bg-[#f97316] hover:text-white transition-all tracking-widest flex items-center justify-center gap-2 rounded-xl">★ RATE THIS ORDER</a>`
                         ) : ''}
 
                         ${data.can_cancel ? `
@@ -901,7 +952,7 @@ function submitOrderCancellation() {
     const reasonEl = document.querySelector('input[name="cancel_reason"]:checked');
     if (!reasonEl) return;
     const reason = reasonEl.value, details = document.getElementById('cmOtherInput').value;
-    if (reason === 'Other' && !details.trim()) { alert("Please specify the reason."); return; }
+    if (reason === 'Other' && !details.trim()) { showToast("Please specify the reason."); return; }
 
     const btn = document.getElementById('cmConfirmBtn');
     btn.disabled = true; btn.textContent = 'Processing...';
@@ -914,10 +965,10 @@ function submitOrderCancellation() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            alert("Order Cancelled Successfullly.");
+            showToast("Order Cancelled Successfullly.");
             window.location.reload();
         } else {
-            alert(data.error || "Failed to cancel.");
+            showToast(data.error || "Failed to cancel.");
             btn.disabled = false; btn.textContent = 'Cancel Order';
         }
     });
@@ -936,7 +987,7 @@ function handleDesignReupload(input, orderId, csrfToken) {
     .then(r => r.json())
     .then(res => {
         if (res.success) window.location.reload();
-        else alert(res.error || 'Upload failed');
+        else showToast(res.error || 'Upload failed');
     });
 }
 

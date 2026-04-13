@@ -47,6 +47,14 @@ function printflow_ensure_order_messages_schema(): void {
         @$conn->query($sql);
     }
     if ($check_file_type) $check_file_type->free();
+    
+    // Check and add is_pinned
+    $check_pinned = @$conn->query("SHOW COLUMNS FROM `order_messages` LIKE 'is_pinned'");
+    if ($check_pinned && $check_pinned->num_rows === 0) {
+        $sql = "ALTER TABLE `order_messages` ADD COLUMN `is_pinned` tinyint(1) DEFAULT 0 AFTER `file_name`";
+        @$conn->query($sql);
+    }
+    if ($check_pinned) $check_pinned->free();
 
     // Create message_reactions table if not exists
     $sql_reactions = "CREATE TABLE IF NOT EXISTS `message_reactions` (

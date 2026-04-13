@@ -115,26 +115,28 @@
                 var html = '';
                 for (var j = 0; j < data.notifications.length; j++) {
                     var n = data.notifications[j];
-                    var target = getNotifUrl(n.type, n.data_id, n.message, n.id, n.order_type);
+                    var target = n.target_link || getNotifUrl(n.type, n.data_id, n.message, n.id, (n.order_type || ''));
                     var unreadClass = n.is_read == 0 ? 'unread' : '';
-                    var type = (n.type || '').toLowerCase();
-                    var iconSvg = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>';
                     
-                    if (type.indexOf('order') !== -1 || type.indexOf('status') !== -1) {
-                        iconSvg = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>';
-                    } else if (type.indexOf('message') !== -1 || type.indexOf('chat') !== -1) {
-                        iconSvg = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>';
-                    } else if (type.indexOf('payment') !== -1) {
-                        iconSvg = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+                    var iconHtml = '<div class="pf-notif-item-icon default"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-14v4m0 0l-8-4m8 4v10l-8-4m0-10L4 7m8 4L4 7"/></svg></div>';
+
+                    var imageSrc = n.display_image || n.fallback_image || '';
+                    if (imageSrc) {
+                        var fallbackSrc = n.fallback_image || '';
+                        var fallback = fallbackSrc
+                            ? 'this.onerror=null;this.src=&quot;' + escHtml(fallbackSrc) + '&quot;;'
+                            : 'this.onerror=null;';
+                        iconHtml = '<div class="pf-notif-item-icon" style="background:transparent; padding:0; border:1px solid rgba(83,197,224,0.15);"><img src="' + escHtml(imageSrc) + '" style="width:100%; height:100%; object-fit:cover; border-radius:6px;" alt="" onerror="' + fallback + '"></div>';
                     }
 
                     html += '<a href="' + target + '" class="pf-notif-item ' + unreadClass + '">' +
-                            '  <div class="pf-notif-item-icon">' + iconSvg + '</div>' +
-                            '  <div class="pf-notif-item-content">' +
-                            '    <div class="pf-notif-item-text">' + escHtml(n.message) + '</div>' +
-                            '    <div class="pf-notif-item-time">' + timeAgo(n.created_at) + '</div>' +
-                            '  </div>' +
-                            '</a>';
+                        iconHtml +
+                        '<div class="pf-notif-item-content">' +
+                            (n.display_name ? '<div style="font-size:0.75rem; font-weight:800; color:#53c5e0; margin-bottom:2px;">' + escHtml(n.display_name) + '</div>' : '') +
+                            '<div class="pf-notif-item-text">' + escHtml(n.message) + '</div>' +
+                            '<div class="pf-notif-item-time">' + escHtml(n.time_ago || timeAgo(n.created_at)) + '</div>' +
+                        '</div>' +
+                    '</a>';
                 }
                 for (var k = 0; k < lists.length; k++) lists[k].innerHTML = html;
             })
@@ -171,6 +173,7 @@
             else if (t.indexOf('job') !== -1) url = base + '/customer/new_job_order.php';
             else if (t.indexOf('chat') !== -1 || t.indexOf('message') !== -1) url = did ? base + '/customer/chat.php?order_id=' + did : base + '/customer/messages.php';
             else if ((t.indexOf('design') !== -1 || t.indexOf('custom') !== -1) && did) url = base + '/customer/chat.php?order_id=' + did;
+            else if (t.indexOf('review') !== -1 || t.indexOf('rating') !== -1) url = did ? base + '/customer/orders.php?highlight=' + did : base + '/customer/orders.php?tab=completed';
             else url = base + '/customer/notifications.php';
         }
 
@@ -282,7 +285,7 @@
         schedulePoll();
     }
 
-    function markSeen(id) {} // Placeholder to avoid errors if called before definition
+
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();

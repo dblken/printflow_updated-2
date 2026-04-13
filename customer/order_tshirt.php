@@ -220,7 +220,7 @@ if ($display_img !== '' && strpos($display_img, 'http') === false && $display_im
         <div class="shopee-card">
             <!-- Left Side: Image -->
             <div class="shopee-image-section">
-                <div class="sticky top-24">
+                <div class="sticky-image-container">
                     <div class="shopee-main-image-wrap">
                         <img src="<?php echo htmlspecialchars($display_img ?: 'https://placehold.co/600x600/f8fafc/0f172a?text=T-Shirt'); ?>" alt="T-Shirt Printing" class="shopee-main-image" onerror="this.src='https://placehold.co/600x600/f8fafc/0f172a?text=T-Shirt'">
                     </div>
@@ -450,6 +450,7 @@ if ($display_img !== '' && strpos($display_img, 'http') === false && $display_im
 
 <style>
 /* Service Specific Tweaks */
+select, input, textarea, .input-field { border: 1px solid #53c5e0 !important; outline: none !important; box-shadow: none !important; border-radius: 0 !important; }
 .dim-label { font-size: 0.7rem; color: #94a3b8; font-weight: 600; margin-bottom: 4px; display: block; text-transform: uppercase; }
 .need-qty-row { display: flex; gap: 16px; width: 100%; }
 

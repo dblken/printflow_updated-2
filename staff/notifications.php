@@ -306,19 +306,19 @@ $page_title = 'Notifications - Staff';
     <div class="main-content">
         <header>
             <div>
-                <h1 class="page-title" style="margin-bottom:4px;">Notifications</h1>
-                <p style="font-size:14px;color:#6b7280;"><?php echo (int)$unread_count; ?> unread · <?php echo number_format($total_count); ?> matching this view</p>
+                <h1 class="page-title">Notifications</h1>
+                <p class="page-subtitle">Stay updated with system alerts and order events</p>
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
                 <button type="button" onclick="refreshNotifications()" class="btn-secondary" style="height:38px;padding:0 16px;font-size:13px;display:inline-flex;align-items:center;gap:6px;">
-                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                     </svg>
                     Refresh
                 </button>
                 <?php if ($unread_count > 0): ?>
                 <a href="?action=mark_all_read" class="notif-header-primary">
-                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
                     Mark All Read
@@ -327,60 +327,66 @@ $page_title = 'Notifications - Staff';
             </div>
         </header>
 
-        <main>        <?php if (empty($notifications)): ?>
-            <div class="card" style="text-align:center; padding:48px 24px;">
-                <div style="font-size:48px; margin-bottom:12px;">🔔</div>
-                <p style="color:#6b7280; font-size:14px;">No notifications yet</p>
-            </div>
-        <?php else: ?>
-            <div class="card" style="padding:0;overflow:hidden;">
-                <div class="notif-card-head" x-data="notifFilterPanel()">
-                    <div>
-                        <h3>Notifications</h3>
-                        <div class="notif-card-sub">Page <?php echo (int)$page; ?> of <?php echo (int)$total_pages; ?> · <?php echo number_format($total_count); ?> total</div>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                        <div style="position:relative;">
-                            <button type="button" class="toolbar-btn" :class="{active: filterOpen || hasActiveFilters}" @click="filterOpen = !filterOpen" style="height:38px;">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                                </svg>
-                                Filter
-                                <?php if ($notif_filter_badge > 0): ?>
-                                <span class="filter-badge"><?php echo (int)$notif_filter_badge; ?></span>
-                                <?php endif; ?>
-                            </button>
-                            <div class="filter-panel" x-show="filterOpen" x-cloak @click.outside="filterOpen = false">
-                                <div class="filter-panel-header">Filter</div>
-                                <div class="filter-section">
-                                    <div class="filter-section-head">
-                                        <span class="filter-section-label">Type</span>
-                                        <button type="button" class="filter-reset-link" onclick="notifResetField('filter')">Reset</button>
+        <main>
+            <?php if (empty($notifications)): ?>
+                <div class="card" style="text-align:center; padding:48px 24px;">
+                    <div style="font-size:48px; margin-bottom:12px;">🔔</div>
+                    <p style="color:#6b7280; font-size:14px;">No notifications yet</p>
+                </div>
+            <?php else: ?>
+                <!-- Standardized Toolbar -->
+                <div class="card overflow-visible" style="margin-bottom: 24px;">
+                    <div class="toolbar-container" x-data="notifFilterPanel()">
+                        <div>
+                            <h3 style="font-size:16px; font-weight:700; color:#1f2937; margin:0;">Activity Feed</h3>
+                            <div style="font-size:12px; color:#6b7280; margin-top:2px;">
+                                Page <?php echo (int)$page; ?> of <?php echo (int)$total_pages; ?> · <?php echo number_format($total_count); ?> total
+                            </div>
+                        </div>
+                        <div class="toolbar-group">
+                            <div style="position:relative;">
+                                <button type="button" class="toolbar-btn" :class="{active: filterOpen || hasActiveFilters}" @click="filterOpen = !filterOpen" style="height:38px;">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                                    Filter
+                                    <?php if ($notif_filter_badge > 0): ?>
+                                    <span class="filter-badge"><?php echo (int)$notif_filter_badge; ?></span>
+                                    <?php endif; ?>
+                                </button>
+                                <div class="dropdown-panel filter-panel" x-show="filterOpen" x-cloak @click.outside="filterOpen = false">
+                                    <div class="filter-header">Refine View</div>
+                                    <div class="filter-body">
+                                        <div class="filter-section">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                                <span class="filter-label">Type</span>
+                                                <button type="button" class="filter-reset-link" onclick="notifResetField('filter')">Reset</button>
+                                            </div>
+                                            <select id="nt_fp_filter" class="input-field" style="height:34px; padding:0 8px;">
+                                                <option value="all" <?php echo $filter === 'all' ? 'selected' : ''; ?>>All notifications</option>
+                                                <option value="unread" <?php echo $filter === 'unread' ? 'selected' : ''; ?>>Unread only</option>
+                                                <option value="Order" <?php echo $filter === 'Order' ? 'selected' : ''; ?>>Orders</option>
+                                                <option value="Stock" <?php echo $filter === 'Stock' ? 'selected' : ''; ?>>Inventory</option>
+                                                <option value="System" <?php echo $filter === 'System' ? 'selected' : ''; ?>>System</option>
+                                            </select>
+                                        </div>
+                                        <div class="filter-section">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                                <span class="filter-label">Keyword search</span>
+                                                <button type="button" class="filter-reset-link" onclick="notifResetField('search')">Reset</button>
+                                            </div>
+                                            <input type="text" id="nt_fp_search" class="input-field" style="height:34px; padding:0 8px;" placeholder="Search message..." value="<?php echo htmlspecialchars($search); ?>">
+                                        </div>
                                     </div>
-                                    <select id="nt_fp_filter" class="filter-select">
-                                        <option value="all" <?php echo $filter === 'all' ? 'selected' : ''; ?>>All notifications</option>
-                                        <option value="unread" <?php echo $filter === 'unread' ? 'selected' : ''; ?>>Unread only</option>
-                                        <option value="Order" <?php echo $filter === 'Order' ? 'selected' : ''; ?>>Orders</option>
-                                        <option value="Stock" <?php echo $filter === 'Stock' ? 'selected' : ''; ?>>Inventory</option>
-                                        <option value="System" <?php echo $filter === 'System' ? 'selected' : ''; ?>>System</option>
-                                    </select>
-                                </div>
-                                <div class="filter-section">
-                                    <div class="filter-section-head">
-                                        <span class="filter-section-label">Keyword search</span>
-                                        <button type="button" class="filter-reset-link" onclick="notifResetField('search')">Reset</button>
+                                    <div class="filter-footer">
+                                        <button type="button" class="btn-secondary" style="width:100%; height:38px;" onclick="notifResetAllFilters()">Reset all filters</button>
                                     </div>
-                                    <input type="text" id="nt_fp_search" class="filter-search-input" placeholder="Search message..." value="<?php echo htmlspecialchars($search); ?>">
-                                </div>
-                                <div class="filter-actions">
-                                    <button type="button" class="filter-btn-reset" style="width:100%;" onclick="notifResetAllFilters()">Reset all filters</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div style="padding:0 20px 12px;" id="notifications-container">
+                <div class="card" style="padding:0;overflow:hidden;">
+                    <div style="padding:0 20px 12px;" id="notifications-container">
                     <?php if (empty($notifications)): ?>
                         <div class="empty-notif">
                             <div class="empty-notif-icon">
@@ -417,15 +423,6 @@ $page_title = 'Notifications - Staff';
                                 $is_unread = !(int)$notif['is_read'];
                                 $target_url = staff_notification_target_url($notif);
 
-                                // Get order type for order notifications
-                                $order_type_label = null;
-                                if ($type_slug === 'order' && !empty($notif['data_id'])) {
-                                    $order_check = db_query("SELECT order_type FROM orders WHERE order_id = ? LIMIT 1", 'i', [(int)$notif['data_id']]);
-                                    if (!empty($order_check)) {
-                                        $order_type_label = $order_check[0]['order_type'] === 'custom' ? 'Service' : 'Product';
-                                    }
-                                }
-
                                 $iconSvg = match ($type_slug) {
                                     'order' => '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>',
                                     'stock' => '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>',
@@ -447,21 +444,12 @@ $page_title = 'Notifications - Staff';
                                         <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                         <?php echo htmlspecialchars(time_ago($notif['created_at'])); ?>
                                         <span class="type-pill <?php echo htmlspecialchars($type_slug); ?>"><?php echo htmlspecialchars($notif['type']); ?></span>
-                                        <?php if ($order_type_label): ?>
-                                        <span class="type-pill" style="background: <?php echo $order_type_label === 'Service' ? '#e0e7ff' : '#dcfce7'; ?>; color: <?php echo $order_type_label === 'Service' ? '#4338ca' : '#166534'; ?>;"><?php echo $order_type_label; ?></span>
-                                        <?php endif; ?>
                                     </div>
                                 </div>
                                 <div class="notif-actions-wrap">
-                                    <?php if ($is_unread): ?>
-                                    <button type="button" onclick="markAsRead(<?php echo (int)$notif['notification_id']; ?>)" class="btn-action btn-action-primary">
-                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                        Read
-                                    </button>
-                                    <?php endif; ?>
-                                    <button type="button" onclick="deleteNotification(<?php echo (int)$notif['notification_id']; ?>)" class="btn-action btn-action-danger">
-                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                        Delete
+                                    <button type="button" onclick='handleNotifClick(event, <?php echo (int)$notif['notification_id']; ?>, <?php echo htmlspecialchars(json_encode($target_url), ENT_QUOTES); ?>, <?php echo !(int)$notif['is_read'] ? "true" : "false"; ?>)' class="notif-action-btn" style="background:#06A1A1; color:#fff; border:none; padding:6px 12px; border-radius: 6px; cursor: pointer;">
+                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        View
                                     </button>
                                 </div>
                             </div>

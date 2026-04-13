@@ -111,10 +111,7 @@ foreach ($rows ?: [] as $r) {
         $is_online = (time() - $last_active) < 90; // Online if active in last 90s
     }
 
-    $customer_avatar = $r['customer_avatar'] ?? null;
-    if ($customer_avatar && strpos($customer_avatar, '/') === false) {
-        $customer_avatar = 'public/assets/uploads/profiles/' . $customer_avatar;
-    }
+    $customer_avatar = get_profile_image($r['customer_avatar'] ?? null);
 
     $conv = [
         'order_id' => (int)$r['order_id'],

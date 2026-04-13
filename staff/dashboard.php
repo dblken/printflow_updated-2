@@ -40,21 +40,11 @@ switch ($timeframe) {
         $timeframe_sql_no_alias = "YEAR(order_date) = YEAR(CURDATE()) AND MONTH(order_date) = MONTH(CURDATE())"; 
         $timeframe_label = "This Month"; 
         break;
-    case 'year': 
-        $timeframe_sql = "YEAR(o.order_date) = YEAR(CURDATE())"; 
-        $timeframe_sql_no_alias = "YEAR(order_date) = YEAR(CURDATE())"; 
-        $timeframe_label = "This Year"; 
-        break;
-    case 'all': 
-        $timeframe_sql = "1=1"; 
-        $timeframe_sql_no_alias = "1=1"; 
-        $timeframe_label = "All Time"; 
-        break;
 }
 
 // Get dashboard statistics (scoped to this staff member's branch)
 $pending_orders_result = db_query(
-    "SELECT COUNT(*) as count FROM orders WHERE status IN ('Pending', 'Pending Review', 'To Verify') AND branch_id = ?",
+    "SELECT COUNT(*) as count FROM orders WHERE status IN ('Pending', 'Pending Review') AND branch_id = ?",
     'i',
     [$staffBranchId]
 );
@@ -91,6 +81,29 @@ $total_orders_today = $today_orders_res[0]['count'] ?? 0;
 $sales_today_res = db_query("SELECT SUM(total_amount) as total FROM orders WHERE $timeframe_sql_no_alias AND status != 'Cancelled' AND branch_id = ?", 'i', [$staffBranchId]);
 $total_sales_today = $sales_today_res[0]['total'] ?? 0;
 
+// --- Dashboard Global/Summary Metrics ---
+$completed_products_res = db_query("
+    SELECT COUNT(DISTINCT o.order_id) as count 
+    FROM orders o 
+    JOIN order_items oi ON o.order_id = oi.order_id
+    JOIN products p ON oi.product_id = p.product_id
+    WHERE o.status = 'Completed' AND o.branch_id = ? AND o.order_type = 'product' AND $timeframe_sql_no_alias
+", 'i', [$staffBranchId]);
+$completed_products_count = $completed_products_res[0]['count'] ?? 0;
+
+$completed_custom_res = db_query("
+    SELECT COUNT(DISTINCT o.order_id) as count 
+    FROM orders o 
+    JOIN order_items oi ON o.order_id = oi.order_id
+    LEFT JOIN job_orders jo ON oi.order_item_id = jo.order_item_id
+    LEFT JOIN services s ON oi.product_id = s.service_id
+    WHERE o.status = 'Completed' AND o.branch_id = ? AND $timeframe_sql_no_alias
+      AND (s.service_id IS NOT NULL OR jo.id IS NOT NULL OR o.order_type = 'custom')
+", 'i', [$staffBranchId]);
+$completed_custom_count = $completed_custom_res[0]['count'] ?? 0;
+$pending_reviews_res = db_query("SELECT COUNT(*) as count FROM reviews");
+$pending_reviews_count = $pending_reviews_res[0]['count'] ?? 0;
+
 // Sales Overview (Last 7 Days) for Trend Chart (Scoped)
 $trend_labels = [];
 $trend_values = [];
@@ -101,13 +114,23 @@ for ($i = 6; $i >= 0; $i--) {
     $trend_values[] = (float)($res[0]['total'] ?? 0);
 }
 
-// Top Services (Last 30 Days) (Scoped)
+// Top Sales (Dynamic Timeframe) (Scoped)
+$ts_where = $timeframe_sql;
+if ($timeframe === 'all') $ts_where = "1=1";
+
 $top_services = db_query("
-    SELECT COALESCE(p.name, 'Custom Product') as name, COUNT(*) as order_count
+    SELECT COALESCE(p.name, s.name, 'Custom Product') as name, COUNT(*) as order_count
     FROM order_items oi
     JOIN orders o ON oi.order_id = o.order_id
     LEFT JOIN products p ON oi.product_id = p.product_id
-    WHERE o.order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND o.branch_id = ?
+    LEFT JOIN services s ON oi.product_id = s.service_id
+    WHERE $ts_where 
+      AND o.branch_id = ?
+      AND (
+          (p.product_id IS NOT NULL AND p.status = 'Activated')
+          OR (s.service_id IS NOT NULL AND s.status = 'Activated')
+          OR (p.product_id IS NULL AND s.service_id IS NULL)
+      )
     GROUP BY name
     ORDER BY order_count DESC
     LIMIT 5
@@ -157,6 +180,11 @@ $low_stock = db_query("
     ORDER BY stock_quantity ASC LIMIT 5
 ");
 
+// Define missing variables for KPI cards (Staff Dashboard)
+$active_orders_count = $pending_orders + $processing_orders + $ready_orders;
+$all_products_count = db_query("SELECT COUNT(*) as cnt FROM products WHERE status = 'Activated'")[0]['cnt'] ?? 0;
+$pending_reviews_count = db_query("SELECT COUNT(*) as cnt FROM reviews")[0]['cnt'] ?? 0;
+
 $page_title = 'Staff Dashboard - PrintFlow';
 
 ?>
@@ -167,6 +195,7 @@ $page_title = 'Staff Dashboard - PrintFlow';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title; ?></title>
     <link rel="stylesheet" href="/printflow/public/assets/css/output.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <?php include __DIR__ . '/../includes/admin_style.php'; ?>
     <style>
         /* Full-Width Executive Layout Extensions */
@@ -179,94 +208,6 @@ $page_title = 'Staff Dashboard - PrintFlow';
 
         .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
         .filter-bar .input-field, .filter-bar select { width: auto; min-width: 140px; height: 34px !important; font-size: 12px; }
-
-        /* Ultra-Fluid KPI Container */
-        .kpi-premium-container {
-            background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
-            border-radius: 16px;
-            padding: 20px 24px;
-            margin-bottom: 16px;
-            position: relative;
-            overflow: hidden;
-            border-bottom: 1px solid rgba(6, 161, 161, 0.1);
-        }
-        .kpi-bg-shape {
-            position: absolute;
-            background: linear-gradient(135deg, rgba(6, 161, 161, 0.1), rgba(6, 161, 161, 0.05));
-            border-radius: 50%;
-            pointer-events: none;
-            filter: blur(50px);
-            z-index: 1;
-        }
-        .shape-1 { width: 400px; height: 400px; top: -150px; right: -50px; animation: float 18s infinite alternate; }
-        .shape-2 { width: 300px; height: 300px; bottom: -80px; left: -80px; animation: float 15s infinite alternate-reverse; }
-
-        .kpi-header { 
-            position: relative; 
-            z-index: 2; 
-            margin-bottom: 20px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: flex-start;
-            flex-wrap: wrap;
-            gap: 16px;
-        }
-        .kpi-title-group { flex: 1; min-width: 300px; }
-        .kpi-title { font-size: 24px; font-weight: 900; color: #013a3a; margin: 0; letter-spacing: -0.02em; }
-        .kpi-subtitle { font-size: 12px; color: #064e3b; margin: 2px 0 0; opacity: 0.6; font-weight: 500; }
-
-        .kpi-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            position: relative;
-            z-index: 2;
-        }
-        @media (max-width: 1200px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 640px) { .kpi-row { grid-template-columns: 1fr; } }
-
-        .kpi-card-v2 {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            padding: 20px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-        .kpi-card-v2:hover { 
-            transform: translateY(-4px); 
-            background: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 15px 30px -10px rgba(6, 161, 161, 0.12); 
-            border-color: #06A1A1;
-        }
-        .kpi-v2-value { 
-            font-size: 26px; 
-            font-weight: 900; 
-            color: #013a3a; 
-            line-height: 1; 
-            margin-bottom: 8px; 
-            letter-spacing: -0.03em;
-        }
-        .kpi-v2-label { 
-            font-size: 10px; 
-            font-weight: 800; 
-            color: #06A1A1; 
-            text-transform: uppercase; 
-            letter-spacing: 0.08em;
-            opacity: 0.8;
-        }
-        .kpi-v2-sub { 
-            font-size: 10px; 
-            color: #475569; 
-            margin-top: 4px; 
-            font-weight: 600;
-            opacity: 0.5;
-        }
-        .kpi-card-indicator { position: absolute; top: 10px; right: 16px; width: 24px; height: 3px; border-radius: 2px; opacity: 0.3; }
 
         /* Full Width Card Adjustments */
         .card { padding: 20px; border-radius: 16px; margin-bottom: 16px; height: 100%; border: 1px solid #f1f5f9; position: relative; }
@@ -310,67 +251,102 @@ $page_title = 'Staff Dashboard - PrintFlow';
 <div class="dashboard-container">
     <?php include __DIR__ . '/../includes/staff_sidebar.php'; ?>
 
-    <div class="main-content" style="padding: 12px 12px 0;">
-        <main style="max-width: 100%;" id="dashboard-main">
-            <!-- PREMIUM KPI SECTION (Fluid Layout) -->
-            <div class="kpi-premium-container">
-                <div class="kpi-bg-shape shape-1"></div>
-                <div class="kpi-bg-shape shape-2"></div>
-                
-                <div class="kpi-header">
-                    <div class="kpi-title-group">
-                        <h2 class="kpi-title">Operations Distribution</h2>
-                        <p class="kpi-subtitle" id="kpi-subtitle">Metrics for <?php echo htmlspecialchars($timeframe_label); ?> at <?php echo htmlspecialchars($branch_name); ?></p>
-                    </div>
+    <div class="main-content" x-data="{ sortOpen: false, filterOpen: false, activeStatus: '<?php echo $status_filter; ?>', activeTimeframe: '<?php echo $timeframe; ?>' }">
+        <header>
+            <div>
+                <h1 class="page-title">Dashboard</h1>
+                <p class="page-subtitle" id="kpi-subtitle">Metrics for <?php echo htmlspecialchars($timeframe_label); ?> at <?php echo htmlspecialchars($branch_name); ?></p>
+            </div>
 
-                    <form method="GET" class="filter-bar" id="filter-form">
-                        <select name="status" id="filter-status" class="input-field">
-                            <option value="">All Statuses</option>
-                            <option value="Pending" <?php echo $status_filter === 'Pending' ? 'selected' : ''; ?>>Pending</option>
-                            <option value="To Verify" <?php echo $status_filter === 'To Verify' ? 'selected' : ''; ?>>To Verify</option>
-                            <option value="Processing" <?php echo $status_filter === 'Processing' ? 'selected' : ''; ?>>Processing</option>
-                            <option value="Ready for Pickup" <?php echo $status_filter === 'Ready for Pickup' ? 'selected' : ''; ?>>Ready</option>
-                            <option value="Completed" <?php echo $status_filter === 'Completed' ? 'selected' : ''; ?>>Completed</option>
-                            <option value="Cancelled" <?php echo $status_filter === 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option>
-                        </select>
-                        <select name="timeframe" id="filter-timeframe" class="input-field">
-                            <option value="today" <?php echo $timeframe === 'today' ? 'selected' : ''; ?>>Today</option>
-                            <option value="week" <?php echo $timeframe === 'week' ? 'selected' : ''; ?>>This Week</option>
-                            <option value="month" <?php echo $timeframe === 'month' ? 'selected' : ''; ?>>This Month</option>
-                        </select>
-                        <a href="pos.php" class="btn-primary" style="text-decoration: none; height: 34px; display: flex; align-items: center; padding: 0 16px; font-size: 13px;">
-                            POS (Walk-in)
-                        </a>
-                    </form>
+            <div class="toolbar-group" style="display: flex; gap: 12px; align-items: center;">
+                <!-- Timeframe (Sort) -->
+                <div style="position:relative;">
+                    <button class="toolbar-btn" :class="{ active: sortOpen }" @click="sortOpen = !sortOpen; filterOpen = false">
+                        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span x-text="activeTimeframe.charAt(0).toUpperCase() + activeTimeframe.slice(1)">Today</span>
+                    </button>
+                    <div class="dropdown-panel sort-dropdown" x-show="sortOpen" x-cloak @click.outside="sortOpen = false">
+                        <a href="#" class="sort-option" :class="{ active: activeTimeframe === 'today' }" @click.prevent="activeTimeframe = 'today'; sortOpen = false; $nextTick(() => refreshDashboard(1))">Today</a>
+                        <a href="#" class="sort-option" :class="{ active: activeTimeframe === 'week' }" @click.prevent="activeTimeframe = 'week'; sortOpen = false; $nextTick(() => refreshDashboard(1))">This Week</a>
+                        <a href="#" class="sort-option" :class="{ active: activeTimeframe === 'month' }" @click.prevent="activeTimeframe = 'month'; sortOpen = false; $nextTick(() => refreshDashboard(1))">This Month</a>
+                    </div>
                 </div>
+
+                <!-- Status Filter -->
+                <div style="position:relative;">
+                    <button class="toolbar-btn" :class="{ active: filterOpen || activeStatus }" @click="filterOpen = !filterOpen; sortOpen = false">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                        Status: <span x-text="activeStatus ? activeStatus : 'All'"></span>
+                    </button>
+                    <div class="dropdown-panel sort-dropdown" x-show="filterOpen" x-cloak @click.outside="filterOpen = false">
+                        <a href="#" class="sort-option" :class="{ active: !activeStatus }" @click.prevent="activeStatus = ''; filterOpen = false; $nextTick(() => refreshDashboard(1))">All Statuses</a>
+                        <a href="#" class="sort-option" :class="{ active: activeStatus === 'Pending' }" @click.prevent="activeStatus = 'Pending'; filterOpen = false; $nextTick(() => refreshDashboard(1))">Pending</a>
+                        <a href="#" class="sort-option" :class="{ active: activeStatus === 'Processing' }" @click.prevent="activeStatus = 'Processing'; filterOpen = false; $nextTick(() => refreshDashboard(1))">Processing</a>
+                        <a href="#" class="sort-option" :class="{ active: activeStatus === 'Ready for Pickup' }" @click.prevent="activeStatus = 'Ready for Pickup'; filterOpen = false; $nextTick(() => refreshDashboard(1))">Ready</a>
+                        <a href="#" class="sort-option" :class="{ active: activeStatus === 'Completed' }" @click.prevent="activeStatus = 'Completed'; filterOpen = false; $nextTick(() => refreshDashboard(1))">Completed</a>
+                    </div>
+                </div>
+
+                <!-- Hidden inputs for JS to read state -->
+                <input type="hidden" id="filter-status" :value="activeStatus">
+                <input type="hidden" id="filter-timeframe" :value="activeTimeframe">
+
+                <a href="pos.php" class="toolbar-btn" style="background:#0d9488; border-color:#0d9488; color:#fff;">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    POS
+                </a>
+            </div>
+        </header>
+
+        <main id="dashboard-main">
+            <!-- Loading Indicator -->
+            <div class="loading-progress"></div>
+            
+            <div style="margin-bottom: 24px;">
 
                 <div class="kpi-row content-transition">
-                    <div class="kpi-card-v2">
-                        <div class="kpi-card-indicator" style="background: #06A1A1;"></div>
-                        <div class="kpi-v2-value" id="stat-revenue" style="color: #06A1A1;">₱<?php echo number_format($total_sales_today, 2); ?></div>
-                        <div class="kpi-v2-label">Total Revenue</div>
-                        <div class="kpi-v2-sub">Gross branch income</div>
-                    </div>
-                    <div class="kpi-card-v2">
-                        <div class="kpi-card-indicator" style="background: #064e3b;"></div>
-                        <div class="kpi-v2-value" id="stat-total-orders"><?php echo $total_orders_today; ?></div>
-                        <div class="kpi-v2-label">Total Orders</div>
-                        <div class="kpi-v2-sub">Requests processed</div>
-                    </div>
-                    <div class="kpi-card-v2">
-                        <div class="kpi-card-indicator" style="background: #d97706;"></div>
-                        <div class="kpi-v2-value" id="stat-pending" style="color: #d97706;"><?php echo $pending_orders; ?></div>
-                        <div class="kpi-v2-label">Pending</div>
-                        <div class="kpi-v2-sub">Active reviews</div>
-                    </div>
-                    <div class="kpi-card-v2">
-                        <div class="kpi-card-indicator" style="background: #059669;"></div>
-                        <div class="kpi-v2-value" id="stat-completed" style="color: #059669;"><?php echo $completed_today; ?></div>
-                        <div class="kpi-v2-label">Completed</div>
-                        <div class="kpi-v2-sub">Finished today</div>
-                    </div>
+                    <!-- 1. Completed Product Orders -->
+                    <a href="orders.php?type=products&status=COMPLETED" class="kpi-card indigo kpi-card--link" title="View product orders">
+                        <span class="kpi-card-inner">
+                            <span class="kpi-label">Completed Product Orders</span>
+                            <span class="kpi-value" id="stat-completed-products"><?php echo number_format($completed_products_count); ?></span>
+                            <span class="kpi-sub">Fixed products</span>
+                            <span class="kpi-card-cta">View details →</span>
+                        </span>
+                    </a>
+
+                    <!-- 2. Completed Customized Orders -->
+                    <a href="customizations.php" class="kpi-card emerald kpi-card--link" title="View customized orders">
+                        <span class="kpi-card-inner">
+                            <span class="kpi-label">Completed Customized Orders</span>
+                            <span class="kpi-value" id="stat-completed-custom"><?php echo number_format($completed_custom_count); ?></span>
+                            <span class="kpi-sub">Customizable services</span>
+                            <span class="kpi-card-cta">View details →</span>
+                        </span>
+                    </a>
+
+                    <!-- 3. Reviews -->
+                    <a href="reviews.php" class="kpi-card amber kpi-card--link" title="View reviews">
+                        <span class="kpi-card-inner">
+                            <span class="kpi-label">Reviews</span>
+                            <span class="kpi-value" id="stat-pending"><?php echo number_format($pending_reviews_count); ?></span>
+                            <span class="kpi-sub">Service feedback</span>
+                            <span class="kpi-card-cta">Action Needed →</span>
+                        </span>
+                    </a>
+
+                    <!-- 4. Revenue / Reports -->
+                    <a href="reports.php" class="kpi-card blue kpi-card--link" title="View reports">
+                        <span class="kpi-card-inner">
+                            <span class="kpi-label">Total Revenue</span>
+                            <span class="kpi-value" id="stat-revenue">₱<?php echo number_format($total_sales_today, 2); ?></span>
+                            <span class="kpi-sub">Gross branch income</span>
+                            <span class="kpi-card-cta">View Reports →</span>
+                        </span>
+                    </a>
                 </div>
             </div>
+
             <!-- SALES & TOP SERVICES ROW -->
             <div class="grid-cols-3" style="margin-bottom: 16px;">
                 <div class="card">
@@ -385,7 +361,7 @@ $page_title = 'Staff Dashboard - PrintFlow';
                 <div class="card">
                     <div class="loading-progress"></div>
                     <div class="content-transition">
-                        <div style="font-size: 16px; font-weight: 700; color: #013a3a; margin-bottom: 16px;">Top Services (30 Days)</div>
+                        <div id="top-sales-title" style="font-size: 16px; font-weight: 700; color: #013a3a; margin-bottom: 16px;">Top Sales (<?php echo $timeframe_label; ?>)</div>
                         <div style="margin-top: 10px;" id="top-services-list">
                             <?php if (!empty($top_services)): ?>
                                 <?php foreach ($top_services as $service): ?>
@@ -486,12 +462,14 @@ async function refreshDashboard(page = 1) {
 
         // 3. Update DOM with micro-animations
         updateMetric('stat-revenue', data.stats.formatted_revenue || '₱0.00');
-        updateMetric('stat-total-orders', data.stats.total_orders);
-        updateMetric('stat-pending', data.stats.pending);
-        updateMetric('stat-completed', data.stats.completed);
+        updateMetric('stat-completed-products', data.stats.completed_products);
+        updateMetric('stat-completed-custom', data.stats.completed_custom);
         
         const subtitleEl = document.getElementById('kpi-subtitle');
         if (subtitleEl) subtitleEl.textContent = `Metrics for ${data.timeframe_label} at <?php echo addslashes($branch_name); ?>`;
+
+        const salesTitleEl = document.getElementById('top-sales-title');
+        if (salesTitleEl) salesTitleEl.textContent = `Top Sales (${data.timeframe_label})`;
 
         // Top Services list update
         const servicesList = document.getElementById('top-services-list');

@@ -15,20 +15,19 @@ $staffBranchId = printflow_branch_filter_for_user() ?? (int)($_SESSION['branch_i
 $range = $_GET['range'] ?? 'week';
 $report_date = $_GET['date'] ?? date('Y-m-d');
 
-// Define parameters based on the selected range
-if ($range === 'year') {
-    $interval_label = 'Last 12 Months';
-    $group_by = "DATE_FORMAT(order_date, '%Y-%m')"; // 2023-05
-    $sql_interval = '11 MONTH';
-} elseif ($range === 'month') {
-    $interval_label = 'Last 30 Days';
-    $group_by = "DATE(order_date)";
-    $sql_interval = '29 DAY';
+if ($range === 'month') {
+    $interval_label = 'This Month';
+    $group_by = "DATE(o.order_date)";
+    $date_condition = "YEAR(o.order_date) = YEAR(CURDATE()) AND MONTH(o.order_date) = MONTH(CURDATE())";
+} elseif ($range === 'today') {
+    $interval_label = 'Today';
+    $group_by = "HOUR(o.order_date)";
+    $date_condition = "DATE(o.order_date) = CURDATE()";
 } else {
     $range = 'week';
-    $interval_label = 'Last 7 Days';
-    $group_by = "DATE(order_date)";
-    $sql_interval = '6 DAY';
+    $interval_label = 'This Week';
+    $group_by = "DATE(o.order_date)";
+    $date_condition = "YEARWEEK(o.order_date, 1) = YEARWEEK(CURDATE(), 1)";
 }
 
 $status_filter = $_GET['status'] ?? 'ALL';
@@ -43,19 +42,19 @@ if ($status_filter !== 'ALL' && !empty($status_filter)) {
 
 // ---- 1. RANGE-AWARE KPI METRICS (DYNAMIC) ----
 // Total revenue for THE SELECTED PERIOD (Paid only)
-$rev_res = db_query("SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL $sql_interval) AND payment_status = 'Paid' AND branch_id = ? $status_where", ($status_t ? "i" . $status_t : "i"), array_merge([$staffBranchId], $status_p));
+$rev_res = db_query("SELECT COALESCE(SUM(total_amount), 0) as total FROM orders o WHERE $date_condition AND payment_status = 'Paid' AND branch_id = ? $status_where", ($status_t ? "i" . $status_t : "i"), array_merge([$staffBranchId], $status_p));
 $period_revenue = $rev_res[0]['total'] ?? 0;
 
 // Total orders count for THE SELECTED PERIOD
-$ord_res = db_query("SELECT COUNT(*) as count FROM orders WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL $sql_interval) AND branch_id = ? $status_where", ($status_t ? "i" . $status_t : "i"), array_merge([$staffBranchId], $status_p));
+$ord_res = db_query("SELECT COUNT(*) as count FROM orders o WHERE $date_condition AND branch_id = ? $status_where", ($status_t ? "i" . $status_t : "i"), array_merge([$staffBranchId], $status_p));
 $period_orders = $ord_res[0]['count'] ?? 0;
 
 // Pending/Active orders received in THE SELECTED PERIOD (if status is not filtered specifically)
 $active_statuses_sql = "status IN ('Pending', 'Pending Review', 'Pending Verification', 'Approved', 'Downpayment Submitted', 'In Production')";
 if ($status_filter !== 'ALL') {
-    $pend_res = db_query("SELECT COUNT(*) as count FROM orders WHERE status = ? AND branch_id = ? AND order_date >= DATE_SUB(CURDATE(), INTERVAL $sql_interval)", 'si', [$status_filter, $staffBranchId]);
+    $pend_res = db_query("SELECT COUNT(*) as count FROM orders o WHERE status = ? AND branch_id = ? AND $date_condition", 'si', [$status_filter, $staffBranchId]);
 } else {
-    $pend_res = db_query("SELECT COUNT(*) as count FROM orders WHERE $active_statuses_sql AND branch_id = ? AND order_date >= DATE_SUB(CURDATE(), INTERVAL $sql_interval)", 'i', [$staffBranchId]);
+    $pend_res = db_query("SELECT COUNT(*) as count FROM orders o WHERE $active_statuses_sql AND branch_id = ? AND $date_condition", 'i', [$staffBranchId]);
 }
 $pending_period_orders = $pend_res[0]['count'] ?? 0;
 
@@ -70,8 +69,8 @@ $low_stock_count = $stock_res[0]['count'] ?? 0;
 // ---- 2. REVENUE TREND (DYNAMIC) ----
 $trend_res = db_query("
     SELECT $group_by as dte, COALESCE(SUM(total_amount), 0) as daily_total 
-    FROM orders 
-    WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL $sql_interval) AND branch_id = ?
+    FROM orders o 
+    WHERE $date_condition AND branch_id = ?
     $status_where
     GROUP BY dte
     ORDER BY dte ASC
@@ -81,18 +80,20 @@ $trend_res = db_query("
 $trend_dates = [];
 $trend_totals = [];
 
-if ($range === 'year') {
-    for ($i = 11; $i >= 0; $i--) {
-        $date_str = date('Y-m', strtotime("-$i months"));
-        $trend_dates[] = date('M Y', strtotime($date_str . '-01'));
-        
+if ($range === 'today') {
+    for ($i = 0; $i <= date('H'); $i++) {
+        $h_str = str_pad($i, 2, '0', STR_PAD_LEFT);
+        $trend_dates[] = $h_str . ':00';
         $found = 0;
-        foreach ($trend_res as $r) { if ($r['dte'] === $date_str) { $found = (float)$r['daily_total']; break; } }
+        foreach ($trend_res as $r) { if ((int)$r['dte'] === $i) { $found = (float)$r['daily_total']; break; } }
         $trend_totals[] = $found;
     }
 } elseif ($range === 'month') {
-    for ($i = 29; $i >= 0; $i--) {
-        $date_str = date('Y-m-d', strtotime("-$i days"));
+    $days_in_month = (int)date('d'); // Plot up to today
+    $current_month_prefix = date('Y-m');
+    for ($i = 1; $i <= $days_in_month; $i++) {
+        $day_str = str_pad($i, 2, '0', STR_PAD_LEFT);
+        $date_str = $current_month_prefix . '-' . $day_str;
         $trend_dates[] = date('M d', strtotime($date_str));
         
         $found = 0;
@@ -100,9 +101,11 @@ if ($range === 'year') {
         $trend_totals[] = $found;
     }
 } else {
-    for ($i = 6; $i >= 0; $i--) {
-        $date_str = date('Y-m-d', strtotime("-$i days"));
-        $trend_dates[] = date('M d', strtotime($date_str));
+    $monday = strtotime('monday this week');
+    $days_to_plot = (int)date('N', strtotime('today')); // 1=Mon, 7=Sun
+    for ($i = 0; $i < $days_to_plot; $i++) {
+        $date_str = date('Y-m-d', strtotime("+$i days", $monday));
+        $trend_dates[] = date('D', strtotime($date_str));
         
         $found = 0;
         foreach ($trend_res as $r) { if ($r['dte'] === $date_str) { $found = (float)$r['daily_total']; break; } }
@@ -118,8 +121,8 @@ $std_statuses = [
 
 $status_res = db_query("
     SELECT status, COUNT(*) as status_count 
-    FROM orders 
-    WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL $sql_interval) AND branch_id = ?
+    FROM orders o
+    WHERE $date_condition AND branch_id = ?
     GROUP BY status
 ", 'i', [$staffBranchId]);
 
@@ -143,7 +146,7 @@ $top_products = db_query("
     FROM order_items oi
     JOIN orders o ON oi.order_id = o.order_id
     JOIN products p ON oi.product_id = p.product_id
-    WHERE o.order_date >= DATE_SUB(CURDATE(), INTERVAL $sql_interval) AND o.branch_id = ?
+    WHERE $date_condition AND o.branch_id = ?
     GROUP BY oi.product_id
     ORDER BY total_sold DESC
     LIMIT 5
@@ -163,31 +166,6 @@ $page_title = 'Visual Reports & Analytics';
         .rpt-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
         @media (max-width: 1024px) { .rpt-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 640px) { .rpt-kpi-grid { grid-template-columns: 1fr; } }
-
-        .kpi-box { 
-            background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; 
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); display: flex; align-items: center; gap: 16px;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .kpi-box:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
-        
-        .kpi-icon-wrap { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-        .kpi-green { background: #dcfce7; color: #15803d; }
-        .kpi-blue { background: #dbeafe; color: #1d4ed8; }
-        .kpi-amber { background: #fef3c7; color: #b45309; }
-        .kpi-red { background: #fee2e2; color: #b91c1c; }
-
-        .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 2px; letter-spacing: 0.05em; display: block; }
-        .kpi-value { 
-            font-size: clamp(18px, 4vw, 24px); 
-            font-weight: 800; 
-            color: #0f172a; 
-            line-height: 1.2; 
-            display: block; 
-            white-space: nowrap !important; 
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-        }
 
         .dashboard-grid {
             display: grid;
@@ -225,78 +203,103 @@ $page_title = 'Visual Reports & Analytics';
     <!-- Sidebar -->
     <?php include __DIR__ . '/../includes/staff_sidebar.php'; ?>
 
-    <div class="main-content">
-        <header style="margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: flex-end;">
-            <div style="flex: 1; min-width: 300px;">
+    <div class="main-content" x-data="{ filterOpen: false, activeStatus: '<?php echo $_GET['status'] ?? 'ALL'; ?>', activeRange: '<?php echo $range; ?>', hasActiveFilters: <?php echo (($_GET['status']??'ALL') !== 'ALL' || $range !== 'week') ? 'true' : 'false'; ?> }">
+        <header>
+            <div>
                 <h1 class="page-title">Visual Reports & Analytics</h1>
-                <p style="color:#64748b; font-size:14px; margin-top:4px;">A quick overview of business performance and metrics.</p>
+                <p class="page-subtitle">A quick overview of business performance and metrics.</p>
             </div>
             
-            <div style="display: flex; gap: 8px; align-items: center; justify-content: flex-end;">
-                <!-- Status Filter -->
-                <select id="report-status-select" name="status" onchange="window.location.href='?range=<?php echo $range; ?>&status=' + this.value" style="width: 150px; padding: 7px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; font-size: 13px; font-weight: 700; color: #334155; cursor: pointer; outline: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                    <option value="ALL">All Statuses</option>
-                    <?php 
-                    $all_opts = ['Pending', 'Processing', 'Ready for Pickup', 'Completed', 'Cancelled', 'Pending Review', 'Approved', 'Downpayment Submitted', 'To Pay'];
-                    foreach($all_opts as $opt): 
-                        $sel = (isset($_GET['status']) && $_GET['status'] === $opt) ? 'selected' : '';
-                    ?>
-                        <option value="<?php echo $opt; ?>" <?php echo $sel; ?>><?php echo $opt; ?></option>
-                    <?php endforeach; ?>
-                </select>
+            <div class="toolbar-group">
+                <!-- Filter Button -->
+                <div style="position:relative;">
+                    <button class="toolbar-btn" :class="{ active: filterOpen || hasActiveFilters }" @click="filterOpen = !filterOpen">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                        Filter
+                        <template x-if="hasActiveFilters">
+                            <span class="filter-badge"><?php echo (($_GET['status']??'ALL')!=='ALL' ? 1 : 0) + ($range!=='week' ? 1 : 0); ?></span>
+                        </template>
+                    </button>
 
-                <!-- Range Selector -->
-                <select id="report-range-select" name="range" onchange="window.location.href='?status=<?php echo $_GET['status'] ?? 'ALL'; ?>&range=' + this.value" style="width: 140px; padding: 7px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; font-size: 13px; font-weight: 700; color: #334155; cursor: pointer; outline: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                    <option value="week" <?php echo $range === 'week' ? 'selected' : ''; ?>>7 Days</option>
-                    <option value="month" <?php echo $range === 'month' ? 'selected' : ''; ?>>30 Days</option>
-                    <option value="year" <?php echo $range === 'year' ? 'selected' : ''; ?>>12 Months</option>
-                </select>
+                    <!-- Filter Panel -->
+                    <div class="dropdown-panel filter-panel" x-show="filterOpen" x-cloak @click.outside="filterOpen = false">
+                        <form id="reports-filter-form" method="GET" action="reports.php">
+                            <div class="filter-header">Filter Analytics</div>
+                            
+                            <!-- Status -->
+                            <div class="filter-section">
+                                <div class="filter-section-head">
+                                    <span class="filter-label" style="margin:0;">Status</span>
+                                    <button type="button" @click="activeStatus = 'ALL'; document.getElementById('reports-filter-form').submit()" class="filter-reset-link">Reset</button>
+                                </div>
+                                <select name="status" class="filter-select" x-model="activeStatus" @change="document.getElementById('reports-filter-form').submit()">
+                                    <option value="ALL">All Statuses</option>
+                                    <?php 
+                                    $all_opts = ['Pending', 'Processing', 'Ready for Pickup', 'Completed', 'Cancelled', 'Pending Review', 'Approved', 'Downpayment Submitted', 'To Pay'];
+                                    foreach($all_opts as $opt): ?>
+                                        <option value="<?php echo htmlspecialchars($opt); ?>"><?php echo htmlspecialchars($opt); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <!-- Range -->
+                            <div class="filter-section">
+                                <div class="filter-section-head">
+                                    <span class="filter-label" style="margin:0;">Time Range</span>
+                                    <button type="button" @click="activeRange = 'week'; document.getElementById('reports-filter-form').submit()" class="filter-reset-link">Reset</button>
+                                </div>
+                                <select name="range" class="filter-select" x-model="activeRange" @change="document.getElementById('reports-filter-form').submit()">
+                                    <option value="today">Today</option>
+                                    <option value="week">This Week</option>
+                                    <option value="month">This Month</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-footer">
+                                <a href="reports.php" class="filter-btn-reset" style="display:flex; align-items:center; justify-content:center; text-decoration:none; width: 100%;">Reset all filters</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
 
                 <!-- Export Button -->
-                <a href="export_reports.php?range=<?php echo $range; ?>&status=<?php echo $_GET['status'] ?? 'ALL'; ?>" 
-                   style="height: 34px; display: inline-flex; align-items: stretch; border-radius: 8px; overflow: hidden; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #374151; flex-shrink: 0;"
-                   class="btn-excel-split">
-                   <span style="background: #374151; color: #fff; padding: 0 14px; font-size: 11px; font-weight: 900; display: flex; align-items: center; letter-spacing: 0.1em;">EXPORT</span>
-                   <span style="background: #06A1A1; padding: 0 10px; display: flex; align-items: center; justify-content: center; border-left: 1px solid rgba(255,255,255,0.1);">
-                       <svg width="14" height="14" fill="none" stroke="#fff" viewBox="0 0 24 24" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-                           <path d="M12 5v14M19 12l-7 7-7-7"></path>
-                       </svg>
-                   </span>
+                <a href="export_reports.php?range=<?php echo $range; ?>&status=<?php echo $_GET['status'] ?? 'ALL'; ?>" class="toolbar-btn" style="background:#0d9488; border-color:#0d9488; color:#fff;">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Export
                 </a>
             </div>
         </header>
 
         <main>
             <!-- ROW 1: QUICK PERFORMANCE METRICS -->
-            <div class="rpt-kpi-grid">
-                <div class="kpi-box">
-                    <div class="kpi-icon-wrap kpi-green"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
-                    <div class="kpi-content">
+            <div class="kpi-row">
+                <div class="kpi-card emerald">
+                    <span class="kpi-card-inner">
                         <span class="kpi-label"><?php echo $interval_label; ?> Revenue</span>
-                        <span class="kpi-value" style="display:block; margin-top:2px;"><?php echo format_currency($period_revenue); ?></span>
-                    </div>
+                        <span class="kpi-value"><?php echo format_currency($period_revenue); ?></span>
+                        <span class="kpi-sub">Total branch earnings</span>
+                    </span>
                 </div>
-                <div class="kpi-box">
-                    <div class="kpi-icon-wrap kpi-blue"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg></div>
-                    <div class="kpi-content">
+                <div class="kpi-card blue">
+                    <span class="kpi-card-inner">
                         <span class="kpi-label"><?php echo $interval_label; ?> Orders</span>
-                        <span class="kpi-value" style="display:block; margin-top:2px;"><?php echo $period_orders; ?> <small style="font-size:14px;color:#94a3b8;">orders</small></span>
-                    </div>
+                        <span class="kpi-value"><?php echo $period_orders; ?> <small style="font-size:14px;color:#94a3b8;font-weight:600;">orders</small></span>
+                        <span class="kpi-sub">Requests received</span>
+                    </span>
                 </div>
-                <div class="kpi-box">
-                    <div class="kpi-icon-wrap kpi-amber"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
-                    <div class="kpi-content">
+                <div class="kpi-card amber">
+                    <span class="kpi-card-inner">
                         <span class="kpi-label">Active Jobs</span>
-                        <span class="kpi-value" style="display:block; margin-top:2px;"><?php echo $pending_period_orders; ?></span>
-                        <div style="font-size:10px; color:#64748b; font-weight:700; margin-top:4px;">(<?php echo $global_backlog; ?> total backlog)</div>
-                    </div>
+                        <span class="kpi-value"><?php echo $pending_period_orders; ?></span>
+                        <span class="kpi-sub"><?php echo $global_backlog; ?> total backlog</span>
+                    </span>
                 </div>
-                <div class="kpi-box">
-                    <div class="kpi-icon-wrap kpi-red"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div>
-                    <div class="kpi-content">
+                <div class="kpi-card rose">
+                    <span class="kpi-card-inner">
                         <span class="kpi-label">Low Stock</span>
-                        <span class="kpi-value" style="display:block; margin-top:2px;"><?php echo $low_stock_count; ?> <small style="font-size:14px;color:#94a3b8;">items</small></span>
-                    </div>
+                        <span class="kpi-value"><?php echo $low_stock_count; ?> <small style="font-size:14px;color:#94a3b8;font-weight:600;">items</small></span>
+                        <span class="kpi-sub">Finished goods alert</span>
+                    </span>
                 </div>
             </div>
 
@@ -310,9 +313,9 @@ $page_title = 'Visual Reports & Analytics';
                             <div class="chart-title">Revenue Trend</div>
                             <div class="chart-subtitle">
                                 <?php 
-                                    if ($range === 'year') echo "Income over the past 12 months";
-                                    elseif ($range === 'month') echo "Income over the past 30 days";
-                                    else echo "Income over the past 7 days"; 
+                                    if ($range === 'month') echo "Income over this month";
+                                    elseif ($range === 'today') echo "Income generated today";
+                                    else echo "Income over this week"; 
                                 ?>
                             </div>
                         </div>
@@ -329,9 +332,9 @@ $page_title = 'Visual Reports & Analytics';
                             <div class="chart-title">Order Status</div>
                             <div class="chart-subtitle">
                                 <?php 
-                                    if ($range === 'year') echo "Distribution over the past 12 months";
-                                    elseif ($range === 'month') echo "Distribution over the past 30 days";
-                                    else echo "Distribution over the past 7 days"; 
+                                    if ($range === 'month') echo "Distribution over this month";
+                                    elseif ($range === 'today') echo "Distribution for today";
+                                    else echo "Distribution over this week"; 
                                 ?>
                             </div>
                         </div>
@@ -352,9 +355,9 @@ $page_title = 'Visual Reports & Analytics';
                             <div class="chart-title">Top Selling Products</div>
                             <div class="chart-subtitle">
                                 <?php 
-                                    if ($range === 'year') echo "Most popular items ordered in the last 12 months";
-                                    elseif ($range === 'month') echo "Most popular items ordered in the last 30 days";
-                                    else echo "Most popular items ordered in the last 7 days"; 
+                                    if ($range === 'month') echo "Most popular items ordered this month";
+                                    elseif ($range === 'today') echo "Most popular items ordered today";
+                                    else echo "Most popular items ordered this week"; 
                                 ?>
                             </div>
                         </div>

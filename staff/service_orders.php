@@ -87,16 +87,59 @@ $page_title = 'Service Orders - Staff';
     <?php include __DIR__ . '/../includes/staff_sidebar.php'; ?>
     <div class="main-content">
         <header>
-            <h1 class="page-title">Service Orders</h1>
-            <div class="flex gap-2">
-                <a href="service_orders.php" class="btn-secondary">All</a>
-                <a href="service_orders.php?status=Pending" class="btn-secondary">Pending</a>
-                <a href="service_orders.php?status=Processing" class="btn-secondary">Processing</a>
-                <a href="service_orders.php?status=Completed" class="btn-secondary">Completed</a>
+            <div>
+                <h1 class="page-title">Service Orders</h1>
+                <p class="page-subtitle">Manage custom service requests and specialized print jobs</p>
             </div>
         </header>
+
         <main>
-            <div class="card overflow-x-auto">
+            <?php
+            // Calculate KPIs for service orders
+            $total_count = db_query("SELECT COUNT(*) as count FROM service_orders")[0]['count'] ?? 0;
+            $pending_count = db_query("SELECT COUNT(*) as count FROM service_orders WHERE status = 'Pending'")[0]['count'] ?? 0;
+            $processing_count = db_query("SELECT COUNT(*) as count FROM service_orders WHERE status = 'Processing'")[0]['count'] ?? 0;
+            $completed_count = db_query("SELECT COUNT(*) as count FROM service_orders WHERE status = 'Completed'")[0]['count'] ?? 0;
+            ?>
+
+            <!-- Standardized KPI Row -->
+            <div class="kpi-row">
+                <div class="kpi-card indigo">
+                    <span class="kpi-label">Total Requests</span>
+                    <span class="kpi-value"><?php echo number_format($total_count); ?></span>
+                    <span class="kpi-sub"><?php echo $completed_count; ?> completed</span>
+                </div>
+                <div class="kpi-card amber">
+                    <span class="kpi-label">Pending Review</span>
+                    <span class="kpi-value"><?php echo $pending_count; ?></span>
+                    <span class="kpi-sub">New service requests</span>
+                </div>
+                <div class="kpi-card blue">
+                    <span class="kpi-label">Active Jobs</span>
+                    <span class="kpi-value"><?php echo $processing_count; ?></span>
+                    <span class="kpi-sub">Currently in progress</span>
+                </div>
+                <div class="kpi-card emerald">
+                    <span class="kpi-label">Fulfillment Rate</span>
+                    <span class="kpi-value" style="font-size:18px; line-height:36px;"><?php echo round(($completed_count / max(1, $total_count)) * 100); ?>%</span>
+                    <span class="kpi-sub">Completed request ratio</span>
+                </div>
+            </div>
+
+            <!-- Standardized Toolbar -->
+            <div class="card overflow-visible" style="margin-bottom: 24px;">
+                <div class="toolbar-container">
+                    <h3 style="font-size:16px; font-weight:700; color:#1f2937; margin:0;">Request list</h3>
+                    <div class="toolbar-group">
+                        <a href="service_orders.php" class="toolbar-btn <?php echo !$filter ? 'active' : ''; ?>">All</a>
+                        <a href="service_orders.php?status=Pending" class="toolbar-btn <?php echo $filter === 'Pending' ? 'active' : ''; ?>">Pending</a>
+                        <a href="service_orders.php?status=Processing" class="toolbar-btn <?php echo $filter === 'Processing' ? 'active' : ''; ?>">Processing</a>
+                        <a href="service_orders.php?status=Completed" class="toolbar-btn <?php echo $filter === 'Completed' ? 'active' : ''; ?>">Completed</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b-2 bg-gray-50">

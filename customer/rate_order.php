@@ -47,11 +47,11 @@ if (!in_array((string)$order['status'], ['Completed', 'To Rate', 'Rated'], true)
 }
 
 // Check if already rated in the new reviews table
-$existing = db_query("SELECT id, rating, message, created_at FROM reviews WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
+$existing = db_query("SELECT id, rating, comment, created_at FROM reviews WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
 $already_rated = !empty($existing);
 $review_id = $already_rated ? (int)$existing[0]['id'] : 0;
 $existing_rating = $already_rated ? (int)$existing[0]['rating'] : 0;
-$existing_message = $already_rated ? (string)($existing[0]['message'] ?? '') : '';
+$existing_message = $already_rated ? (string)($existing[0]['comment'] ?? '') : '';
 // Allow re-edit if message was never properly saved
 $needs_message_update = $already_rated && (trim($existing_message) === '' || $existing_message === '(No comment provided)');
 
@@ -112,23 +112,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // 3. Image Upload Validation (Max 5)
-            if ($error === '' && !empty($_FILES['review_images']['name'][0])) {
+            if ($error === '' && !empty($_FILES['review_images']['name'])) {
                 $files = $_FILES['review_images'];
-                $count = count($files['name']);
-                if ($count > 5) {
+                // Handle both single and multiple file uploads re-indexing
+                $file_count = is_array($files['name']) ? count($files['name']) : 1;
+                
+                if ($file_count > 5) {
                     $error = 'You can only upload up to 5 images.';
                 } else {
-                    for ($i = 0; $i < $count; $i++) {
+                    for ($i = 0; $i < $file_count; $i++) {
                         $f = [
-                            'name' => $files['name'][$i],
-                            'type' => $files['type'][$i],
-                            'tmp_name' => $files['tmp_name'][$i],
-                            'error' => $files['error'][$i],
-                            'size' => $files['size'][$i]
+                            'name'     => is_array($files['name']) ? $files['name'][$i] : $files['name'],
+                            'type'     => is_array($files['type']) ? $files['type'][$i] : $files['type'],
+                            'tmp_name' => is_array($files['tmp_name']) ? $files['tmp_name'][$i] : $files['tmp_name'],
+                            'error'    => is_array($files['error']) ? $files['error'][$i] : $files['error'],
+                            'size'     => is_array($files['size']) ? $files['size'][$i] : $files['size']
                         ];
+                        
+                        // Skip empty slots if any
+                        if (empty($f['name'])) continue;
+
                         $upload = upload_file($f, ['jpg', 'jpeg', 'png', 'webp'], 'reviews_images');
                         if (empty($upload['success'])) {
-                            $error = $upload['error'] ?? 'Failed to upload one of the images.';
+                            $error = $upload['error'] ?? 'Failed to upload image ' . ($i + 1);
                             break;
                         } else {
                             $uploaded_images[] = $upload['file_path'];
@@ -149,20 +155,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     if ($needs_message_update) {
-                        // Update existing review with the message
+                        // Update existing review
                         db_execute(
-                            "UPDATE reviews SET rating = ?, message = ? WHERE id = ?",
-                            'isi',
-                            [$rating, $message, $review_id]
+                            "UPDATE reviews SET rating = ?, comment = ?, video_path = COALESCE(?, video_path) WHERE id = ?",
+                            'issi',
+                            [$rating, $message, $video_path, $review_id]
                         );
                         $new_review_id = $review_id;
                     } else {
                         // Insert new review
                         db_execute(
-                            "INSERT INTO reviews (order_id, customer_id, service_type, rating, message, created_at)
-                             VALUES (?, ?, ?, ?, ?, NOW())",
-                            'iisis',
-                            [$order_id, $customer_id, $service_type_label, $rating, $message]
+                            "INSERT INTO reviews (order_id, user_id, service_type, rating, comment, video_path, review_type, reference_id, created_at)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                            'iisisssi',
+                            [$order_id, $customer_id, $service_type_label, $rating, $message, $video_path, $rev_type, $ref_id]
                         );
                         $new_review_id = db_query("SELECT LAST_INSERT_ID() as id")[0]['id'];
                     }
@@ -196,33 +202,38 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <style>
-.rate-wrap { max-width: 760px; margin: 0 auto; padding: 1rem; }
+.rate-wrap { max-width: 1200px; margin: 0 auto; padding: 1rem; }
 .rate-card { background: linear-gradient(165deg, rgba(10, 37, 48, 0.94), rgba(7, 26, 34, 0.96)); border: 1px solid rgba(83, 197, 224, 0.25); border-radius: 1.25rem; padding: 2.5rem; box-shadow: 0 20px 45px rgba(0, 0, 0, .45); }
-.rate-title { font-size: 1.75rem; font-weight: 800; color: #ffffff; margin: 0 0 0.5rem; letter-spacing: -0.01em; }
-.rate-sub { font-size: 1rem; font-weight: 500; color: #a6e7f6; margin: 0 0 1.5rem; }
-.rate-stars { display: flex; gap: 10px; margin-bottom: 1.5rem; }
-.rate-star-btn { width: 52px; height: 52px; border: 1px solid rgba(83, 197, 224, 0.2); border-radius: 0.85rem; background: rgba(0, 21, 27, 0.45); color: #374151; font-size: 32px; line-height: 1; cursor: pointer; transition: all .24s; display: flex; align-items: center; justify-content: center; padding-bottom: 4px; }
+.rate-title { font-size: 1.75rem; font-weight: 800; color: #ffffff; margin: 0 0 0.5rem; letter-spacing: -0.01em; font-family: inherit; }
+.rate-sub { font-size: 1rem; font-weight: 500; color: #a6e7f6; margin: 0 0 1.75rem; font-family: inherit; }
+
+/* Two-column layout */
+.rate-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; align-items: start; }
+@media (max-width: 768px) { .rate-columns { grid-template-columns: 1fr; gap: 1.5rem; } }
+
+.rate-stars { display: flex; gap: 10px; margin-bottom: 1.75rem; flex-wrap: wrap; }
+.rate-star-btn { width: 52px; height: 52px; border: 1px solid rgba(83, 197, 224, 0.2); border-radius: 0.85rem; background: rgba(0, 21, 27, 0.45); color: #374151; font-size: 32px; line-height: 1; cursor: pointer; transition: all .24s; display: flex; align-items: center; justify-content: center; padding-bottom: 4px; font-family: inherit; }
 .rate-star-btn:hover { border-color: #f59e0b; color: #f59e0b; background: rgba(245, 158, 11, 0.08); transform: translateY(-3px); box-shadow: 0 6px 15px rgba(245, 158, 11, 0.15); }
 .rate-star-btn.active { border-color: #f59e0b; background: rgba(245, 158, 11, 0.12); color: #f59e0b; box-shadow: 0 6px 15px rgba(245, 158, 11, 0.2); }
 .rate-star-btn:disabled { cursor: default; transform: none !important; opacity: 1 !important; }
-.rate-label { display: block; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #9be2f3; margin-bottom: 0.6rem; }
-.rate-textarea { width: 100%; min-height: 150px; border: 1px solid rgba(83, 197, 224, 0.28); border-radius: 1rem; background: rgba(0, 21, 27, 0.6); color: #f8fafc; padding: 1.25rem; font-size: 1rem; resize: vertical; outline: none; transition: all 0.2s; line-height: 1.6; }
+.rate-label { display: block; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #9be2f3; margin-bottom: 0.6rem; font-family: inherit; }
+.rate-textarea { width: 100%; min-height: 200px; border: 1px solid rgba(83, 197, 224, 0.28); border-radius: 1rem; background: rgba(0, 21, 27, 0.6); color: #f8fafc; padding: 1.25rem; font-size: 1rem; font-family: inherit; resize: vertical; outline: none; transition: all 0.2s; line-height: 1.6; box-sizing: border-box; }
 .rate-textarea:focus { border-color: #53c5e0; background: rgba(0, 21, 27, 0.82); box-shadow: 0 0 0 4px rgba(83, 197, 224, 0.18); }
-.rate-textarea::placeholder { color: #5a7b8c; }
+.rate-textarea::placeholder { color: #5a7b8c; font-family: inherit; }
 
-.upload-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; margin-top: 10px; }
-.upload-box { position: relative; aspect-ratio: 1; border: 2px dashed rgba(83, 197, 224, 0.3); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9be2f3; cursor: pointer; transition: all 0.2s; overflow: hidden; background: rgba(0, 21, 27, 0.4); }
+.upload-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; margin-top: 10px; }
+.upload-box { position: relative; aspect-ratio: 1; border: 2px dashed rgba(83, 197, 224, 0.3); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9be2f3; cursor: pointer; transition: all 0.2s; overflow: hidden; background: rgba(0, 21, 27, 0.4); font-family: inherit; }
 .upload-box:hover { border-color: #53c5e0; background: rgba(83, 197, 224, 0.08); }
 .upload-box img, .upload-box video { width: 100%; height: 100%; object-fit: cover; }
-.upload-box .remove-btn { position: absolute; top: 4px; right: 4px; background: rgba(220, 38, 38, 0.8); color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; border: none; cursor: pointer; }
+.upload-box .remove-btn { position: absolute; top: 4px; right: 4px; background: rgba(220, 38, 38, 0.8); color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; border: none; cursor: pointer; font-family: inherit; }
 
-.rate-actions { margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
-.rate-btn-primary { background: linear-gradient(135deg, #53c5e0, #32a1c4); color: #ffffff !important; border: none; border-radius: 0.85rem; padding: 1rem 2rem; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.25s; box-shadow: 0 6px 18px rgba(50, 161, 196, 0.3); text-transform: uppercase; letter-spacing: 0.04em; }
+.rate-actions { margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+.rate-btn-primary { background: linear-gradient(135deg, #53c5e0, #32a1c4); color: #ffffff !important; border: none; border-radius: 0.85rem; padding: 1rem 2rem; font-weight: 700; font-size: 1rem; font-family: inherit; cursor: pointer; transition: all 0.25s; box-shadow: 0 6px 18px rgba(50, 161, 196, 0.3); text-transform: uppercase; letter-spacing: 0.04em; }
 .rate-btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, #32a1c4, #2788a8); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(50, 161, 196, 0.45); }
 .rate-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.rate-btn-secondary { background: rgba(10, 37, 48, 0.6); color: #e2e8f0; border: 1px solid rgba(83, 197, 224, 0.25); border-radius: 0.85rem; padding: 0.95rem 1.75rem; font-weight: 600; font-size: 1rem; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.rate-btn-secondary { background: rgba(10, 37, 48, 0.6); color: #e2e8f0; border: 1px solid rgba(83, 197, 224, 0.25); border-radius: 0.85rem; padding: 0.95rem 1.75rem; font-weight: 600; font-size: 1rem; font-family: inherit; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .rate-btn-secondary:hover { background: rgba(15, 54, 70, 0.9); border-color: #53c5e0; color: #fff; }
-.rate-error { background: rgba(220, 38, 38, 0.15); border: 1px solid rgba(220, 38, 38, 0.35); color: #fecaca; border-radius: 0.85rem; padding: 1.15rem 1.5rem; margin-bottom: 2rem; font-size: 0.95rem; font-weight: 600; }
+.rate-error { background: rgba(220, 38, 38, 0.15); border: 1px solid rgba(220, 38, 38, 0.35); color: #fecaca; border-radius: 0.85rem; padding: 1.15rem 1.5rem; margin-bottom: 2rem; font-size: 0.95rem; font-weight: 600; font-family: inherit; }
 </style>
 
 <div class="min-h-screen py-10">
@@ -248,48 +259,56 @@ require_once __DIR__ . '/../includes/header.php';
                     <input type="hidden" id="ratingInput" name="rating" value="<?php echo $needs_message_update ? $existing_rating : ''; ?>">
                     <?php echo csrf_field(); ?>
 
-                    <label class="rate-label">Star Rating <span style="color:#ef4444">*</span></label>
-                    <div class="rate-stars" id="starButtons">
-                        <?php for($i=1;$i<=5;$i++): ?>
-                        <button type="button" class="rate-star-btn <?php echo ($needs_message_update && $i <= $existing_rating) ? 'active' : ''; ?>" data-value="<?php echo $i; ?>">★</button>
-                        <?php endfor; ?>
-                    </div>
+                    <div class="rate-columns">
+                        <!-- Left Column: Rating & Media -->
+                        <div class="rate-col-left">
+                            <label class="rate-label">Star Rating <span style="color:#ef4444">*</span></label>
+                            <div class="rate-stars" id="starButtons">
+                                <?php for($i=1;$i<=5;$i++): ?>
+                                <button type="button" class="rate-star-btn <?php echo ($needs_message_update && $i <= $existing_rating) ? 'active' : ''; ?>" data-value="<?php echo $i; ?>">★</button>
+                                <?php endfor; ?>
+                            </div>
 
-                    <label class="rate-label" for="messageInput">Write a Review <span style="color:#ef4444">*</span></label>
-                    <textarea id="messageInput" class="rate-textarea" name="message" required placeholder="Tell us about the print quality, the service, or anything you liked... (5-500 characters)"><?php echo $needs_message_update ? '' : ''; ?></textarea>
-                    <div id="charCount" style="text-align: right; font-size: 11px; color: #5a7b8c; margin-top: 4px;">0 / 500</div>
+                            <div style="margin-top:1.5rem;">
+                                <label class="rate-label">Add Photos (Max 5)</label>
+                                <div class="upload-grid" id="imageGrid">
+                                    <label class="upload-box" id="addImageBtn">
+                                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                        <span style="font-size: 10px; margin-top:4px; font-family: inherit;">Add Photo</span>
+                                        <input type="file" name="review_images[]" id="imageInput" multiple accept="image/*" style="display:none">
+                                    </label>
+                                </div>
+                            </div>
 
-                    <div style="margin-top:2rem;">
-                        <label class="rate-label">Add Photos (Max 5)</label>
-                        <div class="upload-grid" id="imageGrid">
-                            <label class="upload-box" id="addImageBtn">
-                                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                                <span style="font-size: 10px; margin-top:4px;">Add Photo</span>
-                                <input type="file" name="review_images[]" id="imageInput" multiple accept="image/*" style="display:none">
-                            </label>
-                        </div>
-                    </div>
-
-                    <div style="margin-top:2rem;">
-                        <label class="rate-label">Add Video (Max 1 MP4, 15MB)</label>
-                        <div id="videoContainer">
-                            <label class="upload-box" id="addVideoBtn" style="width: 100px; height: 100px;">
-                                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                                <span style="font-size: 10px; margin-top:4px;">Add Video</span>
-                                <input type="file" name="review_video" id="videoInput" accept="video/mp4" style="display:none">
-                            </label>
-                            <div id="videoPreviewArea" style="display:none; margin-top:10px;">
-                                <div style="position:relative; width: 240px; aspect-ratio: 16/9; border-radius:12px; overflow:hidden; border:1px solid rgba(83,197,224,0.3)">
-                                    <video id="videoPreview" controls style="width:100%; height:100%; object-fit:cover;"></video>
-                                    <button type="button" class="remove-btn" onclick="removeVideo()" style="top:8px; right:8px; width:24px; height:24px;">×</button>
+                            <div style="margin-top:2rem;">
+                                <label class="rate-label">Add Video (Max 1 MP4, 15MB)</label>
+                                <div id="videoContainer">
+                                    <label class="upload-box" id="addVideoBtn" style="width: 100px; height: 100px;">
+                                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                        <span style="font-size: 10px; margin-top:4px; font-family: inherit;">Add Video</span>
+                                        <input type="file" name="review_video" id="videoInput" accept="video/mp4" style="display:none">
+                                    </label>
+                                    <div id="videoPreviewArea" style="display:none; margin-top:10px;">
+                                        <div style="position:relative; width: 240px; aspect-ratio: 16/9; border-radius:12px; overflow:hidden; border:1px solid rgba(83,197,224,0.3)">
+                                            <video id="videoPreview" controls style="width:100%; height:100%; object-fit:cover;"></video>
+                                            <button type="button" class="remove-btn" onclick="removeVideo()" style="top:8px; right:8px; width:24px; height:24px; font-family: inherit;">×</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="rate-actions">
-                        <button type="submit" id="submitBtn" class="rate-btn-primary">Submit Review</button>
-                        <a class="rate-btn-secondary" href="/printflow/customer/orders.php?tab=completed">Skip for now</a>
+                        <!-- Right Column: Textarea & Submit -->
+                        <div class="rate-col-right">
+                            <label class="rate-label" for="messageInput">Write a Review <span style="color:#ef4444">*</span></label>
+                            <textarea id="messageInput" class="rate-textarea" name="message" required maxlength="500" placeholder="Tell us about the print quality, the service, or anything you liked... (5-500 characters)"><?php echo $needs_message_update ? '' : ''; ?></textarea>
+                            <div id="charCount" style="text-align: right; font-size: 11.5px; color: #9be2f3; margin-top: 6px; font-family: inherit; font-weight: 500;">0 / 500</div>
+
+                            <div class="rate-actions" style="justify-content: flex-end; margin-top: 2rem;">
+                                <a class="rate-btn-secondary" href="/printflow/customer/orders.php?tab=completed">Skip for now</a>
+                                <button type="submit" id="submitBtn" class="rate-btn-primary">Submit Review</button>
+                            </div>
+                        </div>
                     </div>
                 </form>
             <?php endif; ?>
@@ -325,9 +344,12 @@ require_once __DIR__ . '/../includes/header.php';
     // Char Count
     if (messageInput) {
         messageInput.addEventListener('input', function() {
+            if (this.value.length > 500) {
+                this.value = this.value.slice(0, 500);
+            }
             const len = this.value.length;
             charCount.textContent = `${len} / 500`;
-            charCount.style.color = len > 500 ? '#ef4444' : '#5a7b8c';
+            charCount.style.color = len >= 500 ? '#ef4444' : '#9be2f3';
         });
     }
 
@@ -336,7 +358,7 @@ require_once __DIR__ . '/../includes/header.php';
         imageInput.addEventListener('change', function() {
             const newFiles = Array.from(this.files);
             if (selectedFiles.length + newFiles.length > 5) {
-                alert('Maximum 5 images allowed.');
+                showToast('Maximum 5 images allowed.');
                 this.value = '';
                 return;
             }
@@ -344,7 +366,7 @@ require_once __DIR__ . '/../includes/header.php';
             newFiles.forEach(file => {
                 if (!file.type.startsWith('image/')) return;
                 if (file.size > 5 * 1024 * 1024) {
-                    alert(`${file.name} is too large. Max 5MB.`);
+                    showToast(`${file.name} is too large. Max 5MB.`);
                     return;
                 }
                 
@@ -371,9 +393,10 @@ require_once __DIR__ . '/../includes/header.php';
     }
 
     function updateFileInput() {
-        // Since we can't easily programmatically set FileList, 
-        // in a real app we'd use FormData. Here we'll just rely on the last set input or alert on submit.
-        // But for simplicity in this implementation, we'll keep it as is.
+        if (!imageInput) return;
+        const dt = new DataTransfer();
+        selectedFiles.forEach(file => dt.items.add(file));
+        imageInput.files = dt.files;
     }
 
     // Video Upload & Preview
@@ -382,12 +405,12 @@ require_once __DIR__ . '/../includes/header.php';
             const file = this.files[0];
             if (!file) return;
             if (file.type !== 'video/mp4') {
-                alert('Only MP4 videos are allowed.');
+                showToast('Only MP4 videos are allowed.');
                 this.value = '';
                 return;
             }
             if (file.size > 15 * 1024 * 1024) {
-                alert('Video too large. Max 15MB.');
+                showToast('Video too large. Max 15MB.');
                 this.value = '';
                 return;
             }
@@ -411,13 +434,13 @@ require_once __DIR__ . '/../includes/header.php';
         const rating = Number(ratingInput.value || 0);
         
         if (rating < 1 || rating > 5) {
-            alert('Please select a star rating.');
+            showToast('Please select a star rating.');
             return false;
         }
 
         const msg = messageInput.value.trim();
         if (msg.length < 5) {
-            alert('Please share at least 5 characters of feedback.');
+            showToast('Please share at least 5 characters of feedback.');
             return false;
         }
         

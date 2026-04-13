@@ -17,7 +17,7 @@ $success = '';
 function service_name_exists(string $name, int $excludeId = 0): bool {
     $name = trim($name);
     $rows = db_query(
-        "SELECT service_id FROM services WHERE LOWER(TRIM(name)) = LOWER(?) AND service_id != ?",
+        "SELECT service_id FROM services WHERE LOWER(TRIM(name)) = LOWER(?) AND service_id != ? AND status != 'Archived'",
         'si',
         [$name, $excludeId]
     );
@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
             // Check if video
             elseif (strpos($file_type, 'video/') === 0) {
                 $allowed_vid = ['mp4', 'webm', 'mov', 'avi'];
-                if (in_array($file_ext, $allowed_vid) && $file_size <= 50 * 1024 * 1024 && empty($uploaded_video)) {
+                if (in_array($file_ext, $allowed_vid) && $file_size <= 100 * 1024 * 1024 && empty($uploaded_video)) {
                     $upload_dir = __DIR__ . '/../public/assets/videos/services/';
                     if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
                     
@@ -192,8 +192,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
         $success = 'Service archived successfully!';
     } elseif (isset($_POST['restore_service'])) {
         $service_id = (int)$_POST['service_id'];
-        db_execute("UPDATE services SET status = 'Activated', updated_at = NOW() WHERE service_id = ?", 'i', [$service_id]);
-        $success = 'Service restored successfully!';
+        
+        // Get the name of the service we want to restore
+        $svc_to_restore = db_query("SELECT name FROM services WHERE service_id = ?", 'i', [$service_id]);
+        $svc_name = $svc_to_restore[0]['name'] ?? '';
+        
+        if (service_name_exists($svc_name, $service_id)) {
+            $error = 'Cannot restore: An active service with this name already exists.';
+        } else {
+            db_execute("UPDATE services SET status = 'Activated', updated_at = NOW() WHERE service_id = ?", 'i', [$service_id]);
+            $success = 'Service restored successfully!';
+        }
     } elseif (isset($_POST['delete_service'])) {
         $service_id = (int)$_POST['service_id'];
         $current = db_query("SELECT status FROM services WHERE service_id = ?", 'i', [$service_id]);
@@ -1196,8 +1205,8 @@ function handleMediaUpload(input) {
                 alert('Maximum 1 video allowed');
                 continue;
             }
-            if (file.size > 50 * 1024 * 1024) {
-                alert(`Video "${file.name}" exceeds 50MB limit`);
+            if (file.size > 100 * 1024 * 1024) {
+                alert(`Video "${file.name}" exceeds 100MB limit`);
                 continue;
             }
             videos.push({ file, type: 'video' });

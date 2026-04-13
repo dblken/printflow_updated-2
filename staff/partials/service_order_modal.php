@@ -34,7 +34,8 @@
                 <div style="padding:24px;">
 
                     <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #f3f4f6;">
-                        <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#06A1A1,#047676);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:22px;flex-shrink:0;" x-text="svc.customer_initial"></div>
+                        <div x-show="!svc.customer_profile_picture || svc.customer_profile_picture === 'null' || svc.customer_profile_picture === 'undefined'" style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#06A1A1,#047676);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:22px;flex-shrink:0;" x-text="svc.customer_initial"></div>
+                        <img x-show="svc.customer_profile_picture && svc.customer_profile_picture !== 'null' && svc.customer_profile_picture !== 'undefined'" :src="getProfileImage(svc.customer_profile_picture)" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #06A1A1;background:#f3f4f6;flex-shrink:0;" onerror="this.src='/printflow/public/assets/uploads/profiles/default.png'">
                         <div>
                             <div style="font-size:16px;font-weight:700;color:#1f2937;" x-text="svc.customer_full_name || 'Customer'"></div>
                             <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
@@ -135,10 +136,9 @@
                 <div style="padding:16px 24px;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;gap:8px;">
                     <div style="display:flex;gap:8px; flex-wrap:wrap; align-items:center;">
                         <div x-show="svc.show_approve_block" style="display:flex; gap:8px;">
-                            <button type="button" @click="svcApprove()" class="btn-action indigo" style="padding:6px 12px; font-weight:600;">✓ Approve & Start Production</button>
-                            <button type="button" @click="svcReject()" class="btn-action" style="padding:6px 12px; color:#ef4444; background:#fef2f2; border:1px solid #fee2e2; font-weight:600;">✕ Request Revision</button>
+                            <button type="button" @click="svcApprove()" class="btn-action indigo" style="padding:6px 12px; font-weight:600;">Approve & Start Production</button>
+                            <button type="button" @click="svcReject()" class="btn-action" style="padding:6px 12px; color:#ef4444; background:#fef2f2; border:1px solid #fee2e2; font-weight:600;">Request Revision</button>
                         </div>
-                        <button type="button" x-show="svc.show_cancel_only" @click="svcCancelOrder()" class="btn-action red" style="padding:6px 12px;">✕ Cancel</button>
                     </div>
                     <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
                         <button type="button" @click="closeSvcModal()" class="btn-secondary">Close</button>

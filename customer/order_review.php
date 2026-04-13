@@ -301,10 +301,10 @@ require_once __DIR__ . '/../includes/header.php';
     .compact-card { padding: 1.25rem !important; }
     .review-title { text-align: center; margin-bottom: 2rem; color: #1f2937 !important; }
     .review-card {
-        background: #ffffff !important;
-        border: 1px solid #e5e7eb !important;
+        background: rgba(0,49,61,0.85) !important;
+        border: 1px solid rgba(83,197,224,0.2) !important;
         border-radius: 12px !important;
-        backdrop-filter: none;
+        backdrop-filter: blur(8px);
     }
     .review-heading {
         color: #111827 !important;
@@ -334,9 +334,9 @@ require_once __DIR__ . '/../includes/header.php';
         margin-bottom: 2px;
     }
     .review-input-disabled {
-        background: #f9fafb !important;
-        border: 1px solid #e5e7eb !important;
-        color: #374151 !important;
+        background: rgba(0,49,61,0.5) !important;
+        border: 1px solid rgba(83,197,224,0.2) !important;
+        color: #e0f2fe !important;
         font-weight: 600;
         font-size: 0.85rem;
         font-family: inherit !important;
@@ -428,14 +428,14 @@ require_once __DIR__ . '/../includes/header.php';
         transition: all .2s;
     }
     .tshirt-btn-secondary {
-        background: #ffffff !important;
-        border: 1px solid #d1d5db !important;
-        color: #374151 !important;
+        background: rgba(83,197,224,0.08) !important;
+        border: 1px solid rgba(83,197,224,0.3) !important;
+        color: #e0f2fe !important;
     }
     .tshirt-btn-secondary:hover {
-        background: #f3f4f6 !important;
-        border-color: #9ca3af !important;
-        color: #111827 !important;
+        background: rgba(83,197,224,0.15) !important;
+        border-color: rgba(83,197,224,0.5) !important;
+        color: #ffffff !important;
     }
     .tshirt-btn-primary {
         border: none;
@@ -931,10 +931,10 @@ require_once __DIR__ . '/../includes/header.php';
 
                 <?php if (!$is_product_order): ?>
                 <!-- 3. Payment Policy Notice -->
-                <div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem;">
-                    <h3 style="font-size:0.9rem; font-weight:700; color:#78350f; margin-bottom:0.5rem;">Payment Policy</h3>
-                    <p style="font-size:0.82rem; color:#92400e; line-height:1.6; margin:0;">
-                        Payment options (100% Full Payment or 50% Downpayment) will become available once staff reviews your order and sets the price.
+                <div style="background: rgba(0,49,61,0.7); border: 1px solid #53c5e0; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; backdrop-filter: blur(8px);">
+                    <h3 style="font-size:0.95rem; font-weight:700; color:#53c5e0; margin-bottom:0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">Payment Policy</h3>
+                    <p style="font-size:0.85rem; color:#e0f2fe; line-height:1.6; margin:0;">
+                        The payment option (100% Full Payment) will become available once staff reviews your order and sets the price. 
                         You will receive a notification when your order is ready for payment.
                     </p>
                 </div>

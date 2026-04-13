@@ -50,7 +50,7 @@ $error_message = '';
 
 try {
     if ($action === 'Approve') {
-        $new_status = 'Processing';
+        $new_status = 'Ready for Pickup';
         $payment_status = 'Paid';
         
         // Update order
@@ -63,12 +63,20 @@ try {
         }
         
         if ($success) {
-            $msg = "Your payment has been verified. Your order is now in production!";
+            $is_product = ($order['order_type'] === 'product');
+            $msg = $is_product 
+                ? "Your payment has been verified. Your order is now ready for pickup!" 
+                : "Your payment has been verified. Your order is now in production!";
+            
             if (!empty($order['customer_id'])) {
                 create_notification((int)$order['customer_id'], 'Customer', $msg, 'Order', false, false, $order_id);
             }
             add_order_system_message($order_id, $msg);
-            log_activity($staff_id, 'Payment Approved', "Approved payment for Order #{$order_id}, moved to Processing");
+            
+            $log_desc = $is_product 
+                ? "Approved payment for Order #{$order_id}, moved to Ready for Pickup" 
+                : "Approved payment for Order #{$order_id}, moved to Processing";
+            log_activity($staff_id, 'Payment Approved', $log_desc);
             
             // Update linked job_orders and trigger inventory deduction via JobOrderService
             require_once __DIR__ . '/../includes/JobOrderService.php';
@@ -86,11 +94,16 @@ try {
                         'i',
                         [$job['id']]
                     );
-                    // Move job to IN_PRODUCTION (triggers inventory deduction)
-                    try {
-                        JobOrderService::updateStatus($job['id'], 'IN_PRODUCTION');
-                    } catch (Exception $e) {
-                        error_log("PrintFlow: Failed to process job #{$job['id']}: " . $e->getMessage());
+                    if ($is_product) {
+                        // Move product jobs straight to READY_TO_COLLECT
+                        db_execute("UPDATE job_orders SET status = 'READY_TO_COLLECT' WHERE id = ?", 'i', [$job['id']]);
+                    } else {
+                        // Move service jobs to IN_PRODUCTION (triggers inventory deduction)
+                        try {
+                            JobOrderService::updateStatus($job['id'], 'IN_PRODUCTION');
+                        } catch (Exception $e) {
+                            error_log("PrintFlow: Failed to process job #{$job['id']}: " . $e->getMessage());
+                        }
                     }
                 }
             }

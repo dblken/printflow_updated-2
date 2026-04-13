@@ -64,8 +64,8 @@ if ($initials === '') {
         #main-header .pf-notif-dropdown { position: absolute; top: calc(100% + 10px); right: 0; width: 320px; max-height: 480px; background: #0a2530; border: 1px solid rgba(83,197,224,0.3); border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); display: none; flex-direction: column; overflow: hidden; z-index: 100; }
         #main-header .pf-notif-dropdown.open { display: flex; }
         #main-header .pf-notif-header { padding: 12px 16px; border-bottom: 1px solid rgba(83,197,224,0.1); display: flex; align-items: center; justify-content: space-between; background: rgba(83,197,224,0.05); }
-        #main-header .pf-notif-header span { font-size: 0.7rem; font-weight: 800; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.05em; }
-        #main-header .pf-notif-header a { font-size: 0.7rem !important; color: #53c5e0; text-decoration: none; font-weight: 800 !important; text-transform: uppercase; letter-spacing: 0.05em; }
+        #main-header .pf-notif-header span { font-size: 0.7rem; font-weight: 800; color: #53c5e0; letter-spacing: 0.05em; text-transform: none !important; }
+        #main-header .pf-notif-header a { font-size: 0.7rem !important; color: #53c5e0; text-decoration: none; font-weight: 800 !important; letter-spacing: 0.05em; text-transform: none !important; }
         #main-header .pf-notif-list { overflow-y: auto; flex: 1; }
         #main-header .pf-notif-list::-webkit-scrollbar { width: 6px; }
         #main-header .pf-notif-list::-webkit-scrollbar-track { background: rgba(83,197,224,0.05); border-radius: 10px; }
@@ -74,12 +74,13 @@ if ($initials === '') {
         #main-header .pf-notif-item { display: flex; gap: 12px; padding: 12px 16px; border-bottom: 1px solid rgba(83,197,224,0.05); transition: background 0.2s; text-decoration: none; align-items: flex-start; }
         #main-header .pf-notif-item:hover { background: rgba(83,197,224,0.08); }
         #main-header .pf-notif-item.unread { background: rgba(83,197,224,0.15); border-left: 3px solid #53c5e0; }
-        #main-header .pf-notif-item-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(83,197,224,0.1); display: flex; align-items: center; justify-content: center; color: #53c5e0; flex-shrink: 0; }
+        #main-header .pf-notif-item-icon { width: 40px; height: 40px; border-radius: 8px; background: rgba(83,197,224,0.1); display: flex; align-items: center; justify-content: center; color: #53c5e0; flex-shrink: 0; overflow: hidden; border: 1px solid rgba(83,197,224,0.2); }
+        #main-header .pf-notif-item-icon img { width: 100%; height: 100%; object-fit: cover; }
         #main-header .pf-notif-item-content { flex: 1; min-width: 0; }
         #main-header .pf-notif-item-text { font-size: 0.8rem; color: #eaf6fb; line-height: 1.4; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         #main-header .pf-notif-item-time { font-size: 0.7rem; color: rgba(83,197,224,0.6); font-weight: 600; }
         #main-header .pf-notif-footer { padding: 8px; border-top: 1px solid rgba(83,197,224,0.1); text-align: center; }
-        #main-header .pf-notif-footer a { font-size: 0.7rem !important; color: #53c5e0; font-weight: 800 !important; text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em; }
+        #main-header .pf-notif-footer a { font-size: 0.7rem !important; color: #53c5e0; font-weight: 800 !important; text-decoration: none; letter-spacing: 0.05em; text-transform: none !important; }
         #main-header .pf-notif-empty { padding: 32px 16px; text-align: center; color: rgba(255,255,255,0.4); font-size: 0.85rem; }
         #main-header .pf-avatar { width: 2.55rem; height: 2.55rem; border-radius: 9999px; overflow: hidden; border: 1px solid rgba(83,197,224,.45); background: linear-gradient(135deg, rgba(83,197,224,.24), rgba(50,161,196,.4)); display: inline-flex; align-items: center; justify-content: center; color: #e6f7fc; font-size: .78rem; font-weight: 700; letter-spacing: .02em; }
         #main-header .pf-avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -470,13 +471,13 @@ if ($initials === '') {
                         <div data-pf-notif-menu class="pf-notif-dropdown">
                             <div class="pf-notif-header">
                                 <span>Notifications</span>
-                                <a href="?mark_all_read=1" style="font-size:0.7rem !important; color:#53c5e0; text-decoration:none; font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">Mark all read</a>
+                                <a href="<?php echo $base_url; ?>/<?php echo strtolower($user_type); ?>/notifications.php<?php echo is_customer() ? '?mark_all_read=1' : '?action=mark_all_read'; ?>" style="font-size:0.7rem !important; color:#53c5e0; text-decoration:none; font-weight:800; letter-spacing:0.05em;">Mark all read</a>
                             </div>
                             <div class="pf-notif-list" data-pf-notif-list>
                                 <div class="pf-notif-empty">Loading notifications...</div>
                             </div>
                             <div class="pf-notif-footer">
-                                <a href="<?php echo $base_url; ?>/<?php echo strtolower($user_type); ?>/notifications.php" style="font-size:0.7rem !important; color:#53c5e0; font-weight:800 !important; text-decoration:none; text-transform:uppercase; letter-spacing:0.05em;">View All Notifications</a>
+                                <a href="<?php echo $base_url; ?>/<?php echo strtolower($user_type); ?>/notifications.php" style="font-size:0.7rem !important; color:#53c5e0; font-weight:800 !important; text-decoration:none; letter-spacing:0.05em;">View all notifications</a>
                             </div>
                         </div>
                     </div>
@@ -485,15 +486,12 @@ if ($initials === '') {
                     <div class="relative" data-pf-profile-wrap>
                         <button type="button" data-pf-profile-toggle class="pf-icon-btn nav-link flex items-center gap-3" style="width:auto;padding:0 0.5rem;" title="My Account">
                             <div class="pf-avatar transition-all duration-300"
-                                 style="width:1.85rem;height:1.85rem;font-size:0.7rem;<?php echo (stripos($_SERVER['REQUEST_URI'] ?? '', '/profile.php') !== false) ? 'color:#53C5E0;' : ''; ?>">
-                                <?php if (!empty($current_user['profile_picture'])): ?>
-                                    <img src="<?php echo $asset_base; ?>/assets/uploads/profiles/<?php echo htmlspecialchars($current_user['profile_picture']); ?>?t=<?php echo time(); ?>" 
+                                     style="width:1.85rem;height:1.85rem;font-size:0.7rem;<?php echo (stripos($_SERVER['REQUEST_URI'] ?? '', '/profile.php') !== false) ? 'color:#53C5E0;' : ''; ?>">
+                                    <img src="<?php echo get_profile_image($current_user['profile_picture'] ?? null); ?>?t=<?php echo time(); ?>" 
                                          alt="Profile" 
-                                         class="w-full h-full object-cover">
-                                <?php else: ?>
-                                    <span><?php echo htmlspecialchars($initials); ?></span>
-                                <?php endif; ?>
-                            </div>
+                                         class="w-full h-full object-cover"
+                                         onerror="this.src='/printflow/public/assets/uploads/profiles/default.png'">
+                                </div>
                             <svg class="w-3.5 h-3.5 transition-transform duration-200" 
                                  style="color:inherit;flex-shrink:0;opacity:0.8;" 
                                  fill="currentColor" 
@@ -561,8 +559,9 @@ if ($initials === '') {
         <div class="pf-mobile-profile">
             <div class="pf-mobile-profile-avatar">
                 <?php if (!empty($current_user['profile_picture'])): ?>
-                    <img src="<?php echo $asset_base; ?>/assets/uploads/profiles/<?php echo htmlspecialchars($current_user['profile_picture']); ?>?t=<?php echo time(); ?>" 
-                         alt="Profile">
+                    <img src="<?php echo get_profile_image($current_user['profile_picture']); ?>?t=<?php echo time(); ?>" 
+                         alt="Profile"
+                         onerror="this.onerror=null;this.src='/printflow/public/assets/uploads/profiles/default.png'">
                 <?php else: ?>
                     <span><?php echo htmlspecialchars($initials); ?></span>
                 <?php endif; ?>
@@ -750,26 +749,17 @@ if ($initials === '') {
     // ── Realtime search ──────────────────────────────────────────
     <?php if ($show_header_search): ?>
     (function(){
-        console.log('Search script initializing...');
         var input = document.getElementById('pf-search-input');
-        console.log('Search input element:', input);
+        if (!input || input.dataset.pfSearchInit === '1') return;
+        input.dataset.pfSearchInit = '1';
         var dropdown = document.getElementById('pf-search-dropdown');
-        console.log('Search dropdown element:', dropdown);
-        if (!input) {
-            console.error('Search input not found!');
-            return;
-        }
         if (!dropdown) {
-            console.log('Dropdown not found, creating it...');
             dropdown = document.createElement('div');
             dropdown.id = 'pf-search-dropdown';
             dropdown.style.cssText = 'display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#0a2530;border:1px solid rgba(83,197,224,0.3);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.5);z-index:9999;overflow:hidden;';
             var wrap = input.closest('.pf-search-wrap');
             if (wrap) {
                 wrap.appendChild(dropdown);
-                console.log('Dropdown created and appended');
-            } else {
-                console.error('Could not find .pf-search-wrap parent');
             }
         }
 
@@ -782,19 +772,12 @@ if ($initials === '') {
         var colors = { service: '#53c5e0', product: '#a78bfa', order: '#34d399' };
 
         function doSearch(q) {
-            console.log('Search triggered for:', q);
-            if (!q.trim()) { dropdown.style.display = 'none'; return; }
-            console.log('Fetching:', '/printflow/public/api/search.php?q=' + encodeURIComponent(q));
+            if (!dropdown || !q.trim()) { if (dropdown) dropdown.style.display = 'none'; return; }
             fetch('/printflow/public/api/search.php?q=' + encodeURIComponent(q))
-            .then(function(r){ 
-                console.log('Response status:', r.status);
-                return r.json(); 
-            })
+            .then(function(r){ return r.json(); })
             .then(function(data) {
-                console.log('Search results:', data);
                 var results = data.results || [];
                 if (!results.length) { 
-                    console.log('No results, hiding dropdown');
                     dropdown.style.display = 'none'; 
                     return; 
                 }
@@ -811,18 +794,15 @@ if ($initials === '') {
                           + '<span style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:' + color + ';opacity:0.7;flex-shrink:0;">' + r.type + '</span>'
                           + '</a>';
                 });
-                console.log('Showing dropdown with', results.length, 'results');
                 dropdown.innerHTML = html;
                 dropdown.style.display = 'block';
             })
-            .catch(function(err){ 
-                console.error('Search error:', err);
+            .catch(function(){ 
                 dropdown.style.display = 'none'; 
             });
         }
 
         input.addEventListener('input', function() {
-            console.log('Input event fired, value:', input.value);
             clearTimeout(timer);
             timer = setTimeout(function(){ doSearch(input.value); }, 220);
         });
@@ -840,5 +820,24 @@ if ($initials === '') {
         });
     })();
     <?php endif; ?>
+
+    // ── Profile Image Fallback ───────────────────────────────────
+    window.getProfileImage = function(image) {
+      if (!image || image === 'null' || image === 'undefined') {
+        return '/printflow/public/assets/uploads/profiles/default.png';
+      }
+      if (typeof image !== 'string') return '/printflow/public/assets/uploads/profiles/default.png';
+      image = image.trim();
+      if (image.startsWith('/') || image.startsWith('http')) {
+        return image;
+      }
+      if (image.startsWith('printflow/')) {
+        return '/' + image;
+      }
+      if (image.startsWith('public/assets/uploads/profiles/')) {
+        return '/printflow/' + image;
+      }
+      return '/printflow/public/assets/uploads/profiles/' + image;
+    };
 }());
 </script>

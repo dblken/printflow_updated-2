@@ -10,6 +10,7 @@ ob_start();
 
 header('Content-Type: application/json');
 
+try {
 if (!is_logged_in()) {
     ob_end_clean();
     echo json_encode([]);
@@ -68,4 +69,11 @@ foreach ($media as $item) {
 }
 
 ob_end_clean();
-echo json_encode($results);
+echo json_encode([
+    'success' => true,
+    'media' => $results
+]);
+} catch (Exception $e) {
+    if (ob_get_level()) ob_end_clean();
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+}

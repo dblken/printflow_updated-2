@@ -70,8 +70,8 @@ function printflow_is_placeholder_db_pass(string $pass): bool {
 $db_config = [
     'host' => 'localhost',
     'user' => 'root',
-    'pass' => '1234',
-    'name' => 'printflow_1',
+    'pass' => '122704',
+    'name' => 'printflow_4',
     'port' => 3306,
     'socket' => '',
 ];

@@ -125,7 +125,7 @@ $data = [
     'order_type'           => 'ORDER',
     'customer_full_name'   => $o['customer_full_name'] ?? trim(($o['first_name'] ?? '') . ' ' . ($o['last_name'] ?? '')),
     'customer_contact'     => $o['customer_contact'] ?? '',
-    'customer_type'        => $transaction_count <= 1 ? 'NEW' : 'RETURNING',
+    'customer_type'        => $transaction_count < 3 ? 'NEW' : 'REGULAR',
     'service_type'         => $service_name,
     'job_title'            => implode(', ', array_map(function($i) { return $i['product_name'] . ' - ' . $i['quantity'] . 'pcs'; }, $items_out)),
     'width_ft'             => $width_ft,

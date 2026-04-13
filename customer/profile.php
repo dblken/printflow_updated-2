@@ -186,75 +186,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
         $dob = sanitize($_POST['dob'] ?? '');
         $gender = sanitize($_POST['gender'] ?? '');
         
-        if (empty($first_name) || empty($last_name)) {
-            $error = 'First name and last name are required';
-        } elseif (!empty($dob)) {
-            try {
-                $bday_date = new DateTime($dob);
-                $today = new DateTime();
-                $age = $today->diff($bday_date)->y;
-                if ($bday_date > $today) {
-                    $error = 'Birthday cannot be a future date';
-                } elseif ($age < 13) {
-                    $error = 'You must be at least 13 years old';
-                }
-            } catch (Exception $e) {
-                $error = 'Invalid birthday format';
-            }
-        }
+        $first_name = ucwords(strtolower(trim($first_name)));
+        $middle_name = ucwords(strtolower(trim($middle_name)));
+        $last_name = ucwords(strtolower(trim($last_name)));
         
-        if (!$error) {
-            $dob_val = trim($dob) !== '' ? $dob : null;
+        // Philippine/International Name Regex: letters and single space only, max 3 words
+        $nameRegex = '/^[A-Za-z]+( [A-Za-z]+){0,2}$/';
+        $contactRegex = '/^\+?[0-9]{10,15}$/';
+        
+        // Backend strong validation
+        if (empty($first_name) || !preg_match($nameRegex, $first_name)) {
+            $error = 'First name must contain only letters and at most 3 words.';
+        } elseif (!empty($middle_name) && !preg_match($nameRegex, $middle_name)) {
+            $error = 'Middle name must contain only letters and at most 3 words.';
+        } elseif (empty($last_name) || !preg_match($nameRegex, $last_name)) {
+            $error = 'Last name must contain only letters and at most 3 words.';
+        } elseif (empty($contact_number) || !preg_match($contactRegex, $contact_number)) {
+            $error = 'Contact number must be a valid format (+XXXXXXXXXXX).';
+        } elseif (empty($dob) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dob) || (strtotime($dob) > strtotime('-13 years'))) {
+            $error = 'Date of birth must be a valid date and you must be at least 13 years old.';
+        } elseif (strip_tags($first_name) !== $first_name || strip_tags($last_name) !== $last_name || strip_tags($middle_name) !== $middle_name) {
+            $error = 'Invalid characters detected in name fields.';
+        } else {
             $gender_val = in_array(trim($gender), ['Male', 'Female', 'Other'], true) ? $gender : null;
-            $result = db_execute("UPDATE customers SET first_name = ?, middle_name = ?, last_name = ?, contact_number = ?, dob = ?, gender = ? WHERE customer_id = ?",
-                'ssssssi', [$first_name, $middle_name, $last_name, $contact_number, $dob_val, $gender_val, $customer_id]);
             
-            $first_name = ucwords(strtolower(trim($first_name)));
-            $middle_name = ucwords(strtolower(trim($middle_name)));
-            $last_name = ucwords(strtolower(trim($last_name)));
+            $result = db_execute("UPDATE customers SET first_name = ?, middle_name = ?, last_name = ?, contact_number = ?, dob = ?, gender = ?, profile_picture = ? WHERE customer_id = ?",
+                'sssssssi', [$first_name, $middle_name, $last_name, $contact_number, $dob, $gender_val, $profile_picture, $customer_id]);
             
-            // Philippine Name Regex: letters and single space only, max 3 words
-            $nameRegex = '/^[A-Za-z]+( [A-Za-z]+){0,2}$/';
-            $contactRegex = '/^\+639\d{9}$/';
-            $emailRegex = '/^[^\s@]+@[^\s@]+\.[^\s@]+$/';
-
-            // Backend strong validation
-            if (empty($first_name) || !preg_match($nameRegex, $first_name)) {
-                $error = 'First name must contain only letters and at most 3 words.';
-            } elseif (!empty($middle_name) && !preg_match($nameRegex, $middle_name)) {
-                $error = 'Middle name must contain only letters and at most 3 words.';
-            } elseif (empty($last_name) || !preg_match($nameRegex, $last_name)) {
-                $error = 'Last name must contain only letters and at most 3 words.';
-            } elseif (empty($contact_number) || !preg_match($contactRegex, $contact_number)) {
-                $error = 'Contact number must follow format +639XXXXXXXXX.';
-            } elseif (empty($dob) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dob) || (strtotime($dob) > strtotime('-13 years'))) {
-                $error = 'Date of birth must be a valid date and you must be at least 13 years old.';
-            } else {
-                // Ensure no script tags or malicious input
-                if (strip_tags($first_name) !== $first_name || strip_tags($last_name) !== $last_name || strip_tags($middle_name) !== $middle_name) {
-                    $error = 'Invalid characters detected in name fields.';
-                } else {
-                    $first_name = sanitize($first_name);
-                    $middle_name = sanitize($middle_name);
-                    $last_name = sanitize($last_name);
-                    $contact_number = sanitize($contact_number);
-                    $dob = sanitize($dob);
-                    $gender = sanitize($gender);
-                    $gender_val = in_array(trim($gender), ['Male', 'Female', 'Other'], true) ? $gender : null;
-                    
-                    $result = db_execute("UPDATE customers SET first_name = ?, middle_name = ?, last_name = ?, contact_number = ?, dob = ?, gender = ?, profile_picture = ? WHERE customer_id = ?",
-                        'sssssssi', [$first_name, $middle_name, $last_name, $contact_number, $dob, $gender_val, $profile_picture, $customer_id]);
-                    
-                    if ($result) {
-                        $success = 'Profile updated successfully!';
-                        $_SESSION['profile_update_count'] = ($_SESSION['profile_update_count'] ?? 0) + 1;
-                        $_SESSION['user_name'] = $first_name . ' ' . $last_name;
-                        // Refresh customer data
-                        $customer = db_query("SELECT * FROM customers WHERE customer_id = ?", 'i', [$customer_id])[0];
-                    } else {
-                        $error = 'Failed to update profile';
-                    }
+            if ($result) {
+                $success = 'Profile updated successfully!';
+                $_SESSION['profile_update_count'] = ($_SESSION['profile_update_count'] ?? 0) + 1;
+                $_SESSION['user_name'] = $first_name . ' ' . $last_name;
+                
+                // Update profile picture in session manually as well to immediately affect header
+                $customer = db_query("SELECT * FROM customers WHERE customer_id = ?", 'i', [$customer_id])[0];
+                
+                // Update global $current_user so header.php displays the new image immediately
+                global $current_user;
+                if (isset($current_user)) {
+                    $current_user['first_name'] = $first_name;
+                    $current_user['last_name'] = $last_name;
+                    $current_user['profile_picture'] = $profile_picture;
                 }
+            } else {
+                $error = 'Failed to update profile';
             }
         }
     }
@@ -375,26 +350,26 @@ require_once __DIR__ . '/../includes/header.php';
 <style>
 /* ── Modern Profile Page (Refactored to Project Specs) ─── */
 :root {
-    --pf-primary: #030d11;
-    --pf-secondary: #0a1f26;
+    --pf-primary: #53c5e0;
+    --pf-secondary: #00232b;
     --pf-accent: #53c5e0;
     --pf-accent-hover: #32a1c4;
-    --pf-text-main: #030d11;
-    --pf-text-muted: #64748b;
-    --pf-border: #e2e8f0;
-    --pf-card-bg: #ffffff;
+    --pf-text-main: #e0f2fe;
+    --pf-text-muted: #94a3b8;
+    --pf-border: rgba(83,197,224,0.2);
+    --pf-card-bg: rgba(0,49,61,0.85);
 }
 
-/* 1. SINGLE MAIN CONTAINER */
 .profile-container {
     max-width: 1100px;
     margin: 40px auto;
     padding: 2.5rem;
-    background: #fff;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
-    overflow: hidden;
+    background: rgba(0,49,61,0.8);
+    border: none;
+    border-radius: 0;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
     box-sizing: border-box;
+    backdrop-filter: blur(12px);
 }
 
 /* Mobile: reduce padding and margin */
@@ -402,7 +377,7 @@ require_once __DIR__ . '/../includes/header.php';
     .profile-container {
         margin: 20px 1rem;
         padding: 1.5rem 1rem;
-        border-radius: 12px;
+        border-radius: 0;
     }
 }
 
@@ -441,9 +416,10 @@ require_once __DIR__ . '/../includes/header.php';
 .sidebar-content {
     text-align: center;
     padding: 1.5rem;
-    background: #f8fafc;
-    border-radius: 12px;
-    border: 1px solid var(--pf-border);
+    background: rgba(0,28,36,0.85);
+    border-radius: 0;
+    border: none;
+    backdrop-filter: blur(8px);
 }
 
 @media (max-width: 768px) {
@@ -461,11 +437,11 @@ require_once __DIR__ . '/../includes/header.php';
 .profile-avatar-ring {
     width: 130px;
     height: 130px;
-    border-radius: 50%;
+    border-radius: 0;
     overflow: hidden;
-    background: #fff;
-    border: 3px solid #fff;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    background: #00151b;
+    border: 3px solid var(--pf-accent);
+    box-shadow: 0 4px 12px rgba(83,197,224,0.1);
     margin: 0 auto;
 }
 
@@ -484,19 +460,19 @@ require_once __DIR__ . '/../includes/header.php';
 
 .profile-avatar-edit-btn {
     position: absolute;
-    bottom: 5px;
-    right: 5px;
+    bottom: -5px;
+    right: -5px;
     width: 32px;
     height: 32px;
-    border-radius: 50%;
+    border-radius: 0;
     background: var(--pf-accent);
-    color: #fff;
+    color: #001820;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    border: 2px solid #fff;
+    box-shadow: 0 4px 10px rgba(83,197,224,0.3);
+    border: 2px solid #00151b;
 }
 
 .profile-user-name {
@@ -562,9 +538,12 @@ require_once __DIR__ . '/../includes/header.php';
 }
 
 .profile-card {
-    background: #fff;
-    padding: 0;
+    background: rgba(0,28,36,0.7);
+    border: none;
+    border-radius: 0;
+    padding: 1.5rem;
     transition: all 0.3s ease;
+    backdrop-filter: blur(6px);
 }
 
 .profile-card:hover {
@@ -635,13 +614,23 @@ require_once __DIR__ . '/../includes/header.php';
 .pf-input {
     width: 100%;
     padding: 12px 14px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
+    border: 1px solid rgba(83,197,224,0.2) !important;
+    border-radius: 0 !important;
     font-size: 0.95rem;
-    color: #1e293b;
-    background: #fff;
+    color: #e0f2fe !important;
+    background: rgba(0,49,61,0.6) !important;
     box-sizing: border-box;
     transition: 0.2s;
+    color-scheme: dark;
+}
+
+.pf-input:-webkit-autofill,
+.pf-input:-webkit-autofill:hover, 
+.pf-input:-webkit-autofill:focus, 
+.pf-input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px rgba(0,28,36,0.95) inset !important;
+    -webkit-text-fill-color: #e0f2fe !important;
+    transition: background-color 5000s ease-in-out 0s;
 }
 
 @media (max-width: 768px) {
@@ -654,40 +643,53 @@ require_once __DIR__ . '/../includes/header.php';
 
 .pf-input:focus {
     outline: none;
-    border-color: var(--pf-accent);
+    border-color: var(--pf-accent) !important;
+    background: rgba(0,49,61,0.8) !important;
     box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.1);
+}
+
+select.pf-input option {
+    background: #00151b;
+    color: #e0f2fe;
 }
 
 .pf-btn-primary {
     padding: 7px 24px;
-    border-radius: 3px;
+    border-radius: 0;
     border: none;
-    background: #0a2530;
-    color: #fff;
-    font-weight: 600;
+    background: linear-gradient(135deg, #268dae, #53c5e0) !important;
+    color: #ffffff !important;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     text-transform: uppercase;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
     text-decoration: none;
-    min-height: 40px;
+    min-height: 48px;
+    box-shadow: 0 4px 15px rgba(83, 197, 224, 0.4), inset 0 1px 0 rgba(255,255,255,0.3) !important;
 }
 
 @media (max-width: 768px) {
     .pf-btn-primary {
         width: 100%;
         padding: 12px 20px;
-        font-size: 0.85rem;
-        min-height: 48px;
     }
 }
 
 .pf-btn-primary:hover {
-    opacity: 0.9;
+    transform: scale(1.03);
+    box-shadow: 0 6px 20px rgba(83, 197, 224, 0.6), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+    opacity: 1 !important;
+}
+
+.pf-btn-primary:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 8px rgba(83, 197, 224, 0.3) !important;
 }
 
 /* Button container on mobile */
@@ -699,15 +701,16 @@ require_once __DIR__ . '/../includes/header.php';
 
 /* Quick Actions Nav */
 .profile-nav-card {
-    background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 0.5rem;
+    background: rgba(0,28,36,0.85); border-radius: 0; border: none; padding: 0.5rem;
+    backdrop-filter: blur(8px);
 }
 .profile-nav-list { list-style: none; padding: 0; margin: 0; }
 .profile-nav-item a {
     display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-    border-radius: 8px; font-weight: 600; color: #64748b; text-decoration: none; transition: 0.2s;
+    border-radius: 8px; font-weight: 600; color: #94a3b8; text-decoration: none; transition: 0.2s;
 }
-.profile-nav-item a:hover { background: #fff; color: var(--pf-accent); }
-.profile-nav-item a.active { background: #fff; color: var(--pf-accent); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.profile-nav-item a:hover { background: rgba(83,197,224,0.1); color: var(--pf-accent); }
+.profile-nav-item a.active { background: rgba(83,197,224,0.12); color: var(--pf-accent); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 
 /* Alerts */
 .pf-alert {
@@ -757,7 +760,7 @@ require_once __DIR__ . '/../includes/header.php';
 }
 </style>
 
-<div class="min-h-screen py-10" style="background: #f1f5f9;">
+<div class="min-h-screen py-10">
     <div class="profile-container">
 
         <?php if ($error): ?>
@@ -779,7 +782,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="profile-avatar-wrap">
                         <div class="profile-avatar-ring">
                             <?php if (!empty($customer['profile_picture'])): ?>
-                                <img src="/printflow/public/assets/uploads/profiles/<?php echo htmlspecialchars($customer['profile_picture']); ?>?t=<?php echo time(); ?>" alt="Avatar" id="profile-preview">
+                                <img src="<?php echo get_profile_image($customer['profile_picture']); ?>?t=<?php echo time(); ?>" alt="Avatar" id="profile-preview" onerror="this.onerror=null;this.src='/printflow/public/assets/uploads/profiles/default.png'">
                             <?php else: ?>
                                 <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f1f5f9;">
                                     <svg width="48" height="48" fill="none" stroke="#94a3b8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
@@ -797,7 +800,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div style="margin-top: 1rem;">
                         <div class="profile-info-pill">
                             <span>Since</span>
-                            <span style="font-weight:700;color:#0f172a;"><?php echo isset($customer['created_at']) ? date('M Y', strtotime($customer['created_at'])) : '2026'; ?></span>
+                            <span style="font-weight:700;color:#e0f2fe;"><?php echo isset($customer['created_at']) ? date('M Y', strtotime($customer['created_at'])) : '2026'; ?></span>
                         </div>
                         <div class="profile-info-pill" style="border-bottom: none;">
                             <span>Status</span>
@@ -825,7 +828,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="update_profile" value="1">
                         <input type="file" id="profile_picture" name="profile_picture" class="hidden" accept="image/*" style="display:none;"
-                               onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const p=document.getElementById('profile-preview');p.src=e.target.result;p.style.display='block';};r.readAsDataURL(f);}">
+                               onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const p=document.getElementById('profile-preview');p.src=e.target.result;p.style.display='block';const s=p.previousElementSibling;if(s && s.tagName==='DIV'){s.style.display='none';}};r.readAsDataURL(f);}">
 
                         <div class="form-grid">
                             <div class="pf-field-group">
@@ -921,7 +924,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <input type="text" id="addr_street" name="street_address" class="pf-input" placeholder="e.g. #123 Sampaguita st., Phase 2" value="<?php echo htmlspecialchars($customer['street_address'] ?? ''); ?>">
                         </div>
 
-                        <div id="addr-preview" style="display:none; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem; margin-top:1.5rem; font-size:0.875rem;">
+                        <div id="addr-preview" style="display:none; background:rgba(0,0,0,0.2); border:1px solid rgba(83,197,224,0.2); border-radius:0; padding:1rem; margin-top:1.5rem; font-size:0.875rem; color:#e0f2fe;">
                             <span style="color:#64748b; font-weight:600; display:block; margin-bottom:4px;">Delivery Summary</span>
                             <div id="addr-preview-text" style="color:#0f172a; line-height:1.4;"></div>
                         </div>
@@ -992,14 +995,14 @@ require_once __DIR__ . '/../includes/header.php';
                 $id_image  = $customer['id_image'] ?? '';
                 $id_reject = $customer['id_reject_reason'] ?? '';
                 $status_colors = [
-                    'None'     => ['#64748b','#f1f5f9','Not Submitted'],
-                    'Pending'  => ['#b45309','#fffbeb','Under Review'],
-                    'Verified' => ['#15803d','#f0fdf4','Verified ✓'],
-                    'Rejected' => ['#b91c1c','#fef2f2','Rejected'],
+                    'None'     => ['#94a3b8','rgba(148, 163, 184, 0.2)','Not Submitted'],
+                    'Pending'  => ['#fcd34d','rgba(252, 211, 77, 0.2)','Under Review'],
+                    'Verified' => ['#4ade80','rgba(74, 222, 128, 0.2)','Verified ✓'],
+                    'Rejected' => ['#fca5a5','rgba(248, 113, 113, 0.2)','Rejected'],
                 ];
                 [$sc,$sbg,$slabel] = $status_colors[$id_status] ?? $status_colors['None'];
                 ?>
-                <div class="profile-card" id="section-id" style="padding-top:2rem;border-top:1px solid #e2e8f0;">
+                <div class="profile-card" id="section-id" style="padding-top:2rem;border-top:1px solid rgba(83,197,224,0.15);">
                     <h3 class="profile-card-title">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0"/></svg>
                         ID Verification
@@ -1007,20 +1010,20 @@ require_once __DIR__ . '/../includes/header.php';
                     </h3>
 
                     <?php if ($id_status === 'Rejected'): ?>
-                    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin-bottom:1.25rem;font-size:0.875rem;color:#b91c1c;">
+                    <div style="background:rgba(248, 113, 113, 0.1);border:1px solid rgba(248, 113, 113, 0.2);border-radius:0;padding:12px 16px;margin-bottom:1.25rem;font-size:0.875rem;color:#fca5a5;">
                         <strong>Rejected:</strong> <?php echo htmlspecialchars($id_reject ?: 'Your ID was rejected. Please resubmit a clearer photo.'); ?>
                     </div>
                     <?php endif; ?>
 
                     <?php if ($id_status === 'Verified'): ?>
-                    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;font-size:0.9rem;color:#15803d;">
+                    <div style="background:rgba(74, 222, 128, 0.1);border:1px solid rgba(74, 222, 128, 0.2);border-radius:0;padding:16px;font-size:0.9rem;color:#86efac;">
                         <strong>✓ Your identity has been verified.</strong> You can now place orders.
                     </div>
                     <?php else: ?>
-                    <p style="font-size:0.875rem;color:#64748b;margin-bottom:1.25rem;">Upload a valid government-issued ID to verify your identity before placing orders.</p>
+                    <p style="font-size:0.875rem;color:#94a3b8;margin-bottom:1.25rem;">Upload a valid government-issued ID to verify your identity before placing orders.</p>
 
                     <?php if (!empty($id_image) && $id_status === 'Pending'): ?>
-                    <div style="margin-bottom:1.25rem;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:0.875rem;color:#92400e;">
+                    <div style="margin-bottom:1.25rem;padding:12px 16px;background:rgba(252, 211, 77, 0.1);border:1px solid rgba(252, 211, 77, 0.2);border-radius:0;font-size:0.875rem;color:#fde047;">
                         ⏳ Your ID is currently under review. We'll notify you once it's approved.
                     </div>
                     <?php endif; ?>
@@ -1077,10 +1080,10 @@ require_once __DIR__ . '/../includes/header.php';
     padding-right: 2.8rem;
 }
 .addr-select-wrap select:disabled {
-    background: #f3f7f9;
-    color: #9ca3af;
+    background: rgba(255,255,255,0.05) !important;
+    color: #475569 !important;
     cursor: not-allowed;
-    border-color: #e5e7eb;
+    border-color: rgba(83,197,224,0.1) !important;
 }
 .addr-spinner {
     display: none;
@@ -1126,8 +1129,8 @@ require_once __DIR__ . '/../includes/header.php';
 .live-indicator.error { color: #dc2626; font-weight: 600; }
 .live-indicator .ind-icon { display: inline-block; margin-right: 0.25rem; font-weight: bold; }
 .live-indicator .hint { color: #6b7280; font-weight: 400; }
-.input-field.input-valid { border-color: #16a34a; box-shadow: 0 0 0 1px rgba(22,163,74,0.3); }
-.input-field.input-error { border-color: #dc2626; box-shadow: 0 0 0 1px rgba(220,38,38,0.3); }
+.pf-input.input-valid { border-color: #16a34a !important; box-shadow: 0 0 0 1px rgba(22,163,74,0.3); }
+.pf-input.input-error { border-color: #dc2626 !important; box-shadow: 0 0 0 1px rgba(220,38,38,0.3); }
 
 /* Password validation */
 .password-wrapper {
@@ -1431,7 +1434,7 @@ require_once __DIR__ . '/../includes/header.php';
         first_name: 'Letters only, max 3 words',
         middle_name: 'Letters only, max 3 words (optional)',
         last_name: 'Letters only, max 3 words',
-        contact_number: 'Format: +639XXXXXXXXX',
+        contact_number: 'Format: valid phone number',
         dob: 'You must be at least 13 years old'
     };
 
@@ -1556,7 +1559,7 @@ require_once __DIR__ . '/../includes/header.php';
 
     // Contact Number Validation
     document.querySelectorAll('.validate-advanced-contact').forEach(input => {
-        const regexContact = /^\+639\d{9}$/;
+        const regexContact = /^\+?[0-9]{10,15}$/;
 
         input.addEventListener('input', function() {
             let val = this.value;
@@ -1584,7 +1587,7 @@ require_once __DIR__ . '/../includes/header.php';
             }
 
             if (!regexContact.test(trimmed)) {
-                updateIndicator(this.id, false, 'Use format +639XXXXXXXXX (11 digits after +63)');
+                updateIndicator(this.id, false, 'Invalid format (10-15 digits required)');
             } else {
                 updateIndicator(this.id, true);
             }
@@ -1656,7 +1659,7 @@ require_once __DIR__ . '/../includes/header.php';
             checkFormValidity();
             if (btnSubmit.disabled) {
                 e.preventDefault();
-                alert('Please correct all invalid fields before updating.');
+                showToast('Please correct all invalid fields before updating.');
             }
         });
     }

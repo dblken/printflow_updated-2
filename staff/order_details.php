@@ -250,16 +250,15 @@ $page_title = "Order #{$order_id} - Staff";
                             <?php echo csrf_field(); ?>
                             <input type="hidden" name="update_status" value="1">
                             <select name="status" class="input-field">
-                                <option value="Pending" <?php echo $order['status'] === 'Pending' ? 'selected' : ''; ?>>Pending</option>
-                                <option value="Pending Approval" <?php echo $order['status'] === 'Pending Approval' ? 'selected' : ''; ?>>Pending Approval</option>
-                                <option value="In Production" <?php echo $order['status'] === 'In Production' ? 'selected' : ''; ?>>In Production</option>
-                                <option value="Printing" <?php echo $order['status'] === 'Printing' ? 'selected' : ''; ?>>Printing</option>
-                                <option value="Completed" <?php echo $order['status'] === 'Completed' ? 'selected' : ''; ?>>Completed</option>
+                                <option value="Pending" <?php echo $order['status'] === 'Pending' ? 'selected' : ''; ?>>TO VERIFY</option>
+                                <option value="Ready for Pickup" <?php echo $order['status'] === 'Ready for Pickup' ? 'selected' : ''; ?>>TO PICK UP</option>
+                                <option value="Completed" <?php echo $order['status'] === 'Completed' ? 'selected' : ''; ?>>COMPLETED</option>
+                                <option value="Cancelled" <?php echo $order['status'] === 'Cancelled' ? 'selected' : ''; ?>>CANCELLED</option>
                             </select>
                             <button type="submit" class="btn-primary">Update Status</button>
                         </form>
 
-                        <?php if (!in_array($order['status'], ['In Production', 'Printing', 'Completed', 'Cancelled'])): ?>
+                        <?php if (!in_array($order['status'], ['Completed', 'Cancelled'])): ?>
                             <div style="display:grid; grid-template-columns: 1fr; gap:10px;">
                                 <button type="button" onclick="openRevisionModal()" class="btn-secondary" style="color:#d97706; border-color:#fde68a; justify-content:center;">
                                     📋 Request Revision

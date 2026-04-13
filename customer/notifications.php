@@ -38,67 +38,22 @@ $count_result = db_query(
 );
 $total_items = $count_result[0]['total'] ?? 0;
 $total_pages = ceil($total_items / $items_per_page);
-
-// Choose available product image column for compatibility across DB versions.
-$has_photo_path = !empty(db_query("SHOW COLUMNS FROM products LIKE 'photo_path'"));
-$has_product_image = !empty(db_query("SHOW COLUMNS FROM products LIKE 'product_image'"));
-$product_image_column = 'NULL';
-if ($has_photo_path && $has_product_image) {
-    $product_image_column = "COALESCE(p.photo_path, p.product_image)";
-} elseif ($has_photo_path) {
-    $product_image_column = "p.photo_path";
-} elseif ($has_product_image) {
-    $product_image_column = "p.product_image";
-}
-
-// Get all notifications with order and product details
-$notifications = db_query("
-    SELECT 
-        n.*,
-        o.order_id,
-        CASE WHEN n.type = 'Job Order' THEN jo.job_title ELSE 
-            (SELECT p.name FROM order_items oi 
-             LEFT JOIN products p ON oi.product_id = p.product_id 
-             WHERE oi.order_id = n.data_id ORDER BY oi.order_item_id ASC LIMIT 1)
-        END as service_name,
-        CASE WHEN n.type = 'Job Order' THEN jo.service_type ELSE NULL END as jo_service_category,
-        CASE WHEN n.type = 'Job Order' THEN jo.artwork_path ELSE 
-            (SELECT {$product_image_column} FROM products p 
-             INNER JOIN order_items oi ON oi.product_id = p.product_id 
-             WHERE oi.order_id = n.data_id ORDER BY oi.order_item_id ASC LIMIT 1)
-        END as product_image,
-        (SELECT oi.customization_data FROM order_items oi 
-         WHERE oi.order_id = n.data_id ORDER BY oi.order_item_id ASC LIMIT 1) as first_item_customization,
-        (SELECT oi.order_item_id FROM order_items oi 
-         WHERE oi.order_id = n.data_id ORDER BY oi.order_item_id ASC LIMIT 1) as first_item_id,
-        (SELECT oi.design_image FROM order_items oi 
-         WHERE oi.order_id = n.data_id AND oi.design_image IS NOT NULL ORDER BY oi.order_item_id ASC LIMIT 1) as design_image
-    FROM notifications n
-    LEFT JOIN orders o ON n.data_id = o.order_id AND (n.type = 'Order' OR n.type = 'Payment' OR n.type = 'Status')
-    LEFT JOIN job_orders jo ON n.data_id = jo.id AND n.type = 'Job Order'
-    LEFT JOIN users u ON n.user_id = u.user_id
-    WHERE n.customer_id = ? 
-    ORDER BY n.created_at DESC 
-    LIMIT ? OFFSET ?
-", 'iii', [$customer_id, $items_per_page, $offset]);
+$notifications = get_customer_notifications_for_display($customer_id, $items_per_page, $offset);
 
 // Categorize by read status for display
 $grouped_notifications = [
     'New' => [],
     'Earlier' => []
 ];
-foreach ($notifications as $n) {
-    if ($n['is_read'] == 0) {
-        $grouped_notifications['New'][] = $n;
+foreach ($notifications as $notification) {
+    if ((int)($notification['is_read'] ?? 0) === 0) {
+        $grouped_notifications['New'][] = $notification;
     } else {
-        $grouped_notifications['Earlier'][] = $n;
+        $grouped_notifications['Earlier'][] = $notification;
     }
 }
-// Remove empty groups
 $grouped_notifications = array_filter($grouped_notifications);
-$unread_total = array_reduce($notifications, function($carry, $item) {
-    return $carry + ($item['is_read'] ? 0 : 1);
-}, 0);
+$unread_total = get_unread_notification_count($customer_id, 'Customer');
 
 $page_title = 'Notifications - PrintFlow';
 $use_customer_css = true;
@@ -318,7 +273,7 @@ require_once __DIR__ . '/../includes/header.php';
 
         <?php if (empty($notifications)): ?>
             <div class="notif-empty">
-                <div class="notif-empty-icon">🔔</div>
+                <div class="notif-empty-icon">&#128276;</div>
                 <p style="font-size: 1rem; font-weight: 600;">No notifications yet</p>
                 <p style="font-size: 0.85rem; margin-top: 0.5rem;">We'll notify you when something important happens</p>
             </div>
@@ -327,112 +282,37 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php if ($group === 'New'): ?>
                     <div class="notif-group-label"><?php echo htmlspecialchars($group); ?></div>
                 <?php endif; ?>
-                <?php foreach ($notifs as $notif): 
-                    // Determine service name
-                    $name_data = !empty($notif['first_item_customization']) ? json_decode($notif['first_item_customization'], true) : [];
-                    $raw_service_name = trim((string)($name_data['service_type'] ?? $notif['jo_service_category'] ?? $notif['service_name'] ?? ''));
-                    if (empty($raw_service_name) || in_array(strtolower($raw_service_name), ['custom order', 'customer order', 'service order', 'order item', 'order update'])) {
-                        $raw_service_name = get_service_name_from_customization($name_data, $notif['service_name'] ?? 'Order Update');
-                    }
-                    $display_name = normalize_service_name($raw_service_name, 'Order Update');
-
-                    // Determine image
-                    $final_image_url = "";
-                    if (!empty($notif['design_image'])) {
-                        $final_image_url = "/printflow/staff/get_design_image.php?id=" . $notif['first_item_id'];
-                    } elseif (!empty($notif['product_image']) && strtolower(trim($display_name)) === strtolower(trim($notif['service_name'] ?? ''))) {
-                        $final_image_url = $notif['product_image'];
-                        if (strpos($final_image_url, 'uploads/') === 0) {
-                            $final_image_url = '/printflow/' . $final_image_url;
-                        }
-                    } else {
-                        $final_image_url = get_service_image_url($raw_service_name ?: $display_name);
-                    }
-                    $fallback_img = '/printflow/public/assets/images/services/default.png';
-
-                    // Determine link
-                    $link = "/printflow/customer/notifications.php?mark_read=" . $notif['notification_id'];
+                <?php foreach ($notifs as $notif): ?>
+                    <?php
                     $is_rating_notif = (
-                        (string)$notif['type'] === 'Rating' ||
+                        (string)($notif['type'] ?? '') === 'Rating' ||
                         stripos((string)$notif['message'], 'rate your experience') !== false ||
-                        stripos((string)$notif['message'], 'rate your order') !== false
+                        stripos((string)$notif['message'], 'rate your order') !== false ||
+                        stripos((string)$notif['message'], 'replied to your review') !== false
                     );
-                    $is_payment_notif = (
-                        (string)$notif['type'] === 'Payment' ||
-                        (string)$notif['type'] === 'Payment Issue' ||
-                        stripos((string)$notif['message'], 'Payment Required') !== false ||
-                        stripos((string)$notif['message'], 'TO_PAY') !== false ||
-                        stripos((string)$notif['message'], 'To Pay') !== false ||
-                        stripos((string)$notif['message'], 'rejected') !== false ||
-                        stripos((string)$notif['message'], 'proceed to payment') !== false ||
-                        stripos((string)$notif['message'], 'ready for payment') !== false ||
-                        stripos((string)$notif['message'], 'submit payment') !== false
-                    );
-
-                    $current_order_status = null;
-                    if (!empty($notif['data_id']) && in_array($notif['type'], ['Order', 'Status', 'Payment'])) {
-                        $ord_row = db_query("SELECT status FROM orders WHERE order_id = ? AND customer_id = ? LIMIT 1", 'ii', [$notif['data_id'], $customer_id]);
-                        if (!empty($ord_row)) {
-                            $current_order_status = $ord_row[0]['status'];
-                            if (stripos($current_order_status, 'To Pay') !== false || stripos($current_order_status, 'TO_PAY') !== false) {
-                                $is_payment_notif = true;
-                            }
-                        }
-                    }
-
-                    if (!function_exists('map_status_to_tab')) {
-                        function map_status_to_tab(string $status): string {
-                            $s = strtolower(trim($status));
-                            if (in_array($s, ['pending', 'pending approval', 'pending review', 'for revision'])) return 'pending';
-                            if ($s === 'approved') return 'approved';
-                            if (in_array($s, ['to verify', 'downpayment submitted', 'pending verification'])) return 'toverify';
-                            if ($s === 'to pay') return 'topay';
-                            if (in_array($s, ['in production', 'processing', 'printing', 'paid – in process'])) return 'production';
-                            if ($s === 'ready for pickup') return 'pickup';
-                            if (in_array($s, ['completed', 'to rate', 'rated'])) return 'completed';
-                            if ($s === 'cancelled') return 'cancelled';
-                            return 'all';
-                        }
-                    }
-
-                    if (!empty($notif['data_id'])) {
-                        if ($is_rating_notif) {
-                            $link = "/printflow/customer/rate_order.php?order_id=" . $notif['data_id'] . "&mark_read=" . $notif['notification_id'];
-                        } elseif ($is_payment_notif) {
-                            $link = "/printflow/customer/payment.php?order_id=" . $notif['data_id'] . "&mark_read=" . $notif['notification_id'];
-                        } elseif ($notif['type'] === 'Order' || $notif['type'] === 'Status') {
-                            $tab = $current_order_status ? map_status_to_tab($current_order_status) : 'all';
-                            $link = "/printflow/customer/orders.php?tab=" . $tab . "&highlight=" . $notif['data_id'] . "&mark_read=" . $notif['notification_id'];
-                        } elseif ($notif['type'] === 'Job Order') {
-                            $link = "/printflow/customer/order_details.php?id=" . $notif['data_id'] . "&mark_read=" . $notif['notification_id'];
-                        } elseif ($notif['type'] === 'Message') {
-                            $link = "/printflow/customer/chat.php?order_id=" . $notif['data_id'] . "&mark_read=" . $notif['notification_id'];
-                        }
-                    }
-
-                    $msg = htmlspecialchars($notif['message']);
+                    $msg = htmlspecialchars((string)$notif['message']);
                     $msg = preg_replace('/(Order #\d+)/', '<b>$1</b>', $msg);
-                ?>
-                <a href="<?php echo $link; ?>" class="notif-card <?php echo $notif['is_read'] ? '' : 'unread'; ?>">
-                    <div class="notif-card-inner">
-                        <div class="notif-image-wrap">
-                            <img src="<?php echo htmlspecialchars($final_image_url); ?>" 
-                                 alt="<?php echo htmlspecialchars($display_name); ?>" 
-                                 class="notif-image" 
-                                 onerror="this.src='<?php echo $fallback_img; ?>';">
-                        </div>
-                        <div class="notif-content-wrap">
-                            <div class="notif-title"><?php echo htmlspecialchars($display_name); ?></div>
-                            <div class="notif-description"><?php echo $msg; ?></div>
-                            <div class="notif-meta">
-                                <div class="notif-time"><?php echo time_elapsed_string($notif['created_at']); ?></div>
-                                <?php if (!empty($notif['data_id'])): ?>
-                                    <span class="notif-view-btn"><?php echo $is_rating_notif ? 'Rate Now' : 'View'; ?></span>
-                                <?php endif; ?>
+                    ?>
+                    <a href="<?php echo htmlspecialchars((string)$notif['link']); ?>" class="notif-card <?php echo !empty($notif['is_read']) ? '' : 'unread'; ?>">
+                        <div class="notif-card-inner">
+                            <div class="notif-image-wrap">
+                                <img src="<?php echo htmlspecialchars((string)$notif['image']); ?>"
+                                     alt="<?php echo htmlspecialchars((string)$notif['title']); ?>"
+                                     class="notif-image"
+                                     onerror="this.onerror=null;this.src='<?php echo htmlspecialchars((string)$notif['fallback'], ENT_QUOTES); ?>';">
+                            </div>
+                            <div class="notif-content-wrap">
+                                <div class="notif-title"><?php echo htmlspecialchars((string)$notif['title']); ?></div>
+                                <div class="notif-description"><?php echo $msg; ?></div>
+                                <div class="notif-meta">
+                                    <div class="notif-time"><?php echo htmlspecialchars((string)$notif['time_ago']); ?></div>
+                                    <?php if (!empty($notif['data_id'])): ?>
+                                        <span class="notif-view-btn"><?php echo $is_rating_notif ? 'Rate Now' : 'View'; ?></span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </a>
+                    </a>
                 <?php endforeach; ?>
             <?php endforeach; ?>
         <?php endif; ?>
@@ -446,30 +326,4 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<?php 
-function time_elapsed_string($datetime, $full = false) {
-    $now = new DateTime;
-    $ago = new DateTime($datetime);
-    $diff = $now->diff($ago);
-
-    $diff->w = floor($diff->d / 7);
-    $diff->d -= $diff->w * 7;
-
-    $string = array(
-        'y' => 'year', 'm' => 'month', 'w' => 'week', 'd' => 'day', 'h' => 'hour', 'i' => 'minute', 's' => 'second',
-    );
-    foreach ($string as $k => &$v) {
-        if ($diff->$k) {
-            $v = $diff->$k . ' ' . $v . ($diff->$k > 1 ? 's' : '');
-        } else {
-            unset($string[$k]);
-        }
-    }
-
-    if (!$full) $string = array_slice($string, 0, 1);
-    return $string ? implode(', ', $string) . ' ago' : 'just now';
-}
-?>
-
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
-

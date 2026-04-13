@@ -216,47 +216,56 @@ $completed_jobs = db_query("SELECT COUNT(*) as count FROM job_orders jo WHERE st
     }
     ?>
     <div class="main-content">
-        <header style="display:flex; justify-content:space-between; align-items:center;">
+        <header>
             <div>
-                <h1 class="page-title"><?php echo $_SESSION['user_type'] === 'Staff' ? 'Production Workflow' : 'Production Jobs'; ?></h1>
-                <span style="font-size:14px; color:#6b7280;">Manage active print jobs and material tasks.</span>
+                <h1 class="page-title">Production Workflow</h1>
+                <p class="page-subtitle">Track and manage active print jobs and material tasks</p>
             </div>
         </header>
 
         <main>
-            <!-- Stats Summary Row -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Total Jobs</div>
-                    <div class="stat-value"><?php echo $total_jobs; ?></div>
-                    <div class="stat-sub"><?php echo $completed_jobs; ?> completed</div>
+            <!-- Standardized KPI Row -->
+            <div class="kpi-row">
+                <div class="kpi-card indigo">
+                    <span class="kpi-card-inner">
+                        <span class="kpi-label">Total Jobs</span>
+                        <span class="kpi-value"><?php echo number_format($total_jobs); ?></span>
+                        <span class="kpi-sub"><?php echo $completed_jobs; ?> completed</span>
+                    </span>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">⏳ Pending</div>
-                    <div class="stat-value"><?php echo $pending_jobs; ?></div>
-                    <div class="stat-sub">Awaiting review</div>
+                <div class="kpi-card amber">
+                    <span class="kpi-card-inner">
+                        <span class="kpi-label">Pending Review</span>
+                        <span class="kpi-value"><?php echo $pending_jobs; ?></span>
+                        <span class="kpi-sub">Awaiting production start</span>
+                    </span>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">✅ Approved</div>
-                    <div class="stat-value"><?php echo $approval_jobs; ?></div>
-                    <div class="stat-sub">Ready for print</div>
+                <div class="kpi-card blue">
+                    <span class="kpi-card-inner">
+                        <span class="kpi-label">Approved Jobs</span>
+                        <span class="kpi-value"><?php echo $approval_jobs; ?></span>
+                        <span class="kpi-sub">Ready for material assignment</span>
+                    </span>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">🔄 In Production</div>
-                    <div class="stat-value"><?php echo $in_production; ?></div>
-                    <div class="stat-sub">Active tasks</div>
+                <div class="kpi-card emerald">
+                    <span class="kpi-card-inner">
+                        <span class="kpi-label">In Production</span>
+                        <span class="kpi-value"><?php echo $in_production; ?></span>
+                        <span class="kpi-sub">Actively printing / processing</span>
+                    </span>
                 </div>
             </div>
 
-            <!-- Jobs List & Filters (matching Enterprise reference) -->
+            <!-- Standardized Toolbar -->
             <div class="card overflow-visible">
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:24px; flex-wrap: wrap;">
-                    <div style="display:flex; gap:8px;">
+                <div class="toolbar-container" style="flex-wrap: wrap; gap: 16px;">
+                    <div style="display:flex; gap:8px; overflow-x: auto; padding-bottom: 4px;">
                         <template x-for="st in statuses">
                             <button 
                                 @click="activeStatus = st" 
                                 :class="activeStatus === st ? 'active' : ''"
                                 class="pill-tab"
+                                style="white-space: nowrap;"
                             >
                                 <span x-text="st"></span>
                                 <span class="tab-count" x-text="getStatusCount(st)"></span>
@@ -264,10 +273,11 @@ $completed_jobs = db_query("SELECT COUNT(*) as count FROM job_orders jo WHERE st
                         </template>
                     </div>
 
-                    <div style="display:flex; align-items:center; gap:16px;">
-                        <div style="position:relative;">
-                            <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                            <input type="text" x-model="search" placeholder="Filter jobs..." style="padding-left:32px; width:220px; height:36px; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; font-weight:400; outline:none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e5e7eb'">
+                    <div class="toolbar-group" style="margin-left: auto;">
+                        <!-- Search Bar -->
+                        <div class="toolbar-search">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            <input type="text" x-model="search" placeholder="Search...">
                         </div>
                     </div>
                 </div>

@@ -359,7 +359,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password']) &&
 
 $user_initial = strtoupper(substr($admin['first_name'], 0, 1));
 $profile_pic_url = !empty($admin['profile_picture']) 
-    ? '/printflow/public/assets/uploads/profiles/' . $admin['profile_picture'] 
+    ? get_profile_image($admin['profile_picture']) 
     : '';
 
 $page_title = 'My Profile - PrintFlow Admin';
@@ -746,7 +746,7 @@ $page_title = 'My Profile - PrintFlow Admin';
                 <div class="profile-avatar-wrapper">
                     <div class="profile-avatar" style="<?php echo $profile_pic_url ? 'cursor: pointer;' : ''; ?>" onclick="<?php echo $profile_pic_url ? 'viewProfilePicture()' : ''; ?>">
                         <?php if ($profile_pic_url): ?>
-                            <img src="<?php echo $profile_pic_url; ?>?t=<?php echo time(); ?>" alt="Profile">
+                            <img src="<?php echo $profile_pic_url; ?>?t=<?php echo time(); ?>" alt="Profile" onerror="this.onerror=null;this.src='/printflow/public/assets/uploads/profiles/default.png'">
                         <?php else: ?>
                             <?php echo $user_initial; ?>
                         <?php endif; ?>

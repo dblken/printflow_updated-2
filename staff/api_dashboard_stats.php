@@ -40,20 +40,27 @@ switch ($timeframe) {
         $timeframe_sql = "YEAR(o.order_date) = YEAR(CURDATE()) AND MONTH(o.order_date) = MONTH(CURDATE())"; 
         $timeframe_sql_no_alias = "YEAR(order_date) = YEAR(CURDATE()) AND MONTH(order_date) = MONTH(CURDATE())"; 
         break;
-    case 'year': 
-        $timeframe_sql = "YEAR(o.order_date) = YEAR(CURDATE())"; 
-        $timeframe_sql_no_alias = "YEAR(order_date) = YEAR(CURDATE())"; 
-        break;
-    case 'all': 
-        $timeframe_sql = "1=1"; 
-        $timeframe_sql_no_alias = "1=1"; 
-        break;
 }
 
 // 1. Stats
-$pending_orders = db_query("SELECT COUNT(*) as count FROM orders WHERE status IN ('Pending', 'Pending Review', 'To Verify') AND branch_id = ?", 'i', [$staffBranchId])[0]['count'] ?? 0;
-$completed_today = db_query("SELECT COUNT(*) as count FROM orders WHERE status = 'Completed' AND $timeframe_sql_no_alias AND branch_id = ?", 'i', [$staffBranchId])[0]['count'] ?? 0;
-$total_orders = db_query("SELECT COUNT(*) as count FROM orders WHERE $timeframe_sql_no_alias AND branch_id = ?", 'i', [$staffBranchId])[0]['count'] ?? 0;
+$completed_products = db_query("
+    SELECT COUNT(DISTINCT o.order_id) as count 
+    FROM orders o 
+    JOIN order_items oi ON o.order_id = oi.order_id
+    JOIN products p ON oi.product_id = p.product_id
+    WHERE o.status = 'Completed' AND o.branch_id = ? AND o.order_type = 'product' AND $timeframe_sql_no_alias
+", 'i', [$staffBranchId])[0]['count'] ?? 0;
+
+$completed_custom = db_query("
+    SELECT COUNT(DISTINCT o.order_id) as count 
+    FROM orders o 
+    JOIN order_items oi ON o.order_id = oi.order_id
+    LEFT JOIN job_orders jo ON oi.order_item_id = jo.order_item_id
+    LEFT JOIN services s ON oi.product_id = s.service_id
+    WHERE o.status = 'Completed' AND o.branch_id = ? AND $timeframe_sql_no_alias
+      AND (s.service_id IS NOT NULL OR jo.id IS NOT NULL OR o.order_type = 'custom')
+", 'i', [$staffBranchId])[0]['count'] ?? 0;
+
 $total_revenue = db_query("SELECT SUM(total_amount) as total FROM orders WHERE $timeframe_sql_no_alias AND status != 'Cancelled' AND branch_id = ?", 'i', [$staffBranchId])[0]['total'] ?? 0;
 
 // 2. Optimized & Dynamic Chart Data
@@ -107,13 +114,6 @@ switch($timeframe) {
         }
         break;
         
-    case 'year':
-        $chart_title = "Yearly Trend (Monthly)";
-        for ($i = 1; $i <= 12; $i++) {
-            $chart_labels[] = date('M', mktime(0, 0, 0, $i, 1));
-            $res = db_query("SELECT SUM(o.total_amount) as total FROM orders o $chart_sql_cond AND YEAR(o.order_date) = YEAR(CURDATE()) AND MONTH(o.order_date) = ?", $chart_types.'i', array_merge($chart_params, [$i]));
-            $chart_values[] = (float)($res[0]['total'] ?? 0);
-        }
         break;
 
     default: // 7 Days
@@ -126,16 +126,27 @@ switch($timeframe) {
         }
 }
 
-// 3. Top Services
+// 3. Top Sales (Dynamic Timeframe)
+$ts_where = $timeframe_sql;
 $top_services = db_query("
-    SELECT COALESCE(p.name, 'Custom Product') as name, COUNT(*) as order_count
+    SELECT 
+        TRIM(REPLACE(REPLACE(REPLACE(COALESCE(jo.service_type, s.name, p.name), ' Printing', ''), ' (Print/Cut)', ''), ' Print', '')) as name, 
+        COUNT(DISTINCT oi.order_item_id) as order_count
     FROM order_items oi
     JOIN orders o ON oi.order_id = o.order_id
-    LEFT JOIN products p ON oi.product_id = p.product_id
-    WHERE o.order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND o.branch_id = ?
+    LEFT JOIN job_orders jo ON oi.order_item_id = jo.order_item_id
+    LEFT JOIN products p ON (oi.product_id = p.product_id AND o.order_type = 'product')
+    LEFT JOIN services s ON ((oi.product_id = s.service_id AND o.order_type = 'custom') OR (jo.service_type = s.name AND s.status = 'Activated'))
+    WHERE $ts_where 
+      AND o.branch_id = ?
+      AND (
+          (p.product_id IS NOT NULL AND p.status = 'Activated')
+          OR (s.service_id IS NOT NULL AND s.status = 'Activated')
+          OR (jo.id IS NOT NULL AND EXISTS (SELECT 1 FROM services WHERE name = jo.service_type AND status = 'Activated'))
+      )
     GROUP BY name
     ORDER BY order_count DESC
-    LIMIT 5
+    LIMIT 10
 ", 'i', [$staffBranchId]);
 
 // 4. Recent Orders
@@ -148,7 +159,7 @@ if ($status_filter) {
     $params[] = $status_filter;
     $types .= "s";
 }
-if ($timeframe !== 'all') {
+if ($timeframe !== 'all' && isset($timeframe_sql)) {
     $sql_cond .= " AND " . $timeframe_sql;
 }
 if ($search_filter) {
@@ -189,9 +200,8 @@ echo json_encode([
     'stats' => [
         'revenue' => (float)$total_revenue,
         'formatted_revenue' => '₱' . number_format($total_revenue, 2),
-        'total_orders' => (int)$total_orders,
-        'pending' => (int)$pending_orders,
-        'completed' => (int)$completed_today
+        'completed_products' => (int)$completed_products,
+        'completed_custom' => (int)$completed_custom
     ],
     'chart' => [
         'labels' => $chart_labels,
@@ -205,5 +215,5 @@ echo json_encode([
         'total_pages' => ceil($total_rows / $limit),
         'total_rows' => (int)$total_rows
     ],
-    'timeframe_label' => $timeframe === 'today' ? 'Today' : ($timeframe === 'week' ? 'This Week' : ($timeframe === 'month' ? 'This Month' : ($timeframe === 'year' ? 'This Year' : 'All Time')))
+    'timeframe_label' => $timeframe === 'today' ? 'Today' : ($timeframe === 'week' ? 'This Week' : 'This Month')
 ]);

@@ -335,7 +335,7 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                                         <div class="field-row">
                                             <div class="field-group">
                                                 <label class="field-label">Section Label</label>
-                                                <input type="text" class="field-input label-input" value="<?php echo htmlspecialchars($config['label']); ?>" placeholder="e.g., Size, Finish, Design" <?php echo in_array($key, ['branch', 'needed_date', 'quantity', 'notes']) ? 'readonly style="background:#f9fafb;cursor:not-allowed;"' : ''; ?>>
+                                                <input type="text" class="field-input label-input" value="<?php echo htmlspecialchars($config['label']); ?>" placeholder="e.g., Size, Finish, Design (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" <?php echo in_array($key, ['branch', 'needed_date', 'quantity', 'notes']) ? 'readonly style="background:#f9fafb;cursor:not-allowed;"' : ''; ?>>
                                             </div>
                                             <div class="field-group">
                                                 <label class="field-label">Required Field</label>
@@ -365,7 +365,7 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                                                     ?>
                                                         <div class="option-item radio-option-item" data-option-index="<?php echo $optIdx; ?>" style="flex-direction:column;align-items:stretch;">
                             <div style="display:flex;gap:8px;align-items:center;">
-                                <input type="text" class="option-input" value="<?php echo htmlspecialchars($optValue); ?>" placeholder="Enter option" style="flex:1;">
+                                <input type="text" class="option-input" value="<?php echo htmlspecialchars($optValue); ?>" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:1;">
                                 <button type="button" class="btn-add" onclick="toggleNestedFieldPanel(this, '<?php echo htmlspecialchars($key); ?>', <?php echo $optIdx; ?>)" style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:6px;font-size:14px;font-weight:600;min-width:40px;" title="Add Nested Field">
                                     +
                                 </button>
@@ -384,7 +384,7 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                                                         $optValue = is_array($option) ? ($option['value'] ?? '') : $option;
                                                     ?>
                                                         <div class="option-item">
-                                                            <input type="text" class="option-input" value="<?php echo htmlspecialchars($optValue); ?>" placeholder="Enter option">
+                                                            <input type="text" class="option-input" value="<?php echo htmlspecialchars($optValue); ?>" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)">
                                                             <button type="button" class="btn-remove" onclick="removeOption(this)">Remove</button>
                                                         </div>
                                                     <?php endforeach; ?>
@@ -556,7 +556,7 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
             
             <div class="field-group">
                 <label class="field-label">Field Label *</label>
-                <input type="text" id="edit-field-label" class="field-input" placeholder="e.g., Special Instructions">
+                <input type="text" id="edit-field-label" class="field-input" placeholder="e.g., Special Instructions (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)">
             </div>
             
             <div class="field-group">
@@ -566,6 +566,15 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
             </div>
             
             <div id="edit-field-options-section" style="display:none;">
+                <div class="field-group">
+                    <label class="toggle-label">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="edit-field-options-allow-others">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Allow "Others" (Custom Input)</span>
+                    </label>
+                </div>
                 <div class="field-group">
                     <label class="field-label">Options (Choices shown to customer)</label>
                     <div id="edit-field-options-list" class="option-list"></div>
@@ -624,7 +633,7 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
         <div class="modal-body">
             <div class="field-group">
                 <label class="field-label">Field Label *</label>
-                <input type="text" id="new-field-label" class="field-input" placeholder="e.g., Special Instructions">
+                <input type="text" id="new-field-label" class="field-input" placeholder="e.g., Special Instructions (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)">
             </div>
             
             <div class="field-group">
@@ -641,24 +650,33 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
             
             <div id="new-field-options-section" style="display:none;">
                 <div class="field-group">
+                    <label class="toggle-label">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="new-field-options-allow-others">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Allow "Others" (Custom Input)</span>
+                    </label>
+                </div>
+                <div class="field-group">
                     <label class="field-label">Options (Choices shown to customer)</label>
                     <div id="new-field-options-list" class="option-list">
                         <div class="option-item" style="display:flex;gap:8px;align-items:center;">
-                            <input type="text" class="option-input" placeholder="e.g., Small, Red, Matte" style="flex:1;">
+                            <input type="text" class="option-input" placeholder="e.g., Small, Red, Matte (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:1;">
                             <button type="button" class="btn-add" onclick="toggleNewNestedFieldPanel(this, 0)" style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:6px;font-size:14px;font-weight:600;min-width:40px;" title="Add Nested Field">
                                 +
                             </button>
                             <button type="button" class="btn-remove" onclick="removeNewFieldOption(this)">Remove</button>
                         </div>
                         <div class="option-item" style="display:flex;gap:8px;align-items:center;">
-                            <input type="text" class="option-input" placeholder="e.g., Medium, Blue, Glossy" style="flex:1;">
+                            <input type="text" class="option-input" placeholder="e.g., Medium, Blue, Glossy (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:1;">
                             <button type="button" class="btn-add" onclick="toggleNewNestedFieldPanel(this, 1)" style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:6px;font-size:14px;font-weight:600;min-width:40px;" title="Add Nested Field">
                                 +
                             </button>
                             <button type="button" class="btn-remove" onclick="removeNewFieldOption(this)">Remove</button>
                         </div>
                         <div class="option-item" style="display:flex;gap:8px;align-items:center;">
-                            <input type="text" class="option-input" placeholder="e.g., Large, Green, Vinyl" style="flex:1;">
+                            <input type="text" class="option-input" placeholder="e.g., Large, Green, Vinyl (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:1;">
                             <button type="button" class="btn-add" onclick="toggleNewNestedFieldPanel(this, 2)" style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:6px;font-size:14px;font-weight:600;min-width:40px;" title="Add Nested Field">
                                 +
                             </button>
@@ -765,12 +783,13 @@ window.showEditFieldModal = function(key) {
     if (config.type === 'select' || config.type === 'radio') {
         optionsSection.style.display = 'block';
         dimensionSection.style.display = 'none';
+        document.getElementById('edit-field-options-allow-others').checked = !!config.allow_others;
         const list = document.getElementById('edit-field-options-list');
         list.innerHTML = '';
         (config.options || []).forEach(option => {
             const item = document.createElement('div');
             item.className = 'option-item';
-            item.innerHTML = '<input type="text" class="option-input" value="' + option + '"><button type="button" class="btn-remove" onclick="removeEditFieldOption(this)">Remove</button>';
+            item.innerHTML = '<input type="text" class="option-input" value="' + option + '" maxlength="32" placeholder="Enter option (32 MAX CHARACTERS)" oninput="formatTextToTitleCase(this)"><button type="button" class="btn-remove" onclick="removeEditFieldOption(this)">Remove</button>';
             list.appendChild(item);
         });
     } else if (config.type === 'dimension') {
@@ -852,7 +871,7 @@ window.addOption = function(btn) {
     const list = btn.previousElementSibling;
     const item = document.createElement('div');
     item.className = 'option-item';
-    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option"><button type="button" class="btn-remove" onclick="removeOption(this)">Remove</button>';
+    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)"><button type="button" class="btn-remove" onclick="removeOption(this)">Remove</button>';
     list.appendChild(item);
 };
 
@@ -880,7 +899,7 @@ window.addNewFieldOption = function() {
     const list = document.getElementById('new-field-options-list');
     const item = document.createElement('div');
     item.className = 'option-item';
-    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option"><button type="button" class="btn-remove" onclick="removeNewFieldOption(this)">Remove</button>';
+    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)"><button type="button" class="btn-remove" onclick="removeNewFieldOption(this)">Remove</button>';
     list.appendChild(item);
 };
 
@@ -933,15 +952,20 @@ window.addNewField = function() {
         return;
     }
     
-    const key = label.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-    if (window.fieldConfigurations[key]) {
-        alert('A field with this name already exists');
-        return;
+    let baseKey = label.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    if (!baseKey) baseKey = 'field';
+    let key = baseKey;
+    let counter = 1;
+    while (window.fieldConfigurations[key]) {
+        key = baseKey + '_' + counter;
+        counter++;
     }
     
     const config = { label, type, required, visible: true, order: Object.keys(window.fieldConfigurations).length };
     
     if (type === 'select' || type === 'radio') {
+        const allowOthers = document.getElementById('new-field-options-allow-others').checked;
+        config.allow_others = allowOthers;
         const options = [];
         const optionItems = document.querySelectorAll('#new-field-options-list .option-item');
         
@@ -1046,7 +1070,7 @@ window.addEditFieldOption = function() {
     const list = document.getElementById('edit-field-options-list');
     const item = document.createElement('div');
     item.className = 'option-item';
-    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option"><button type="button" class="btn-remove" onclick="removeEditFieldOption(this)">Remove</button>';
+    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)"><button type="button" class="btn-remove" onclick="removeEditFieldOption(this)">Remove</button>';
     list.appendChild(item);
 };
 
@@ -1085,6 +1109,7 @@ window.saveEditField = function() {
     config.visible = true;
     
     if (type === 'select' || type === 'radio') {
+        config.allow_others = document.getElementById('edit-field-options-allow-others').checked;
         const options = [];
         const list = document.getElementById('edit-field-options-list');
         list.querySelectorAll('.option-item').forEach(item => {
@@ -1220,6 +1245,16 @@ document.getElementById('configForm')?.addEventListener('submit', function(e) {
         this.appendChild(input);
     }
 });
+
+window.formatTextToTitleCase = function(input) {
+    let val = input.value;
+    if (val.length > 0) {
+        // Title Case: Capitalize first letter of each word, lowercase the rest
+        input.value = val.toLowerCase().split(' ').map(word => {
+            return word.charAt(0).toUpperCase() + word.slice(1);
+        }).join(' ');
+    }
+};
 </script>
 </body>
 </html>

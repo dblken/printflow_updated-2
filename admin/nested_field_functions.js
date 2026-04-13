@@ -63,7 +63,7 @@ window.addNestedFieldItem = function(btn) {
         
         <div style="margin-bottom:16px;padding-top:8px;">
             <label class="field-label">Field Label *</label>
-            <input type="text" class="nested-label field-input" placeholder="e.g., Special Instructions" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;background:#fff;transition:all 0.2s;">
+            <input type="text" class="nested-label field-input" placeholder="e.g., Special Instructions (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;background:#fff;transition:all 0.2s;">
         </div>
         
         <div style="margin-bottom:16px;">
@@ -82,15 +82,15 @@ window.addNestedFieldItem = function(btn) {
             <label class="field-label">Options (Choices shown to customer)</label>
             <div class="nested-options-list option-list">
                 <div class="option-item">
-                    <input type="text" class="nested-option-input option-input" placeholder="e.g., Small, Red, Matte">
+                    <input type="text" class="nested-option-input option-input" placeholder="e.g., Small, Red, Matte (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)">
                     <button type="button" class="btn-remove" onclick="this.parentElement.remove()">Remove</button>
                 </div>
                 <div class="option-item">
-                    <input type="text" class="nested-option-input option-input" placeholder="e.g., Medium, Blue, Glossy">
+                    <input type="text" class="nested-option-input option-input" placeholder="e.g., Medium, Blue, Glossy (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)">
                     <button type="button" class="btn-remove" onclick="this.parentElement.remove()">Remove</button>
                 </div>
                 <div class="option-item">
-                    <input type="text" class="nested-option-input option-input" placeholder="e.g., Large, Green, Vinyl">
+                    <input type="text" class="nested-option-input option-input" placeholder="e.g., Large, Green, Vinyl (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)">
                     <button type="button" class="btn-remove" onclick="this.parentElement.remove()">Remove</button>
                 </div>
             </div>
@@ -183,7 +183,7 @@ window.addNestedOption = function(btn) {
     const div = document.createElement('div');
     div.className = 'option-item';
     div.innerHTML = `
-        <input type="text" class="nested-option-input option-input" placeholder="Enter option">
+        <input type="text" class="nested-option-input option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)">
         <button type="button" class="btn-remove" onclick="this.parentElement.remove()">Remove</button>
     `;
     list.appendChild(div);

@@ -10,18 +10,22 @@ if ($service_id <= 0) {
 }
 
 $rows = db_query("
-    SELECT r.rating, r.message, r.created_at,
+    SELECT r.id, r.rating, r.message, r.video_path, r.created_at,
            COALESCE(c.first_name, u.first_name, 'Customer') as first_name,
            COALESCE(c.last_name,  u.last_name,  '')          as last_name
     FROM reviews r
-    LEFT JOIN customers c ON c.customer_id = r.customer_id
-    LEFT JOIN users u ON u.user_id = r.customer_id
+    LEFT JOIN customers c ON c.customer_id = r.user_id
+    LEFT JOIN users u ON u.user_id = r.user_id
     WHERE r.service_type COLLATE utf8mb4_unicode_ci IN (
         SELECT name COLLATE utf8mb4_unicode_ci FROM services WHERE service_id = ?
     )
     ORDER BY r.created_at DESC
     LIMIT 5
 ", 'i', [$service_id]) ?: [];
+
+foreach ($rows as $idx => $row) {
+    $rows[$idx]['images'] = db_query("SELECT image_path FROM review_images WHERE review_id = ?", 'i', [$row['id']]) ?: [];
+}
 
 $all = db_query("
     SELECT AVG(rating) as avg, COUNT(*) as cnt

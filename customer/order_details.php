@@ -509,14 +509,14 @@ require_once __DIR__ . '/../includes/header.php';
                             );
                             closePaymentModal();
                         } else {
-                            alert('Error: ' + data.message);
+                            showToast('Error: ' + data.message);
                             btn.disabled = false;
                             btn.textContent = 'Submit Payment';
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        alert('An unexpected error occurred. Please try again.');
+                        showToast('An unexpected error occurred. Please try again.');
                         btn.disabled = false;
                         btn.textContent = 'Submit Payment';
                     });

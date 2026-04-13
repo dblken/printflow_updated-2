@@ -56,11 +56,11 @@ if (isset($data['action']) && $data['action'] === 'create_pending_customization'
         $branch_id = (int)($_SESSION['branch_id'] ?? 1);
         if ($branch_id < 1) $branch_id = 1;
         
-        // Create order with status 'Pending' and payment_status 'Unpaid' initially
+        // Create order with status 'Approved' (skipped initial Pending verification for POS)
         // Will be updated to 'Paid' when checkout completes
         $order_result = db_execute(
             "INSERT INTO orders (customer_id, branch_id, reference_id, total_amount, status, payment_status, payment_method, order_date, updated_at, order_type, order_source) 
-             VALUES (?, ?, ?, 0, 'Pending', 'Unpaid', 'Cash', NOW(), NOW(), 'custom', 'pos')",
+             VALUES (?, ?, ?, 0, 'Approved', 'Unpaid', 'Cash', NOW(), NOW(), 'product', 'pos')",
             'iii',
             [$customer_id, $branch_id, $product_id]
         );
@@ -95,10 +95,10 @@ if (isset($data['action']) && $data['action'] === 'create_pending_customization'
         
         $order_item_id = $conn->insert_id;
         
-        // Create customization entry
+        // Create customization entry with status 'Approved'
         $details_json = json_encode($customization ?: new stdClass());
         $customization_result = db_execute(
-            "INSERT INTO customizations (order_id, order_item_id, customer_id, service_type, customization_details, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'Pending', NOW(), NOW())",
+            "INSERT INTO customizations (order_id, order_item_id, customer_id, service_type, customization_details, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'Approved', NOW(), NOW())",
             'iiiss',
             [$order_id, $order_item_id, $customer_id, $name, $details_json]
         );
@@ -200,15 +200,9 @@ try {
     $branch_id = (int)($_SESSION['branch_id'] ?? 1);
     if ($branch_id < 1) $branch_id = 1;
 
-    // Determine order_type based on items (if any has customization, map to custom)
+    // Determine order_type (Always 'product' for POS as per user request to show in orders.php)
     $order_type = 'product';
     $reference_id = $items[0]['id'] ?? null;
-    foreach ($items as $item) {
-        if (!empty($item['customization'])) {
-            $order_type = 'custom';
-            break;
-        }
-    }
 
     $order_result = db_execute(
         "INSERT INTO orders (customer_id, branch_id, reference_id, total_amount, status, payment_status, payment_method, payment_reference, order_date, updated_at, order_type, order_source) 
@@ -259,7 +253,7 @@ try {
             $details['source'] = 'POS'; // Mark as POS purchase
             $details_json = json_encode($details ?: new stdClass());
             $customization_result = db_execute(
-                "INSERT INTO customizations (order_id, order_item_id, customer_id, service_type, customization_details, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'Pending', NOW(), NOW())",
+                "INSERT INTO customizations (order_id, order_item_id, customer_id, service_type, customization_details, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'In Production', NOW(), NOW())",
                 'iiiss',
                 [$order_id, $order_item_id, $customer_id, $name, $details_json]
             );
@@ -278,9 +272,9 @@ try {
                     'sdi',
                     [$payment_method, $price * $qty, $pending_order_id]
                 );
-                // Update customization with the price
+                // Update customization with the price — also move to In Production
                 db_execute(
-                    "UPDATE customizations SET status = 'Approved' WHERE order_id = ?",
+                    "UPDATE customizations SET status = 'In Production' WHERE order_id = ?",
                     'i',
                     [$pending_order_id]
                 );
@@ -288,14 +282,7 @@ try {
             }
         }
 
-        // Deduct stock only for non-service items
-        if (!$is_service) {
-            if (!printflow_product_deduct_stock_for_branch($product_id, $branch_id, $qty)) {
-                $conn->rollback();
-                echo json_encode(['success' => false, 'message' => 'Failed to update stock.']);
-                exit;
-            }
-        }
+        // Deduct stock is removed here as per user request to deduct only when status is COMPLETED
     }
 
     $conn->commit();

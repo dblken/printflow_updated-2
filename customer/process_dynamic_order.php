@@ -174,7 +174,7 @@ if ($action === 'buy_now') {
         $product_id,
         0, // total_amount - will be set by staff
         0, // downpayment_amount
-        'To Pay', // status
+        'Pending', // status
         'Unpaid', // payment_status
         'full_payment', // payment_type
         null, // notes

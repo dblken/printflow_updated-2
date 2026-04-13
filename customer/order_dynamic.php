@@ -62,7 +62,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="shopee-card">
             <!-- Left: Image -->
             <div class="shopee-image-section">
-                <div class="sticky top-24">
+                <div class="sticky-image-container">
                     <div class="shopee-main-image-wrap">
                         <?php 
                         $display_img = "";

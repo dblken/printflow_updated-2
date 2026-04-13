@@ -365,48 +365,54 @@ function render_order_item_clean($item, $is_cart_item = false, $show_price = tru
     <?php
 }
 
-?>
-<style>
-@media (max-width: 768px) {
-    .order-item-header {
-        flex-direction: column !important;
-        gap: 1rem !important;
+/**
+ * Renders the shared styles for order item cards.
+ * Should be called once in the <head> of the page.
+ */
+function render_order_item_styles() {
+    ?>
+    <style>
+    @media (max-width: 768px) {
+        .order-item-header {
+            flex-direction: column !important;
+            gap: 1rem !important;
+        }
+        .order-item-image {
+            width: 100% !important;
+            max-width: 200px !important;
+            height: 200px !important;
+            margin: 0 auto !important;
+        }
+        .order-item-content {
+            width: 100% !important;
+        }
+        .order-item-details {
+            flex-direction: column !important;
+            gap: 0.75rem !important;
+        }
+        .review-detail-row,
+        .review-total-row {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+            min-width: 100% !important;
+            padding: 0.5rem 0 !important;
+            border-bottom: 1px solid rgba(83, 197, 224, 0.1) !important;
+        }
+        .review-detail-row:last-child,
+        .review-total-row:last-child {
+            border-bottom: none !important;
+        }
+        .review-detail-label,
+        .review-total-label {
+            text-align: left !important;
+        }
+        .review-detail-value,
+        .review-total-value {
+            text-align: right !important;
+        }
     }
-    .order-item-image {
-        width: 100% !important;
-        max-width: 200px !important;
-        height: 200px !important;
-        margin: 0 auto !important;
-    }
-    .order-item-content {
-        width: 100% !important;
-    }
-    .order-item-details {
-        flex-direction: column !important;
-        gap: 0.75rem !important;
-    }
-    .review-detail-row,
-    .review-total-row {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        width: 100% !important;
-        min-width: 100% !important;
-        padding: 0.5rem 0 !important;
-        border-bottom: 1px solid rgba(83, 197, 224, 0.1) !important;
-    }
-    .review-detail-row:last-child,
-    .review-total-row:last-child {
-        border-bottom: none !important;
-    }
-    .review-detail-label,
-    .review-total-label {
-        text-align: left !important;
-    }
-    .review-detail-value,
-    .review-total-value {
-        text-align: right !important;
-    }
+    </style>
+    <?php
 }
-</style>
-<?php

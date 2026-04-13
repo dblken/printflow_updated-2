@@ -1,3 +1,3 @@
 <?php
-header('Location: /printflow/customer/dashboard.php');
+header('Location: /printflow/customer/orders.php?tab=completed');
 exit;

@@ -45,6 +45,7 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
     <meta name="theme-color" content="#4F46E5">
     <title><?php echo $page_title ?? 'PrintFlow - Printing Shop'; ?></title>
     <?php include __DIR__ . '/favicon_links.php'; ?>
+    <?php if (function_exists('render_order_item_styles')) render_order_item_styles(); ?>
     <?php if (strpos($_SERVER['REQUEST_URI'] ?? '', '/staff/') !== false): ?>
     <script>(function(){document.documentElement.classList.add('printflow-staff');})();</script>
     <?php include __DIR__ . '/staff_theme.php'; ?>
@@ -66,9 +67,11 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
     <script src="<?php echo $asset_base; ?>/assets/js/alpine.min.js" defer></script>
     <script src="<?php echo $asset_base; ?>/assets/js/alpine-init-helper.js"></script>
     <script src="<?php echo $asset_base; ?>/assets/js/turbo-init.js" defer></script>
-    
     <!-- Critical: base link/layout so page is never unstyled -->
     <style>
+        /* Prevent layout shift from scrollbar */
+        html { overflow-y: scroll; }
+        
         a { color: inherit; text-decoration: none; }
         a:hover { text-decoration: none; }
         body { margin: 0; background: #f9fafb; color: #111827; font-family: Inter, system-ui, sans-serif; }
@@ -156,7 +159,76 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
         #main-header nav > div > div:last-child { display: flex; align-items: center; gap: 1rem; }
         /* Suppress browser-native :invalid styling globally — validation is JS-driven */
         input:invalid, select:invalid, textarea:invalid { box-shadow: none !important; outline-color: initial !important; }
+
+        /* Global Toast Notifications — Premium Dark Glass Aesthetic */
+        .toast-container { position: fixed; top: 2rem; right: 2rem; z-index: 10000; display: flex; flex-direction: column; gap: 0.85rem; pointer-events: none; }
+        .toast-item { 
+            pointer-events: auto;
+            min-width: 320px;
+            max-width: 450px;
+            background: rgba(10, 37, 48, 0.92);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(83, 197, 224, 0.28);
+            border-left: 4px solid #53c5e0;
+            padding: 1rem 1.4rem;
+            border-radius: 12px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+            color: #eaf6fb;
+            font-weight: 600;
+            font-size: 0.92rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            animation: pfToastIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            transition: all 0.35s ease;
+        }
+        .toast-item.error { border-left-color: #ef4444; }
+        .toast-item.success { border-left-color: #10b981; }
+        .toast-item.info { border-left-color: #3b82f6; }
+        .toast-item.fade-out { animation: pfToastOut 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        @keyframes pfToastIn {
+            from { opacity: 0; transform: translateX(60px) scale(0.85); filter: blur(4px); }
+            to { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
+        }
+        @keyframes pfToastOut {
+            from { opacity: 1; transform: translateX(0) scale(1); }
+            to { opacity: 0; transform: translateX(60px) scale(0.9); filter: blur(4px); }
+        }
     </style>
+    <script>
+    /**
+     * Global Toast Notification System
+     * @param {string} message - Text to display
+     * @param {string} type - 'success', 'error', 'info', 'warning'
+     * @param {number} duration - Time in ms before auto-removal
+     */
+    window.showToast = function(message, type = 'error', duration = 5000) {
+        let container = document.getElementById('pf-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'pf-toast-container';
+            container.className = 'toast-container';
+            document.body.appendChild(container); // Append to body to ensure it's on top of everything
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = `toast-item ${type}`;
+        
+        let icon = 'ℹ️';
+        if (type === 'error') icon = '⚠️';
+        if (type === 'success') icon = '✅';
+        if (type === 'warning') icon = '🔔';
+
+        toast.innerHTML = `<span style="font-size: 1.25rem;">${icon}</span> <span style="line-height: 1.4;">${message}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('fade-out');
+            setTimeout(() => { if (toast.parentNode) toast.remove(); }, 450);
+        }, duration);
+    };
+    </script>
 </head>
 <body class="bg-gray-50<?php echo !empty($use_landing_css) ? ' lp-page' : ''; ?><?php echo !empty($use_customer_css) ? ' customer-theme' : ''; ?><?php echo !empty($is_chat_page) ? ' chat-page' : ''; ?>">
     <!-- Skip to main content (accessibility) - hidden until focused -->
@@ -167,6 +239,10 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
     <?php 
     // Standard dark background for non-landing pages (customer, staff, admin)
     $nav_header_class = 'bg-[#0a2530] backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-white/5'; 
+    // STAFF-SIDE: Disable the global top-right header search to avoid redundancy with page-level toolbars
+    if (strpos($_SERVER['REQUEST_URI'] ?? '', '/staff/') !== false) {
+        $show_header_search = false;
+    }
     require __DIR__ . '/nav-header.php'; 
     ?>
     <?php endif; ?>
