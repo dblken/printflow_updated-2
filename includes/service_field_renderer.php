@@ -103,22 +103,28 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
                 }
                 $html .= '</select>';
             } else {
-                $html .= '<select name="' . htmlspecialchars($field_key) . '" class="shopee-opt-btn" ' . $required_attr . ' style="width: 175px; cursor: pointer;">';
+                $html .= '<select name="' . htmlspecialchars($field_key) . '" class="shopee-opt-btn pricing-field" data-field-key="' . htmlspecialchars($field_key) . '" ' . $required_attr . ' style="width: 175px; cursor: pointer;" onchange="updateFieldPrice(this)">';
                 $html .= '<option value="">Select ' . $label . '</option>';
                 foreach ($config['options'] ?? [] as $option) {
                     $optionValue = is_array($option) ? ($option['value'] ?? '') : $option;
+                    $optionPrice = is_array($option) ? (float)($option['price'] ?? 0) : 0;
                     if ($optionValue === '') continue;
                     
                     // Skip if this option is already defined in a nested field
                     if (isset($nestedValuesSet[strtolower(trim($optionValue))])) continue;
                     
                     $value = htmlspecialchars(formatToTitleCase($optionValue));
-                    $html .= '<option value="' . $value . '">' . $value . '</option>';
+                    $html .= '<option value="' . $value . '" data-price="' . $optionPrice . '">' . $value . '</option>';
                 }
                 if ($config['allow_others'] ?? false) {
-                    $html .= '<option value="Others"' . (($saved_value === 'Others') ? ' selected' : '') . '>Others</option>';
+                    $html .= '<option value="Others" data-price="0"' . (($saved_value === 'Others') ? ' selected' : '') . '>Others</option>';
                 }
                 $html .= '</select>';
+                
+                // Add price display container for select field
+                $html .= '<div id="price-display-' . htmlspecialchars($field_key) . '" class="field-price-display" style="display:none;margin-top:12px;padding:8px 12px;background:#053f4e;width:fit-content;">';
+                $html .= '<span style="font-size:0.875rem;font-weight:600;color:#53c5e0;">Price: <span class="price-amount">₱0</span></span>';
+                $html .= '</div>';
                 
                 if ($config['allow_others'] ?? false) {
                     $html .= '<div id="' . htmlspecialchars($field_key) . '_other_container" style="display:' . (($saved_value === 'Others') ? 'block' : 'none') . '; margin-top:10px;">';
@@ -138,6 +144,7 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
             $html .= '<div class="shopee-opt-group">';
             foreach ($config['options'] ?? [] as $idx => $option) {
                 $optionValue = is_array($option) ? ($option['value'] ?? '') : $option;
+                $optionPrice = is_array($option) ? (float)($option['price'] ?? 0) : 0;
                 $nestedFields = is_array($option) ? ($option['nested_fields'] ?? []) : [];
                 
                 if ($optionValue === '') continue;
@@ -146,11 +153,11 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
                 $value = htmlspecialchars(formatToTitleCase($optionValue));
                 $is_checked = ($saved_value == $optionValue) ? ' checked' : '';
                 $html .= '<label class="shopee-opt-btn' . ($is_checked ? ' active' : '') . '">';
-                $html .= '<input type="radio" name="' . htmlspecialchars($field_key) . '" value="' . $value . '"' . $is_checked . ' style="display:none;" ' . $required_attr . ' onchange="updateOptVisual(this); handleNestedFields(this, \'' . htmlspecialchars($field_key) . '\', ' . $idx . ')">';
+                $html .= '<input type="radio" name="' . htmlspecialchars($field_key) . '" value="' . $value . '" data-price="' . $optionPrice . '" class="pricing-field" data-field-key="' . htmlspecialchars($field_key) . '"' . $is_checked . ' style="display:none;" ' . $required_attr . ' onchange="updateOptVisual(this); handleNestedFields(this, \'' . htmlspecialchars($field_key) . '\', ' . $idx . '); updateFieldPrice(this)">';
                 $html .= '<span>' . $value . '</span>';
                 $html .= '</label>';
             }
-
+            
             if ($config['allow_others'] ?? false) {
                 $is_others_checked = ($saved_value === 'Others') ? ' checked' : '';
                 $html .= '<label class="shopee-opt-btn' . ($is_others_checked ? ' active' : '') . '">';
@@ -160,7 +167,13 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
             }
             $html .= '</div>';
             
+            // Add price display container BELOW radio buttons
+            $html .= '<div id="price-display-' . htmlspecialchars($field_key) . '" class="field-price-display" style="display:none;margin-top:12px;padding:6px 10px;background:#053f4e;width:fit-content;font-size:0.8125rem;">';
+            $html .= '<span style="font-weight:600;color:#53c5e0;">Price: <span class="price-amount">₱0</span></span>';
+            $html .= '</div>';
+            
             if ($config['allow_others'] ?? false) {
+                $is_others_checked = ($saved_value === 'Others') ? ' checked' : '';
                 $html .= '<div id="' . htmlspecialchars($field_key) . '_other_container" style="display:' . ($is_others_checked ? 'block' : 'none') . '; margin-top:10px;">';
                 $html .= '<input type="text" name="' . htmlspecialchars($field_key) . '_other" class="input-field" placeholder="Please specify" value="' . htmlspecialchars($saved_customization[$config['label'] . ' (Other)'] ?? '') . '">';
                 $html .= '</div>';
@@ -297,7 +310,8 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
                     // Check if it's a preset or custom
                     $is_preset = false;
                     foreach ($config['options'] ?? [] as $option) {
-                        $opt_normalized = str_replace(['×', 'X', '*', '-'], 'x', trim($option));
+                        $opt_value = is_array($option) ? ($option['value'] ?? '') : $option;
+                        $opt_normalized = str_replace(['×', 'X', '*', '-'], 'x', trim($opt_value));
                         if (strtolower($opt_normalized) === strtolower($saved_width . 'x' . $saved_height)) {
                             $is_preset = true;
                             break;
@@ -311,8 +325,12 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
             
             if (!empty($config['options']) && is_array($config['options'])) {
                 foreach ($config['options'] as $option) {
-                    $option = trim($option);
-                    $normalized = str_replace(['x', 'X', '*', '-', '×'], '|', $option);
+                    // Handle both string and object formats
+                    $optionValue = is_array($option) ? ($option['value'] ?? '') : $option;
+                    $optionPrice = is_array($option) ? (float)($option['price'] ?? 0) : 0;
+                    
+                    $option_clean = trim($optionValue);
+                    $normalized = str_replace(['x', 'X', '*', '-', '×'], '|', $option_clean);
                     $parts = explode('|', $normalized);
                     
                     if (count($parts) === 2) {
@@ -321,7 +339,7 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
                         if ($w && $h) {
                             $displayLabel = $w . '×' . $h;
                             $is_active = (!$is_custom_dimension && $saved_width == $w && $saved_height == $h) ? ' active' : '';
-                            $html .= '<button type="button" class="shopee-opt-btn' . $is_active . '" data-width="' . htmlspecialchars($w) . '" data-height="' . htmlspecialchars($h) . '" onclick="selectDimension(' . htmlspecialchars($w) . ', ' . htmlspecialchars($h) . ', event)">' . $displayLabel . '</button>';
+                            $html .= '<button type="button" class="shopee-opt-btn pricing-field' . $is_active . '" data-width="' . htmlspecialchars($w) . '" data-height="' . htmlspecialchars($h) . '" data-price="' . $optionPrice . '" data-field-key="' . htmlspecialchars($field_key) . '" onclick="selectDimension(' . htmlspecialchars($w) . ', ' . htmlspecialchars($h) . ', event)">' . $displayLabel . '</button>';
                         }
                     }
                 }
@@ -331,6 +349,11 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
                 $others_active = $is_custom_dimension ? ' active' : '';
                 $html .= '<button type="button" class="shopee-opt-btn' . $others_active . '" id="dim-others-btn" onclick="selectDimensionOthers(event)">Others</button>';
             }
+            $html .= '</div>';
+            
+            // Add price display container BELOW dimension buttons
+            $html .= '<div id="price-display-' . htmlspecialchars($field_key) . '" class="field-price-display" style="display:none;margin-top:12px;padding:6px 10px;background:#053f4e;width:fit-content;font-size:0.8125rem;">';
+            $html .= '<span style="font-weight:600;color:#53c5e0;">Price: <span class="price-amount">₱0</span></span>';
             $html .= '</div>';
             
             if ($allowOthers) {
@@ -595,7 +618,8 @@ function selectDimension(w, h, e) {
     if (btnGroup) {
         btnGroup.querySelectorAll('.shopee-opt-btn').forEach(b => b.classList.remove('active'));
     }
-    e.target.closest('.shopee-opt-btn').classList.add('active');
+    const activeBtn = e.target.closest('.shopee-opt-btn');
+    activeBtn.classList.add('active');
     const othersInput = document.getElementById('dim-others-inputs');
     if (othersInput) othersInput.style.display = 'none';
     
@@ -605,6 +629,20 @@ function selectDimension(w, h, e) {
     if (heightInput) heightInput.value = '';
     
     syncDimensionToHidden();
+    
+    // Update field price display for dimension button
+    const fieldKey = activeBtn.getAttribute('data-field-key');
+    const price = parseFloat(activeBtn.getAttribute('data-price') || 0);
+    if (fieldKey) {
+        updateFieldPriceDisplay(fieldKey, price);
+    }
+    
+    // Trigger price calculation
+    const form = document.getElementById('serviceForm');
+    if (form) {
+        const event = new Event('change', { bubbles: true });
+        form.dispatchEvent(event);
+    }
 }
 
 function selectDimensionOthers(e) {
@@ -618,16 +656,34 @@ function selectDimensionOthers(e) {
     const othersInput = document.getElementById('dim-others-inputs');
     if (othersInput) othersInput.style.display = 'block';
     syncDimensionToHidden();
+    
+    // Hide price display when "Others" is selected (no price for custom dimensions)
+    const row = e.target.closest('.shopee-form-row');
+    if (row) {
+        const fieldKey = row.getAttribute('data-field-key');
+        if (fieldKey) {
+            const priceDisplay = document.getElementById('price-display-' + fieldKey);
+            if (priceDisplay) priceDisplay.style.display = 'none';
+        }
+    }
 }
 
 function increaseQty() {
     const i = document.getElementById('quantity-input');
-    if (i) i.value = Math.min(100, (parseInt(i.value) || 1) + 1);
+    if (i) {
+        i.value = Math.min(100, (parseInt(i.value) || 1) + 1);
+        // Trigger price calculation
+        if (typeof calculateEstimatedPrice === 'function') calculateEstimatedPrice();
+    }
 }
 
 function decreaseQty() {
     const i = document.getElementById('quantity-input');
-    if (i && parseInt(i.value) > 1) i.value = parseInt(i.value) - 1;
+    if (i && parseInt(i.value) > 1) {
+        i.value = parseInt(i.value) - 1;
+        // Trigger price calculation
+        if (typeof calculateEstimatedPrice === 'function') calculateEstimatedPrice();
+    }
 }
 
 function validateQuantity(input) {
@@ -637,6 +693,8 @@ function validateQuantity(input) {
     } else if (val > 100) {
         input.value = 100;
     }
+    // Trigger price calculation
+    if (typeof calculateEstimatedPrice === 'function') calculateEstimatedPrice();
 }
 
 // --- Conditional Fields Logic ---
@@ -778,7 +836,60 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Run once on load to show initial state
     updateConditionalFields();
+    
+    // Initialize price displays for pre-selected options
+    document.querySelectorAll('input[type="radio"].pricing-field:checked').forEach(radio => {
+        updateFieldPrice(radio);
+    });
+    document.querySelectorAll('select.pricing-field').forEach(select => {
+        if (select.value) updateFieldPrice(select);
+    });
+    document.querySelectorAll('.shopee-opt-btn.pricing-field.active[data-price]').forEach(btn => {
+        const fieldKey = btn.getAttribute('data-field-key');
+        const price = parseFloat(btn.getAttribute('data-price') || 0);
+        if (fieldKey && price > 0) {
+            updateFieldPriceDisplay(fieldKey, price);
+        }
+    });
 });
+
+// Dynamic Field Price Display Function
+function updateFieldPrice(element) {
+    let fieldKey = '';
+    let price = 0;
+    
+    if (element.tagName === 'INPUT' && element.type === 'radio') {
+        // Radio button
+        fieldKey = element.getAttribute('data-field-key') || element.name;
+        price = parseFloat(element.getAttribute('data-price') || 0);
+    } else if (element.tagName === 'SELECT') {
+        // Select dropdown
+        fieldKey = element.getAttribute('data-field-key') || element.name;
+        const selectedOption = element.options[element.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            price = parseFloat(selectedOption.getAttribute('data-price') || 0);
+        }
+    }
+    
+    if (fieldKey) {
+        updateFieldPriceDisplay(fieldKey, price);
+    }
+}
+
+function updateFieldPriceDisplay(fieldKey, price) {
+    const priceDisplay = document.getElementById('price-display-' + fieldKey);
+    if (!priceDisplay) return;
+    
+    if (price > 0) {
+        const priceAmount = priceDisplay.querySelector('.price-amount');
+        if (priceAmount) {
+            priceAmount.textContent = '₱' + price.toFixed(2);
+        }
+        priceDisplay.style.display = 'block';
+    } else {
+        priceDisplay.style.display = 'none';
+    }
+}
 </script>
 JSEND;
 }

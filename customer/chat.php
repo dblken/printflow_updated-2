@@ -253,9 +253,13 @@ require_once __DIR__ . '/../includes/header.php';
     .char-counter { font-size: 10px; font-weight: 800; color: var(--pf-dim); opacity: 0.5; white-space: nowrap; align-self: center; }
 
     .btn-send { 
-        background: var(--pf-cyan); color: #00151b; border: none; width: 44px; height: 44px; border-radius: 14px; 
+        background: #06b6d4; /* Tailwind bg-cyan-500 */ color: #00151b; border: none; width: 44px; height: 44px; border-radius: 14px; 
         display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; flex-shrink: 0;
-        box-shadow: 0 2px 10px rgba(83, 197, 224, 0.2);
+        box-shadow: 0 2px 10px rgba(6, 182, 212, 0.2);
+    }
+    .btn-send:hover {
+        background: #22d3ee; /* Tailwind bg-cyan-400 */
+        filter: brightness(1.1);
     }
     .btn-send:hover { transform: scale(1.05); filter: brightness(1.1); }
     .btn-send.hidden { display: none; }
@@ -270,18 +274,28 @@ require_once __DIR__ . '/../includes/header.php';
     @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
     @keyframes pickerPop { from { opacity: 0; transform: translateX(-50%) scale(0.8) translateY(10px); } to { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); } }
     @keyframes menuFade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-sform: translateY(0); } }
+
 
     /* Forward Modal CSS */
-    #fwdModal { display:none; position:fixed; inset:0; background:transparent; z-index:2000; align-items:center; justify-content:center; }
-    #fwdModal.show { display:flex; }
-    .fwd-panel { background:rgba(0,35,43,0.7); backdrop-filter:blur(20px); border:1px solid rgba(83,197,224,0.3); border-radius:32px; width:100%; max-width:420px; padding:1.5rem; box-shadow:0 40px 100px rgba(0,0,0,0.5); }
-    .fwd-list-item { display:flex; align-items:center; gap:12px; padding:12px; border-radius:16px; transition:.15s; cursor:pointer; border:1.1px solid transparent; }
-    .fwd-list-item:hover { background:rgba(255,255,255,.03); }
-    .fwd-list-item.selected { background:var(--pf-cyan-glow); border-color:rgba(83,197,224,.3); }
-    .fwd-check { width:18px; height:18px; border-radius:50%; border:2px solid var(--pf-border); display:flex; align-items:center; justify-content:center; transition:.2s; }
-    .selected .fwd-check { background:var(--pf-cyan); border-color:var(--pf-cyan); }
-    .selected .fwd-check { background:var(--pf-cyan); border-color:var(--pf-cyan); }
+    #pfFwdModal { display:none; position:fixed; inset:0; background:transparent; z-index:2000; align-items:center; justify-content:center; }
+    #pfFwdModal.show { display:flex; }
+    .fwd-panel { background:rgba(0,35,43,0.8); backdrop-filter:blur(30px); border:1px solid rgba(83,197,224,0.3); border-radius:32px; width:100%; max-width:480px; box-shadow:0 40px 100px rgba(0,0,0,0.6); display:flex; flex-direction:column; overflow:hidden; }
+    .fwd-header { padding:1.25rem 1.5rem; border-bottom:1px solid rgba(83,197,224,0.1); display:flex; justify-content:space-between; align-items:center; }
+    .fwd-search-wrap { padding:1rem 1.5rem; border-bottom:1px solid rgba(83,197,224,0.1); }
+    .fwd-search-input { width:100%; height:44px; background:rgba(255,255,255,0.05); border:1px solid rgba(83,197,224,0.2); border-radius:14px; padding:0 1rem 0 2.5rem; color:#fff; font-size:0.9rem; outline:none; transition:.2s; }
+    .fwd-search-input:focus { border-color:var(--pf-cyan); background:rgba(255,255,255,0.08); }
+    .fwd-preview-section { padding:0.75rem 1.5rem; background:rgba(0,0,0,0.2); border-bottom:1px solid rgba(83,197,224,0.1); }
+    .fwd-preview-label { font-size:0.65rem; color:var(--pf-cyan); font-weight:800; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.05em; }
+    .fwd-body { flex:1; max-height:380px; overflow-y:auto; padding:1rem 1.25rem; display:flex; flex-direction:column; gap:8px; }
+    .fwd-body::-webkit-scrollbar { width:4px; }
+    .fwd-body::-webkit-scrollbar-thumb { background:rgba(83,197,224,0.2); border-radius:10px; }
+    .fwd-footer { padding:1.25rem 1.5rem; border-top:1px solid rgba(83,197,224,0.1); display:flex; justify-content:flex-end; gap:12px; }
+    
+    .fwd-list-item { display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:16px; transition:.15s; cursor:pointer; background:rgba(255,255,255,0.02); border:1px solid rgba(83,197,224,0.1); }
+    .fwd-list-item:hover { background:rgba(255,255,255,0.05); border-color:rgba(83,197,224,0.2); }
+    .fwd-list-item.selected { background:rgba(83,197,224,0.08); border-color:rgba(83,197,224,0.4); }
+    .fwd-check-circle { width:20px; height:20px; border-radius:50%; border:2px solid rgba(83,197,224,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:.2s; }
+    .selected .fwd-check-circle { background:var(--pf-cyan); border-color:var(--pf-cyan); }
 
     #galleryPanel {
         position: absolute; right: 0; top: 0; bottom: 0; width: 320px; 
@@ -392,15 +406,27 @@ sform: translateY(0); } }
     </section>
 </div>
 
-    <div id="fwdModal">
+    <div id="pfFwdModal" class="hidden">
         <div class="fwd-panel">
-            <div class="flex justify-between items-center mb-6">
+            <div class="fwd-header">
                 <h3 class="text-white font-black text-xl">Forward Message</h3>
-                <button onclick="closeFwd()" class="text-white opacity-40 hover:opacity-100 transition-all"><i class="bi bi-x-lg"></i></button>
+                <button onclick="closeFwd()" style="background:transparent; border:none; color:rgba(255,255,255,0.4); cursor:pointer; font-size:1.5rem; padding:0; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:8px; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='rgba(255,255,255,0.4)';"><i class="bi bi-x-lg"></i></button>
             </div>
-            <div id="fwdPreview" class="p-4 bg-black bg-opacity-20 rounded-xl mb-6 text-white text-sm border-l-4 border-cyan-400 opacity-60 italic"></div>
-            <div id="fwdList" class="space-y-2 max-h-60 overflow-y-auto pr-2 mb-6"></div>
-            <button id="fwdSendBtn" onclick="doForward()" disabled class="w-full py-4 bg-cyan-500 rounded-2xl text-black font-black text-lg transition-all hover:bg-cyan-400 disabled:opacity-30">Send to 0</button>
+            <div class="fwd-search-wrap">
+                <div style="position:relative;">
+                    <i class="bi bi-search" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--pf-cyan); opacity:0.6; font-size:0.9rem;"></i>
+                    <input type="text" id="fwdSearch" class="fwd-search-input" placeholder="Search orders..." oninput="loadFwdList(this.value)">
+                </div>
+            </div>
+            <div class="fwd-preview-section">
+                <div class="fwd-preview-label">Preview</div>
+                <div id="fwdPreview" style="font-size:0.85rem; color:#fff; opacity:0.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+            </div>
+            <div id="fwdList" class="fwd-body"></div>
+            <div class="fwd-footer">
+                <button onclick="closeFwd()" style="padding:0 20px; height:44px; border-radius:14px; border:1px solid rgba(83,197,224,0.2); background:transparent; color:var(--pf-dim); font-weight:700; font-size:0.9rem; cursor:pointer;">Cancel</button>
+                <button id="fwdSendBtn" onclick="doForward()" disabled style="padding:0 32px; height:44px; border-radius:14px; border:1px solid rgba(83,197,224,0.2); background:#06b6d4; color:#fff; font-weight:700; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all 0.2s;">Send <i class="bi bi-send-fill"></i></button>
+            </div>
         </div>
     </div>
 
@@ -429,6 +455,8 @@ const PROFILE_IMAGE_ONERROR = `this.onerror=null;this.src='${DEFAULT_PROFILE_IMA
 const EMOJIS = {like:'👍', love:'❤️', haha:'😂', wow:'😮', sad:'😢', angry:'😡'};
 
 let activeId = null, lastId = 0, pollTimer = null;
+window.__initialOrderId = <?= json_encode($initial_order_id) ?>;
+
 let isArchView = false, isConvArch = false, uploads = [], pfc = null;
 let partnerAvatarUrl = '', replyId = null;
 
@@ -510,11 +538,11 @@ function loadConvs() {
             const name = c.staff_name || 'PrintFlow Team';
             const active = activeId === c.order_id ? 'active' : '';
             return `
-            <div class="conv-card ${active}" onclick="openChat(${c.order_id},'${esc(name)}','${esc(c.service_name||'Order')}',${c.is_archived?1:0},'${esc(c.staff_avatar||'')}')">
-                <div class="conv-av">${c.staff_avatar ? `<img src="${resolveProfileUrl(c.staff_avatar)}" onerror="${PROFILE_IMAGE_ONERROR}">` : `<span>${name[0].toUpperCase()}</span>`}</div>
+            <div class="conv-card ${active}" onclick="openChat(${c.order_id},'${esc(name)}','${esc(c.product_name||'Order')}',${c.is_archived?1:0},'${esc(c.staff_avatar||'')}')">
+                <div class="conv-av">${c.staff_avatar ? `<img src="${resolveProfileUrl(c.staff_avatar)}" onerror="${PROFILE_IMAGE_ONERROR}">` : (name === 'PrintFlow Team' ? `<img src="${BASE}/public/assets/images/favicon.png" style="width:24px;height:24px;object-fit:contain;opacity:0.8;">` : `<span>${name[0].toUpperCase()}</span>`)}</div>
                 <div class="conv-info">
                     <div class="conv-top"><span class="conv-name">${esc(name)}</span><span class="conv-time">${fmtTimeAgo(c.last_message_at)}</span></div>
-                    <div class="conv-sub">ORDER #${c.order_id} · ${esc(c.service_name||'Order')}</div>
+                    <div class="conv-sub">ORDER #${c.order_id} · ${esc(c.product_name||'Order')}</div>
                     <div class="conv-prev">${esc(c.last_message||'No messages yet')}</div>
                 </div>
             </div>`;
@@ -529,7 +557,11 @@ function openChat(id, name, meta, archived, avatar = '') {
     document.getElementById('hName').textContent = name;
     document.getElementById('hMeta').textContent = 'Order #' + id + ' · ' + meta;
     const hAv = document.getElementById('hAvatar');
-    hAv.innerHTML = avatar ? `<img src="${resolveProfileUrl(avatar)}" style="width:100%;height:100%;object-fit:cover;" onerror="${PROFILE_IMAGE_ONERROR}">` : `<span>${name[0].toUpperCase()}</span>`;
+    hAv.innerHTML = avatar 
+        ? `<img src="${resolveProfileUrl(avatar)}" style="width:100%;height:100%;object-fit:cover;" onerror="${PROFILE_IMAGE_ONERROR}">` 
+        : (name === 'PrintFlow Team' 
+            ? `<img src="${BASE}/public/assets/images/favicon.png" style="width:28px;height:28px;object-fit:contain;opacity:0.9;">`
+            : `<span>${name[0].toUpperCase()}</span>`);
     updateArchUI(archived);
     document.getElementById('messagesArea').innerHTML = '';
     loadMsgs();
@@ -1016,25 +1048,46 @@ let fwdMsgData = null, selectedFwd = [];
 function initFwd(id, msgB64) {
     fwdMsgData = { id, text: decodeURIComponent(escape(atob(msgB64))) };
     selectedFwd = [];
-    document.getElementById('fwdModal').classList.add('show');
-    document.getElementById('fwdPreview').textContent = fwdMsgData.text || '📸 Attachment';
-    document.getElementById('fwdSendBtn').disabled = true;
-    document.getElementById('fwdSendBtn').textContent = 'Send to 0';
+    const modal = document.getElementById('pfFwdModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('show');
+    const preview = document.getElementById('fwdPreview');
+    preview.textContent = fwdMsgData.text || '📸 Attachment';
+    const s = document.getElementById('fwdSearch');
+    if(s) s.value = '';
     loadFwdList();
     closeAllMenus();
 }
-function closeFwd() { document.getElementById('fwdModal').classList.remove('show'); }
-function loadFwdList() {
-    api('/public/api/chat/list_conversations.php?archived=0').then(res => {
+function closeFwd() { 
+    const modal = document.getElementById('pfFwdModal');
+    modal.classList.remove('show');
+    modal.classList.add('hidden');
+}
+function loadFwdList(q = '') {
+    api(`/public/api/chat/list_conversations.php?archived=0&q=${encodeURIComponent(q)}`).then(res => {
         const list = document.getElementById('fwdList');
-        if (!res.conversations) return;
+        if (!res.conversations) {
+            list.innerHTML = '<div class="p-8 text-center opacity-30 text-sm">No orders found</div>';
+            return;
+        }
         list.innerHTML = res.conversations.map(c => {
             const isSel = selectedFwd.includes(c.order_id);
+            const name = c.staff_name || 'PrintFlow Team';
+            const initial = name[0].toUpperCase();
+            const avatarHtml = c.staff_avatar 
+                ? `<img src="${resolveProfileUrl(c.staff_avatar)}" onerror="${PROFILE_IMAGE_ONERROR}">` 
+                : (name === 'PrintFlow Team' 
+                    ? `<img src="${BASE}/public/assets/images/favicon.png" style="width:20px;height:20px;object-fit:contain;opacity:0.8;">`
+                    : `<span>${initial}</span>`);
+
             return `
             <div class="fwd-list-item ${isSel?'selected':''}" onclick="toggleFwdTarget(${c.order_id})">
-                <div class="conv-av" style="width:36px;height:36px;">${c.staff_avatar ? `<img src="${resolveProfileUrl(c.staff_avatar)}" onerror="${PROFILE_IMAGE_ONERROR}">` : `<span>${(c.staff_name||'S')[0].toUpperCase()}</span>`}</div>
-                <div style="flex:1;"><div style="font-size:.85rem;font-weight:700;color:#fff;">${esc(c.staff_name)}</div><div style="font-size:.7rem;color:var(--pf-dim);">Order #${c.order_id}</div></div>
-                <div class="fwd-check">${isSel?'<i class="bi bi-check text-xs"></i>':''}</div>
+                <div class="conv-av" style="width:38px;height:38px;background:rgba(83,197,224,0.1); border-radius:12px;">${avatarHtml}</div>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:0.88rem; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(name)}</div>
+                    <div style="font-size:0.75rem; color:var(--pf-cyan); font-weight:700; opacity:0.8;">Order #${c.order_id} · ${esc(c.product_name||'Order')}</div>
+                </div>
+                <div class="fwd-check-circle">${isSel?'<i class="bi bi-check text-black" style="font-size:14px; font-weight:900;"></i>':''}</div>
             </div>`;
         }).join('');
     });
@@ -1042,9 +1095,11 @@ function loadFwdList() {
 function toggleFwdTarget(id) {
     const idx = selectedFwd.indexOf(id);
     if (idx === -1) selectedFwd.push(id); else selectedFwd.splice(idx,1);
-    document.getElementById('fwdSendBtn').disabled = selectedFwd.length === 0;
-    document.getElementById('fwdSendBtn').textContent = `Send to ${selectedFwd.length}`;
-    loadFwdList();
+    const count = selectedFwd.length;
+    document.getElementById('fwdSendBtn').disabled = count === 0;
+    document.getElementById('fwdSendBtn').innerHTML = `Send ${count > 0 ? `(${count})` : ''} <i class="bi bi-send-fill" style="margin-left:4px;"></i>`;
+    const q = document.getElementById('fwdSearch').value;
+    loadFwdList(q);
 }
 async function doForward() {
     if (!fwdMsgData || !selectedFwd.length) return;
@@ -1073,7 +1128,7 @@ function openOrderDetails(id) {
             return `
             <div style="background:rgba(255,255,255,0.03); border:1px solid var(--pf-border); border-radius:20px; padding:1.25rem; margin-bottom:1rem;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:1rem;">
-                    <div><div style="font-size:0.75rem; color:var(--pf-cyan); font-weight:800; text-transform:uppercase;">${it.category}</div><div style="font-size:1.1rem; font-weight:900; color:#fff;">${it.service_name}</div></div>
+                    <div><div style="font-size:0.75rem; color:var(--pf-cyan); font-weight:800; text-transform:uppercase;">${it.category}</div><div style="font-size:1.1rem; font-weight:900; color:#fff;">${it.product_name}</div></div>
                     <div style="background:var(--pf-cyan); color:#00151b; font-size:0.7rem; font-weight:900; padding:4px 10px; border-radius:10px;">QTY: ${it.quantity}</div>
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; font-size:0.85rem;">

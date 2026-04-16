@@ -131,9 +131,9 @@ function render_service_card($srv) {
     
     .shopee-card {
         background: var(--shopee-card-bg);
-        border: 1px solid var(--shopee-border);
-        border-radius: 12px;
-        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        border: none;
+        border-radius: 0;
+        transition: transform 0.2s, box-shadow 0.2s;
         cursor: pointer;
         overflow: hidden;
         display: flex;
@@ -144,7 +144,6 @@ function render_service_card($srv) {
     .shopee-card:hover {
         transform: translateY(-4px);
         box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(83,197,224,0.1);
-        border-color: rgba(83,197,224,0.45);
     }
     
     .shopee-img {
@@ -208,7 +207,7 @@ function render_service_card($srv) {
     .shopee-btn {
         flex: 1;
         padding: 7px 0;
-        border-radius: 3px;
+        border-radius: 0;
         font-size: 0.8rem;
         font-weight: 600;
         text-align: center;
@@ -297,21 +296,21 @@ function render_service_card($srv) {
     <!-- Backdrop -->
     <div onclick="closeServiceModal()" style="position: absolute; inset: 0; background-color: rgba(0, 0, 0, 0.45);"></div>
     
-    <div id="service-modal-content" style="position: relative; background: rgba(10, 37, 48, 0.96); border: 1px solid rgba(83, 197, 224, 0.28); border-radius: 1.25rem; width: 620px; max-width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); transform: translateY(20px); transition: all 0.3s ease;">
+    <div id="service-modal-content" style="position: relative; background: rgba(10, 37, 48, 0.96); border: none; border-radius: 0; width: 620px; max-width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); transform: translateY(20px); transition: all 0.3s ease;">
         
         <style>
             #service-modal-scroll-body::-webkit-scrollbar { width: 6px; }
             #service-modal-scroll-body::-webkit-scrollbar-track { background: transparent; }
             #service-modal-scroll-body::-webkit-scrollbar-thumb { background: rgba(83, 197, 224, 0.7); border-radius: 10px; }
             .modal-action-row { display: flex; align-items: stretch; gap: 1rem; }
-            .modal-qty-block { display: flex; align-items: center; border: 1px solid rgba(83, 197, 224, 0.32); border-radius: 0.75rem; height: 48px; flex-shrink: 0; background: rgba(12, 43, 56, 0.92); }
+            .modal-qty-block { display: flex; align-items: center; border: none; border-radius: 0; height: 48px; flex-shrink: 0; background: rgba(12, 43, 56, 0.92); }
             .modal-qty-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: #e8f4f8; font-weight: 700; transition: all 0.2s; }
             .modal-action-buttons { display: grid; grid-template-columns: 1fr; gap: 0.75rem; flex: 1; }
-            .modal-action-btn { height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; border-radius: 0.75rem; border: none; cursor: pointer; transition: all 0.3s; font-size: 0.9rem; text-transform: uppercase; background: var(--shopee-orange); color: #001c24; box-shadow: 0 0 15px rgba(83, 197, 224, 0.25); letter-spacing: 0.05em; }
+            .modal-action-btn { height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; border-radius: 0; border: none; cursor: pointer; transition: all 0.3s; font-size: 0.9rem; text-transform: uppercase; background: var(--shopee-orange); color: #001c24; box-shadow: 0 0 15px rgba(83, 197, 224, 0.25); letter-spacing: 0.05em; }
             .modal-action-btn:hover { background: #7adcf5; box-shadow: 0 0 25px rgba(83, 197, 224, 0.5); transform: translateY(-2px); }
         </style>
         
-        <button onclick="closeServiceModal()" style="position: absolute; top: 1rem; right: 1rem; z-index: 100; padding: 0.5rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 9999px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center;">
+        <button onclick="closeServiceModal()" style="position: absolute; top: 1rem; right: 1rem; z-index: 100; padding: 0.5rem; background: #ffffff; border: none; border-radius: 0; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center;">
             <svg style="width: 1.5rem; height: 1.5rem; color: #1e293b;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
 
@@ -322,27 +321,27 @@ function render_service_card($srv) {
                 </div>
                 
                 <!-- Navigation Arrows -->
-                <button type="button" id="modal-carousel-prev" onclick="changeModalImage(-1);event.stopPropagation();" style="display:none;position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.9);color:#374151;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10;transition:all 0.2s;">
+                <button type="button" id="modal-carousel-prev" onclick="changeModalImage(-1);event.stopPropagation();" style="display:none;position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.9);color:#374151;border:none;border-radius:0;width:36px;height:36px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10;transition:all 0.2s;">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                 </button>
-                <button type="button" id="modal-carousel-next" onclick="changeModalImage(1);event.stopPropagation();" style="display:flex;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.9);color:#374151;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10;transition:all 0.2s;">
+                <button type="button" id="modal-carousel-next" onclick="changeModalImage(1);event.stopPropagation();" style="display:flex;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.9);color:#374151;border:none;border-radius:0;width:36px;height:36px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10;transition:all 0.2s;">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </button>
                 
                 <!-- Image Counter -->
-                <div id="modal-image-counter" style="display:none;position:absolute;bottom:16px;right:16px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;z-index:10;">
+                <div id="modal-image-counter" style="display:none;position:absolute;bottom:16px;right:16px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:0;font-size:11px;font-weight:600;z-index:10;">
                     <span id="modal-current-image">1</span> / <span id="modal-total-images">1</span>
                 </div>
                 
                 <div style="position: absolute; top: 1.25rem; left: 1.25rem; z-index:11;">
-                    <span id="modal-category" style="padding: 0.35rem 0.85rem; background: #ffffff; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; border-radius: 0.5rem; color: #4F46E5; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">CATEGORY</span>
+                    <span id="modal-category" style="padding: 0.35rem 0.85rem; background: #ffffff; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; border-radius: 0; color: #4F46E5; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">CATEGORY</span>
                 </div>
             </div>
 
             <div style="padding: 1.5rem 2rem; display: flex; flex-direction: column;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
                     <h2 id="modal-name" style="font-size: 1.5rem; font-weight: 800; color: #eaf6fb; margin: 0;">Service Name</h2>
-                    <div id="modal-rating-pill" style="display: flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); padding: 4px 10px; border-radius: 999px;">
+                    <div id="modal-rating-pill" style="display: flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.1); border: none; padding: 4px 10px; border-radius: 0;">
                         <span style="color: #f59e0b; font-size: 14px;">★</span>
                         <span id="modal-rating-val" style="color: #f59e0b; font-size: 0.85rem; font-weight: 800;">0.0</span>
                     </div>

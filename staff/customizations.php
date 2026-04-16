@@ -517,12 +517,12 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
     <!-- No more materials modal - integrated into details -->
 
 <!-- Image Preview Lightbox -->
-<div x-show="previewFile" x-cloak style="position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:10000; display:flex; align-items:center; justify-content:center; padding:40px;">
-    <button @click="previewFile = null" style="position:fixed; top:20px; right:25px; background:rgba(255,255,255,0.1); border:none; color:white; font-size:40px; width:50px; height:50px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">&times;</button>
-    <div style="max-width:100%; max-height:100%; position:relative;">
-        <img :src="previewFile" style="max-width:100%; max-height:85vh; border-radius:12px; box-shadow:0 25px 50px rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1);">
-        <div style="margin-top:20px; text-align:center;">
-            <a :href="previewFile" download style="background:white; color:#1f2937; padding:10px 24px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:600; display:inline-flex; align-items:center; gap:8px;">
+<div x-show="previewFile" x-cloak @click.self="previewFile = null" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:10000; max-width:90vw; max-height:90vh;">
+    <div style="position:relative; background:white; border-radius:16px; padding:20px; box-shadow:0 25px 50px rgba(0,0,0,0.3); border:1px solid #e5e7eb;">
+        <button @click="previewFile = null" style="position:absolute; top:10px; right:10px; background:#f3f4f6; border:none; color:#374151; font-size:24px; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; z-index:10001; font-weight:300; line-height:1;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">&times;</button>
+        <img :src="previewFile" @click.stop style="max-width:80vw; max-height:70vh; border-radius:8px; display:block;">
+        <div style="margin-top:16px; text-align:center;">
+            <a :href="previewFile" download @click.stop style="background:#06A1A1; color:white; padding:10px 24px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:600; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s;" onmouseover="this.style.background='#047676'" onmouseout="this.style.background='#06A1A1'">
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 Download Artwork
             </a>
@@ -597,9 +597,6 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                                      @click="previewFile = item.design_url"
                                                      style="width:140px; height:auto; border-radius:10px; border:1px solid #e2e8f0; cursor:zoom-in; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);" 
                                                      onerror="this.src='<?php echo htmlspecialchars((defined('BASE_URL') ? BASE_URL : '/printflow') . '/public/assets/images/services/default.png', ENT_QUOTES, 'UTF-8'); ?>'">
-                                                <a :href="item.design_url" target="_blank" rel="noopener" style="font-size:11px; color:#4f46e5; text-decoration:none; font-weight:600; padding:6px 10px; background:#f5f3ff; border-radius:6px; transition:all 0.2s;" onmouseover="this.style.background='#ddd6fe'">
-                                                    Open Original →
-                                                </a>
                                             </div>
                                         </div>
                                     </template>
@@ -611,7 +608,6 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                                      @click="previewFile = item.reference_url"
                                                      style="width:140px; height:auto; border-radius:10px; border:1px solid #e2e8f0; cursor:zoom-in; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);"
                                                      onerror="this.style.display='none'">
-                                                <a :href="item.reference_url" target="_blank" rel="noopener" style="font-size:11px; color:#4f46e5; text-decoration:none; font-weight:600; padding:6px 10px; background:#f5f3ff; border-radius:6px;">Open reference →</a>
                                             </div>
                                         </div>
                                     </template>
@@ -705,11 +701,13 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                             </div>
                                         </template>
 
-                                        <!-- Queue Display -->
                                         <div x-show="pendingMaterials.length > 0" style="display:flex; flex-direction:column; gap:6px;">
                                             <template x-for="(pm, idx) in pendingMaterials" :key="idx">
                                                 <div style="display:flex; align-items:center; justify-content:space-between; background:#f1f5f9; border-radius:8px; padding:8px 12px; font-size:12px; border:1px solid #e2e8f0;">
-                                                    <span style="font-weight:600; color:#1e293b;" x-text="pm.name"></span>
+                                                    <div>
+                                                        <span style="font-weight:600; color:#1e293b;" x-text="pm.name"></span>
+                                                        <span x-show="pm.qty > 0" style="margin-left:4px; font-weight:800; color:#06A1A1;" x-text="'x' + pm.qty"></span>
+                                                    </div>
                                                     <div style="display:flex; align-items:center; gap:12px;">
                                                         <span style="color:#64748b;" x-text="pm.qty + ' ' + pm.uom"></span>
                                                         <button @click="pendingMaterials.splice(idx,1)" style="color:#ef4444; border:none; background:none; cursor:pointer; font-weight:700;">✕</button>
@@ -724,71 +722,113 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                         <div style="display:flex; align-items:center; justify-content:space-between;">
                                             <label style="font-size:12px; font-weight:700; color:#374151;">[2] Ink Options</label>
                                             <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                                                <input type="checkbox" x-model="useInk" style="width:14px; height:14px; cursor:pointer;">
+                                                <input type="checkbox" x-model="useInk" style="width:16px; height:16px; cursor:pointer; accent-color:#06A1A1;">
                                                 <span style="font-size:11px; font-weight:600; color:#6b7280; text-transform:uppercase;">Use Ink</span>
                                             </label>
                                         </div>
 
-                                        <div x-show="useInk" x-transition style="padding:12px; border:1px dashed #cbd5e1; border-radius:12px; background:#f9fafb;">
-                                            <label style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:8px; display:block;">Select Ink Set</label>
-                                            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+                                        <div x-show="useInk" x-transition style="padding:16px; border:1px solid #cbd5e1; border-radius:12px; background:#f9fafb;">
+                                            <label style="font-size:11px; font-weight:700; color:#374151; text-transform:uppercase; margin-bottom:10px; display:block;">Select Ink Set</label>
+                                            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
                                                 <template x-for="type in availableInkOptionsForService" :key="type">
-                                                    <button @click="inkCategorySelected = type" 
+                                                    <button type="button" @click="inkCategorySelected = type" 
                                                             :style="inkCategorySelected === type ? 'background:#06A1A1; color:white; border-color:#06A1A1;' : 'background:white; color:#64748b; border-color:#e2e8f0;'"
-                                                            style="padding:6px 12px; border-radius:6px; border:1px solid; font-size:11px; font-weight:700; transition:all 0.2s;"
+                                                            style="padding:8px 16px; border-radius:8px; border:2px solid; font-size:12px; font-weight:700; transition:all 0.2s; cursor:pointer;"
                                                             x-text="type"></button>
                                                 </template>
                                             </div>
 
                                             <template x-if="inkCategorySelected">
-                                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                                                    <div>
-                                                        <label style="font-size:9px; font-weight:700; color:#ef4444; text-transform:uppercase; display:block;">RED (ml)</label>
-                                                        <input type="number" x-model.number="inkRed" step="0.1" style="width:100%; padding:6px; border:1px solid #e2e8f0; border-radius:6px; font-size:12px;">
-                                                    </div>
-                                                    <div>
-                                                        <label style="font-size:9px; font-weight:700; color:#3b82f6; text-transform:uppercase; display:block;">BLUE (ml)</label>
-                                                        <input type="number" x-model.number="inkBlue" step="0.1" style="width:100%; padding:6px; border:1px solid #e2e8f0; border-radius:6px; font-size:12px;">
-                                                    </div>
-                                                    <div>
-                                                        <label style="font-size:9px; font-weight:700; color:#1f2937; text-transform:uppercase; display:block;">BLACK (ml)</label>
-                                                        <input type="number" x-model.number="inkBlack" step="0.1" style="width:100%; padding:6px; border:1px solid #e2e8f0; border-radius:6px; font-size:12px;">
-                                                    </div>
-                                                    <div>
-                                                        <label style="font-size:9px; font-weight:700; color:#eab308; text-transform:uppercase; display:block;">YELLOW (ml)</label>
-                                                        <input type="number" x-model.number="inkYellow" step="0.1" style="width:100%; padding:6px; border:1px solid #e2e8f0; border-radius:6px; font-size:12px;">
+                                                <div>
+                                                    <div style="background:#fff; padding:16px; border-radius:10px; border:1px solid #e2e8f0;">
+                                                        <div style="font-size:11px; font-weight:700; color:#374151; text-transform:uppercase; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+                                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                            Ink Consumption (ml)
+                                                        </div>
+                                                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                                            <div>
+                                                                <label style="font-size:10px; font-weight:700; color:#ef4444; text-transform:uppercase; display:flex; align-items:center; gap:4px; margin-bottom:6px;">
+                                                                    <span style="width:12px; height:12px; background:#ef4444; border-radius:50%; display:inline-block;"></span>
+                                                                    RED
+                                                                </label>
+                                                                <div style="position:relative;">
+                                                                    <input type="number" x-model.number="inkRed" step="0.1" min="0" placeholder="0.0" style="width:100%; padding:10px 32px 10px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:14px; font-weight:600; transition:border-color 0.2s;" onfocus="this.style.borderColor='#ef4444'" onblur="this.style.borderColor='#e5e7eb'">
+                                                                    <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:11px; color:#9ca3af; font-weight:600;">ml</span>
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <label style="font-size:10px; font-weight:700; color:#3b82f6; text-transform:uppercase; display:flex; align-items:center; gap:4px; margin-bottom:6px;">
+                                                                    <span style="width:12px; height:12px; background:#3b82f6; border-radius:50%; display:inline-block;"></span>
+                                                                    BLUE
+                                                                </label>
+                                                                <div style="position:relative;">
+                                                                    <input type="number" x-model.number="inkBlue" step="0.1" min="0" placeholder="0.0" style="width:100%; padding:10px 32px 10px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:14px; font-weight:600; transition:border-color 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e5e7eb'">
+                                                                    <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:11px; color:#9ca3af; font-weight:600;">ml</span>
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <label style="font-size:10px; font-weight:700; color:#1f2937; text-transform:uppercase; display:flex; align-items:center; gap:4px; margin-bottom:6px;">
+                                                                    <span style="width:12px; height:12px; background:#1f2937; border-radius:50%; display:inline-block;"></span>
+                                                                    BLACK
+                                                                </label>
+                                                                <div style="position:relative;">
+                                                                    <input type="number" x-model.number="inkBlack" step="0.1" min="0" placeholder="0.0" style="width:100%; padding:10px 32px 10px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:14px; font-weight:600; transition:border-color 0.2s;" onfocus="this.style.borderColor='#1f2937'" onblur="this.style.borderColor='#e5e7eb'">
+                                                                    <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:11px; color:#9ca3af; font-weight:600;">ml</span>
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <label style="font-size:10px; font-weight:700; color:#eab308; text-transform:uppercase; display:flex; align-items:center; gap:4px; margin-bottom:6px;">
+                                                                    <span style="width:12px; height:12px; background:#eab308; border-radius:50%; display:inline-block;"></span>
+                                                                    YELLOW
+                                                                </label>
+                                                                <div style="position:relative;">
+                                                                    <input type="number" x-model.number="inkYellow" step="0.1" min="0" placeholder="0.0" style="width:100%; padding:10px 32px 10px 12px; border:2px solid #e5e7eb; border-radius:8px; font-size:14px; font-weight:600; transition:border-color 0.2s;" onfocus="this.style.borderColor='#eab308'" onblur="this.style.borderColor='#e5e7eb'">
+                                                                    <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:11px; color:#9ca3af; font-weight:600;">ml</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </template>
                                         </div>
-                                        <div x-show="!useInk" style="font-size:11px; color:#94a3b8; font-style:italic; text-align:center; padding:10px;">
-                                            Ink is disabled for this job type.
+                                        <div x-show="!useInk" style="font-size:12px; color:#94a3b8; font-style:italic; text-align:center; padding:16px; background:#f9fafb; border-radius:8px; border:1px dashed #e2e8f0;">
+                                            No ink required for this job
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Final Step: Pricing and Submit -->
-                            <div style="padding:20px; border-radius:16px; border:1px solid #06A1A1; background:linear-gradient(to right, #f0fdfa, #f0fdf4); box-shadow:0 4px 6px -1px rgba(6, 161, 161, 0.1);">
-                                <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap;">
-                                    <div style="flex:1; min-width:200px;">
-                                        <label style="font-size:12px; font-weight:700; color:#0f766e; text-transform:uppercase; display:block; margin-bottom:8px;">[3] Final Pricing (₱)</label>
-                                        <div style="position:relative;">
-                                            <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-weight:700; color:#0f766e;">₱</span>
-                                            <input type="number" x-model.number="jobPriceInput" 
-                                                   min="0" step="0.01"
-                                                   @input="jobPriceInput = parseFloat($event.target.value) || 0"
-                                                   style="width:100%; padding:12px 12px 12px 32px; border:2px solid #06A1A1; border-radius:10px; font-size:20px; font-weight:800; color:#0f766e; outline:none;">
-                                        </div>
+                            <div style="padding:24px; border-radius:16px; border:2px solid #06A1A1; background:linear-gradient(135deg, #f0fdfa 0%, #ecfeff 100%); box-shadow:0 4px 12px rgba(6, 161, 161, 0.15);">
+                                <div style="margin-bottom:20px;">
+                                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                                        <svg width="20" height="20" fill="none" stroke="#0f766e" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <label style="font-size:13px; font-weight:800; color:#0f766e; text-transform:uppercase; letter-spacing:0.5px;">[3] Set Final Price</label>
                                     </div>
-                                    <button @click="submitToPay()" class="btn-action" style="padding:0 32px; height:52px; font-size:15px; background:#06A1A1; color:#fff; border:none; font-weight:800; border-radius:12px; display:flex; align-items:center; gap:10px; box-shadow:0 10px 15px -3px rgba(6, 161, 161, 0.4);">
-                                        <span>Confirm Approval</span>
-                                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                                    </button>
+                                    <div style="position:relative;">
+                                        <span style="position:absolute; left:16px; top:50%; transform:translateY(-50%); font-weight:800; color:#0f766e; font-size:20px;">₱</span>
+                                        <input type="number" x-model.number="jobPriceInput" 
+                                               min="0" step="0.01" placeholder="0.00"
+                                               @input="jobPriceInput = parseFloat($event.target.value) || 0"
+                                               style="width:100%; padding:16px 16px 16px 40px; border:2px solid #06A1A1; border-radius:12px; font-size:24px; font-weight:800; color:#0f766e; outline:none; background:#ffffff; transition:all 0.2s;"
+                                               onfocus="this.style.borderColor='#0d9488'; this.style.boxShadow='0 0 0 3px rgba(6, 161, 161, 0.1)'"
+                                               onblur="this.style.borderColor='#06A1A1'; this.style.boxShadow='none'">
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:6px; margin-top:10px; padding:10px 12px; background:#fff; border-radius:8px; border:1px solid #d1fae5;">
+                                        <svg width="14" height="14" fill="none" stroke="#059669" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <span style="font-size:11px; color:#059669; font-weight:600;">This is the total amount the customer will pay</span>
+                                    </div>
                                 </div>
-                                <p style="font-size:12px; color:#0d9488; font-weight:500; margin-top:12px; display:flex; align-items:center; gap:6px;">
-                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                    Approving will notify the customer and prepare materials for production.
+                                <button @click="submitToPay()" class="btn-action" style="width:100%; padding:16px; height:auto; font-size:16px; background:#06A1A1; color:#fff; border:none; font-weight:800; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:12px; box-shadow:0 10px 20px rgba(6, 161, 161, 0.3); transition:all 0.2s; cursor:pointer;"
+                                        onmouseover="this.style.background='#0d9488'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 24px rgba(6, 161, 161, 0.4)'"
+                                        onmouseout="this.style.background='#06A1A1'; this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 20px rgba(6, 161, 161, 0.3)'">
+                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <span>Confirm Approval & Send to Payment</span>
+                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                </button>
+                                <p style="font-size:11px; color:#0d9488; font-weight:500; margin-top:12px; display:flex; align-items:flex-start; gap:6px; line-height:1.5;">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0; margin-top:2px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <span>Approving will notify the customer, set the final price, and prepare materials for production.</span>
                                 </p>
                             </div>
                         </div>
@@ -810,9 +850,9 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     <template x-if="currentJo.status === 'IN_PRODUCTION' || currentJo.status === 'Processing'">
                         <div style="margin-bottom:20px; padding:18px; border-radius:12px; border:1px solid #06A1A1; background:#f0fbfb;">
                             <label style="font-size:11px;font-weight:700;color:#0f766e;text-transform:uppercase;display:block;margin-bottom:12px;">Step 5: Production In Progress</label>
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <div style="font-size:14px; color:#0f766e; font-weight:500;">Materials have been deducted from inventory.</div>
-                                <button @click="markReadyForPickup()" class="btn-action" style="background:#06A1A1; color:#fff; border:none; font-weight:600; padding:6px 16px; border-radius:8px;">Mark as Ready for Pickup</button>
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
+                                <div style="font-size:14px; color:#0f766e; font-weight:500;" x-text="materialsDeductedSummary"></div>
+                                <button @click="markReadyForPickup()" class="btn-action" style="background:#06A1A1; color:#fff; border:none; font-weight:600; padding:6px 16px; border-radius:8px; white-space:nowrap;">Mark as Ready for Pickup</button>
                             </div>
                         </div>
                     </template>
@@ -852,10 +892,16 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
                     <div x-show="currentJo.materials && currentJo.materials.length > 0" style="margin-top:20px;">
                         <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:8px;">Assigned Production Materials</label>
-                        <template x-for="m in (currentJo.materials || [])" :key="m.id">
+                        <template x-for="m in groupedMaterials" :key="m.item_id">
                             <div style="background:white; border:1px solid #e5e7eb; border-radius:8px; padding:10px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
                                 <div>
-                                    <div style="font-size:12px; font-weight:600; color:#1f2937;" x-text="m.item_name"></div>
+                                    <div style="font-size:12px; font-weight:600; color:#1f2937;">
+                                        <span x-text="m.item_name"></span>
+                                        <span x-show="m.track_by_roll == 0 && m.quantity > 0" style="margin-left:4px; font-weight:800; color:#06A1A1;" x-text="'x' + Number(m.quantity)"></span>
+                                        <template x-if="m.track_by_roll == 1">
+                                            <span style="margin-left:4px; font-weight:800; color:#06A1A1;" x-text="'x' + Number(m.computed_required_length_ft)"></span>
+                                        </template>
+                                    </div>
                                     <div style="font-size:11px; color:#6b7280; margin-top:2px;">
                                         <span x-show="m.track_by_roll == 1">
                                             Req: <span x-text="m.computed_required_length_ft"></span>'
@@ -930,8 +976,8 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     <!-- Left: Status actions -->
                     <div style="display:flex;gap:8px; flex-wrap:wrap; align-items:center;">
                         <div x-show="isPendingReviewStatus(currentJo) && !isVerifyStageRow(currentJo)" style="display:flex; gap:8px;">
-                            <button type="button" @click="jobAction('APPROVED')" class="btn-action indigo" style="padding:6px 12px; font-weight:600;">Approve to Set Price</button>
-                            <button type="button" @click="openRevisionModal()" class="btn-action" style="padding:6px 12px; color:#ef4444; background:#fef2f2; border:1px solid #fee2e2; font-weight:600;">Request Revision</button>
+                            <button type="button" @click="jobAction('APPROVED')" class="btn-action" style="padding:8px 16px; font-weight:600; background:#86efac; color:#166534; border:1px solid #86efac; border-radius:8px; transition:all 0.2s;" onmouseover="this.style.background='#22c55e'; this.style.borderColor='#22c55e'; this.style.color='#ffffff';" onmouseout="this.style.background='#86efac'; this.style.borderColor='#86efac'; this.style.color='#166534';">Approve to Set Price</button>
+                            <button type="button" @click="openRevisionModal()" class="btn-action" style="padding:8px 16px; font-weight:600; background:#fca5a5; color:#991b1b; border:1px solid #fca5a5; border-radius:8px; transition:all 0.2s;" onmouseover="this.style.background='#ef4444'; this.style.borderColor='#ef4444'; this.style.color='#ffffff';" onmouseout="this.style.background='#fca5a5'; this.style.borderColor='#fca5a5'; this.style.color='#991b1b';">Request Revision</button>
                         </div>
                     </div>
                     <!-- Right: Close -->
@@ -946,7 +992,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
         <div>
             <!-- Backdrop -->
             <div x-show="showRevisionModal" x-cloak
-                 style="position:fixed; inset:0; z-index:10001; background:rgba(17,24,39,0.7);"
+                 style="position:fixed; inset:0; z-index:10001; background:transparent;"
                  @click="closeRevisionModal()"></div>
             <!-- Modal Panel — true viewport center via transform -->
             <div x-show="showRevisionModal" x-cloak
@@ -1127,6 +1173,43 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     return image;
                 }
                 return '/printflow/public/assets/uploads/profiles/' + image;
+            },
+
+            getItemCount(name, list) {
+                if (!list || !Array.isArray(list)) return 0;
+                return list.filter(m => (m.item_name || m.name) === name).length;
+            },
+
+            get groupedMaterials() {
+                if (!this.currentJo || !this.currentJo.materials) return [];
+                const grouped = [];
+                this.currentJo.materials.forEach(m => {
+                    const existing = grouped.find(g => g.item_id === m.item_id);
+                    if (existing) {
+                        existing.quantity = (parseFloat(existing.quantity) || 0) + (parseFloat(m.quantity) || 0);
+                        existing.computed_required_length_ft = (parseFloat(existing.computed_required_length_ft) || 0) + (parseFloat(m.computed_required_length_ft) || 0);
+                    } else {
+                        grouped.push({ ...m });
+                    }
+                });
+                return grouped;
+            },
+
+            get materialsDeductedSummary() {
+                if (!this.currentJo || !this.currentJo.materials || this.currentJo.materials.length === 0) {
+                    return "Materials have been deducted from inventory.";
+                }
+                const counts = {};
+                this.currentJo.materials.forEach(m => {
+                    const name = m.item_name;
+                    const q = parseFloat(m.track_by_roll == 1 ? m.computed_required_length_ft : m.quantity) || 0;
+                    counts[name] = (counts[name] || 0) + q;
+                });
+                const summary = Object.entries(counts).map(([name, count]) => {
+                    const cleanCount = Number(Number(count).toFixed(2));
+                    return `${cleanCount}x ${name}`;
+                }).join(", ");
+                return summary + " deducted from inventory.";
             },
             
             // Ink Settings
@@ -1762,7 +1845,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         const detailRes = await (await fetch(`${base}/admin/job_orders_api.php?action=get_customization&id=${id}`)).json();
                         if (detailRes.success) {
                             this.currentJo = { ...detailRes.data, order_type: 'CUSTOMIZATION' };
-                            this.jobPriceInput = this.currentJo.estimated_total || 0;
+                            this.jobPriceInput = this.currentJo.estimated_total || this.currentJo.estimated_price || 0;
                         } else {
                             this.showStaffAlert('Error', 'Customization details could not be loaded.');
                             this.showDetailsModal = false;
@@ -1791,7 +1874,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         return;
                     }
                     this.currentJo = { ...order, order_type: 'ORDER' };
-                    this.jobPriceInput = this.currentJo.estimated_total || 0;
+                    this.jobPriceInput = this.currentJo.estimated_total || this.currentJo.estimated_price || this.currentJo.total_amount || 0;
                     if (!this.currentJo.job_order_id) {
                         await this.resolveEffectiveJobId();
                     }
@@ -1809,7 +1892,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         const res = await (await fetch(`${base}/admin/job_orders_api.php?action=get_order&id=${jid}`)).json();
                         if (res.success) {
                             this.currentJo = { ...res.data, order_type: 'JOB' };
-                            this.jobPriceInput = this.currentJo.estimated_total || 0;
+                            this.jobPriceInput = this.currentJo.estimated_total || this.currentJo.estimated_price || 0;
                             this.resetMaterialForm();
                             this.resetInkForm();
                             for (const m of this.currentJo.materials || []) {
@@ -1820,7 +1903,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                             const fallbackRes = await (await fetch(`${base}/admin/job_orders_api.php?action=get_regular_order&id=${jid}`)).json();
                             if (fallbackRes.success) {
                                 this.currentJo = { ...fallbackRes.data, order_type: 'ORDER' };
-                                this.jobPriceInput = this.currentJo.estimated_total || 0;
+                                this.jobPriceInput = this.currentJo.estimated_total || this.currentJo.estimated_price || this.currentJo.total_amount || 0;
                                 if (!this.currentJo.job_order_id) {
                                     await this.resolveEffectiveJobId();
                                 }
@@ -2063,6 +2146,18 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 if (!this.newMaterialId) return;
                 const item = this.allInventoryItems.find(i => i.id == this.newMaterialId);
                 if (!item) return;
+
+                // Check if already in pending queue
+                const existing = this.pendingMaterials.find(m => m.item_id == this.newMaterialId);
+                if (existing) {
+                    existing.qty += this.newMaterialQty || 1;
+                    // Reset input
+                    this.newMaterialId = '';
+                    this.newMaterialQty = 1;
+                    this.newMaterialHeight = 0;
+                    return;
+                }
+
                 let meta = {};
                 if (this.isTarpaulin(this.newMaterialId)) {
                     meta.height_ft = this.newMaterialHeight;
@@ -2073,7 +2168,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 this.pendingMaterials.push({
                     item_id: this.newMaterialId,
                     name: item.name,
-                    qty: this.newMaterialQty,
+                    qty: this.newMaterialQty || 1,
                     uom: this.isSticker(this.newMaterialId) ? 'pcs' : (item.unit_of_measure || 'pcs'),
                     roll_id: this.newMaterialRollId || '',
                     notes: this.newMaterialNotes,

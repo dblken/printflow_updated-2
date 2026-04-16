@@ -86,9 +86,9 @@ require_once __DIR__ . '/../includes/header.php';
 
     .shopee-card {
         background: var(--shopee-card-bg);
-        border: 1px solid var(--shopee-border);
-        border-radius: 12px;
-        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        border: none;
+        border-radius: 0;
+        transition: transform 0.2s, box-shadow 0.2s;
         cursor: pointer;
         overflow: hidden;
         display: flex;
@@ -100,7 +100,6 @@ require_once __DIR__ . '/../includes/header.php';
     .shopee-card:hover {
         transform: translateY(-4px);
         box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(83,197,224,0.1);
-        border-color: rgba(83,197,224,0.45);
     }
 
     .shopee-img {
@@ -160,7 +159,7 @@ require_once __DIR__ . '/../includes/header.php';
     .shopee-btn {
         flex: 1;
         padding: 8px 0;
-        border-radius: 6px;
+        border-radius: 0;
         font-size: 0.8rem;
         font-weight: 700;
         text-align: center;
@@ -177,13 +176,12 @@ require_once __DIR__ . '/../includes/header.php';
     .shopee-btn-cart {
         background: rgba(83, 197, 224, 0.08);
         color: var(--shopee-orange);
-        border: 1px solid rgba(83, 197, 224, 0.15);
+        border: none;
         flex: 0 0 45px;
     }
     
     .shopee-btn-cart:hover {
         background: rgba(83, 197, 224, 0.15);
-        border-color: var(--shopee-orange);
     }
 
     .shopee-btn-buy {
@@ -328,7 +326,7 @@ function showToast(msg, isError) {
         background: ${isError ? 'rgba(239,68,68,0.92)' : 'rgba(0,0,0,0.85)'};
         color: white;
         padding: 12px 24px;
-        border-radius: 4px;
+        border-radius: 0;
         font-size: 0.9rem;
         font-weight: 500;
         z-index: 10000;

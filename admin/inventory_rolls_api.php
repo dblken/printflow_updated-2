@@ -3,16 +3,39 @@
  * Inventory Rolls API
  * Roll-specific management.
  */
+
+// Set JSON header first to ensure all responses are JSON
+header('Content-Type: application/json');
+
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/RollService.php';
 
-require_role(['Admin', 'Manager']);
-header('Content-Type: application/json');
+// Check authentication
+if (!is_logged_in()) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Authentication required']);
+    exit;
+}
 
-$action = $_GET['action'] ?? $_POST['action'] ?? '';
+// Check role authorization
+$user_type = $_SESSION['user_type'] ?? '';
+if (!in_array($user_type, ['Admin', 'Manager', 'Staff'], true)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Insufficient permissions. Required: Admin, Manager, or Staff']);
+    exit;
+}
 
 try {
+
+    $action = $_GET['action'] ?? $_POST['action'] ?? '';
+
+    if (empty($action)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'No action specified']);
+        exit;
+    }
+
     switch ($action) {
         case 'list_rolls':
             $itemId = (int)($_GET['item_id'] ?? 0);
@@ -70,4 +93,5 @@ try {
 } catch (Throwable $e) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    exit;
 }

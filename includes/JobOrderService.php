@@ -226,10 +226,14 @@ class JobOrderService {
         // Calculate computed length if track_by_roll
         $computed_len = 0;
         if ($track_by_roll) {
-            if (isset($metadata['height_ft'])) {
-                $computed_len = $metadata['height_ft'] * $qty;
+            $h = (float)($metadata['height_ft'] ?? 0);
+            if ($h > 0) {
+                // If height is specified, use area-based linear length calculation (h * qty)
+                // Or if qty is count and height is length... assuming linear feet here.
+                $computed_len = $h * $qty;
             } else {
-                $computed_len = ($uom === 'ft') ? $qty : 0;
+                // Fallback to qty if uom is ft (standard for linear length assignments)
+                $computed_len = (strtolower($uom) === 'ft') ? $qty : 0;
             }
         }
 
@@ -448,7 +452,13 @@ class JobOrderService {
      * Idempotent deduction for all materials in an order.
      */
     private static function processDeductions($orderId) {
-        $materials = db_query("SELECT * FROM job_order_materials WHERE job_order_id = ? AND deducted_at IS NULL", 'i', [$orderId]);
+        // Get ALL materials for this job order, including those already deducted (for idempotency check)
+        $materials = db_query("SELECT * FROM job_order_materials WHERE job_order_id = ?", 'i', [$orderId]);
+        
+        // Filter to only process materials that haven't been deducted yet
+        $materials = array_filter($materials ?: [], function($m) {
+            return empty($m['deducted_at']) || $m['deducted_at'] === null;
+        });
         
         if ($materials) {
             foreach ($materials as $m) {

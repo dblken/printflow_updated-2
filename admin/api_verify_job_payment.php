@@ -125,11 +125,11 @@ if ($action === 'verify_payment') {
                     WHERE id = ?", 
         'dsii', [$new_amount_paid, $new_payment_status, $user_id, $job_id]);
         
-        // If moving to approved, deduct inventory then move to approved
+        // If moving to approved, deduct inventory by moving to IN_PRODUCTION
         if ($should_move_to_approved) {
             require_once __DIR__ . '/../includes/JobOrderService.php';
+            // Move directly to IN_PRODUCTION which will deduct inventory
             JobOrderService::updateStatus($job_id, 'IN_PRODUCTION');
-            JobOrderService::updateStatus($job_id, 'APPROVED');
         }
 
         // If linked to a store order, sync the store order status

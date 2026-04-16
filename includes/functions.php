@@ -892,6 +892,16 @@ function get_order_status_notification_payload($order_id, $status) {
     ];
 
     $message = $map[$status] ?? "Your order #{$order_id} status has been updated to: {$status}";
+    
+    // Add price to "To Pay" notification
+    if ($status === 'To Pay') {
+        $order = db_query("SELECT total_amount FROM orders WHERE order_id = ?", 'i', [$order_id]);
+        if (!empty($order) && $order[0]['total_amount'] > 0) {
+            $amount = format_currency($order[0]['total_amount']);
+            $message = "Your order is now ready for payment. Total amount: {$amount}";
+        }
+    }
+    
     if ($status === 'Completed' || $status === 'To Rate') {
         $message .= " Rate here: " . $base_url . "/customer/rate_order.php?order_id={$order_id}";
     }

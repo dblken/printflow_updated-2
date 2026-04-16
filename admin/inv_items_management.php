@@ -63,8 +63,7 @@ if (isset($_GET['get_archived_items'])) {
             $html .= '<td class="truncate" style="font-weight:500;text-transform:capitalize;" title="' . $name . '">' . $name . '</td>';
             $html .= '<td class="truncate" style="color:#6b7280;font-size:12px;" title="' . $cat . '">' . $cat . '</td>';
             $html .= '<td style="text-align:right; white-space:nowrap;">';
-            // Use single-quoted JS literals to avoid breaking the HTML onclick attribute.
-            $html .= '<button type="button" class="btn-action teal" onclick="event.stopPropagation(); openItemStatusConfirm(' . $id . ', \'ACTIVE\')">Restore</button>';
+            $html .= '<button type="button" class="btn-action teal" onclick="event.stopPropagation(); openItemStatusConfirm(' . $id . ', ' . "'ACTIVE'" . ')">Restore</button>';
             $html .= '</td>';
             $html .= '</tr>';
         }
@@ -2950,7 +2949,10 @@ if (isset($_GET['ajax'])) {
     }
 
     function escapeHtml(unsafe) {
-        return (unsafe || '').toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        const str = (unsafe || '').toString();
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 
     if (!window._pfInvItemsModalClickBound) {

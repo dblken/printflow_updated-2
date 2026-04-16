@@ -901,7 +901,7 @@ try {
             border-radius: 28px;
             padding: 44px 40px;
             text-align: center;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2), 0 8px 20px rgba(0,0,0,0.08);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2), 0 8px 20px rgba(0, 0, 0, 0.08);
             border: 1px solid #e2e8f0;
             transform: scale(0.85) translateY(20px);
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
@@ -1026,7 +1026,8 @@ try {
                                     <option value="">All Categories</option>
                                     <?php foreach ($categories as $cat): ?>
                                         <option value="<?= htmlspecialchars($cat['category']) ?>">
-                                            <?= htmlspecialchars($cat['category']) ?></option>
+                                            <?= htmlspecialchars($cat['category']) ?>
+                                        </option>
                                     <?php endforeach; ?>
                                 </select>
                                 <div style="flex: 1;"></div>
@@ -1092,7 +1093,8 @@ try {
                                 <option value="guest">Walk-in Customer (Guest)</option>
                                 <?php foreach ($customers as $c): ?>
                                     <option value="<?= $c['customer_id'] ?>">
-                                        <?= htmlspecialchars($c['first_name'] . ' ' . $c['last_name']) ?>    <?= !empty($c['email']) ? ' - ' . htmlspecialchars($c['email']) : (!empty($c['contact_number']) ? ' - ' . htmlspecialchars($c['contact_number']) : ' - No contact') ?>
+                                        <?= htmlspecialchars($c['first_name'] . ' ' . $c['last_name']) ?>
+                                        <?= !empty($c['email']) ? ' - ' . htmlspecialchars($c['email']) : (!empty($c['contact_number']) ? ' - ' . htmlspecialchars($c['contact_number']) : ' - No contact') ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -1244,16 +1246,22 @@ try {
     <div id="success-modal-overlay">
         <div class="success-modal">
             <div class="success-icon">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
             </div>
-            <div style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#15803d;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;padding:4px 12px;border-radius:100px;margin-bottom:16px;">
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="#15803d"><circle cx="5" cy="5" r="5"/></svg>
+            <div
+                style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#15803d;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;padding:4px 12px;border-radius:100px;margin-bottom:16px;">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="#15803d">
+                    <circle cx="5" cy="5" r="5" />
+                </svg>
                 Transaction Complete
             </div>
-            <h2 style="margin:0 0 10px; font-weight:800; color:#0f172a; font-size:26px; letter-spacing:-0.03em;">Sale Completed</h2>
-            <p style="margin:0; color:#64748b; font-size:15px; line-height:1.6;">The transaction was processed<br>successfully.</p>
+            <h2 style="margin:0 0 10px; font-weight:800; color:#0f172a; font-size:26px; letter-spacing:-0.03em;">Sale
+                Completed</h2>
+            <p style="margin:0; color:#64748b; font-size:15px; line-height:1.6;">The transaction was
+                processed<br>successfully.</p>
         </div>
     </div>
 
@@ -1363,7 +1371,8 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         window.POS_BRANCHES = <?php echo json_encode(array_map(function ($b) {
-            return ['id' => (int) $b['id'], 'name' => $b['branch_name']]; }, $branches ?: [])); ?>;
+            return ['id' => (int) $b['id'], 'name' => $b['branch_name']];
+        }, $branches ?: [])); ?>;
 
         let products = [];
         let cart = [];

@@ -361,11 +361,13 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                                                 <div class="option-list radio-options-list">
                                                     <?php foreach ($config['options'] ?? [] as $optIdx => $option): 
                                                         $optValue = is_array($option) ? ($option['value'] ?? '') : $option;
+                                                        $optPrice = is_array($option) ? ($option['price'] ?? 0) : 0;
                                                         $nestedFields = is_array($option) ? ($option['nested_fields'] ?? []) : [];
                                                     ?>
                                                         <div class="option-item radio-option-item" data-option-index="<?php echo $optIdx; ?>" style="flex-direction:column;align-items:stretch;">
                             <div style="display:flex;gap:8px;align-items:center;">
-                                <input type="text" class="option-input" value="<?php echo htmlspecialchars($optValue); ?>" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:1;">
+                                <input type="text" class="option-input" value="<?php echo htmlspecialchars($optValue); ?>" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;">
+                                <input type="number" class="option-price-input" value="<?php echo $optPrice; ?>" placeholder="Price" min="0" step="0.01" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option">
                                 <button type="button" class="btn-add" onclick="toggleNestedFieldPanel(this, '<?php echo htmlspecialchars($key); ?>', <?php echo $optIdx; ?>)" style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:6px;font-size:14px;font-weight:600;min-width:40px;" title="Add Nested Field">
                                     +
                                 </button>
@@ -382,9 +384,11 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                                                 <div class="option-list">
                                                     <?php foreach ($config['options'] ?? [] as $option): 
                                                         $optValue = is_array($option) ? ($option['value'] ?? '') : $option;
+                                                        $optPrice = is_array($option) ? ($option['price'] ?? 0) : 0;
                                                     ?>
-                                                        <div class="option-item">
-                                                            <input type="text" class="option-input" value="<?php echo htmlspecialchars($optValue); ?>" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)">
+                                                        <div class="option-item" style="display:flex;gap:8px;align-items:center;">
+                                                            <input type="text" class="option-input" value="<?php echo htmlspecialchars($optValue); ?>" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;">
+                                                            <input type="number" class="option-price-input" value="<?php echo $optPrice; ?>" placeholder="Price" min="0" step="0.01" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option">
                                                             <button type="button" class="btn-remove" onclick="removeOption(this)">Remove</button>
                                                         </div>
                                                     <?php endforeach; ?>
@@ -395,7 +399,7 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                                         
                                         <?php if ($config['type'] === 'dimension'): ?>
                                             <div class="field-group">
-                                                <label class="field-label">Dimension Options (Width × Height)</label>
+                                                <label class="field-label">Dimension Options (Width × Height + Price)</label>
                                                 <div class="option-list dimension-options">
                                                     <?php 
                                                     $dimension_options = $config['options'] ?? [];
@@ -405,12 +409,22 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                                                         echo '<input type="text" class="option-input dimension-w" value="" placeholder="Width" maxlength="2" pattern="[0-9]*" style="flex: 1; text-align: center;" oninput="this.value=this.value.replace(/[^0-9]/g,\'\'); checkDimensionDuplicates(this);">';
                                                         echo '<span style="color: #cbd5e1; font-weight: bold;">×</span>';
                                                         echo '<input type="text" class="option-input dimension-h" value="" placeholder="Height" maxlength="2" pattern="[0-9]*" style="flex: 1; text-align: center;" oninput="this.value=this.value.replace(/[^0-9]/g,\'\'); checkDimensionDuplicates(this);">';
+                                                        echo '<input type="number" class="dimension-price-input" value="" placeholder="Price" min="0" step="0.01" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px;" title="Price for this dimension">';
                                                         echo '<button type="button" class="btn-remove" onclick="removeDimensionOption(this)">Remove</button>';
                                                         echo '</div>';
                                                     } else {
                                                         foreach ($dimension_options as $option): 
+                                                            // Handle both string and object formats
+                                                            if (is_array($option)) {
+                                                                $option_value = $option['value'] ?? '';
+                                                                $option_price = $option['price'] ?? 0;
+                                                            } else {
+                                                                $option_value = $option;
+                                                                $option_price = 0;
+                                                            }
+                                                            
                                                             // Handle multiple separator types
-                                                            $option_clean = trim($option);
+                                                            $option_clean = trim($option_value);
                                                             $parts = preg_split('/[×xX*\-\s]+/', $option_clean, 2);
                                                             $w = isset($parts[0]) && $parts[0] !== '' ? trim($parts[0]) : '';
                                                             $h = isset($parts[1]) && $parts[1] !== '' ? trim($parts[1]) : '';
@@ -419,6 +433,7 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                                                             <input type="text" class="option-input dimension-w" value="<?php echo htmlspecialchars($w); ?>" placeholder="Width" maxlength="2" pattern="[0-9]*" style="flex: 1; text-align: center;" oninput="this.value=this.value.replace(/[^0-9]/g,''); checkDimensionDuplicates(this);">
                                                             <span style="color: #cbd5e1; font-weight: bold;">×</span>
                                                             <input type="text" class="option-input dimension-h" value="<?php echo htmlspecialchars($h); ?>" placeholder="Height" maxlength="2" pattern="[0-9]*" style="flex: 1; text-align: center;" oninput="this.value=this.value.replace(/[^0-9]/g,''); checkDimensionDuplicates(this);">
+                                                            <input type="number" class="dimension-price-input" value="<?php echo $option_price > 0 ? $option_price : ''; ?>" placeholder="Price" min="0" step="0.01" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px;" title="Price for this dimension">
                                                             <button type="button" class="btn-remove" onclick="removeDimensionOption(this)">Remove</button>
                                                         </div>
                                                     <?php 
@@ -600,7 +615,7 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                     </label>
                 </div>
                 <div class="field-group">
-                    <label class="field-label">Dimension Options (Width × Height)</label>
+                    <label class="field-label">Dimension Options (Width × Height + Price)</label>
                     <div id="edit-field-dimension-list" class="option-list"></div>
                     <button type="button" class="btn-add" onclick="addEditDimensionOption()" style="margin-top:12px;">+ Add Dimension</button>
                 </div>
@@ -662,21 +677,24 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                     <label class="field-label">Options (Choices shown to customer)</label>
                     <div id="new-field-options-list" class="option-list">
                         <div class="option-item" style="display:flex;gap:8px;align-items:center;">
-                            <input type="text" class="option-input" placeholder="e.g., Small, Red, Matte (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:1;">
+                            <input type="text" class="option-input" placeholder="e.g., Small, Red, Matte (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;">
+                            <input type="number" class="option-price-input" placeholder="Price" min="0" step="0.01" value="0" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option">
                             <button type="button" class="btn-add" onclick="toggleNewNestedFieldPanel(this, 0)" style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:6px;font-size:14px;font-weight:600;min-width:40px;" title="Add Nested Field">
                                 +
                             </button>
                             <button type="button" class="btn-remove" onclick="removeNewFieldOption(this)">Remove</button>
                         </div>
                         <div class="option-item" style="display:flex;gap:8px;align-items:center;">
-                            <input type="text" class="option-input" placeholder="e.g., Medium, Blue, Glossy (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:1;">
+                            <input type="text" class="option-input" placeholder="e.g., Medium, Blue, Glossy (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;">
+                            <input type="number" class="option-price-input" placeholder="Price" min="0" step="0.01" value="0" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option">
                             <button type="button" class="btn-add" onclick="toggleNewNestedFieldPanel(this, 1)" style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:6px;font-size:14px;font-weight:600;min-width:40px;" title="Add Nested Field">
                                 +
                             </button>
                             <button type="button" class="btn-remove" onclick="removeNewFieldOption(this)">Remove</button>
                         </div>
                         <div class="option-item" style="display:flex;gap:8px;align-items:center;">
-                            <input type="text" class="option-input" placeholder="e.g., Large, Green, Vinyl (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:1;">
+                            <input type="text" class="option-input" placeholder="e.g., Large, Green, Vinyl (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;">
+                            <input type="number" class="option-price-input" placeholder="Price" min="0" step="0.01" value="0" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option">
                             <button type="button" class="btn-add" onclick="toggleNewNestedFieldPanel(this, 2)" style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:6px;font-size:14px;font-weight:600;min-width:40px;" title="Add Nested Field">
                                 +
                             </button>
@@ -705,24 +723,27 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                     </label>
                 </div>
                 <div class="field-group">
-                    <label class="field-label">Dimension Options (Width × Height)</label>
+                    <label class="field-label">Dimension Options (Width × Height + Price)</label>
                     <div id="new-field-dimension-list" class="option-list">
                         <div class="option-item" style="display: flex; gap: 8px; align-items: center;">
                             <input type="text" class="dimension-width" placeholder="Width" maxlength="2" pattern="[0-9]*" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                             <span style="color: #cbd5e1; font-weight: bold;">×</span>
                             <input type="text" class="dimension-height" placeholder="Height" maxlength="2" pattern="[0-9]*" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                            <input type="number" class="dimension-price" placeholder="Price" min="0" step="0.01" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px;" title="Price for this dimension">
                             <button type="button" class="btn-remove" onclick="removeNewDimensionOption(this)">Remove</button>
                         </div>
                         <div class="option-item" style="display: flex; gap: 8px; align-items: center;">
                             <input type="text" class="dimension-width" placeholder="Width" maxlength="2" pattern="[0-9]*" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                             <span style="color: #cbd5e1; font-weight: bold;">×</span>
                             <input type="text" class="dimension-height" placeholder="Height" maxlength="2" pattern="[0-9]*" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                            <input type="number" class="dimension-price" placeholder="Price" min="0" step="0.01" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px;" title="Price for this dimension">
                             <button type="button" class="btn-remove" onclick="removeNewDimensionOption(this)">Remove</button>
                         </div>
                         <div class="option-item" style="display: flex; gap: 8px; align-items: center;">
                             <input type="text" class="dimension-width" placeholder="Width" maxlength="2" pattern="[0-9]*" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                             <span style="color: #cbd5e1; font-weight: bold;">×</span>
                             <input type="text" class="dimension-height" placeholder="Height" maxlength="2" pattern="[0-9]*" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                            <input type="number" class="dimension-price" placeholder="Price" min="0" step="0.01" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px;" title="Price for this dimension">
                             <button type="button" class="btn-remove" onclick="removeNewDimensionOption(this)">Remove</button>
                         </div>
                     </div>
@@ -787,9 +808,12 @@ window.showEditFieldModal = function(key) {
         const list = document.getElementById('edit-field-options-list');
         list.innerHTML = '';
         (config.options || []).forEach(option => {
+            const optValue = (typeof option === 'object' && option.value) ? option.value : option;
+            const optPrice = (typeof option === 'object' && option.price) ? option.price : 0;
             const item = document.createElement('div');
             item.className = 'option-item';
-            item.innerHTML = '<input type="text" class="option-input" value="' + option + '" maxlength="32" placeholder="Enter option (32 MAX CHARACTERS)" oninput="formatTextToTitleCase(this)"><button type="button" class="btn-remove" onclick="removeEditFieldOption(this)">Remove</button>';
+            item.style.cssText = 'display:flex;gap:8px;align-items:center;';
+            item.innerHTML = '<input type="text" class="option-input" value="' + optValue + '" maxlength="32" placeholder="Enter option (32 MAX CHARACTERS)" oninput="formatTextToTitleCase(this)" style="flex:2;"><input type="number" class="option-price-input" value="' + optPrice + '" placeholder="Price" min="0" step="0.01" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option"><button type="button" class="btn-remove" onclick="removeEditFieldOption(this)">Remove</button>';
             list.appendChild(item);
         });
     } else if (config.type === 'dimension') {
@@ -800,13 +824,23 @@ window.showEditFieldModal = function(key) {
         const list = document.getElementById('edit-field-dimension-list');
         list.innerHTML = '';
         (config.options || []).forEach(option => {
-            const parts = option.split('×');
+            // Handle both string and object formats
+            let dimValue, dimPrice;
+            if (typeof option === 'object' && option.value) {
+                dimValue = option.value;
+                dimPrice = option.price || 0;
+            } else {
+                dimValue = option;
+                dimPrice = 0;
+            }
+            
+            const parts = dimValue.split('×');
             const w = parts[0] || '';
             const h = parts[1] || '';
             const item = document.createElement('div');
             item.className = 'option-item';
             item.style.cssText = 'display: flex; gap: 8px; align-items: center;';
-            item.innerHTML = '<input type="text" class="dimension-width" value="' + w + '" placeholder="Width" maxlength="2" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;"><span style="color: #cbd5e1; font-weight: bold;">×</span><input type="text" class="dimension-height" value="' + h + '" placeholder="Height" maxlength="2" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;"><button type="button" class="btn-remove" onclick="removeEditDimensionOption(this)">Remove</button>';
+            item.innerHTML = '<input type="text" class="dimension-width" value="' + w + '" placeholder="Width" maxlength="2" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;"><span style="color: #cbd5e1; font-weight: bold;">×</span><input type="text" class="dimension-height" value="' + h + '" placeholder="Height" maxlength="2" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;"><input type="number" class="dimension-price" value="' + (dimPrice > 0 ? dimPrice : '') + '" placeholder="Price" min="0" step="0.01" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px;" title="Price for this dimension"><button type="button" class="btn-remove" onclick="removeEditDimensionOption(this)">Remove</button>';
             list.appendChild(item);
         });
     } else {
@@ -871,7 +905,8 @@ window.addOption = function(btn) {
     const list = btn.previousElementSibling;
     const item = document.createElement('div');
     item.className = 'option-item';
-    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)"><button type="button" class="btn-remove" onclick="removeOption(this)">Remove</button>';
+    item.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;"><input type="number" class="option-price-input" placeholder="Price" min="0" step="0.01" value="0" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option"><button type="button" class="btn-remove" onclick="removeOption(this)">Remove</button>';
     list.appendChild(item);
 };
 
@@ -884,7 +919,7 @@ window.addDimensionOption = function(btn) {
     const item = document.createElement('div');
     item.className = 'option-item';
     item.style.cssText = 'display: flex; gap: 8px; align-items: center;';
-    item.innerHTML = '<input type="text" class="option-input dimension-w" placeholder="Width" maxlength="2" style="flex: 1; text-align: center;"><span style="color: #cbd5e1; font-weight: bold;">×</span><input type="text" class="option-input dimension-h" placeholder="Height" maxlength="2" style="flex: 1; text-align: center;"><button type="button" class="btn-remove" onclick="removeDimensionOption(this)">Remove</button>';
+    item.innerHTML = '<input type="text" class="option-input dimension-w" placeholder="Width" maxlength="2" style="flex: 1; text-align: center;"><span style="color: #cbd5e1; font-weight: bold;">×</span><input type="text" class="option-input dimension-h" placeholder="Height" maxlength="2" style="flex: 1; text-align: center;"><input type="number" class="dimension-price-input" placeholder="Price" min="0" step="0.01" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px;" title="Price for this dimension"><button type="button" class="btn-remove" onclick="removeDimensionOption(this)">Remove</button>';
     list.appendChild(item);
 };
 
@@ -899,7 +934,8 @@ window.addNewFieldOption = function() {
     const list = document.getElementById('new-field-options-list');
     const item = document.createElement('div');
     item.className = 'option-item';
-    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)"><button type="button" class="btn-remove" onclick="removeNewFieldOption(this)">Remove</button>';
+    item.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;"><input type="number" class="option-price-input" placeholder="Price" min="0" step="0.01" value="0" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option"><button type="button" class="btn-remove" onclick="removeNewFieldOption(this)">Remove</button>';
     list.appendChild(item);
 };
 
@@ -934,7 +970,7 @@ window.addNewDimensionOption = function() {
     const item = document.createElement('div');
     item.className = 'option-item';
     item.style.cssText = 'display: flex; gap: 8px; align-items: center;';
-    item.innerHTML = '<input type="text" class="dimension-width" placeholder="Width" maxlength="2" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;"><span style="color: #cbd5e1; font-weight: bold;">×</span><input type="text" class="dimension-height" placeholder="Height" maxlength="2" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;"><button type="button" class="btn-remove" onclick="removeNewDimensionOption(this)">Remove</button>';
+    item.innerHTML = '<input type="text" class="dimension-width" placeholder="Width" maxlength="2" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;"><span style="color: #cbd5e1; font-weight: bold;">×</span><input type="text" class="dimension-height" placeholder="Height" maxlength="2" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;"><input type="number" class="dimension-price" placeholder="Price" min="0" step="0.01" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px;" title="Price for this dimension"><button type="button" class="btn-remove" onclick="removeNewDimensionOption(this)">Remove</button>';
     list.appendChild(item);
 };
 
@@ -971,7 +1007,9 @@ window.addNewField = function() {
         
         optionItems.forEach((optionItem) => {
             const input = optionItem.querySelector('.option-input');
+            const priceInput = optionItem.querySelector('.option-price-input');
             const optionValue = input.value.trim();
+            const optionPrice = priceInput ? parseFloat(priceInput.value) || 0 : 0;
             if (!optionValue) return;
             
             // Check for nested fields (they are in the NEXT sibling div if it's radio)
@@ -1019,12 +1057,12 @@ window.addNewField = function() {
                 });
                 
                 if (nestedFields.length > 0) {
-                    options.push({ value: optionValue, nested_fields: nestedFields });
+                    options.push({ value: optionValue, price: optionPrice, nested_fields: nestedFields });
                 } else {
-                    options.push(optionValue);
+                    options.push({ value: optionValue, price: optionPrice });
                 }
             } else {
-                options.push(optionValue);
+                options.push({ value: optionValue, price: optionPrice });
             }
         });
         
@@ -1042,7 +1080,13 @@ window.addNewField = function() {
         document.querySelectorAll('#new-field-dimension-list .option-item').forEach(item => {
             const w = item.querySelector('.dimension-width').value.trim();
             const h = item.querySelector('.dimension-height').value.trim();
-            if (w && h) dimensions.push(w + '×' + h);
+            const price = item.querySelector('.dimension-price') ? parseFloat(item.querySelector('.dimension-price').value) || 0 : 0;
+            if (w && h) {
+                dimensions.push({
+                    value: w + '×' + h,
+                    price: price
+                });
+            }
         });
         if (dimensions.length === 0) {
             alert('Please add at least one dimension');
@@ -1070,7 +1114,8 @@ window.addEditFieldOption = function() {
     const list = document.getElementById('edit-field-options-list');
     const item = document.createElement('div');
     item.className = 'option-item';
-    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)"><button type="button" class="btn-remove" onclick="removeEditFieldOption(this)">Remove</button>';
+    item.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;"><input type="number" class="option-price-input" placeholder="Price" min="0" step="0.01" value="0" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option"><button type="button" class="btn-remove" onclick="removeEditFieldOption(this)">Remove</button>';
     list.appendChild(item);
 };
 
@@ -1083,7 +1128,7 @@ window.addEditDimensionOption = function() {
     const item = document.createElement('div');
     item.className = 'option-item';
     item.style.cssText = 'display: flex; gap: 8px; align-items: center;';
-    item.innerHTML = '<input type="text" class="dimension-width" placeholder="Width" maxlength="2" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;"><span style="color: #cbd5e1; font-weight: bold;">×</span><input type="text" class="dimension-height" placeholder="Height" maxlength="2" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;"><button type="button" class="btn-remove" onclick="removeEditDimensionOption(this)">Remove</button>';
+    item.innerHTML = '<input type="text" class="dimension-width" placeholder="Width" maxlength="2" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;"><span style="color: #cbd5e1; font-weight: bold;">×</span><input type="text" class="dimension-height" placeholder="Height" maxlength="2" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; text-align: center;"><input type="number" class="dimension-price" placeholder="Price" min="0" step="0.01" style="flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px;" title="Price for this dimension"><button type="button" class="btn-remove" onclick="removeEditDimensionOption(this)">Remove</button>';
     list.appendChild(item);
 };
 
@@ -1137,7 +1182,8 @@ window.saveEditField = function() {
         const options = [];
         document.querySelectorAll('#edit-field-options-list .option-item').forEach(item => {
             const val = item.querySelector('.option-input')?.value.trim();
-            if (val) options.push(val);
+            const price = item.querySelector('.option-price-input') ? parseFloat(item.querySelector('.option-price-input').value) || 0 : 0;
+            if (val) options.push({ value: val, price: price });
         });
         if (options.length === 0) {
             alert('Please add at least one option');
@@ -1153,7 +1199,13 @@ window.saveEditField = function() {
         document.querySelectorAll('#edit-field-dimension-list .option-item').forEach(item => {
             const w = item.querySelector('.dimension-width').value.trim();
             const h = item.querySelector('.dimension-height').value.trim();
-            if (w && h) dimensions.push(w + '×' + h);
+            const price = item.querySelector('.dimension-price') ? parseFloat(item.querySelector('.dimension-price').value) || 0 : 0;
+            if (w && h) {
+                dimensions.push({
+                    value: w + '×' + h,
+                    price: price
+                });
+            }
         });
         if (dimensions.length === 0) {
             alert('Please add at least one dimension');

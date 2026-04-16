@@ -137,8 +137,8 @@ $page_title = 'Products & Inventory - Staff';
                 </div>
             </div>
 
-            <!-- Standardized Toolbar -->
-            <div class="card" style="margin-bottom: 24px;">
+            <!-- Inventory List Container -->
+            <div class="card">
                 <div class="toolbar-container">
                     <h3 style="font-size:16px;font-weight:700;color:#1f2937;margin:0;">
                         Inventory List
@@ -221,10 +221,8 @@ $page_title = 'Products & Inventory - Staff';
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Products Table -->
-            <div class="card">
+                <!-- Products Table -->
                 <div class="overflow-x-auto">
                     <table>
                         <thead>
@@ -262,7 +260,6 @@ $page_title = 'Products & Inventory - Staff';
                         </tbody>
                     </table>
                 </div>
-            </div>
 
             <!-- Pagination -->
             <?php echo get_pagination_links($current_page, $total_pages, ['category' => $category, 'search' => $search]); ?>

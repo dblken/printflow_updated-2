@@ -86,13 +86,13 @@ require_once __DIR__ . '/../includes/header.php';
     }
     .notif-mark-all-btn {
         padding: 0.65rem 1.25rem;
-        border-radius: 10px;
+        border-radius: 0;
         font-size: 0.8rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.03em;
         background: rgba(83, 197, 224, 0.1);
-        border: 1px solid rgba(83, 197, 224, 0.25);
+        border: none;
         color: #53c5e0;
         text-decoration: none;
         transition: all 0.2s;
@@ -100,7 +100,6 @@ require_once __DIR__ . '/../includes/header.php';
     }
     .notif-mark-all-btn:hover {
         background: rgba(83, 197, 224, 0.2);
-        border-color: #53c5e0;
         transform: translateY(-1px);
     }
 
@@ -121,8 +120,8 @@ require_once __DIR__ . '/../includes/header.php';
     /* Notification Card */
     .notif-card {
         background: #0a2530;
-        border: 1px solid rgba(83, 197, 224, 0.15);
-        border-radius: 14px;
+        border: none;
+        border-radius: 0;
         padding: 1rem;
         margin-bottom: 0.75rem;
         transition: all 0.2s;
@@ -131,7 +130,6 @@ require_once __DIR__ . '/../includes/header.php';
     }
     .notif-card:hover {
         background: #0d3240;
-        border-color: rgba(83, 197, 224, 0.3);
         transform: translateX(4px);
     }
     .notif-card.unread {
@@ -149,10 +147,10 @@ require_once __DIR__ . '/../includes/header.php';
         width: 48px;
         height: 48px;
         min-width: 48px;
-        border-radius: 10px;
+        border-radius: 0;
         overflow: hidden;
         background: rgba(0, 0, 0, 0.2);
-        border: 1px solid rgba(83, 197, 224, 0.2);
+        border: none;
         flex-shrink: 0;
     }
     .notif-image {
@@ -193,13 +191,13 @@ require_once __DIR__ . '/../includes/header.php';
     }
     .notif-view-btn {
         padding: 0.4rem 0.9rem;
-        border-radius: 8px;
+        border-radius: 0;
         font-size: 0.7rem;
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.04em;
         background: rgba(83, 197, 224, 0.1);
-        border: 1px solid rgba(83, 197, 224, 0.25);
+        border: none;
         color: #53c5e0;
         transition: all 0.2s;
         white-space: nowrap;
@@ -207,7 +205,6 @@ require_once __DIR__ . '/../includes/header.php';
     .notif-card:hover .notif-view-btn {
         background: #53c5e0;
         color: #030d11;
-        border-color: #53c5e0;
     }
 
     /* Empty State */
@@ -263,7 +260,7 @@ require_once __DIR__ . '/../includes/header.php';
             <h1 class="notif-page-title">
                 Notifications
                 <?php if ($unread_total > 0): ?>
-                    <span style="background: #53c5e0; color: #030d11; padding: 4px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 900; box-shadow: 0 0 15px rgba(83, 197, 224, 0.4);"><?php echo $unread_total; ?></span>
+                    <span style="background: #53c5e0; color: #030d11; padding: 4px 12px; border-radius: 0; font-size: 0.75rem; font-weight: 900; box-shadow: 0 0 15px rgba(83, 197, 224, 0.4);"><?php echo $unread_total; ?></span>
                 <?php endif; ?>
             </h1>
             <?php if ($unread_total > 0): ?>

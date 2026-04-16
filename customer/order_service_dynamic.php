@@ -224,9 +224,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
                 $customization['notes'] = $notes;
             }
             
-            // Calculate price (basic calculation)
-            $base_price = 100.00;
-            $total_price = $base_price * $quantity;
+            // Calculate estimated price dynamically based on selected options
+            $base_price = (float)($service['base_price'] ?? 0);
+            $options_total = 0;
+
+            foreach ($field_configs as $key => $config) {
+                if (!$config['visible']) continue;
+                if (!in_array($config['type'], ['radio', 'select', 'dimension'])) continue;
+                
+                $selected_value = $_POST[$key] ?? '';
+                
+                // Handle dimension fields
+                if ($config['type'] === 'dimension') {
+                    $width = $_POST['width'] ?? '';
+                    $height = $_POST['height'] ?? '';
+                    if (!empty($width) && !empty($height)) {
+                        $selected_value = $width . '×' . $height;
+                    }
+                }
+                
+                if (empty($selected_value) || $selected_value === 'Others') continue;
+                
+                if (!empty($config['options']) && is_array($config['options'])) {
+                    foreach ($config['options'] as $option) {
+                        $opt_value = is_array($option) ? ($option['value'] ?? '') : $option;
+                        $opt_price = is_array($option) ? ($option['price'] ?? 0) : 0;
+                        
+                        if ($opt_value === $selected_value) {
+                            $options_total += (float)$opt_price;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $unit_price = $base_price + $options_total;
+            $estimated_price = $unit_price * $quantity;
             
             $_SESSION['cart'][$item_key] = [
                 'type' => 'Service',
@@ -234,7 +267,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
                 'service_id' => $service_id,
                 'product_id' => $service_id,
                 'name' => $service['name'],
-                'price' => $total_price,
+                'price' => $unit_price,  // FIXED: Store unit price per item, not total
+                'estimated_price' => $estimated_price,
                 'quantity' => $quantity,
                 'category' => $service['category'],
                 'branch_id' => $branch_id,
@@ -244,9 +278,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
                 'customization' => $customization
             ];
             
-            if (($_POST['action'] ?? '') === 'buy_now' || isset($_POST['buy_now'])) {
+            if (($_POST['action'] ?? '') === 'inquire_now' || isset($_POST['inquire_now'])) {
                 redirect("order_review.php?item=" . urlencode($item_key));
             } else {
+                // Add to cart action
                 redirect("cart.php");
             }
         }
@@ -333,7 +368,7 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
 
         <div class="shopee-card">
             <div class="shopee-image-section">
-                <div class="sticky-image-container">
+                <div class="sticky-image-container" style="position: sticky; top: 80px;">
                     <div class="shopee-main-image-wrap" style="position:relative;">
                         <?php if (count($display_images) > 1): ?>
                             <!-- Media Carousel -->
@@ -470,20 +505,34 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
                 <form action="" method="POST" enctype="multipart/form-data" id="serviceForm" data-pf-skip-validation="true" novalidate>
                     <?php echo csrf_field(); ?>
                     
+                    <!-- Estimated Price Display -->
+                    <div id="estimated-price-display" style="position:sticky;top:80px;background:rgba(0,49,61,0.95);border:1px solid rgba(83,197,224,0.3);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;z-index:10;">
+                        <div style="border-top:1px solid rgba(83,197,224,0.2);padding-top:1rem;display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:1.125rem;color:#53c5e0;font-weight:800;">Estimated Total:</span>
+                            <span id="estimated-total" style="font-size:1.5rem;color:#53c5e0;font-weight:900;">₱0</span>
+                        </div>
+                        <div style="margin-top:0.5rem;font-size:0.875rem;color:#ffffff;text-align:right;font-weight:500;">
+                            Quantity: <span id="qty-display">1</span> | Final price will be confirmed by staff
+                        </div>
+                    </div>
+                    
                     <?php echo render_service_fields($service_id, $branches, $existing_data); ?>
                     
                     <div class="shopee-form-row pt-8">
                         <div style="width: 130px;"></div>
                         <div class="flex gap-4 flex-1 flex-wrap">
                             <a href="<?php echo BASE_URL; ?>/customer/services.php" class="shopee-btn-outline" style="flex: 1; min-width: 100px; height: 42px; border-radius: 0;">Back</a>
-                            <button type="submit" name="action" value="add_to_cart" class="shopee-btn-outline" style="flex: 1.2; min-width: 130px; height: 42px; border-radius: 0;" title="Add to Cart">
-                                <svg style="width: 1.125rem; height: 1.125rem; flex-shrink: 0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <button type="submit" name="action" value="add_to_cart" class="shopee-btn-secondary" style="flex: 1.5; min-width: 150px; height: 42px; border-radius: 0; background: rgba(83,197,224,0.1); border: 1px solid #53c5e0; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                                <svg style="width: 1.125rem; height: 1.125rem; flex-shrink: 0; margin-right: 0.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                 </svg>
                                 <span>Add to Cart</span>
                             </button>
-                            <button type="submit" name="action" value="buy_now" class="shopee-btn-primary" style="flex: 1; min-width: 100px; height: 42px; border-radius: 0;">
-                                <span>Buy Now</span>
+                            <button type="submit" name="action" value="inquire_now" class="shopee-btn-primary" style="flex: 2; min-width: 200px; height: 42px; border-radius: 0;">
+                                <svg style="width: 1.125rem; height: 1.125rem; flex-shrink: 0; margin-right: 0.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+                                </svg>
+                                <span>Inquire Now</span>
                             </button>
                         </div>
                     </div>
@@ -674,6 +723,8 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
 .carousel-thumbnail:hover { border-color: #0d9488 !important; opacity: 0.8; }
 .shopee-opt-group { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start; flex-direction: row; }
 .shopee-opt-group .field-error { flex-basis: 100%; width: 100%; }
+.field-price-display { animation: slideIn 0.3s ease-out; }
+@keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 .shopee-opt-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.5rem 1rem; border: 1px solid #53c5e0 !important; border-radius: 0 !important; background: rgba(0,49,61,0.6); cursor: pointer; transition: all 0.2s; font-size: 0.875rem; font-weight: 500; color: #eaf6fb; height: 42px; min-height: 42px; }
 .shopee-opt-btn:hover { border-color: #53c5e0; background: rgba(83,197,224,0.15); }
 .shopee-opt-btn.active { border-color: #53c5e0; background: rgba(83,197,224,0.2) !important; color: #53c5e0 !important; }
@@ -858,6 +909,78 @@ document.addEventListener('keydown', function(e) {
         if (e.key === 'ArrowLeft') changeImage(-1);
         if (e.key === 'ArrowRight') changeImage(1);
     }
+});
+</script>
+
+<script>
+// Estimated Price Calculation System - Global scope
+let calculateEstimatedPrice;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('serviceForm');
+    if (!form) return;
+    
+    // Get base price from PHP
+    const basePrice = <?php echo (float)($service['base_price'] ?? 0); ?>;
+    
+    calculateEstimatedPrice = function() {
+        let optionsTotal = 0;
+        
+        // Calculate price from radio buttons
+        const checkedRadios = form.querySelectorAll('input[type="radio"].pricing-field:checked');
+        checkedRadios.forEach(radio => {
+            const price = parseFloat(radio.getAttribute('data-price') || 0);
+            optionsTotal += price;
+        });
+        
+        // Calculate price from select dropdowns
+        const selects = form.querySelectorAll('select.pricing-field');
+        selects.forEach(select => {
+            const selectedOption = select.options[select.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                const price = parseFloat(selectedOption.getAttribute('data-price') || 0);
+                optionsTotal += price;
+            }
+        });
+        
+        // Calculate price from dimension buttons
+        const activeDimensionBtn = form.querySelector('button.shopee-opt-btn.pricing-field.active[data-price]');
+        if (activeDimensionBtn) {
+            const price = parseFloat(activeDimensionBtn.getAttribute('data-price') || 0);
+            optionsTotal += price;
+        }
+        
+        // Get quantity
+        const qtyInput = form.querySelector('input[name="quantity"]');
+        const quantity = parseInt(qtyInput?.value || 1);
+        
+        // Calculate totals
+        const unitPrice = basePrice + optionsTotal;
+        const estimatedTotal = unitPrice * quantity;
+        
+        // Update display
+        const estimatedTotalEl = document.getElementById('estimated-total');
+        const qtyDisplayEl = document.getElementById('qty-display');
+        
+        if (estimatedTotalEl) {
+            estimatedTotalEl.textContent = '₱' + estimatedTotal.toFixed(2);
+        }
+        
+        if (qtyDisplayEl) {
+            qtyDisplayEl.textContent = quantity;
+        }
+    };
+    
+    // Listen to all form changes
+    form.addEventListener('change', calculateEstimatedPrice);
+    form.addEventListener('input', function(e) {
+        if (e.target.name === 'quantity') {
+            calculateEstimatedPrice();
+        }
+    });
+    
+    // Initial calculation
+    calculateEstimatedPrice();
 });
 </script>
 

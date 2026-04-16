@@ -818,24 +818,24 @@ function openItemsModal(orderId) {
 
             return `<tr>
                 <td style="min-width: 250px;">
-                    <div style="font-weight: 800; color: #fff; font-size: 0.95rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.02em;">${escIM(item.product_name)}</div>
+                    <div style="font-weight: 700; color: #fff; font-size: 14px; margin-bottom: 0.5rem;">${escIM(item.product_name)}</div>
                     <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem;">${chips}</div>
                     
                     ${design || reference ? `
                         <div style="margin-top: 1rem;">
-                            <div style="font-size: 0.65rem; font-weight: 800; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">Uploaded Assets</div>
+                            <div style="font-size: 11px; font-weight: 700; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Uploaded Assets</div>
                             <div style="display: flex; gap: 0.75rem;">${design}${reference}</div>
                         </div>
                     ` : ''}
                 </td>
                 <td style="text-align: center; vertical-align: middle;">
-                    <div style="font-size: 1.1rem; font-weight: 800; color: #eaf6fb;">${item.quantity}</div>
+                    <div style="font-size: 16px; font-weight: 700; color: #eaf6fb;">${item.quantity}</div>
                 </td>
-                <td style="text-align: right; vertical-align: middle;">
-                    <div style="font-size: 0.9rem; font-weight: 700; color: #9fc4d4;">${escIM(item.unit_price)}</div>
+                <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
+                    <div style="font-size: 14px; font-weight: 400; color: #9fc4d4;">${escIM(item.unit_price)}</div>
                 </td>
-                <td style="text-align: right; vertical-align: middle;">
-                    <div style="font-size: 1rem; font-weight: 800; color: #53c5e0;">${escIM(item.subtotal)}</div>
+                <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
+                    <div style="font-size: 16px; font-weight: 700; color: #53c5e0;">${escIM(item.subtotal)}</div>
                 </td>
             </tr>`;
         }).join('');
@@ -847,10 +847,10 @@ function openItemsModal(orderId) {
                         <table class="im-table">
                             <thead style="background: rgba(83, 197, 224, 0.05);">
                                 <tr>
-                                    <th style="padding: 1rem;">Service Description</th>
-                                    <th style="text-align: center; padding: 1rem;">Qty</th>
-                                    <th style="text-align: right; padding: 1rem;">Price</th>
-                                    <th style="text-align: right; padding: 1rem;">Total</th>
+                                    <th style="padding: 1rem; font-size: 11px; font-weight: 700;">Service Description</th>
+                                    <th style="text-align: center; padding: 1rem; font-size: 11px; font-weight: 700;">Qty</th>
+                                    <th style="text-align: right; padding: 1rem; white-space: nowrap; font-size: 11px; font-weight: 700;">Unit Price</th>
+                                    <th style="text-align: right; padding: 1rem; font-size: 11px; font-weight: 700;">Total</th>
                                 </tr>
                             </thead>
                             <tbody>${rows}</tbody>
@@ -859,8 +859,8 @@ function openItemsModal(orderId) {
                     
                     ${data.notes ? `
                         <div style="margin-top: 1.5rem; padding: 1.25rem; background: rgba(83, 197, 224, 0.05); border: 1px solid rgba(83, 197, 224, 0.2); border-left: 4px solid #53c5e0; border-radius: 12px;">
-                            <div style="font-size: 0.75rem; font-weight: 800; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Customer Notes</div>
-                            <div style="font-size: 0.95rem; color: #eaf6fb; font-style: italic; line-height: 1.6;">"${escIM(data.notes)}"</div>
+                            <div style="font-size: 11px; font-weight: 700; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Customer Notes</div>
+                            <div style="font-size: 14px; font-weight: 400; color: #eaf6fb; line-height: 1.6;">"${escIM(data.notes)}"</div>
                         </div>
                     ` : ''}
                 </div>
@@ -870,26 +870,26 @@ function openItemsModal(orderId) {
                     <div class="im-sec-card accent">
                         <div class="flex justify-between items-start mb-4">
                             <div>
-                                <div class="im-label">Current status</div>
-                                <div class="text-lg font-black text-white leading-tight">${data.status}</div>
+                                <div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 4px;">Current status</div>
+                                <div style="font-size: 16px; font-weight: 700; color: #fff; line-height: 1.2;">${data.status}</div>
                             </div>
                             <div style="transform: scale(0.9); transform-origin: top right;">${imBadge(data.status)}</div>
                         </div>
-                        <div class="im-label mt-4">Branch processing</div>
-                        <div class="text-xs font-bold text-slate-300 letter-spacing-wider capitalize-first">${escIM(data.branch_name)}</div>
+                        <div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 4px; margin-top: 16px;">Branch processing</div>
+                        <div style="font-size: 14px; font-weight: 400; color: #e0f2fe;">${escIM(data.branch_name)}</div>
                     </div>
 
                     <div class="im-sec-card">
-                        <div class="im-label">Payment information</div>
+                        <div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 12px;">Payment information</div>
                         <div class="space-y-4">
-                            <div><div class="text-[9px] text-slate-400 font-bold mb-1">Method</div><div class="im-val text-sm capitalize-first">${escIM(data.payment_method).toLowerCase()}</div></div>
-                            <div><div class="text-[9px] text-slate-400 font-bold mb-1">Status</div><div>${imBadge(data.payment_status)}</div></div>
+                            <div><div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Method</div><div style="font-size: 14px; font-weight: 400; color: #e0f2fe;">${escIM(data.payment_method)}</div></div>
+                            <div><div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Status</div><div>${imBadge(data.payment_status)}</div></div>
                         </div>
                     </div>
 
                     <div class="im-sec-card" style="border-left-color: #fbbf24;">
-                        <div class="im-label text-amber-400">Estimated completion</div>
-                        <div class="im-val text-sm font-black text-amber-500">${escIM(data.estimated_comp || 'Gathering timeframe...')}</div>
+                        <div style="font-size: 11px; font-weight: 700; color: #fbbf24; text-transform: uppercase; margin-bottom: 4px;">Estimated completion</div>
+                        <div style="font-size: 14px; font-weight: 400; color: #fbbf24;">${escIM(data.estimated_comp || 'Gathering timeframe...')}</div>
                     </div>
 
                     <!-- Actions Area -->

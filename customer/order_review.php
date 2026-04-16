@@ -137,13 +137,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_order'])) {
                 $order_status = ($order_type === 'custom') ? 'Pending' : 'To Pay';
                 $branch_id = $selected_branch_id;
                 
-                // For service/custom orders, set total_amount = 0 so staff can set the price (Step 1)
-                $order_total_amount = ($order_type === 'custom') ? 0 : $grand_total;
+                // For service/custom orders, save estimated_price and set total_amount to estimated total
+                $estimated_price = ($order_type === 'custom') ? $grand_total : null;
+                $order_total_amount = $grand_total;
 
                 // 2. Create Single Order with order_source = 'customer'
-                $order_sql = "INSERT INTO orders (customer_id, branch_id, reference_id, order_date, total_amount, downpayment_amount, status, payment_status, payment_type, notes, order_type, order_source)
-                              VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, 'customer')";
-                $order_id  = db_execute($order_sql, 'iiiddsssss', [$customer_id, $branch_id, $reference_id, $order_total_amount, $downpayment_amount, $order_status, $payment_status, $payment_type, $notes_summary, $order_type]);
+                $order_sql = "INSERT INTO orders (customer_id, branch_id, reference_id, order_date, total_amount, estimated_price, downpayment_amount, status, payment_status, payment_type, notes, order_type, order_source)
+                              VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, 'customer')";
+                $order_id  = db_execute($order_sql, 'iiidddsssss', [$customer_id, $branch_id, $reference_id, $order_total_amount, $estimated_price, $downpayment_amount, $order_status, $payment_status, $payment_type, $notes_summary, $order_type]);
 
                 if ($order_id) {
                     error_log('Order created successfully with ID: ' . $order_id);
@@ -198,13 +199,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_order'])) {
                             $product_id = 3; // Fallback
                         }
 
-                        // Safety check: ensure unit_price is per item
-                        // For service/custom orders, set unit_price = 0 (staff will set price in Step 1)
-                        $unit_price = ($order_type === 'custom') ? 0 : (float)$item['price'];
+                        // FIXED: Save estimated price to order_items so it displays correctly
+                        // For service/custom orders, save estimated unit_price (staff can update later)
+                        // For product orders, use the price as-is (it's already per-item unit price)
+                        $unit_price = (float)$item['price'];
                         $quantity_val = (int)$item['quantity'];
-                        if ($order_type !== 'custom' && $quantity_val > 1 && $unit_price > 500) {
-                            $unit_price = round($unit_price / $quantity_val, 2);
-                        }
 
                         if ($design_binary) {
                             $stmt = $conn->prepare(
@@ -274,11 +273,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_order'])) {
 // Calculate total for all items
 $grand_total = 0;
 foreach ($items_to_review as $key => $item) {
-    // Fix unit price if it's actually the total
-    if ($item['quantity'] > 1 && $item['price'] > 500) {
-        $items_to_review[$key]['price'] = round($item['price'] / $item['quantity'], 2);
-    }
-    $grand_total += $items_to_review[$key]['price'] * $item['quantity'];
+    // Use the price as-is for service/custom orders (it's already the estimated_price)
+    $grand_total += $item['price'] * $item['quantity'];
 }
 
 // Determine if any item has customization
@@ -947,7 +943,7 @@ require_once __DIR__ . '/../includes/header.php';
                         Back to Cart
                     </a>
                     
-                    <button type="submit" name="confirm_order" value="1" class="shopee-btn-primary" style="width: 150px; white-space: nowrap;">Place Order</button>
+                    <button type="submit" name="confirm_order" value="1" class="shopee-btn-primary" style="width: 150px; white-space: nowrap;">Inquire Now</button>
                 </div>
             </div>
         </form>

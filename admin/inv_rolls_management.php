@@ -171,6 +171,10 @@ $rollItems = db_query("SELECT id, name FROM inv_items WHERE track_by_roll = 1 AN
             if (status) params.set('status', status);
 
             const res = await fetch('inventory_rolls_api.php?' + params.toString());
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`HTTP ${res.status}: ${errText.substring(0, 100)}`);
+            }
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Load failed');
 
@@ -232,6 +236,7 @@ $rollItems = db_query("SELECT id, name FROM inv_items WHERE track_by_roll = 1 AN
         e.preventDefault();
         const fd = new FormData(e.target);
         const res = await fetch('inventory_rolls_api.php', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if(data.success) {
             e.target.closest('.modal').style.display = 'none';
@@ -245,6 +250,7 @@ $rollItems = db_query("SELECT id, name FROM inv_items WHERE track_by_roll = 1 AN
         fd.append('action', 'void_roll');
         fd.append('roll_id', id);
         const res = await fetch('inventory_rolls_api.php', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         if((await res.json()).success) loadRolls();
     }
 
