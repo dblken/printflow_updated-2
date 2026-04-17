@@ -112,6 +112,15 @@ $items = db_query("
 $items_out = [];
 foreach ($items as $item) {
     $custom_data = json_decode($item['customization_data'] ?? '{}', true) ?? [];
+    
+    // Filter for Product Dashboard: Skip if it looks like a customization
+    // Customization = No product_id OR has significant customization data
+    $is_custom = empty($item['product_id']) || (!empty($custom_data) && count($custom_data) > 1);
+    if (empty($item['product_id']) && !empty($custom_data)) $is_custom = true;
+    
+    // In orders.php context, we only show products
+    if ($is_custom) continue;
+
     // Remove design_upload key from display
     unset($custom_data['design_upload']);
 

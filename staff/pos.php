@@ -73,6 +73,12 @@ try {
             flex-wrap: wrap;
         }
 
+        @keyframes validationShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
+
         .shopee-form-label {
             min-width: 120px;
             padding-top: .5rem;
@@ -1173,7 +1179,12 @@ try {
             style="background:#fff;width:100%;max-width:680px;border-radius:20px;padding:0;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:1px solid #e2e8f0;display:flex;flex-direction:column;max-height:90vh;overflow:hidden;">
             <div
                 style="padding:20px 24px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
-                <h3 id="sm-title" style="margin:0;font-size:18px;font-weight:800;color:#0f172a;"></h3>
+                <div>
+                    <h3 id="sm-title" style="margin:0;font-size:18px;font-weight:800;color:#0f172a;"></h3>
+                    <div id="sm-estimated-price" style="display:none;margin-top:4px;font-size:14px;font-weight:700;color:#0d9488;">
+                        Estimated Total: <span id="sm-total-amount">₱0.00</span>
+                    </div>
+                </div>
                 <button onclick="closeServiceModal()"
                     style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;padding:4px;"
                     onmouseover="this.style.color='#1e293b'" onmouseout="this.style.color='#94a3b8'">&times;</button>
@@ -1553,17 +1564,30 @@ try {
                     }
                 }
 
+                // Initial price calculation
+                if (typeof calculateEstimatedPrice === 'function') calculateEstimatedPrice();
+
                 // Re-run the field scripts (conditional logic, qty buttons, etc.)
                 if (typeof updateConditionalFields === 'function') updateConditionalFields();
-                body.querySelectorAll('.shopee-opt-btn input[type="radio"]').forEach(r => {
+                body.querySelectorAll('.shopee-opt-btn input[radio], .shopee-opt-btn input[type="radio"]').forEach(r => {
                     r.addEventListener('change', function () {
                         if (typeof updateOptVisual === 'function') updateOptVisual(this);
                         if (typeof updateConditionalFields === 'function') updateConditionalFields();
+                        if (typeof calculateEstimatedPrice === 'function') calculateEstimatedPrice();
                     });
                 });
                 body.querySelectorAll('select').forEach(s => {
                     s.addEventListener('change', function () {
                         if (typeof updateConditionalFields === 'function') updateConditionalFields();
+                        if (typeof calculateEstimatedPrice === 'function') calculateEstimatedPrice();
+                    });
+                });
+                body.querySelectorAll('.pricing-field').forEach(p => {
+                    p.addEventListener('click', function() {
+                        if (typeof calculateEstimatedPrice === 'function') calculateEstimatedPrice();
+                    });
+                    p.addEventListener('change', function() {
+                        if (typeof calculateEstimatedPrice === 'function') calculateEstimatedPrice();
                     });
                 });
             } catch (e) {
@@ -1650,11 +1674,18 @@ try {
                 }
             });
 
-            // Add service to cart with price = 0 (will be set in customizations page)
+            // Get the calculated price if possible (Unit Price)
+            let calculatedUnitPrice = 0;
+            const priceEl = document.getElementById('sm-total-amount');
+            if (priceEl) {
+                calculatedUnitPrice = parseFloat(priceEl.getAttribute('data-unit-price')) || 0;
+            }
+
+            // Add service to cart
             const result = await syncedCartAction('add', {
                 product_id: serviceId,
                 name: serviceName,
-                price: 0,
+                price: calculatedUnitPrice,
                 qty: parseInt(customization['quantity'] || 1),
                 customization: customization,
                 is_service: true
@@ -2342,8 +2373,8 @@ try {
                     const div = document.createElement('div');
                     div.className = 'pos-cart-item';
 
-                    // Check if item is a service (price = 0 or is_service flag)
-                    const isService = item.is_service || item.price === 0;
+                    const isService = item.is_service || item.price === 0 || item.customization;
+                    const setupMissing = isService && !item.setup_complete;
 
                     let customHtml = '';
                     if (item.customization) {
@@ -2356,16 +2387,23 @@ try {
                         }
                     }
 
-                    const priceHtml = isService
-                        ? `<button onclick="redirectToSetPrice(${index})" style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:2px 8px;background:#fef3c7;border:1px solid #f59e0b;border-radius:5px;font-size:12px;font-weight:700;color:#d97706;text-decoration:none;cursor:pointer;border:none;" title="Click to set price in Customizations">
-                    <i class="fas fa-tag" style="font-size:10px;"></i> Set Price
-                  </button>`
-                        : `<div class="pos-item-price" style="margin-top:2px;">₱${item.price.toFixed(2)}</div>`;
+                    const setupBtn = setupMissing
+                        ? `<button onclick="redirectToSetPrice(${index})" style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:3px 8px;background:#fff7ed;border:1px solid #f97316;border-radius:6px;font-size:11px;font-weight:700;color:#c2410c;cursor:pointer;animation: validationShake 2s infinite;" title="Click to assign materials and set final price">
+                            <i class="fas fa-tools" style="font-size:10px;"></i> Setup Missing
+                          </button>`
+                        : (item.setup_complete ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:2px 8px;background:#f0fdf4;border:1px solid #22c55e;border-radius:6px;font-size:10px;font-weight:700;color:#16a34a;"><i class="fas fa-check"></i> Setup OK</div>` : '');
+
+                    const priceHtml = (item.price === 0)
+                        ? `<div class="pos-item-price" style="margin-top:2px; color:#ef4444; font-weight:800;">₱0.00</div>`
+                        : `<div class="pos-item-price" style="margin-top:2px;">₱${parseFloat(item.price).toFixed(2)}</div>`;
 
                     div.innerHTML = `
                 <div class="pos-item-details" style="flex:1;">
                     <div class="pos-item-name">${item.name}</div>
-                    ${priceHtml}
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        ${priceHtml}
+                        ${setupBtn}
+                    </div>
                     ${customHtml}
                 </div>
                 <div class="pos-item-controls">
@@ -2451,12 +2489,13 @@ try {
                 message = 'Select Customer';
             }
 
-            // Check if cart has any services with price = 0
-            const hasUnpricedService = cart.some(i => (i.is_service || i.price === 0) && i.price === 0);
+            // Check if cart has any services with missing setup (v4)
+            const hasUnsetupService = cart.some(i => (i.is_service || i.customization) && !i.setup_complete);
+            const hasZeroPrice = cart.some(i => parseFloat(i.price) <= 0);
 
-            if (hasUnpricedService) {
+            if (hasUnsetupService || hasZeroPrice) {
                 canCheckout = false;
-                message = 'Set Price First';
+                message = hasZeroPrice ? 'Set Price First' : 'Complete Setup';
                 icon.className = 'fas fa-lock';
                 text.textContent = message;
                 btn.disabled = true;
@@ -2493,10 +2532,15 @@ try {
                 return;
             }
 
-            // Block checkout if any item has price = 0
-            const hasUnpricedService = cart.some(i => (i.is_service || i.price === 0) && i.price === 0);
-            if (hasUnpricedService) {
-                await showPOSAlert('Price Required', 'Please set the price for all items before completing the sale.\n\nClick the yellow "Set Price" button on items to set their price in Customizations.', 'warning');
+            // Block checkout if setup is missing or price is 0
+            const hasUnsetupService = cart.some(i => (i.is_service || i.customization) && !i.setup_complete);
+            const hasZeroPrice = cart.some(i => parseFloat(i.price) <= 0);
+            
+            if (hasUnsetupService || hasZeroPrice) {
+                const item = cart.find(i => ((i.is_service || i.customization) && !i.setup_complete) || parseFloat(i.price) <= 0);
+                await showPOSAlert('Setup Required', `❗ Cannot complete sale. The item "${item.name}" requires material assignment and a final price set in the customization dashboard.`, 'warning');
+                const idx = cart.indexOf(item);
+                redirectToSetPrice(idx);
                 return;
             }
 
@@ -2704,6 +2748,7 @@ try {
                     id: item.product_id,
                     name: item.name,
                     qty: item.qty,
+                    price: item.price,
                     customization: item.customization || null,
                     is_service: item.is_service || false
                 }

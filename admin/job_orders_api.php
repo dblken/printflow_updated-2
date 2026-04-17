@@ -249,8 +249,7 @@ try {
                     LEFT JOIN order_items oi ON o.order_id = oi.order_id
                     LEFT JOIN products p ON oi.product_id = p.product_id
                     LEFT JOIN customers c ON o.customer_id = c.customer_id
-                    WHERE (o.order_type IS NULL OR o.order_type = 'product' OR o.order_type = 'custom')
-                    AND (o.order_source IS NULL OR o.order_source != 'pos' OR EXISTS (SELECT 1 FROM customizations cu WHERE cu.order_id = o.order_id))
+                    WHERE (o.order_type = 'custom' OR EXISTS (SELECT 1 FROM customizations cu WHERE cu.order_id = o.order_id))
                     AND o.status IN (
                         'Pending', 'Pending Review', 'Pending Approval', 'For Revision',
                         'Approved', 'Design Approved',
@@ -285,7 +284,7 @@ try {
                 }
                 
                 // Fetch dynamic correct names based on ordered items customizations
-                $payload = JobOrderService::getStoreOrderItemsPayload($order['order_id']);
+                $payload = JobOrderService::getStoreOrderItemsPayload($order['order_id'], 'customization');
                 if (!empty($payload['service_type']) && $payload['service_type'] !== 'Custom Order') {
                     $order['service_type'] = $payload['service_type'];
                 }
@@ -298,6 +297,8 @@ try {
                 }
                 if (!empty($title_parts)) {
                     $order['job_title'] = implode(', ', array_unique($title_parts));
+                } else if (empty($order['job_title'])) {
+                    $order['job_title'] = $order['service_type'];
                 }
             }
             unset($order);
@@ -337,7 +338,7 @@ try {
                     cust.created_at AS order_date,
                     NULL AS due_date,
                     NULL AS priority,
-                    0 AS estimated_total,
+                    o.total_amount AS estimated_total,
                     'pos' AS order_source
                 FROM customizations cust
                 LEFT JOIN customers c ON cust.customer_id = c.customer_id
@@ -584,10 +585,61 @@ try {
                 'readiness'                => 'READY',
                 'order_source'             => $cust['order_source'] ?? 'pos',
                 'items'                    => $items,
-                'materials'                => [],
-                'ink_usage'                => [],
                 'customization_details'    => $details,
             ];
+
+            // Fetch linked job_order materials so validationState is accurate
+            $linked_job = db_query(
+                'SELECT id FROM job_orders WHERE order_id = ? LIMIT 1',
+                'i', [$cust['order_id']]
+            );
+            $jid = $linked_job[0]['id'] ?? null;
+
+            $cust_materials = [];
+            $cust_ink       = [];
+            if ($jid) {
+                $mat_rows = db_query(
+                    'SELECT jom.*, ii.name AS item_name, ii.unit_of_measure,
+                            ii.track_by_roll, ii.category_id
+                     FROM job_order_materials jom
+                     LEFT JOIN inventory_items ii ON jom.item_id = ii.id
+                     WHERE jom.job_order_id = ?',
+                    'i', [$jid]
+                );
+                $cust_materials = $mat_rows ?: [];
+
+                // Ink usage stored in job_order_ink_usage (if table exists)
+                $ink_rows = @db_query(
+                    'SELECT * FROM job_order_ink_usage WHERE job_order_id = ?',
+                    'i', [$jid]
+                );
+                $cust_ink = $ink_rows ?: [];
+            }
+            $data['materials'] = $cust_materials;
+            $data['ink_usage'] = $cust_ink;
+
+            // Fetch design image from order_items
+            $oi_rows = db_query(
+                'SELECT design_file, design_image, design_image_mime, reference_image_file
+                 FROM order_items WHERE order_id = ? LIMIT 1',
+                'i', [$cust['order_id']]
+            );
+            if (!empty($oi_rows)) {
+                $oi = $oi_rows[0];
+                $base_url = (defined('BASE_URL') ? BASE_URL : '/printflow');
+                if (!empty($oi['design_file'])) {
+                    $data['design_url']  = $base_url . ltrim($oi['design_file'], '/');
+                    $data['design_file'] = $data['design_url'];
+                } elseif (!empty($oi['design_image'])) {
+                    // Blob stored inline — serve via a proxy endpoint
+                    $data['design_url']  = $base_url . '/api_view_proof.php?order_item_id=' . ($oi_rows[0]['order_item_id'] ?? 0);
+                    $data['design_file'] = $data['design_url'];
+                }
+                if (!empty($oi['reference_image_file'])) {
+                    $data['reference_url']  = $base_url . ltrim($oi['reference_image_file'], '/');
+                    $data['reference_file'] = $data['reference_url'];
+                }
+            }
 
             echo json_encode(['success' => true, 'data' => $data]);
             break;
@@ -638,7 +690,7 @@ try {
                 $effective_job_id = JobOrderService::ensureJobsForStoreOrder($order_id);
             }
 
-            $payload = JobOrderService::getStoreOrderItemsPayload($order_id);
+            $payload = JobOrderService::getStoreOrderItemsPayload($order_id, 'customization');
             $items_out = $payload['items'];
             $width_ft = $payload['width_ft'];
             $height_ft = $payload['height_ft'];

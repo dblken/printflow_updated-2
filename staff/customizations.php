@@ -35,7 +35,8 @@ $total_jobs_jobs = db_query(
     $joBranchParams ?: null
 )[0]['count'];
 $total_orders_pending = db_query(
-    "SELECT COUNT(*) as count FROM orders WHERE status IN ('Pending', 'Pending Review', 'Pending Approval', 'For Revision')" . $ordBranchSql,
+    "SELECT COUNT(*) as count FROM orders o WHERE status IN ('Pending', 'Pending Review', 'Pending Approval', 'For Revision') 
+     AND (o.order_type = 'custom' OR EXISTS (SELECT 1 FROM customizations cu WHERE cu.order_id = o.order_id))" . $ordBranchSql,
     $ordBranchTypes ?: null,
     $ordBranchParams ?: null
 )[0]['count'];
@@ -47,7 +48,8 @@ $pending_jobs_jobs = db_query(
     $joBranchParams ?: null
 )[0]['count'];
 $pending_orders = db_query(
-    "SELECT COUNT(*) as count FROM orders WHERE status IN ('Pending', 'Pending Review', 'Pending Approval', 'For Revision')" . $ordBranchSql,
+    "SELECT COUNT(*) as count FROM orders o WHERE status IN ('Pending', 'Pending Review', 'Pending Approval', 'For Revision')
+     AND (o.order_type = 'custom' OR EXISTS (SELECT 1 FROM customizations cu WHERE cu.order_id = o.order_id))" . $ordBranchSql,
     $ordBranchTypes ?: null,
     $ordBranchParams ?: null
 )[0]['count'];
@@ -64,7 +66,8 @@ $in_production_jobs = db_query(
     $joBranchParams ?: null
 )[0]['count'];
 $in_production_orders = db_query(
-    "SELECT COUNT(*) as count FROM orders WHERE status IN ('Processing', 'In Production', 'Printing', 'Paid – In Process', 'Paid - In Process')" . $ordBranchSql,
+    "SELECT COUNT(*) as count FROM orders o WHERE status IN ('Processing', 'In Production', 'Printing', 'Paid – In Process', 'Paid - In Process')
+     AND (o.order_type = 'custom' OR EXISTS (SELECT 1 FROM customizations cu WHERE cu.order_id = o.order_id))" . $ordBranchSql,
     $ordBranchTypes ?: null,
     $ordBranchParams ?: null
 )[0]['count'];
@@ -76,7 +79,8 @@ $completed_jobs_jobs = db_query(
     $joBranchParams ?: null
 )[0]['count'];
 $completed_orders = db_query(
-    "SELECT COUNT(*) as count FROM orders WHERE status = 'Completed'" . $ordBranchSql,
+    "SELECT COUNT(*) as count FROM orders o WHERE status = 'Completed'
+     AND (o.order_type = 'custom' OR EXISTS (SELECT 1 FROM customizations cu WHERE cu.order_id = o.order_id))" . $ordBranchSql,
     $ordBranchTypes ?: null,
     $ordBranchParams ?: null
 )[0]['count'];
@@ -217,6 +221,11 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
         .modal-panel { background:#fff; border-radius:12px; box-shadow:0 25px 50px rgba(0,0,0,0.25); width:100%; max-width:560px; max-height:88vh; overflow-y:auto; margin:16px; position:relative; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pf-tab-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+        @keyframes validationShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
         [x-cloak] { display: none !important; }
 
     </style>
@@ -616,6 +625,32 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         </div>
                     </template>
 
+                    <!-- Design Preview for CUSTOMIZATION type (no items array, design stored in customization_details) -->
+                    <template x-if="currentJo.order_type === 'CUSTOMIZATION' && (currentJo.design_file || currentJo.design_url)">
+                        <div style="margin-bottom:20px; padding:16px; border-radius:12px; border:1px solid #e5e7eb; background:#f9fafb;">
+                            <label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:10px;">Customer Design</label>
+                            <div style="display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+                                <div>
+                                    <img :src="currentJo.design_url || currentJo.design_file"
+                                         @click="previewFile = currentJo.design_url || currentJo.design_file"
+                                         style="width:160px; height:auto; max-height:160px; object-fit:cover; border-radius:10px; border:1px solid #e2e8f0; cursor:zoom-in; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);"
+                                         alt="Customer Design"
+                                         onerror="this.closest('div').innerHTML='<div style=\'padding:12px;font-size:12px;color:#9ca3af;font-style:italic;\'>No design image available</div>'">
+                                    <div style="font-size:10px;color:#6b7280;margin-top:6px;text-align:center;">Click to enlarge</div>
+                                </div>
+                                <template x-if="currentJo.reference_url || currentJo.reference_file">
+                                    <div>
+                                        <div style="font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:6px;">Reference</div>
+                                        <img :src="currentJo.reference_url || currentJo.reference_file"
+                                             @click="previewFile = currentJo.reference_url || currentJo.reference_file"
+                                             style="width:120px; height:auto; max-height:120px; object-fit:cover; border-radius:8px; border:1px solid #e2e8f0; cursor:zoom-in;"
+                                             onerror="this.style.display='none'">
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
 
                     <!-- Notes -->
                     <div style="margin-bottom:20px;" x-show="combinedCustomerNotes().trim() !== '' && combinedCustomerNotes() !== 'No specific instructions.'">
@@ -798,41 +833,56 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                 </div>
                             </div>
 
-                            <!-- Final Step: Pricing and Submit -->
-                            <div style="padding:24px; border-radius:16px; border:2px solid #06A1A1; background:linear-gradient(135deg, #f0fdfa 0%, #ecfeff 100%); box-shadow:0 4px 12px rgba(6, 161, 161, 0.15);">
-                                <div style="margin-bottom:20px;">
-                                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-                                        <svg width="20" height="20" fill="none" stroke="#0f766e" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                        <label style="font-size:13px; font-weight:800; color:#0f766e; text-transform:uppercase; letter-spacing:0.5px;">[3] Set Final Price</label>
-                                    </div>
-                                    <div style="position:relative;">
-                                        <span style="position:absolute; left:16px; top:50%; transform:translateY(-50%); font-weight:800; color:#0f766e; font-size:20px;">₱</span>
-                                        <input type="number" x-model.number="jobPriceInput" 
-                                               min="0" step="0.01" placeholder="0.00"
-                                               @input="jobPriceInput = parseFloat($event.target.value) || 0"
-                                               style="width:100%; padding:16px 16px 16px 40px; border:2px solid #06A1A1; border-radius:12px; font-size:24px; font-weight:800; color:#0f766e; outline:none; background:#ffffff; transition:all 0.2s;"
-                                               onfocus="this.style.borderColor='#0d9488'; this.style.boxShadow='0 0 0 3px rgba(6, 161, 161, 0.1)'"
-                                               onblur="this.style.borderColor='#06A1A1'; this.style.boxShadow='none'">
-                                    </div>
-                                    <div style="display:flex; align-items:center; gap:6px; margin-top:10px; padding:10px 12px; background:#fff; border-radius:8px; border:1px solid #d1fae5;">
-                                        <svg width="14" height="14" fill="none" stroke="#059669" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                        <span style="font-size:11px; color:#059669; font-weight:600;">This is the total amount the customer will pay</span>
-                                    </div>
-                                </div>
-                                <button @click="submitToPay()" class="btn-action" style="width:100%; padding:16px; height:auto; font-size:16px; background:#06A1A1; color:#fff; border:none; font-weight:800; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:12px; box-shadow:0 10px 20px rgba(6, 161, 161, 0.3); transition:all 0.2s; cursor:pointer;"
-                                        onmouseover="this.style.background='#0d9488'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 24px rgba(6, 161, 161, 0.4)'"
-                                        onmouseout="this.style.background='#06A1A1'; this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 20px rgba(6, 161, 161, 0.3)'">
-                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                    <span>Confirm Approval & Send to Payment</span>
-                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                                </button>
-                                <p style="font-size:11px; color:#0d9488; font-weight:500; margin-top:12px; display:flex; align-items:flex-start; gap:6px; line-height:1.5;">
-                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0; margin-top:2px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                    <span>Approving will notify the customer, set the final price, and prepare materials for production.</span>
-                                </p>
-                            </div>
+                             <!-- Final Step: Pricing and Submit -->
+                             <div style="padding:24px; border-radius:16px; border:2px solid #06A1A1; background:linear-gradient(135deg, #f0fdfa 0%, #ecfeff 100%); box-shadow:0 4px 12px rgba(6, 161, 161, 0.15);">
+                                 <!-- Block/Warning Indicator -->
+                                 <div x-show="!validationState.valid" 
+                                      style="margin-bottom:16px; padding:12px 16px; background:#fff7ed; border:1px solid #ffedd5; border-radius:12px; display:flex; align-items:flex-start; gap:12px; animation: validationShake 0.5s ease-in-out;">
+                                     <div style="background:#ea580c; color:white; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px;">
+                                         <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                     </div>
+                                     <div style="flex:1;">
+                                         <div style="font-size:13px; font-weight:800; color:#9a3412;">Action Required</div>
+                                         <div style="font-size:12px; color:#c2410c; margin-top:2px; font-weight:600; line-height:1.4;">
+                                            Cannot complete order. Please set required <span x-text="validationState.errors.join(' and ')"></span> before proceeding.
+                                         </div>
+                                     </div>
+                                 </div>
+                                 
+                                 <div style="margin-bottom:20px;">
+                                     <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                                         <svg width="20" height="20" fill="none" stroke="#0f766e" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                         <label style="font-size:13px; font-weight:800; color:#0f766e; text-transform:uppercase; letter-spacing:0.5px;">[3] Set Final Price</label>
+                                     </div>
+                                     <div style="position:relative;">
+                                         <span style="position:absolute; left:16px; top:50%; transform:translateY(-50%); font-weight:800; color:#0f766e; font-size:20px;">₱</span>
+                                         <input type="number" x-model.number="jobPriceInput" 
+                                                min="0" step="0.01" placeholder="0.00"
+                                                @input="jobPriceInput = parseFloat($event.target.value) || 0"
+                                                style="width:100%; padding:16px 16px 16px 40px; border:2px solid #06A1A1; border-radius:12px; font-size:24px; font-weight:800; color:#0f766e; outline:none; background:#ffffff; transition:all 0.2s;"
+                                                onfocus="this.style.borderColor='#0d9488'; this.style.boxShadow='0 0 0 3px rgba(6, 161, 161, 0.1)'"
+                                                onblur="this.style.borderColor='#06A1A1'; this.style.boxShadow='none'">
+                                     </div>
+                                     <div style="display:flex; align-items:center; gap:6px; margin-top:10px; padding:10px 12px; background:#fff; border-radius:8px; border:1px solid #d1fae5;">
+                                         <svg width="14" height="14" fill="none" stroke="#059669" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                         <span style="font-size:11px; color:#059669; font-weight:600;">This is the total amount the customer will pay</span>
+                                     </div>
+                                 </div>
+                                 <button @click="submitToPay()" class="btn-action" style="width:100%; padding:16px; height:auto; font-size:16px; background:#06A1A1; color:#fff; border:none; font-weight:800; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:12px; box-shadow:0 10px 20px rgba(6, 161, 161, 0.3); transition:all 0.2s; cursor:pointer;"
+                                         onmouseover="this.style.background='#0d9488'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 24px rgba(6, 161, 161, 0.4)'"
+                                         onmouseout="this.style.background='#06A1A1'; this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 20px rgba(6, 161, 161, 0.3)'">
+                                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                     <span x-text="'Confirm Approval & Send to Payment'"></span>
+                                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                 </button>
+                                 <p style="font-size:11px; color:#0d9488; font-weight:500; margin-top:12px; display:flex; align-items:flex-start; gap:6px; line-height:1.5;">
+                                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0; margin-top:2px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                     <span>Approving will notify the customer, set the final price, and prepare materials for production.</span>
+                                 </p>
+                             </div>
                         </div>
                     </template>
+
 
                     <!-- 3. TO_PAY (Waiting for Payment) -->
                     <template x-if="currentJo.status === 'TO_PAY'">
@@ -863,7 +913,10 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                             <label style="font-size:11px;font-weight:700;color:#0f766e;text-transform:uppercase;display:block;margin-bottom:12px;">Step 6: Ready for Pickup</label>
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <div style="font-size:14px; color:#0f766e; font-weight:500;">Customer has been notified to pick up the order.</div>
-                                <button @click="completeOrder()" class="btn-action" style="background:#06A1A1; color:#fff; border:none; font-weight:600; padding:6px 16px; border-radius:8px;">Mark Final Completed</button>
+                                 <button @click="completeOrder()" class="btn-action" 
+                                        :style="!validationState.valid ? 'background:#cbd5e1; color:#64748b; cursor:not-allowed; opacity:0.8;' : 'background:#06A1A1; color:#fff; border:none; font-weight:600; padding:6px 16px; border-radius:8px;'">
+                                    Mark Final Completed
+                                </button>
                             </div>
                         </div>
                     </template>
@@ -1193,6 +1246,45 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     }
                 });
                 return grouped;
+            },
+
+            get validationState() {
+                if (!this.currentJo || !this.currentJo.id) return { valid: true, errors: [], hasMaterials: true, hasPrice: true };
+                
+                const errors = [];
+
+                // Check materials: DB-saved materials, DB-saved ink, or pending items in queue
+                const dbMaterials   = Array.isArray(this.currentJo.materials)  && this.currentJo.materials.length  > 0;
+                const dbInk         = Array.isArray(this.currentJo.ink_usage)   && this.currentJo.ink_usage.length  > 0;
+                const pendingItems  = Array.isArray(this.pendingMaterials)       && this.pendingMaterials.length     > 0;
+                // Also count ink that has been entered in the form but not yet saved
+                const inkFormFilled = this.useInk && this.inkCategorySelected &&
+                                      (Number(this.inkBlue)   > 0 || Number(this.inkRed)    > 0 ||
+                                       Number(this.inkBlack)  > 0 || Number(this.inkYellow) > 0);
+
+                const hasMaterials = dbMaterials || dbInk || pendingItems || inkFormFilled;
+                                   
+                if (!hasMaterials) {
+                    errors.push('assigned production materials');
+                }
+                
+                // Final price: prefer the input box, fall back to stored values
+                let price = parseFloat(this.jobPriceInput);
+                if (isNaN(price) || price <= 0) {
+                    price = parseFloat(
+                        this.currentJo.estimated_total ||
+                        this.currentJo.estimated_price ||
+                        this.currentJo.total_amount ||
+                        0
+                    );
+                }
+                
+                const hasPrice = !isNaN(price) && price > 0;
+                if (!hasPrice) {
+                    errors.push('a final set price');
+                }
+                
+                return { valid: errors.length === 0, errors, hasMaterials, hasPrice };
             },
 
             get materialsDeductedSummary() {
@@ -1845,7 +1937,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         const detailRes = await (await fetch(`${base}/admin/job_orders_api.php?action=get_customization&id=${id}`)).json();
                         if (detailRes.success) {
                             this.currentJo = { ...detailRes.data, order_type: 'CUSTOMIZATION' };
-                            this.jobPriceInput = this.currentJo.estimated_total || this.currentJo.estimated_price || 0;
+                            this.jobPriceInput = parseFloat(this.currentJo.estimated_total || this.currentJo.estimated_price || 0);
                         } else {
                             this.showStaffAlert('Error', 'Customization details could not be loaded.');
                             this.showDetailsModal = false;
@@ -1874,7 +1966,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         return;
                     }
                     this.currentJo = { ...order, order_type: 'ORDER' };
-                    this.jobPriceInput = this.currentJo.estimated_total || this.currentJo.estimated_price || this.currentJo.total_amount || 0;
+                    this.jobPriceInput = parseFloat(this.currentJo.estimated_total || this.currentJo.estimated_price || this.currentJo.total_amount || 0);
                     if (!this.currentJo.job_order_id) {
                         await this.resolveEffectiveJobId();
                     }
@@ -1892,7 +1984,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         const res = await (await fetch(`${base}/admin/job_orders_api.php?action=get_order&id=${jid}`)).json();
                         if (res.success) {
                             this.currentJo = { ...res.data, order_type: 'JOB' };
-                            this.jobPriceInput = this.currentJo.estimated_total || this.currentJo.estimated_price || 0;
+                            this.jobPriceInput = parseFloat(this.currentJo.estimated_total || this.currentJo.estimated_price || 0);
                             this.resetMaterialForm();
                             this.resetInkForm();
                             for (const m of this.currentJo.materials || []) {
@@ -2229,7 +2321,9 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                             body: JSON.stringify({
                                                 action: 'update_price',
                                                 index: state.item_index,
-                                                price: priceValue
+                                                price: priceValue,
+                                                setup_complete: true,
+                                                customization_id: this.currentJo.id
                                             })
                                         });
                                     } catch (e) {
@@ -2309,24 +2403,19 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     }
                 }
 
-                // Re-fetch to get latest materials
-                await this.viewDetails(this.currentJo.id, this.currentJo.order_type || 'JOB');
+                // CRITICAL: Refresh materials from DB before validating so freshly-saved materials are visible
+                await this.refreshMaterials();
 
-                // IMPORTANT: viewDetails resets jobPriceInput, so use the captured value
-                console.log('Price before materials check:', userEnteredPrice);
+                // Restore price input (refreshMaterials/viewDetails may reset it)
+                this.jobPriceInput = userEnteredPrice;
 
-                if ((!this.currentJo.materials || this.currentJo.materials.length === 0) && (!this.currentJo.ink_usage || this.currentJo.ink_usage.length === 0)) {
-                    this.showStaffAlert('Production Required', 'Please add at least one production material or ink before submitting to pay.');
-                    return;
-                }
-
-                // Validate price is set - use the captured value from the beginning
-                if (!userEnteredPrice || userEnteredPrice <= 0 || isNaN(userEnteredPrice)) {
-                    this.showStaffAlert('Price Required', 'Please enter a valid price before submitting to pay.');
+                // REQUISITE CHECK: Materials and Price
+                if (!this.validationState.valid) {
+                    this.showStaffAlert('Incomplete Setup', 'Cannot set to pay. Please ensure you have:\n1. Assigned production materials\n2. Set a final valid price.');
                     return;
                 }
                 
-                // Restore the price value that was reset by viewDetails
+                // Restore the price value that was reset by viewDetails (if re-fetch happened)
                 this.jobPriceInput = userEnteredPrice;
 
                 // Update price for both job_orders AND orders table
@@ -2360,7 +2449,9 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                 body: JSON.stringify({
                                     action: 'update_price',
                                     index: itemIndex,
-                                    price: userEnteredPrice
+                                    price: userEnteredPrice,
+                                    setup_complete: true,
+                                    customization_id: this.currentJo.id
                                 })
                             });
                             
@@ -2381,6 +2472,59 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 
                 // Show success message (only if not redirecting to POS)
                 this.showStaffAlert('Success', 'Order approved and moved to payment stage!');
+            },
+
+            async saveProductionDetails() {
+                const jid = await this.resolveEffectiveJobId();
+                if (!jid) {
+                    this.showStaffAlert('Error', 'No linked production job for materials and pricing.');
+                    return;
+                }
+
+                const priceValue = parseFloat(this.jobPriceInput);
+                
+                // 1. Save all pending materials from queue
+                for (const pm of this.pendingMaterials) {
+                    const fd = new FormData();
+                    fd.append('action', 'add_material');
+                    fd.append('order_id', jid);
+                    fd.append('item_id', pm.item_id);
+                    fd.append('quantity', pm.qty);
+                    fd.append('uom', pm.uom);
+                    fd.append('roll_id', pm.roll_id);
+                    fd.append('notes', pm.notes);
+                    fd.append('metadata', JSON.stringify(pm.metadata));
+                    const res = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fd })).json();
+                    if (!res.success) { this.showStaffAlert('Material Error', 'Failed: ' + res.error); return; }
+                }
+                this.pendingMaterials = [];
+
+                // 2. Handle Ink
+                if (this.useInk && this.inkCategorySelected) {
+                    const mappedInks = this.inkTypes[this.inkCategorySelected];
+                    const inkPayload = [];
+                    if (this.inkBlue > 0) inkPayload.push({ item_id: mappedInks['BLUE'], color: 'BLUE', quantity: this.inkBlue });
+                    if (this.inkRed > 0) inkPayload.push({ item_id: mappedInks['RED'], color: 'RED', quantity: this.inkRed });
+                    if (this.inkBlack > 0) inkPayload.push({ item_id: mappedInks['BLACK'], color: 'BLACK', quantity: this.inkBlack });
+                    if (this.inkYellow > 0) inkPayload.push({ item_id: mappedInks['YELLOW'], color: 'YELLOW', quantity: this.inkYellow });
+
+                    if (inkPayload.length > 0) {
+                        const fdInk = new FormData();
+                        fdInk.append('action', 'save_ink_usage');
+                        fdInk.append('order_id', jid);
+                        fdInk.append('ink_data', JSON.stringify(inkPayload));
+                        const resInk = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fdInk })).json();
+                        if (!resInk.success) { this.showStaffAlert('Ink Error', 'Failed: ' + resInk.error); return; }
+                    }
+                }
+
+                // 3. Update Price
+                if (!isNaN(priceValue) && priceValue > 0) {
+                    await this.updatePrice();
+                }
+
+                this.showStaffAlert('Success', 'Production details updated successfully!');
+                await this.viewDetails(this.currentJo.id, this.currentJo.order_type || 'JOB');
             },
 
             async loadAllInventoryItems() {
@@ -2471,7 +2615,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                    const fd = new FormData();
                    fd.append('action', 'update_customization');
                    fd.append('id', oid);
-                   fd.append('status', 'APPROVED');
+                   fd.append('status', this.currentJo.status);
                    fd.append('price', price);
                    const res = await (await fetch('../admin/job_orders_api.php', { method: 'POST', body: fd })).json();
                    if (!res.success) {
@@ -2650,22 +2794,59 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             },
 
             async refreshMaterials() {
+                const originalType = this.currentJo?.order_type || 'JOB';
+
+                if (originalType === 'CUSTOMIZATION') {
+                    // Re-fetch via get_customization so materials array is up-to-date
+                    const custId = this.currentJo.id;
+                    if (!custId) return;
+                    try {
+                        const res = await (await fetch(`../admin/job_orders_api.php?action=get_customization&id=${custId}`)).json();
+                        if (res.success) {
+                            // Merge updated fields but keep original type & price input
+                            const prev = this.currentJo;
+                            this.currentJo = { ...res.data, order_type: 'CUSTOMIZATION' };
+                            // Preserve any price the user typed (don't reset it)
+                            if (prev._pricePreserved) {
+                                this.jobPriceInput = prev._pricePreserved;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('refreshMaterials CUSTOMIZATION error', e);
+                    }
+                    return;
+                }
+
+                // JOB / ORDER types — use job_order ID
                 const jid = await this.resolveEffectiveJobId();
                 if (!jid) return;
-                const res = await (await fetch(`../admin/job_orders_api.php?action=get_order&id=${jid}`)).json();
-                if(res.success) {
-                    this.currentJo = { ...res.data, order_type: 'JOB' };
-                    for(const m of (this.currentJo.materials || [])) {
-                        if(m.track_by_roll == 1) this.loadAvailableRolls(m.item_id);
+                try {
+                    const res = await (await fetch(`../admin/job_orders_api.php?action=get_order&id=${jid}`)).json();
+                    if (res.success) {
+                        this.currentJo = { ...res.data, order_type: originalType };
+                        for (const m of (this.currentJo.materials || [])) {
+                            if (m.track_by_roll == 1) this.loadAvailableRolls(m.item_id);
+                        }
                     }
+                } catch (e) {
+                    console.error('refreshMaterials error', e);
                 }
             },
+
 
             async markReadyForPickup() {
                 this.showStaffConfirm(
                     'Mark Ready for Pickup',
                     'Mark this order as ready for customer pickup?',
                     async () => {
+                        if (!this.validationState.valid) {
+                            this.showStaffAlert('Validation Error', '❗ Cannot mark as ready. Please set required ' + this.validationState.errors.join(' and ') + ' before proceeding.', () => {
+                                if (!this.validationState.hasMaterials) {
+                                    document.querySelector('[style*="groupedMaterials"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            });
+                            return;
+                        }
                         await this.jobAction('TO_RECEIVE');
                     }
                 );
@@ -2676,6 +2857,16 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     'Complete Order',
                     'Mark this order as completed and fulfilled?',
                     async () => {
+                        if (!this.validationState.valid) {
+                            this.showStaffAlert('Validation Error', '❗ Cannot complete order. Please set required ' + this.validationState.errors.join(' and ') + ' before proceeding.', () => {
+                                // Scroll materials section into view if missing materials
+                                if (!this.validationState.hasMaterials) {
+                                    document.querySelector('[style*="groupedMaterials"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            });
+                            return;
+                        }
+
                         const jid = await this.resolveEffectiveJobId();
                         if (!jid) {
                             this.showStaffAlert('Error', 'No linked production job for this entry.');

@@ -45,6 +45,7 @@ if (isset($data['action']) && $data['action'] === 'create_pending_customization'
     $name = $item['name'] ?? 'Service';
     $qty = (int)($item['qty'] ?? 1);
     $customization = $item['customization'] ?? [];
+    $price = (float)($item['price'] ?? 0);
     
     // Mark as POS source
     $customization['source'] = 'POS';
@@ -60,9 +61,9 @@ if (isset($data['action']) && $data['action'] === 'create_pending_customization'
         // Will be updated to 'Paid' when checkout completes
         $order_result = db_execute(
             "INSERT INTO orders (customer_id, branch_id, reference_id, total_amount, status, payment_status, payment_method, order_date, updated_at, order_type, order_source) 
-             VALUES (?, ?, ?, 0, 'Approved', 'Unpaid', 'Cash', NOW(), NOW(), 'product', 'pos')",
-            'iii',
-            [$customer_id, $branch_id, $product_id]
+             VALUES (?, ?, ?, ?, 'Approved', 'Unpaid', 'Cash', NOW(), NOW(), 'custom', 'pos')",
+            'iiid',
+            [$customer_id, $branch_id, $product_id, $price * $qty]
         );
         
         if (!$order_result) {
@@ -79,12 +80,12 @@ if (isset($data['action']) && $data['action'] === 'create_pending_customization'
         }
         $_SESSION['pos_pending_orders'][$product_id] = $order_id;
         
-        // Create order item with price = 0
+        // Create order item with passed price
         $customization_json = json_encode($customization ?: new stdClass());
         $item_result = db_execute(
-            "INSERT INTO order_items (order_id, product_id, quantity, unit_price, customization_data) VALUES (?, ?, ?, 0, ?)",
-            'iiis',
-            [$order_id, null, $qty, $customization_json]
+            "INSERT INTO order_items (order_id, product_id, quantity, unit_price, customization_data) VALUES (?, ?, ?, ?, ?)",
+            'iiids',
+            [$order_id, null, $qty, $price, $customization_json]
         );
         
         if (!$item_result) {
@@ -195,98 +196,111 @@ try {
     global $conn;
     $conn->begin_transaction();
 
-    // Create Order
-    // For POS walk-ins, we use status 'In Production' and payment_status 'Paid', skipping 'To Pay' and 'To Verify'
     $branch_id = (int)($_SESSION['branch_id'] ?? 1);
     if ($branch_id < 1) $branch_id = 1;
 
-    // Determine order_type (Always 'product' for POS as per user request to show in orders.php)
-    $order_type = 'product';
-    $reference_id = $items[0]['id'] ?? null;
+    // Group items by type to separate Products from Customizations
+    $product_items = [];
+    $customization_items = [];
+    $product_total = 0;
+    $customization_total = 0;
 
-    $order_result = db_execute(
-        "INSERT INTO orders (customer_id, branch_id, reference_id, total_amount, status, payment_status, payment_method, payment_reference, order_date, updated_at, order_type, order_source) 
-         VALUES (?, ?, ?, ?, 'In Production', 'Paid', ?, ?, NOW(), NOW(), ?, 'pos')",
-        'iiidsss',
-        [$customer_id, $branch_id, $reference_id, $total_amount, $payment_method, $reference_number, $order_type]
-    );
-
-    if (!$order_result) {
-        $conn->rollback();
-        echo json_encode(['success' => false, 'message' => 'Failed to create order.']);
-        exit;
+    foreach ($items as $item) {
+        $price = (float)($item['price'] ?? 0);
+        $qty = (int)($item['qty'] ?? 1);
+        if (isset($item['is_service']) && $item['is_service']) {
+            $customization_items[] = $item;
+            $customization_total += $price * $qty;
+        } else {
+            $product_items[] = $item;
+            $product_total += $price * $qty;
+        }
     }
 
-    $order_id = $conn->insert_id;
+    $created_order_ids = [];
+    $last_customization_id = null;
 
-    // Insert Order Items and Update Stock
-    foreach ($items as $item) {
-        $product_id = (int)$item['id'];
-        $qty = (int)$item['qty'];
-        $price = (float)$item['price'];
-        $p = $products_cache[$product_id] ?? null;
-        $prod_name = $p['name'] ?? 'Product';
+    // Helper function to create an order and its items
+    $process_order_group = function($group_items, $group_total, $group_type) use (&$conn, $customer_id, $branch_id, $payment_method, $reference_number, $products_cache, &$last_customization_id) {
+        if (empty($group_items)) return null;
 
-        $name = $item['name'] ?? $prod_name;
-        $is_service = isset($item['is_service']) && $item['is_service'];
-        $custom_details = $item['customization'] ?? [];
-        if (!is_array($custom_details)) $custom_details = [];
-        $customization_json = json_encode($custom_details ?: new stdClass());
-
-        $item_result = db_execute(
-            "INSERT INTO order_items (order_id, product_id, quantity, unit_price, customization_data) VALUES (?, ?, ?, ?, ?)",
-            'iiids',
-            [$order_id, $is_service ? null : $product_id, $qty, $price, $customization_json]
+        $reference_id = $group_items[0]['id'] ?? null;
+        $order_result = db_execute(
+            "INSERT INTO orders (customer_id, branch_id, reference_id, total_amount, status, payment_status, payment_method, payment_reference, order_date, updated_at, order_type, order_source) 
+             VALUES (?, ?, ?, ?, 'In Production', 'Paid', ?, ?, NOW(), NOW(), ?, 'pos')",
+            'iiidsss',
+            [$customer_id, $branch_id, $reference_id, $group_total, $payment_method, $reference_number, $group_type]
         );
 
-        if (!$item_result) {
-            $conn->rollback();
-            echo json_encode(['success' => false, 'message' => 'Failed to add order items.']);
-            exit;
-        }
-        
-        $order_item_id = $conn->insert_id;
+        if (!$order_result) throw new Exception("Failed to create $group_type order.");
+        $order_id = $conn->insert_id;
 
-        // Always create customization entry for service items
-        if ($is_service) {
-            $details = $custom_details;
-            $details['source'] = 'POS'; // Mark as POS purchase
-            $details_json = json_encode($details ?: new stdClass());
-            $customization_result = db_execute(
-                "INSERT INTO customizations (order_id, order_item_id, customer_id, service_type, customization_details, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'In Production', NOW(), NOW())",
-                'iiiss',
-                [$order_id, $order_item_id, $customer_id, $name, $details_json]
+        foreach ($group_items as $item) {
+            $product_id = (int)$item['id'];
+            $qty = (int)$item['qty'];
+            $price = (float)$item['price'];
+            $p = $products_cache[$product_id] ?? null;
+            $prod_name = $p['name'] ?? 'Product';
+
+            $name = $item['name'] ?? $prod_name;
+            $is_service = isset($item['is_service']) && $item['is_service'];
+            $custom_details = $item['customization'] ?? [];
+            if (!is_array($custom_details)) $custom_details = [];
+            $customization_json = json_encode($custom_details ?: new stdClass());
+
+            $item_result = db_execute(
+                "INSERT INTO order_items (order_id, product_id, quantity, unit_price, customization_data) VALUES (?, ?, ?, ?, ?)",
+                'iiids',
+                [$order_id, $is_service ? null : $product_id, $qty, $price, $customization_json]
             );
-            if (!$customization_result) {
-                $conn->rollback();
-                echo json_encode(['success' => false, 'message' => 'Failed to create customization entry.']);
-                exit;
-            }
-            $last_customization_id = $conn->insert_id;
-            
-            // Update any existing pending customization orders for this item to mark as paid
-            if (isset($_SESSION['pos_pending_orders'][$product_id])) {
-                $pending_order_id = $_SESSION['pos_pending_orders'][$product_id];
-                db_execute(
-                    "UPDATE orders SET payment_status = 'Paid', payment_method = ?, total_amount = ?, status = 'In Production', updated_at = NOW() WHERE order_id = ?",
-                    'sdi',
-                    [$payment_method, $price * $qty, $pending_order_id]
+
+            if (!$item_result) throw new Exception("Failed to add order item to $group_type order.");
+            $order_item_id = $conn->insert_id;
+
+            if ($is_service) {
+                $details = $custom_details;
+                $details['source'] = 'POS';
+                $details_json = json_encode($details ?: new stdClass());
+                $customization_result = db_execute(
+                    "INSERT INTO customizations (order_id, order_item_id, customer_id, service_type, customization_details, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'In Production', NOW(), NOW())",
+                    'iiiss',
+                    [$order_id, $order_item_id, $customer_id, $name, $details_json]
                 );
-                // Update customization with the price — also move to In Production
-                db_execute(
-                    "UPDATE customizations SET status = 'In Production' WHERE order_id = ?",
-                    'i',
-                    [$pending_order_id]
-                );
-                unset($_SESSION['pos_pending_orders'][$product_id]);
+                if (!$customization_result) throw new Exception("Failed to create customization entry.");
+                $last_customization_id = $conn->insert_id;
+
+                // Sync pending orders
+                if (isset($_SESSION['pos_pending_orders'][$product_id])) {
+                    $pending_order_id = $_SESSION['pos_pending_orders'][$product_id];
+                    db_execute(
+                        "UPDATE orders SET payment_status = 'Paid', payment_method = ?, total_amount = ?, status = 'In Production', updated_at = NOW() WHERE order_id = ?",
+                        'sdi',
+                        [$payment_method, $price * $qty, $pending_order_id]
+                    );
+                    db_execute("UPDATE customizations SET status = 'In Production' WHERE order_id = ?", 'i', [$pending_order_id]);
+                    unset($_SESSION['pos_pending_orders'][$product_id]);
+                }
             }
         }
+        return $order_id;
+    };
 
-        // Deduct stock is removed here as per user request to deduct only when status is COMPLETED
-    }
+    // Create Product Order if applicable
+    $p_id = $process_order_group($product_items, $product_total, 'product');
+    if ($p_id) $created_order_ids[] = $p_id;
+
+    // Create Customization Order if applicable
+    $c_id = $process_order_group($customization_items, $customization_total, 'custom');
+    if ($c_id) $created_order_ids[] = $c_id;
 
     $conn->commit();
-    echo json_encode(['success' => true, 'order_id' => $order_id, 'customization_id' => $last_customization_id ?? null, 'message' => 'Sale completed successfully.']);
+    echo json_encode([
+        'success' => true, 
+        'order_id' => !empty($created_order_ids) ? $created_order_ids[0] : null,
+        'order_ids' => $created_order_ids,
+        'customization_id' => $last_customization_id, 
+        'message' => 'Sale completed successfully.' . (count($created_order_ids) > 1 ? ' Order split into Product and Customization records.' : '')
+    ]);
 
 } catch (Exception $e) {
     if (isset($conn)) $conn->rollback();

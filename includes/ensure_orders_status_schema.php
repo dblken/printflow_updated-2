@@ -55,4 +55,15 @@ function printflow_ensure_orders_status_schema(): void {
             error_log('printflow_ensure_orders_status_schema: ' . $tableEsc . ' — ' . $conn->error);
         }
     }
+
+    // Also ensure order_type is wide enough (prevent "Data truncated for column 'order_type'")
+    $res = @$conn->query("SHOW COLUMNS FROM `orders` LIKE 'order_type'");
+    if ($res && $res->num_rows > 0) {
+        $row = $res->fetch_assoc();
+        $type = strtolower((string)($row['Type'] ?? ''));
+        if (strpos($type, 'enum(') === 0 || strpos($type, 'varchar(20)') === 0) {
+            @$conn->query("ALTER TABLE `orders` MODIFY COLUMN `order_type` VARCHAR(50) NOT NULL DEFAULT 'product'");
+        }
+        $res->free();
+    }
 }

@@ -35,11 +35,12 @@ try {
             if (empty($data['product_id'])) {
                 throw new Exception('Product ID is required.');
             }
-            $product_id = (int)$data['product_id'];
-            $qty = (int)($data['qty'] ?? 1);
-            if ($qty < 1 || $qty > 100) throw new Exception('Quantity must be between 1 and 100.');
-            
-            $price = isset($data['price']) ? (float)$data['price'] : null;
+            $product_id = (int) $data['product_id'];
+            $qty = (int) ($data['qty'] ?? 1);
+            if ($qty < 1 || $qty > 100)
+                throw new Exception('Quantity must be between 1 and 100.');
+
+            $price = isset($data['price']) ? (float) $data['price'] : null;
             $name = $data['name'] ?? null;
             $customization = $data['customization'] ?? null;
             $custom_json = $customization ? json_encode($customization) : null;
@@ -48,30 +49,35 @@ try {
             // Fetch product info if missing price or name
             if ($price === null || $name === null) {
                 $product = db_query("SELECT name, price, stock_quantity FROM products WHERE product_id = ?", 'i', [$product_id]);
-                if (empty($product)) throw new Exception('Product not found.');
-                if ($name === null) $name = $product[0]['name'];
-                if ($price === null) $price = (float)$product[0]['price'];
-                $stock = ($product[0]['stock_quantity'] !== null) ? (int)$product[0]['stock_quantity'] : null;
+                if (empty($product))
+                    throw new Exception('Product not found.');
+                if ($name === null)
+                    $name = $product[0]['name'];
+                if ($price === null)
+                    $price = (float) $product[0]['price'];
+                $stock = ($product[0]['stock_quantity'] !== null) ? (int) $product[0]['stock_quantity'] : null;
             } else {
                 // For custom items, we might not have stock info easily without a lookup
                 $product = db_query("SELECT stock_quantity FROM products WHERE product_id = ?", 'i', [$product_id]);
-                $stock = (!empty($product) && $product[0]['stock_quantity'] !== null) ? (int)$product[0]['stock_quantity'] : null;
+                $stock = (!empty($product) && $product[0]['stock_quantity'] !== null) ? (int) $product[0]['stock_quantity'] : null;
             }
 
             // Check if item already exists in cart (match product_id, price, and customization)
             $found = false;
             foreach ($_SESSION['pos_cart'] as &$item) {
                 $item_custom_json = isset($item['customization']) ? json_encode($item['customization']) : null;
-                if ($item['product_id'] == $product_id && 
-                    abs($item['price'] - $price) < 0.01 && 
+                if (
+                    $item['product_id'] == $product_id &&
+                    abs($item['price'] - $price) < 0.01 &&
                     $item_custom_json === $custom_json &&
-                    $item['name'] === $name) {
-                    
+                    $item['name'] === $name
+                ) {
+
                     // Stock check
                     if ($stock !== null && ($item['qty'] + $qty) > $stock) {
                         throw new Exception('Cannot add more. Insufficient stock.');
                     }
-                    
+
                     $item['qty'] += $qty;
                     $found = true;
                     break;
@@ -83,7 +89,7 @@ try {
                 if ($stock !== null && $qty > $stock) {
                     throw new Exception('Insufficient stock.');
                 }
-                
+
                 $_SESSION['pos_cart'][] = [
                     'product_id' => $product_id,
                     'name' => $name,
@@ -91,21 +97,24 @@ try {
                     'qty' => $qty,
                     'stock' => $stock,
                     'customization' => $customization,
-                    'is_service' => $is_service
+                    'is_service' => $is_service,
+                    'customization_id' => $data['customization_id'] ?? null,
+                    'setup_complete' => !empty($data['setup_complete'])
                 ];
             }
             break;
 
         case 'update':
-            $index = isset($data['index']) ? (int)$data['index'] : -1;
+            $index = isset($data['index']) ? (int) $data['index'] : -1;
             if ($index < 0 || !isset($_SESSION['pos_cart'][$index])) {
                 throw new Exception('Invalid cart item.');
             }
-            $qty = (int)$data['qty'];
+            $qty = (int) $data['qty'];
             if ($qty <= 0) {
                 array_splice($_SESSION['pos_cart'], $index, 1);
             } else {
-                if ($qty > 100) throw new Exception('Quantity cannot exceed 100.');
+                if ($qty > 100)
+                    throw new Exception('Quantity cannot exceed 100.');
                 $item = &$_SESSION['pos_cart'][$index];
                 if ($item['stock'] !== null && $qty > $item['stock']) {
                     throw new Exception('Insufficient stock.');
@@ -115,17 +124,24 @@ try {
             break;
 
         case 'update_price':
-            $index = isset($data['index']) ? (int)$data['index'] : -1;
+            $index = isset($data['index']) ? (int) $data['index'] : -1;
             if ($index < 0 || !isset($_SESSION['pos_cart'][$index])) {
                 throw new Exception('Invalid cart item.');
             }
-            $price = (float)$data['price'];
-            if ($price < 0) throw new Exception('Price cannot be negative.');
+            $price = (float) $data['price'];
+            if ($price < 0)
+                throw new Exception('Price cannot be negative.');
             $_SESSION['pos_cart'][$index]['price'] = $price;
+            if (isset($data['setup_complete'])) {
+                $_SESSION['pos_cart'][$index]['setup_complete'] = (bool) $data['setup_complete'];
+            }
+            if (isset($data['customization_id'])) {
+                $_SESSION['pos_cart'][$index]['customization_id'] = $data['customization_id'];
+            }
             break;
 
         case 'remove':
-            $index = isset($data['index']) ? (int)$data['index'] : -1;
+            $index = isset($data['index']) ? (int) $data['index'] : -1;
             if ($index >= 0 && isset($_SESSION['pos_cart'][$index])) {
                 array_splice($_SESSION['pos_cart'], $index, 1);
             }

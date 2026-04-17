@@ -170,7 +170,7 @@ if ($product_type_filter !== '') {
 }
 
 $sql = "SELECT o.*, COALESCE(NULLIF(TRIM(CONCAT_WS(' ', c.first_name, c.last_name)), ''), 'Walk-in Customer (Guest)') as customer_name,
-        (SELECT GROUP_CONCAT(COALESCE(p.name, 'Custom Product') SEPARATOR ', ') FROM order_items oi LEFT JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = o.order_id) as item_names,
+        (SELECT GROUP_CONCAT(COALESCE(p.name, 'Product') SEPARATOR ', ') FROM order_items oi LEFT JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = o.order_id AND (oi.product_id IS NOT NULL AND (oi.customization_data IS NULL OR oi.customization_data = '{}' OR oi.customization_data = '[]'))) as item_names,
         (SELECT oi.customization_data FROM order_items oi WHERE oi.order_id = o.order_id ORDER BY oi.order_item_id ASC LIMIT 1) as first_item_customization
         FROM orders o LEFT JOIN customers c ON o.customer_id = c.customer_id WHERE 1=1" . $sql_conditions;
 
@@ -1001,7 +1001,6 @@ $page_title = 'Orders - Staff';
     function showStatusOverlay(icon, msg) {
         var ov = document.getElementById('omStatusOverlay');
         if (!ov) return;
-        document.getElementById('omStatusIcon').textContent = icon;
         document.getElementById('omStatusMsg').textContent = msg;
         ov.classList.add('active');
         setTimeout(function() { ov.classList.remove('active'); }, 2200);
@@ -1694,7 +1693,6 @@ $page_title = 'Orders - Staff';
         <!-- Status Overlay (Centered Toast) -->
         <div id="omStatusOverlay" class="om-status-overlay">
             <div class="om-status-toast">
-                <div id="omStatusIcon" class="om-status-toast-icon">✅</div>
                 <div id="omStatusMsg" class="om-status-toast-msg">Status Updated!</div>
             </div>
         </div>
@@ -1829,7 +1827,6 @@ $page_title = 'Orders - Staff';
 <div id="pfConfirmModal" role="dialog" aria-modal="true">
     <div class="pf-confirm-backdrop"></div>
     <div class="pf-confirm-panel">
-        <div id="pfConfirmIcon" class="pf-confirm-icon">✓</div>
         <div id="pfConfirmTitle" class="pf-confirm-title">Are you sure?</div>
         <p id="pfConfirmText" class="pf-confirm-text">Please confirm you want to proceed with this action.</p>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
@@ -1848,16 +1845,12 @@ function pfConfirm(options) {
         const modal = document.getElementById('pfConfirmModal');
         const title = document.getElementById('pfConfirmTitle');
         const text = document.getElementById('pfConfirmText');
-        const icon = document.getElementById('pfConfirmIcon');
         const confirmBtn = document.getElementById('pfConfirmBtnConfirm');
         const cancelBtn = document.getElementById('pfConfirmBtnCancel');
 
         // Setup
         title.textContent = options.title || 'Are you sure?';
         text.textContent = options.text || 'Do you want to continue?';
-        icon.textContent = options.icon || '✓';
-        icon.style.background = options.iconBg || '#f0fdf4';
-        icon.style.color = options.iconColor || '#10b981';
         
         confirmBtn.textContent = options.confirmText || 'Proceed';
         confirmBtn.style.background = options.confirmColor || '#06A1A1';

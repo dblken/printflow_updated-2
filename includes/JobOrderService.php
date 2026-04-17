@@ -565,7 +565,12 @@ class JobOrderService {
     /**
      * Store order line items + design URLs for staff modal (same shape as job_orders_api get_regular_order).
      */
-    public static function getStoreOrderItemsPayload(int $storeOrderId): array {
+    /**
+     * Store order line items + design URLs for staff modal.
+     * @param int $storeOrderId The ID of the store order.
+     * @param string $context The context of retrieval ('all', 'product', 'customization').
+     */
+    public static function getStoreOrderItemsPayload(int $storeOrderId, string $context = 'all'): array {
         if ($storeOrderId <= 0) {
             return ['items' => [], 'width_ft' => '1', 'height_ft' => '1', 'service_type' => ''];
         }
@@ -583,9 +588,20 @@ class JobOrderService {
         $total_qty = 0;
         $width_ft = '1';
         $height_ft = '1';
+        
         foreach ($items as $item) {
             $custom = json_decode($item['customization_data'] ?? '{}', true) ?: [];
-            if (empty($first_custom)) {
+            
+            // Classification logic:
+            // Customization = No product_id OR has non-empty customization data
+            $is_custom = empty($item['product_id']) || (!empty($custom) && count($custom) > 1); // count > 1 usually because of 'source' or other auto-fields
+            if (empty($item['product_id']) && !empty($custom)) $is_custom = true;
+            
+            // Apply context filtering
+            if ($context === 'customization' && !$is_custom) continue;
+            if ($context === 'product' && $is_custom) continue;
+
+            if (empty($first_custom) && $is_custom) {
                 $first_custom = $custom;
             }
             $total_qty += (int)$item['quantity'];
@@ -618,7 +634,7 @@ class JobOrderService {
             } elseif (isset($custom['sticker_type']) || isset($custom['Sticker Type'])) {
                 $name = 'Decals/Stickers (Print/Cut)';
             } else if (empty($item['product_name']) || in_array(strtolower(trim((string)$name)), ['custom order', 'customer order', 'service order', 'order item', 'sticker pack'])) {
-                $name = get_service_name_from_customization($custom, $item['product_name'] ?: 'Custom Order');
+                $name = get_service_name_from_customization($custom, (string)$name);
             }
             $items_out[] = [
                 'order_item_id'   => $item['order_item_id'],
@@ -631,12 +647,12 @@ class JobOrderService {
                     ? '/printflow/public/serve_design.php?type=order_item&id=' . (int)$item['order_item_id'] . '&field=reference' : null,
             ];
         }
-        $service_name = get_service_name_from_customization($first_custom, $items_out[0]['product_name'] ?? 'Custom Order');
+        $final_service_name = !empty($first_custom) ? get_service_name_from_customization($first_custom, $items_out[0]['product_name'] ?? 'Custom Order') : '';
         return [
             'items'        => $items_out,
             'width_ft'     => $width_ft,
             'height_ft'    => $height_ft,
-            'service_type' => $service_name,
+            'service_type' => $final_service_name,
             'line_qty'     => $total_qty,
         ];
     }

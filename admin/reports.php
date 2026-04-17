@@ -1682,6 +1682,10 @@ a.export-dd-link:hover { background: #f9fafb; }
                             <a class="export-dd-link" href="<?php echo htmlspecialchars($xlsxCustomersUrl, ENT_QUOTES, 'UTF-8'); ?>" @click="exportOpen=false">Excel – Customers</a>
 
                             <hr class="export-dd-hr">
+                            <div class="export-dd-label">PDF</div>
+                            <a class="export-dd-link" href="<?php echo htmlspecialchars($pfRptUrl('reports_export_pdf.php', ['report' => 'orders']), ENT_QUOTES, 'UTF-8'); ?>" @click="exportOpen=false" title="Professional PDF with company header and summary">PDF – Order Summary Report</a>
+
+                            <hr class="export-dd-hr">
                             <div class="export-dd-label">CSV</div>
                             <a class="export-dd-link" href="<?php echo htmlspecialchars($csvSalesUrl, ENT_QUOTES, 'UTF-8'); ?>" @click="exportOpen=false">CSV – Sales detail</a>
                             <a class="export-dd-link" href="<?php echo htmlspecialchars($csvOrdersUrl, ENT_QUOTES, 'UTF-8'); ?>" @click="exportOpen=false">CSV – Orders status</a>

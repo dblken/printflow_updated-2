@@ -267,6 +267,12 @@ $page_title = 'Visual Reports & Analytics';
                     <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                     Export
                 </a>
+                
+                <!-- PDF Report Button -->
+                <a href="export_order_summary_pdf.php?range=<?php echo $range; ?>&status=<?php echo $_GET['status'] ?? 'ALL'; ?>" class="toolbar-btn" style="background:#ef4444; border-color:#ef4444; color:#fff;" target="_blank">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    PDF Report
+                </a>
             </div>
         </header>
 

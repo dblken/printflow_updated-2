@@ -653,7 +653,7 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
                                         if (strpos($ipath, 'http') === false && (!isset($ipath[0]) || $ipath[0] !== '/')) $ipath = '/printflow/' . $ipath;
                                     ?>
                                         <div style="flex: 0 0 140px; aspect-ratio:1; border-radius:12px; overflow:hidden; border:1px solid rgba(83,197,224,0.2); background: rgba(0,0,0,0.2);">
-                                            <img src="<?php echo htmlspecialchars($ipath); ?>" alt="Review image" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="window.open(this.src, '_blank')">
+                                            <img src="<?php echo htmlspecialchars($ipath); ?>" alt="Review image" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="openReviewImage(this.src)">
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
@@ -1111,6 +1111,24 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 
+<!-- Review Image Lightbox -->
+<div id="reviewImageLightbox" onclick="closeReviewImage()" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center;">
+    <button onclick="closeReviewImage()" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.15); color:white; border:none; border-radius:50%; width:44px; height:44px; font-size:28px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">&times;</button>
+    <img id="reviewImageLarge" src="" style="max-width:90vw; max-height:90vh; border-radius:8px; object-fit:contain; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+</div>
+
+<script>
+function openReviewImage(src) {
+    document.getElementById('reviewImageLarge').src = src;
+    document.getElementById('reviewImageLightbox').style.display = 'flex';
+    document.body.style.overflow = 'hidden'; 
+}
+function closeReviewImage() {
+    document.getElementById('reviewImageLightbox').style.display = 'none';
+    document.getElementById('reviewImageLarge').src = '';
+    document.body.style.overflow = '';
+}
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
 

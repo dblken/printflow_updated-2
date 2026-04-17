@@ -122,8 +122,8 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
                 $html .= '</select>';
                 
                 // Add price display container for select field
-                $html .= '<div id="price-display-' . htmlspecialchars($field_key) . '" class="field-price-display" style="display:none;margin-top:12px;padding:8px 12px;background:#053f4e;width:fit-content;">';
-                $html .= '<span style="font-size:0.875rem;font-weight:600;color:#53c5e0;">Price: <span class="price-amount">₱0</span></span>';
+                $html .= '<div id="price-display-' . htmlspecialchars($field_key) . '" class="field-price-display" style="display:none;margin-top:10px;padding:5px 12px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:6px;width:fit-content;">';
+                $html .= '<span style="font-size:0.85rem;font-weight:700;color:#0d9488;">Price: <span class="price-amount">₱0</span></span>';
                 $html .= '</div>';
                 
                 if ($config['allow_others'] ?? false) {
@@ -168,8 +168,8 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
             $html .= '</div>';
             
             // Add price display container BELOW radio buttons
-            $html .= '<div id="price-display-' . htmlspecialchars($field_key) . '" class="field-price-display" style="display:none;margin-top:12px;padding:6px 10px;background:#053f4e;width:fit-content;font-size:0.8125rem;">';
-            $html .= '<span style="font-weight:600;color:#53c5e0;">Price: <span class="price-amount">₱0</span></span>';
+            $html .= '<div id="price-display-' . htmlspecialchars($field_key) . '" class="field-price-display" style="display:none;margin-top:10px;padding:5px 12px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:6px;width:fit-content;">';
+            $html .= '<span style="font-size:0.85rem;font-weight:700;color:#0d9488;">Price: <span class="price-amount">₱0</span></span>';
             $html .= '</div>';
             
             if ($config['allow_others'] ?? false) {
@@ -352,8 +352,8 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
             $html .= '</div>';
             
             // Add price display container BELOW dimension buttons
-            $html .= '<div id="price-display-' . htmlspecialchars($field_key) . '" class="field-price-display" style="display:none;margin-top:12px;padding:6px 10px;background:#053f4e;width:fit-content;font-size:0.8125rem;">';
-            $html .= '<span style="font-weight:600;color:#53c5e0;">Price: <span class="price-amount">₱0</span></span>';
+            $html .= '<div id="price-display-' . htmlspecialchars($field_key) . '" class="field-price-display" style="display:none;margin-top:10px;padding:5px 12px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:6px;width:fit-content;">';
+            $html .= '<span style="font-size:0.85rem;font-weight:700;color:#0d9488;">Price: <span class="price-amount">₱0</span></span>';
             $html .= '</div>';
             
             if ($allowOthers) {
@@ -859,21 +859,22 @@ function updateFieldPrice(element) {
     let price = 0;
     
     if (element.tagName === 'INPUT' && element.type === 'radio') {
-        // Radio button
         fieldKey = element.getAttribute('data-field-key') || element.name;
         price = parseFloat(element.getAttribute('data-price') || 0);
     } else if (element.tagName === 'SELECT') {
-        // Select dropdown
         fieldKey = element.getAttribute('data-field-key') || element.name;
         const selectedOption = element.options[element.selectedIndex];
         if (selectedOption && selectedOption.value) {
             price = parseFloat(selectedOption.getAttribute('data-price') || 0);
         }
     }
-    
+
     if (fieldKey) {
         updateFieldPriceDisplay(fieldKey, price);
     }
+    
+    // Trigger global calculation
+    calculateEstimatedPrice();
 }
 
 function updateFieldPriceDisplay(fieldKey, price) {
@@ -889,6 +890,55 @@ function updateFieldPriceDisplay(fieldKey, price) {
     } else {
         priceDisplay.style.display = 'none';
     }
+}
+
+// Global Service Price Calculator
+function calculateEstimatedPrice() {
+    let total = 0;
+    
+    // 1. Sum up prices from selected Radios
+    document.querySelectorAll('.shopee-form-row:not([style*="display: none"]) input[type="radio"]:checked.pricing-field').forEach(input => {
+        total += parseFloat(input.getAttribute('data-price') || 0);
+    });
+    
+    // 2. Sum up prices from Selects
+    document.querySelectorAll('.shopee-form-row:not([style*="display: none"]) select.pricing-field').forEach(select => {
+        const opt = select.options[select.selectedIndex];
+        if (opt && opt.value) {
+            total += parseFloat(opt.getAttribute('data-price') || 0);
+        }
+    });
+
+    // 3. Sum up prices from active Dimension buttons
+    document.querySelectorAll('.shopee-form-row:not([style*="display: none"]) .shopee-opt-btn.active.pricing-field').forEach(btn => {
+        total += parseFloat(btn.getAttribute('data-price') || 0);
+    });
+
+    // 4. Quantity Multiper
+    const qtyInput = document.getElementById('quantity-input');
+    const qty = parseInt(qtyInput ? qtyInput.value : 1) || 1;
+    
+    const finalTotal = total * qty;
+    
+    // Update POS display if it exists
+    const totalDisplay = document.getElementById('sm-total-amount');
+    const totalContainer = document.getElementById('sm-estimated-price');
+    
+    if (totalDisplay && totalContainer) {
+        // Store the unit price separately for the cart handler to use
+        totalDisplay.setAttribute('data-unit-price', total.toFixed(2));
+        
+        totalDisplay.textContent = '₱' + finalTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        
+        // Show container if price > 0
+        if (finalTotal > 0) {
+            totalContainer.style.display = 'block';
+        } else {
+            totalContainer.style.display = 'none';
+        }
+    }
+
+    return finalTotal;
 }
 </script>
 JSEND;
