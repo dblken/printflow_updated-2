@@ -2063,7 +2063,69 @@ function pf_admin_url(string $script, array $query = [], ?string $fragment = nul
  */
 function formatToTitleCase($text) {
     if ($text === null || $text === '') return '';
-    // Capitalize each word and lowercase the rest
-    // Using mb_convert_case with MB_CASE_TITLE handles multi-word properly
     return mb_convert_case(trim($text), MB_CASE_TITLE, "UTF-8");
 }
+
+/**
+ * Extract Payment Details from Proof using Tesseract OCR (STRICT VERSION)
+ * @param string $imagePath Absolute path to the uploaded image
+ * @return array Extracted details: reference_id, amount, sender_name
+ */
+function extract_payment_details($imagePath) {
+    $details = [
+        'reference_id' => null,
+        'amount' => null,
+        'sender_name' => null
+    ];
+
+    if (!file_exists($imagePath)) {
+        return $details;
+    }
+
+    $tesseractPath = "C:\\Users\\Arron Tuazon\\OneDrive\\Pictures\\Documents\\New folder\\tesseract.exe";
+    
+    // Check if Tesseract exists at the specified path
+    if (!file_exists($tesseractPath)) {
+        error_log("Tesseract not found at: " . $tesseractPath);
+        return $details;
+    }
+
+    $tempDir = __DIR__ . '/../tmp';
+    if (!is_dir($tempDir)) {
+        mkdir($tempDir, 0755, true);
+    }
+    
+    $outputBase = $tempDir . '/ocr_output_' . uniqid();
+    $outputFile = $outputBase . '.txt';
+
+    // Execute Tesseract
+    $cmd = "\"$tesseractPath\" \"$imagePath\" \"$outputBase\"";
+    exec($cmd);
+
+    if (file_exists($outputFile)) {
+        $text = file_get_contents($outputFile);
+        @unlink($outputFile); // Clean up
+
+        // 1. Reference ID Extraction (Fixed)
+        if (preg_match('/\b\d{8,20}\b/', $text, $match)) {
+            $details['reference_id'] = $match[0];
+        }
+
+        // 2. Exact Amount Extraction (Improved Accuracy)
+        if (preg_match_all('/₱\s?\d{1,6}(\.\d{2})?|\b\d{1,6}\.\d{2}\b/', $text, $matches)) {
+            $found_amount = end($matches[0]);
+            // Clean up symbols for numerical storage
+            $details['amount'] = preg_replace('/[^0-9.]/', '', $found_amount);
+        }
+
+        // 3. Sender Name Extraction (Strict)
+        if (preg_match('/From[:\-]?\s*(.+)/i', $text, $match)) {
+            $details['sender_name'] = trim($match[1]);
+        } elseif (preg_match('/Sender[:\-]?\s*(.+)/i', $text, $match)) {
+            $details['sender_name'] = trim($match[1]);
+        }
+    }
+
+    return $details;
+}
+

@@ -117,6 +117,28 @@ if ($update_success) {
         );
     }
 
+    // ── OCR Extraction ───────────────────────────────────────────────────────
+    // Convert relative path to absolute
+    $abs_path = __DIR__ . '/../' . ltrim(str_replace('/printflow/', '', $file_path), '/');
+    $ocr_details = extract_payment_details($abs_path);
+
+    // ── Insert into Payments table (Strict Version) ──────────────────────────
+    $payment_method = $_POST['payment_method'] ?? 'GCash'; 
+    $sender_name = $ocr_details['sender_name'] ?? '';
+    $ref_id = $ocr_details['reference_id'] ?? '';
+    $ocr_amount = $ocr_details['amount'] ?? 0;
+    
+    // Strict Validation: Valid only if all 3 detected
+    $is_incomplete = (empty($sender_name) || empty($ocr_amount) || empty($ref_id));
+    $payment_status = $is_incomplete ? 'Incomplete' : 'To Verify';
+
+    db_execute(
+        "INSERT INTO payments (order_id, sender_name, payment_method, amount, proof_image, reference_id, source, payment_status) 
+         VALUES (?, ?, ?, ?, ?, ?, 'Online', ?)",
+        'issdsss',
+        [$order_id, $sender_name, $payment_method, $ocr_amount, $file_path, $ref_id, $payment_status]
+    );
+
     // Notify staff
     $customer_name_row = db_query("SELECT first_name, last_name FROM customers WHERE customer_id = ?", 'i', [$customer_id]);
     $customer_display_name = !empty($customer_name_row) ? trim($customer_name_row[0]['first_name'] . ' ' . $customer_name_row[0]['last_name']) : "Customer";

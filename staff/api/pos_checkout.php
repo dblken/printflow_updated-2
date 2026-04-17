@@ -235,6 +235,14 @@ try {
         if (!$order_result) throw new Exception("Failed to create $group_type order.");
         $order_id = $conn->insert_id;
 
+        // ── Log to Payments Table ──────────────────────────────────────────
+        db_execute(
+            "INSERT INTO payments (order_id, sender_name, payment_method, amount, proof_image, reference_id, source, payment_status) 
+             VALUES (?, 'Walk-in', ?, ?, '', ?, 'POS', 'Verified')",
+            'isds',
+            [$order_id, $payment_method, $group_total, $reference_number]
+        );
+
         foreach ($group_items as $item) {
             $product_id = (int)$item['id'];
             $qty = (int)$item['qty'];

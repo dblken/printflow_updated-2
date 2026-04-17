@@ -376,18 +376,34 @@ class JobOrderService {
             if ($newStatus === 'COMPLETED') {
                 // For POS orders (walk-in) or orders already in TO_RECEIVE status, skip payment check
                 $currentStatus = strtoupper((string)($order['status'] ?? ''));
-                $isPOSOrder = !empty($order['order_id']) && db_query(
+                $storeOrderId = (int)($order['order_id'] ?? 0);
+                
+                $isPOSOrder = $storeOrderId > 0 && db_query(
                     "SELECT 1 FROM orders WHERE order_id = ? AND order_type = 'custom' AND payment_method IN ('Cash', 'GCash', 'Maya') LIMIT 1",
                     'i',
-                    [$order['order_id']]
+                    [$storeOrderId]
                 );
                 
-                // Allow completion if: already in TO_RECEIVE (Ready for Pickup), or is a POS order, or payment is PAID
-                $payment = strtoupper((string)($order['payment_status'] ?? ''));
-                $canComplete = ($currentStatus === 'TO_RECEIVE') || !empty($isPOSOrder) || ($payment === 'PAID');
+                // ── Enhanced Payment Check (v2) ───────────────────────────────────
+                $isPaidInStore = $storeOrderId > 0 && db_query(
+                    "SELECT 1 FROM orders WHERE order_id = ? AND payment_status IN ('Paid', 'Verified') LIMIT 1",
+                    'i', [$storeOrderId]
+                );
+                
+                $hasVerifiedPayment = $storeOrderId > 0 && db_query(
+                    "SELECT 1 FROM payments WHERE order_id = ? AND payment_status = 'Verified' LIMIT 1",
+                    'i', [$storeOrderId]
+                );
+                
+                $isCash = $storeOrderId > 0 && db_query(
+                    "SELECT 1 FROM orders WHERE order_id = ? AND payment_method = 'Cash' LIMIT 1",
+                    'i', [$storeOrderId]
+                );
+
+                $canComplete = ($currentStatus === 'TO_RECEIVE') || !empty($isPOSOrder) || !empty($isPaidInStore) || !empty($hasVerifiedPayment) || !empty($isCash);
                 
                 if (!$canComplete) {
-                    throw new Exception('Cannot mark as Completed: payment must be Paid. Current payment status: ' . ($order['payment_status'] ?? 'Unpaid'));
+                    throw new Exception('Cannot mark as Completed: Payment must be VERIFIED first.');
                 }
                 
                 // Process deductions again (idempotent - will skip already deducted items)

@@ -63,6 +63,21 @@ if (empty($order)) {
 }
 $order = $order[0];
 
+// ── Payment Verification Check for COMPLETION ──────────────────────────
+if ($new_status === 'Completed') {
+    // Check if there's a verified payment or if it's already Paid in orders table
+    $pay_check = db_query("SELECT payment_status, reference_id FROM payments WHERE order_id = ? AND payment_status = 'Verified' LIMIT 1", 'i', [$order_id]);
+    $ord_check = db_query("SELECT payment_status, payment_method FROM orders WHERE order_id = ?", 'i', [$order_id]);
+    
+    $is_paid_in_ord = (!empty($ord_check) && in_array(strtolower($ord_check[0]['payment_status']), ['paid', 'verified']));
+    $is_cash = (!empty($ord_check) && strtolower($ord_check[0]['payment_method']) === 'cash');
+    
+    if (!$is_paid_in_ord && empty($pay_check) && !$is_cash) {
+        echo json_encode(['success' => false, 'error' => 'Cannot complete order. Payment must be VERIFIED first.']);
+        exit;
+    }
+}
+
 $staff_id = get_user_id();
 $current_status = $order['status'];
 $customer_id = (int)$order['customer_id'];

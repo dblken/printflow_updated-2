@@ -46,11 +46,15 @@ $q1 = "
         o.order_id               AS ref_order_id,
         NULL                     AS ref_cust_id,
         COALESCE(NULLIF(TRIM(CONCAT_WS(' ', c.first_name, c.last_name)), ''), 'Walk-in Guest') AS customer_name,
+        pay.sender_name          AS sender_name,
         IF(o.order_type = 'product', 'PRODUCT', 'SERVICE') AS order_type_label,
-        IF(o.order_source = 'pos', 'POS', 'ONLINE')        AS source_label,
-        COALESCE(o.total_amount, 0)                         AS amount,
-        COALESCE(o.payment_method, 'Cash')                  AS payment_method,
+        COALESCE(pay.source, IF(o.order_source = 'pos', 'POS', 'Online')) AS source_label,
+        COALESCE(pay.amount, o.total_amount, 0)             AS amount,
+        COALESCE(o.total_amount, 0)                         AS original_total,
+        COALESCE(pay.payment_method, o.payment_method, 'Cash') AS payment_method,
         CASE
+            WHEN pay.payment_status = 'Incomplete' THEN 'INCOMPLETE'
+            WHEN pay.payment_status = 'To Verify'   THEN 'TO_VERIFY'
             WHEN o.status IN ('Pending Verification','Downpayment Submitted','To Verify') THEN 'TO_VERIFY'
             WHEN o.payment_status IN ('Paid','PAID')
               OR o.status IN ('Ready for Pickup','Completed','Processing','In Production','Printing') THEN 'VERIFIED'
@@ -61,11 +65,13 @@ $q1 = "
         COALESCE(o.payment_proof, o.payment_proof_path, '')  AS proof_path,
         o.order_date             AS paid_at,
         o.status                 AS raw_status,
-        c.profile_picture        AS profile_pic
+        c.profile_picture        AS profile_pic,
+        pay.reference_id
     FROM orders o
     LEFT JOIN customers c ON o.customer_id = c.customer_id
+    LEFT JOIN (SELECT order_id, sender_name, amount, source, reference_id, payment_method, payment_status FROM payments) pay ON o.order_id = pay.order_id
     WHERE 1=1 $branch_cond_o
-";
+" ;
 
 // ─── Subquery 2: Customisation service orders via orders row ──────────────────
 $q2 = "
@@ -74,11 +80,15 @@ $q2 = "
         o.order_id               AS ref_order_id,
         cust.customization_id    AS ref_cust_id,
         COALESCE(NULLIF(TRIM(CONCAT_WS(' ', c.first_name, c.last_name)), ''), 'Walk-in Guest') AS customer_name,
+        pay.sender_name          AS sender_name,
         'SERVICE'                AS order_type_label,
-        IF(COALESCE(o.order_source,'online') = 'pos', 'POS', 'ONLINE') AS source_label,
-        COALESCE(o.total_amount, 0)                                     AS amount,
-        COALESCE(o.payment_method, 'N/A')                               AS payment_method,
+        COALESCE(pay.source, IF(COALESCE(o.order_source,'online') = 'pos', 'POS', 'Online')) AS source_label,
+        COALESCE(pay.amount, o.total_amount, 0)                     AS amount,
+        COALESCE(o.total_amount, 0)                                 AS original_total,
+        COALESCE(pay.payment_method, o.payment_method, 'N/A')       AS payment_method,
         CASE
+            WHEN pay.payment_status = 'Incomplete' THEN 'INCOMPLETE'
+            WHEN pay.payment_status = 'To Verify'   THEN 'TO_VERIFY'
             WHEN cust.status IN ('Pending Verification','Downpayment Submitted','To Verify') THEN 'TO_VERIFY'
             WHEN cust.status IN ('Processing','In Production','Ready for Pickup','Completed') THEN 'VERIFIED'
             WHEN cust.status = 'Rejected'                                                    THEN 'REJECTED'
@@ -88,12 +98,14 @@ $q2 = "
         COALESCE(o.payment_proof_path, '')  AS proof_path,
         COALESCE(o.updated_at, cust.created_at) AS paid_at,
         cust.status              AS raw_status,
-        c.profile_picture        AS profile_pic
+        c.profile_picture        AS profile_pic,
+        pay.reference_id
     FROM customizations cust
     INNER JOIN orders o ON cust.order_id = o.order_id
     LEFT JOIN  customers c ON cust.customer_id = c.customer_id
+    LEFT JOIN (SELECT order_id, sender_name, amount, source, reference_id, payment_method, payment_status FROM payments) pay ON o.order_id = pay.order_id
     WHERE 1=1 $branch_cond_c
-";
+" ;
 
 // Params shared by both subqueries
 $params = [];
@@ -308,11 +320,13 @@ $page_title = 'Payment List – PrintFlow Staff';
                         <thead>
                             <tr>
                                 <th>Order #</th>
-                                <th>Customer</th>
+                                <th>Customer Name</th>
+                                <th>Sender Name</th>
                                 <th>Type</th>
                                 <th>Source</th>
                                 <th>Amount</th>
                                 <th>Method</th>
+                                <th>Ref ID</th>
                                 <th>Status</th>
                                 <th>Date</th>
                                 <th></th>
@@ -320,22 +334,23 @@ $page_title = 'Payment List – PrintFlow Staff';
                         </thead>
                         <tbody>
                         <?php if(empty($payments)): ?>
-                            <tr><td colspan="9" style="text-align:center;padding:40px;color:#6b7280;">No payment records match your filters.</td></tr>
+                            <tr><td colspan="11" style="text-align:center;padding:40px;color:#6b7280;">No payment records match your filters.</td></tr>
                         <?php endif; ?>
                         <?php foreach ($payments as $p):
                             $isService = ($p['order_type_label'] === 'SERVICE');
-                            $isPOS     = ($p['source_label']     === 'POS');
+                            $isPOS     = (strtoupper($p['source_label'] ?? '') === 'POS');
                             $ps        = $p['pay_status'];
                             
                             $badgeHtml = match($ps) {
-                                'TO_VERIFY' => '<span class="status-badge badge-pending">To Verify</span>',
-                                'VERIFIED'  => '<span class="status-badge badge-fulfilled">Verified</span>',
-                                'REJECTED'  => '<span class="status-badge badge-cancelled">Rejected</span>',
-                                'TO_PAY'    => '<span class="status-badge badge-processing">To Pay</span>',
-                                default     => '<span class="status-badge" style="background:#f1f5f9;color:#64748b;">—</span>'
+                                'TO_VERIFY'  => '<span class="status-badge badge-pending">To Verify</span>',
+                                'VERIFIED'   => '<span class="status-badge badge-fulfilled">Verified</span>',
+                                'REJECTED'   => '<span class="status-badge badge-cancelled">Rejected</span>',
+                                'TO_PAY'     => '<span class="status-badge badge-processing">To Pay</span>',
+                                'INCOMPLETE' => '<span class="status-badge" style="background:#fff7ed;color:#9a3412;border:1px solid #ffedd5;">Incomplete</span>',
+                                default      => '<span class="status-badge" style="background:#f1f5f9;color:#64748b;">—</span>'
                             };
 
-                            // proof url...
+                            // proof url
                             $proof_url = '';
                             if (!empty($p['proof_path'])) {
                                 $pf = $p['proof_path'];
@@ -349,31 +364,47 @@ $page_title = 'Payment List – PrintFlow Staff';
                             if (!empty($p['profile_pic'])) {
                                 $avatarHtml = '<img src="'.get_profile_image($p['profile_pic']).'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px;flex-shrink:0;">';
                             } else {
-                                $ini = strtoupper(substr($p['customer_name'],0,1)?:'?');
+                                $dispName = $p['customer_name'] ?: 'Guest';
+                                $ini = strtoupper(substr($dispName,0,1)?:'?');
                                 $avatarHtml = '<div style="width:28px;height:28px;border-radius:50%;background:#e0f2fe;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#0284c7;margin-right:8px;flex-shrink:0;">'.$ini.'</div>';
+                            }
+
+                            // payment method coloring
+                            $pm = strtoupper($p['payment_method'] ?? '');
+                            $methodStyle = 'background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;';
+                            if (str_contains($pm, 'GCASH')) {
+                                $methodStyle = 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;'; 
+                            } elseif (str_contains($pm, 'MAYAMA') || str_contains($pm, 'MAYA')) {
+                                $methodStyle = 'background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;';
                             }
 
                             $modal_data = htmlspecialchars(json_encode([
                                 'order_id'     => $p['ref_order_id'],
                                 'customer_name'=> $p['customer_name'],
+                                'sender_name'  => $p['sender_name'] ?: '—',
                                 'order_type'   => $p['order_type_label'],
                                 'source'       => $p['source_label'],
                                 'amount'       => $p['amount'],
+                                'original_total'=> $p['original_total'],
                                 'method'       => $p['payment_method'],
                                 'status'       => $ps,
                                 'status_html'  => $badgeHtml,
                                 'raw_status'   => $p['raw_status'],
                                 'proof_url'    => $proof_url,
-                                'paid_at'      => $p['paid_at']
+                                'paid_at'      => $p['paid_at'],
+                                'reference_id' => $p['reference_id']
                             ]),ENT_QUOTES);
                         ?>
                         <tr onclick="openPayModal(<?= $modal_data ?>)">
                             <td class="order-id-wrap">#<?= $p['ref_order_id'] ?></td>
                             <td>
-                                <div style="display:flex;align-items:center;font-weight:500;color:#1f2937;">
+                                <div style="display:flex;align-items:center;font-weight:600;color:#111827;">
                                     <?= $avatarHtml ?>
-                                    <span style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?= htmlspecialchars($p['customer_name']) ?>"><?= htmlspecialchars($p['customer_name']) ?></span>
+                                    <span style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?= htmlspecialchars($p['customer_name']) ?>"><?= htmlspecialchars($p['customer_name']) ?></span>
                                 </div>
+                            </td>
+                            <td>
+                                <span style="font-weight:500;color:#4b5563;font-size:13px;"><?= htmlspecialchars($p['sender_name'] ?: '—') ?></span>
                             </td>
                             <td>
                                 <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;letter-spacing:0.04em; <?= $isService ? 'background:#fefce8;color:#a16207;border:1px solid #fef08a;' : 'background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;' ?>">
@@ -382,11 +413,16 @@ $page_title = 'Payment List – PrintFlow Staff';
                             </td>
                             <td>
                                 <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;letter-spacing:0.04em; <?= $isPOS ? 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;' : 'background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;' ?>">
-                                    <?= $isPOS ? 'POS' : 'ONLINE' ?>
+                                    <?= strtoupper($p['source_label'] ?: 'Online') ?>
                                 </span>
                             </td>
                             <td style="font-weight:700;color:#0f172a;">₱<?= number_format((float)$p['amount'],2) ?></td>
-                            <td style="font-size:12px;color:#64748b;"><?= htmlspecialchars($p['payment_method']?:'—') ?></td>
+                            <td>
+                                <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;letter-spacing:0.04em; <?= $methodStyle ?>">
+                                    <?= htmlspecialchars($p['payment_method']?:'—') ?>
+                                </span>
+                            </td>
+                            <td style="font-size:12px;color:#0f172a;font-family:monospace;"><?= htmlspecialchars($p['reference_id']?:'—') ?></td>
                             <td><?= $badgeHtml ?></td>
                             <td style="font-size:12px;color:#64748b;"><?= $p['paid_at'] ? date('M d, Y',strtotime($p['paid_at'])) : '—' ?></td>
                             <td>
@@ -446,7 +482,21 @@ function openPayModal(data) {
     const isPOS = data.source === 'POS';
     const isSvc = data.order_type === 'SERVICE';
     const amt = parseFloat(data.amount||0).toLocaleString('en-PH',{minimumFractionDigits:2});
+    const orderTotal = parseFloat(data.original_total||0).toLocaleString('en-PH',{minimumFractionDigits:2});
     const dateFmt = data.paid_at ? new Date(data.paid_at).toLocaleString('en-PH',{dateStyle:'medium',timeStyle:'short'}) : '—';
+
+    // Amount Mismatch Warning
+    let amountWarning = '';
+    const diff = Math.abs(parseFloat(data.amount||0) - parseFloat(data.original_total||0));
+    if (diff > 0.01) {
+        amountWarning = `<div style="margin-bottom:16px;padding:12px;background:#fff7ed;border:1px solid #ffedd5;border-radius:10px;display:flex;gap:12px;align-items:center;">
+            <div style="background:#f97316;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;">!</div>
+            <div>
+                <div style="font-size:13px;font-weight:700;color:#9a3412;">Amount Mismatch Warning</div>
+                <div style="font-size:11px;color:#c2410c;">Paid ₱${amt} vs. Order Total ₱${orderTotal}. Please verify if this is a downpayment or partial payment.</div>
+            </div>
+        </div>`;
+    }
 
     const proofHtml = data.proof_url
         ? `<div style="margin:20px 0 10px;">
@@ -464,19 +514,45 @@ function openPayModal(data) {
              <button class="pm-btn pm-reject"  onclick="doVerify(${data.order_id},'Reject')">Reject Payment...</button>
            </div>` : '';
 
-    const badgePosHtml = `<span style="font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;letter-spacing:0.04em; ${isPOS ? 'background:#eff6ff;color:#1d4ed8;' : 'background:#ecfdf5;color:#047857;'}">${data.source}</span>`;
+    const badgePosHtml = `<span style="font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;letter-spacing:0.04em; ${isPOS ? 'background:#eff6ff;color:#1d4ed8;' : 'background:#ecfdf5;color:#047857;'}">${data.source.toUpperCase()}</span>`;
     const badgeTypeHtml = `<span style="font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;letter-spacing:0.04em; ${isSvc ? 'background:#fefce8;color:#a16207;' : 'background:#f8fafc;color:#64748b;'}">${data.order_type}</span>`;
 
+    // Method Badge
+    const pm = (data.method || '').toUpperCase();
+    let mStyle = 'background:#f1f5f9;color:#64748b;';
+    if (pm.includes('GCASH')) mStyle = 'background:#eff6ff;color:#1d4ed8;';
+    else if (pm.includes('MAYA')) mStyle = 'background:#ecfdf5;color:#047857;';
+    const badgeMethodHtml = `<span style="font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;letter-spacing:0.04em; ${mStyle}">${data.method||'—'}</span>`;
+
     body.innerHTML = `
+      ${amountWarning}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center;">
         ${badgePosHtml}
         ${badgeTypeHtml}
+        ${badgeMethodHtml}
         ${data.status_html}
       </div>
       <div class="pm-field"><span class="pm-label">Order #</span><span class="pm-value order-id-wrap">#${data.order_id}</span></div>
+      <div class="pm-field"><span class="pm-label">Sender Name</span><span class="pm-value" style="color:#0f172a;font-weight:800;">${data.sender_name}</span></div>
       <div class="pm-field"><span class="pm-label">Customer</span><span class="pm-value">${data.customer_name}</span></div>
-      <div class="pm-field"><span class="pm-label">Amount</span><span class="pm-value" style="color:#0f172a;font-size:1.5rem;font-weight:800;">₱${amt}</span></div>
-      <div class="pm-field"><span class="pm-label">Method</span><span class="pm-value">${data.method||'—'}</span></div>
+      <div class="pm-field">
+        <span class="pm-label">Amount Paid</span>
+        <div style="text-align:right;">
+            <div class="pm-value" style="color:#0f172a;font-size:1.5rem;font-weight:800;">₱${amt}</div>
+            <div style="font-size:11px;color:#64748b;font-weight:500;">Detected via OCR</div>
+        </div>
+      </div>
+      <div class="pm-field">
+        <span class="pm-label">Method</span>
+        <span class="pm-value">${data.method||'—'}</span>
+      </div>
+      <div class="pm-field">
+        <span class="pm-label">Reference ID</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;">
+            <input type="text" id="edit_ref_id" value="${data.reference_id||''}" class="filter-input" style="text-align:right;width:180px;font-family:monospace;font-weight:700;margin-bottom:4px;" placeholder="No ID detected" readonly>
+            <span style="font-size:10px;color:#64748b;">Strict OCR Result (Read-only)</span>
+        </div>
+      </div>
       <div class="pm-field"><span class="pm-label">Order Status</span><span class="pm-value">${data.raw_status||'—'}</span></div>
       <div class="pm-field"><span class="pm-label">Date</span><span class="pm-value">${dateFmt}</span></div>
       ${proofHtml}
@@ -520,6 +596,8 @@ async function doVerify(orderId, action) {
     const fd = new FormData();
     fd.append('order_id', orderId);
     fd.append('action', action);
+    const refInput = document.getElementById('edit_ref_id');
+    if (refInput) fd.append('reference_id', refInput.value);
     if (reason) fd.append('reason', reason);
     try {
         const r = await fetch('/printflow/staff/api_verify_payment.php', {method:'POST',body:fd});

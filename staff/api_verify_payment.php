@@ -61,6 +61,13 @@ try {
             $sql = "UPDATE orders SET status = ?, payment_status = ? WHERE order_id = ?";
             $success = db_execute($sql, 'ssi', [$new_status, $payment_status, $order_id]);
         }
+
+        // ── Keep payments table in sync ─────────────────────────────────────
+        $ref_id = $_POST['reference_id'] ?? null;
+        db_execute(
+            "UPDATE payments SET payment_status = 'Verified', reference_id = ? WHERE order_id = ? ORDER BY id DESC LIMIT 1",
+            'si', [$ref_id, $order_id]
+        );
         
         if ($success) {
             $is_product = ($order['order_type'] === 'product');
@@ -136,6 +143,12 @@ try {
                  WHERE order_id = ? AND status NOT IN ('COMPLETED','CANCELLED')",
                 'si',
                 [$reason, $order_id]
+            );
+
+            // Update payments table status
+            db_execute(
+                "UPDATE payments SET payment_status = 'Rejected' WHERE order_id = ? ORDER BY id DESC LIMIT 1",
+                'i', [$order_id]
             );
 
             // Delete the file if it exists to save space (optional, but cleaner)

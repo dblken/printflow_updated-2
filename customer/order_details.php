@@ -227,6 +227,7 @@ require_once __DIR__ . '/../includes/header.php';
 
                 <form id="paymentForm" enctype="multipart/form-data">
                     <input type="hidden" name="order_id" value="<?php echo $order_id; ?>">
+                    <input type="hidden" name="payment_method" id="paymentMethodHidden" value="<?php echo !empty($enabled_methods) ? htmlspecialchars(reset($enabled_methods)['provider']) : 'GCash'; ?>">
                     <?php echo csrf_field(); ?>
 
                     <p style="color:#6b7280; font-size:0.9rem; margin-bottom:1rem;">Follow the steps below to finalize your order.</p>
@@ -264,7 +265,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <!-- Payment Methods Tabs/Selector -->
                             <div style="display: flex; gap: 8px; margin-bottom: 1rem; overflow-x: auto; padding-bottom: 4px;">
                                 <?php $first = true; foreach ($enabled_methods as $index => $pm): ?>
-                                    <button type="button" onclick="selectPaymentMethod(<?php echo $index; ?>)" id="btn-pm-<?php echo $index; ?>" class="pm-tab-btn" style="flex: 1; padding: 10px; border-radius: 10px; border: 2px solid <?php echo $first ? '#4F46E5' : '#e5e7eb'; ?>; background: <?php echo $first ? '#e0e7ff' : '#f9fafb'; ?>; color: <?php echo $first ? '#4F46E5' : '#4b5563'; ?>; font-weight: 700; font-family: inherit; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; white-space: nowrap;">
+                                    <button type="button" onclick="selectPaymentMethod(<?php echo $index; ?>, '<?php echo addslashes($pm['provider']); ?>')" id="btn-pm-<?php echo $index; ?>" class="pm-tab-btn" style="flex: 1; padding: 10px; border-radius: 10px; border: 2px solid <?php echo $first ? '#4F46E5' : '#e5e7eb'; ?>; background: <?php echo $first ? '#e0e7ff' : '#f9fafb'; ?>; color: <?php echo $first ? '#4F46E5' : '#4b5563'; ?>; font-weight: 700; font-family: inherit; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; white-space: nowrap;">
                                         <?php echo htmlspecialchars($pm['provider']); ?>
                                     </button>
                                 <?php $first = false; endforeach; ?>
@@ -420,7 +421,10 @@ require_once __DIR__ . '/../includes/header.php';
                 }
             }
 
-            function selectPaymentMethod(selectedIndex) {
+            function selectPaymentMethod(selectedIndex, providerName) {
+                // Update hidden input
+                document.getElementById('paymentMethodHidden').value = providerName;
+
                 // Reset all tabs
                 document.querySelectorAll('.pm-tab-btn').forEach(btn => {
                     btn.style.borderColor = '#e5e7eb';

@@ -227,6 +227,9 @@ printflow_ensure_order_messages_schema();
 require_once __DIR__ . '/ensure_orders_status_schema.php';
 printflow_ensure_orders_status_schema();
 
+require_once __DIR__ . '/ensure_payments_schema.php';
+printflow_ensure_payments_schema();
+
 /**
  * Prepare and execute a SQL statement safely
  * @param string $sql SQL query with placeholders
