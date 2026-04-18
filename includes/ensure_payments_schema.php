@@ -11,7 +11,7 @@ function printflow_ensure_payments_schema() {
         order_id INT NOT NULL,
         sender_name VARCHAR(255),
         payment_method VARCHAR(50),
-        amount DECIMAL(10,2),
+        amount DECIMAL(10,2) NULL,
         proof_image VARCHAR(255),
         reference_id VARCHAR(100),
         source ENUM('POS', 'Online') DEFAULT 'Online',
@@ -43,4 +43,7 @@ function printflow_ensure_payments_schema() {
     } else {
         mysqli_query($conn, "ALTER TABLE payments MODIFY COLUMN payment_status ENUM('Pending', 'Verified', 'Rejected', 'To Verify', 'Incomplete') DEFAULT 'Pending'");
     }
+    
+    // Ensure amount is nullable (migration for existing tables)
+    mysqli_query($conn, "ALTER TABLE payments MODIFY COLUMN amount DECIMAL(10,2) NULL");
 }

@@ -568,11 +568,20 @@ require_once __DIR__ . '/../includes/header.php';
                             
                             $c_json = !empty($order['first_item_customization']) ? json_decode($order['first_item_customization'], true) : [];
                             $d_name = '';
-                            if (!empty($c_json['sintra_type'])) $d_name = 'Sintra Board - ' . $c_json['sintra_type'];
-                            elseif (!empty($c_json['tarp_size'])) $d_name = 'Tarpaulin Printing - ' . $c_json['tarp_size'];
-                            elseif (!empty($c_json['width']) && !empty($c_json['height'])) $d_name = 'Tarpaulin Printing - ' . $c_json['width'] . 'x' . $c_json['height'] . 'ft';
-                            elseif (!empty($c_json['vinyl_type'])) $d_name = 'T-Shirt (Vinyl)';
-                            elseif (!empty($c_json['sticker_type'])) $d_name = 'Decals/Stickers';
+
+                            // service_type is highest priority (set by POS/order form)
+                            if (!empty($c_json['service_type'])) {
+                                $d_name = normalize_service_name($c_json['service_type'], '');
+                            }
+
+                            // Field-based heuristics when service_type absent
+                            if (!$d_name) {
+                                if (!empty($c_json['sintra_type'])) $d_name = 'Sintraboard Standees';
+                                elseif (!empty($c_json['tarp_size'])) $d_name = 'Tarpaulin Printing';
+                                elseif (!empty($c_json['width']) && !empty($c_json['height'])) $d_name = 'Tarpaulin Printing';
+                                elseif (!empty($c_json['vinyl_type'])) $d_name = 'T-Shirt Printing';
+                                elseif (!empty($c_json['sticker_type'])) $d_name = 'Decals/Stickers (Print/Cut)';
+                            }
                             
                             if (!$d_name) {
                                 $raw_name = $order['first_product_name'] ?? 'Order Item';
@@ -660,6 +669,10 @@ function get_preview_image_for_order_ui($order, $display_name) {
     if (!empty($order['first_item_has_design']) && !empty($order['first_item_id'])) {
         return "/printflow/public/serve_design.php?type=order_item&id=" . (int)$order['first_item_id'];
     }
+    
+    $c_json = !empty($order['first_item_customization']) ? json_decode($order['first_item_customization'], true) : [];
+    $service_id = !empty($c_json['service_id']) ? (int)$c_json['service_id'] : 0;
+    
     $product_img = "";
     $pn = trim($order['first_product_name'] ?? '');
     if ($pn && strtolower($display_name) === strtolower($pn)) {
@@ -680,7 +693,9 @@ function get_preview_image_for_order_ui($order, $display_name) {
             if (file_exists($img_base . ".png")) return "/printflow/public/images/products/product_" . $prod_id . ".png";
         }
     }
-    return get_service_image_url($display_name);
+    
+    // Instead of fallback static map, use the smarter DB-aware match logic
+    return get_customer_notification_service_image($service_id, $display_name);
 }
 ?>
 

@@ -225,7 +225,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
             }
             
             // Calculate estimated price dynamically based on selected options
-            $base_price = (float)($service['base_price'] ?? 0);
+            $base_price = (float)($service['price'] ?? 0);
             $options_total = 0;
 
             foreach ($field_configs as $key => $config) {
@@ -913,15 +913,13 @@ document.addEventListener('keydown', function(e) {
 </script>
 
 <script>
-// Estimated Price Calculation System - Global scope
-let calculateEstimatedPrice;
-
+// Estimated Price Calculation System - Overrides default if present
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('serviceForm');
     if (!form) return;
     
     // Get base price from PHP
-    const basePrice = <?php echo (float)($service['base_price'] ?? 0); ?>;
+    const basePrice = <?php echo (float)($service['price'] ?? 0); ?>;
     
     calculateEstimatedPrice = function() {
         let optionsTotal = 0;

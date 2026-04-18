@@ -1884,8 +1884,16 @@ function normalize_service_name($name, $fallback = 'Custom Order') {
 function get_service_name_from_customization($custom, $fallback = 'Custom Order') {
     if (!$custom) return $fallback;
     $custom = is_string($custom) ? json_decode($custom, true) : $custom;
-    
-    // User Requested Priority Logic
+
+    // 0. Explicit service_type is HIGHEST PRIORITY — always trust it when set
+    if (!empty($custom['service_type'])) {
+        return normalize_service_name($custom['service_type'], $fallback);
+    }
+    if (!empty($custom['product_type'])) {
+        return normalize_service_name($custom['product_type'], $fallback);
+    }
+
+    // Field-based heuristics (fallback when service_type is absent)
     // 1. Sintra Board
     if (!empty($custom['sintra_type']) || !empty($custom['Sintra Type']) || !empty($custom['is_standee'])) {
         return 'Sintraboard Standees';
@@ -1903,15 +1911,7 @@ function get_service_name_from_customization($custom, $fallback = 'Custom Order'
         return 'Decals/Stickers (Print/Cut)';
     }
 
-    // Secondary explicitly provided fields
-    if (!empty($custom['service_type'])) {
-        return normalize_service_name($custom['service_type'], $fallback);
-    }
-    if (!empty($custom['product_type'])) {
-        return normalize_service_name($custom['product_type'], $fallback);
-    }
-    
-    return normalize_service_name($fallback, $fallback);
+    return $fallback;
 }
 
 /**
@@ -2075,7 +2075,8 @@ function extract_payment_details($imagePath) {
     $details = [
         'reference_id' => null,
         'amount' => null,
-        'sender_name' => null
+        'sender_name' => null,
+        'payment_method' => 'Unknown'
     ];
 
     if (!file_exists($imagePath)) {
@@ -2106,23 +2107,30 @@ function extract_payment_details($imagePath) {
         $text = file_get_contents($outputFile);
         @unlink($outputFile); // Clean up
 
-        // 1. Reference ID Extraction (Fixed)
+        // 1. Reference ID Extraction
         if (preg_match('/\b\d{8,20}\b/', $text, $match)) {
             $details['reference_id'] = $match[0];
         }
 
-        // 2. Exact Amount Extraction (Improved Accuracy)
+        // 2. Exact Amount Extraction
         if (preg_match_all('/₱\s?\d{1,6}(\.\d{2})?|\b\d{1,6}\.\d{2}\b/', $text, $matches)) {
             $found_amount = end($matches[0]);
-            // Clean up symbols for numerical storage
             $details['amount'] = preg_replace('/[^0-9.]/', '', $found_amount);
         }
 
-        // 3. Sender Name Extraction (Strict)
+        // 3. Sender Name Extraction
         if (preg_match('/From[:\-]?\s*(.+)/i', $text, $match)) {
             $details['sender_name'] = trim($match[1]);
         } elseif (preg_match('/Sender[:\-]?\s*(.+)/i', $text, $match)) {
             $details['sender_name'] = trim($match[1]);
+        }
+
+        // 4. Payment Method Detection
+        $text_lower = strtolower($text);
+        if (strpos($text_lower, 'gcash') !== false || strpos($text_lower, 'g-cash') !== false) {
+            $details['payment_method'] = 'GCash';
+        } elseif (strpos($text_lower, 'maya') !== false || strpos($text_lower, 'paymaya') !== false || strpos($text_lower, 'pay maya') !== false) {
+            $details['payment_method'] = 'Maya';
         }
     }
 

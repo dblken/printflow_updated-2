@@ -13,6 +13,14 @@ $customer_id = get_user_id();
 
 $error = '';
 
+$_s_name = 'PrintFlow Service';
+$service_price = 0;
+$_s_row = db_query("SELECT name, price FROM services WHERE customer_link LIKE '%order_transparent%' LIMIT 1");
+if(!empty($_s_row)) { 
+    $_s_name = $_s_row[0]['name']; 
+    $service_price = (float)$_s_row[0]['price'];
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $branch_id = (int)($_POST['branch_id'] ?? 1);
     $surface_application = trim($_POST['surface_application'] ?? '');
@@ -51,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'type' => 'Service',
                     'source_page' => 'services',
                     'name' => 'Transparent Sticker Printing',
-                    'price' => 0, // Calculated at checkout or review
+                    'price' => $service_price, // Fetched directly from services table
                     'quantity' => $quantity,
                     'category' => 'Sticker Printing',
                     'branch_id' => $branch_id,
@@ -119,10 +127,6 @@ if ($display_img !== '' && strpos($display_img, 'http') === false && $display_im
                 $review_count = (int)($stats['review_count'] ?? 0);
                 $sold_count = (int)($stats['sold_count'] ?? 0);
                 $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k' : $sold_count;
-                
-                $_s_name = 'PrintFlow Service';
-                $_s_row = db_query("SELECT name FROM services WHERE customer_link LIKE '%order_transparent%' LIMIT 1");
-                if(!empty($_s_row)) { $_s_name = $_s_row[0]['name']; }
                 ?>
                 <div class="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
                     <div class="flex items-center gap-1">

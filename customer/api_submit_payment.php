@@ -123,31 +123,39 @@ if ($update_success) {
     $ocr_details = extract_payment_details($abs_path);
 
     // ── Insert into Payments table (Strict Version) ──────────────────────────
-    $payment_method = $_POST['payment_method'] ?? 'GCash'; 
-    $sender_name = $ocr_details['sender_name'] ?? '';
-    $ref_id = $ocr_details['reference_id'] ?? '';
-    $ocr_amount = $ocr_details['amount'] ?? 0;
+    // Use OCR-detected method if successful, otherwise fallback to POST
+    $detected_method = $ocr_details['payment_method'] ?? 'Unknown';
+    $payment_method  = ($detected_method !== 'Unknown') ? $detected_method : ($_POST['payment_method'] ?? 'GCash');
     
-    // Strict Validation: Valid only if all 3 detected
-    $is_incomplete = (empty($sender_name) || empty($ocr_amount) || empty($ref_id));
+    $sender_name = $ocr_details['sender_name'] ?? null;
+    $ref_id      = $ocr_details['reference_id'] ?? null;
+    $ocr_amount  = $ocr_details['amount'] ?? null; // Store NULL if not found
+    
+    // Strict Validation: Incomplete if any core field is missing
+    $is_incomplete  = ($sender_name === null || $ocr_amount === null || $ref_id === null);
     $payment_status = $is_incomplete ? 'Incomplete' : 'To Verify';
 
+    // Get customer name for history & notifications
+    $customer_id = get_user_id();
+    $customer_name_row = db_query("SELECT first_name, last_name FROM customers WHERE customer_id = ?", 'i', [$customer_id]);
+    $customer_display_name = !empty($customer_name_row) ? trim($customer_name_row[0]['first_name'] . ' ' . $customer_name_row[0]['last_name']) : "Customer";
+    $customer_name = $customer_display_name;
+
+    $target_order_id = (!$is_job) ? $order_id : ($order['order_id'] ?? $order_id);
+    
     db_execute(
-        "INSERT INTO payments (order_id, sender_name, payment_method, amount, proof_image, reference_id, source, payment_status) 
-         VALUES (?, ?, ?, ?, ?, ?, 'Online', ?)",
-        'issdsss',
-        [$order_id, $sender_name, $payment_method, $ocr_amount, $file_path, $ref_id, $payment_status]
+        "INSERT INTO payments (order_id, customer_name, sender_name, payment_method, amount, proof_image, reference_id, source, payment_status) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'Online', ?)",
+        'isssdsss',
+        [$target_order_id, $customer_name, $sender_name, $payment_method, $ocr_amount, $file_path, $ref_id, $payment_status]
     );
 
     // Notify staff
-    $customer_name_row = db_query("SELECT first_name, last_name FROM customers WHERE customer_id = ?", 'i', [$customer_id]);
-    $customer_display_name = !empty($customer_name_row) ? trim($customer_name_row[0]['first_name'] . ' ' . $customer_name_row[0]['last_name']) : "Customer";
-    
-    // Determine Service Name
+    // Determined Service Name
     $service_name = "Order";
     if (!$is_job) {
         $first_item = db_query("SELECT customization_data FROM order_items WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
-        $custom_data = !empty($first_item[0]['customization_data']) ? json_decode($first_item[0]['customization_data'], true) : [];
+        $custom_data = (!empty($first_item) && !empty($first_item[0]['customization_data'])) ? json_decode($first_item[0]['customization_data'], true) : [];
         $service_name = get_service_name_from_customization($custom_data, 'Product Order');
     } else {
         $service_name = normalize_service_name($order['service_type'] ?? 'Custom Job');

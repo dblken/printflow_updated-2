@@ -64,9 +64,15 @@ try {
 
         // ── Keep payments table in sync ─────────────────────────────────────
         $ref_id = $_POST['reference_id'] ?? null;
+        // Use the actual verified amount from the order if the payment record had none
+        $actual_amount = (float)($order['downpayment_amount'] ?: $order['total_amount']);
         db_execute(
-            "UPDATE payments SET payment_status = 'Verified', reference_id = ? WHERE order_id = ? ORDER BY id DESC LIMIT 1",
-            'si', [$ref_id, $order_id]
+            "UPDATE payments SET 
+                payment_status = 'Verified', 
+                reference_id = ?, 
+                amount = COALESCE(NULLIF(amount, 0), ?) 
+             WHERE order_id = ? ORDER BY id DESC LIMIT 1",
+            'sdi', [$ref_id, $actual_amount, $order_id]
         );
         
         if ($success) {

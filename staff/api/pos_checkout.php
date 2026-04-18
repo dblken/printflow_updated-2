@@ -235,12 +235,16 @@ try {
         if (!$order_result) throw new Exception("Failed to create $group_type order.");
         $order_id = $conn->insert_id;
 
+        // Resolve customer name for payment history
+        $cust_name_res = db_query("SELECT first_name, last_name FROM customers WHERE customer_id = ?", 'i', [$customer_id]);
+        $c_name = !empty($cust_name_res) ? trim($cust_name_res[0]['first_name'] . ' ' . $cust_name_res[0]['last_name']) : 'Walk-in Guest';
+
         // ── Log to Payments Table ──────────────────────────────────────────
         db_execute(
-            "INSERT INTO payments (order_id, sender_name, payment_method, amount, proof_image, reference_id, source, payment_status) 
-             VALUES (?, 'Walk-in', ?, ?, '', ?, 'POS', 'Verified')",
-            'isds',
-            [$order_id, $payment_method, $group_total, $reference_number]
+            "INSERT INTO payments (order_id, customer_name, sender_name, payment_method, amount, proof_image, reference_id, source, payment_status) 
+             VALUES (?, ?, 'Walk-in', ?, ?, '', ?, 'POS', 'Verified')",
+            'issds',
+            [$order_id, $c_name, $payment_method, $group_total, $reference_number]
         );
 
         foreach ($group_items as $item) {

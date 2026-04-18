@@ -10,6 +10,12 @@ header('Content-Type: application/json');
 
 $requiredMsg = 'This field is required';
 
+$service_price = 0;
+$_s_row = db_query("SELECT price FROM services WHERE customer_link LIKE '%order_souvenirs%' LIMIT 1");
+if(!empty($_s_row)) { 
+    $service_price = (float)$_s_row[0]['price'];
+}
+
 if (!is_logged_in() || !is_customer()) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized access.']);
     exit;
@@ -101,7 +107,7 @@ $cart_item = [
     'branch_id'  => $branch_id,
     'name' => $product_name,
     'category' => 'Souvenirs',
-    'price' => 0, // Pending review
+    'price' => $service_price, // Fetched dynamically from database
     'quantity' => $quantity,
     'customization' => [
         'service_type' => 'Souvenirs',

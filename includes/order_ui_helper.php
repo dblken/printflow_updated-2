@@ -56,14 +56,8 @@ function render_order_item_neubrutalism($item, $is_cart_item = false, $show_pric
 
     // Fallback logic for design_url if still null
     if (!$design_url) {
-        $cat_comb = strtolower(($item['category'] ?? '') . ' ' . ($name ?? ''));
-        if (strpos($cat_comb, 't-shirt') !== false || strpos($cat_comb, 'tshirt') !== false) {
-            $design_url = "/printflow/public/images/products/product_31.jpg";
-        } else if (strpos($cat_comb, 'tarpaulin') !== false) {
-            $design_url = "/printflow/public/images/products/product_42.jpg";
-        } else if (strpos($cat_comb, 'reflectorized') !== false || strpos($cat_comb, 'signage') !== false || strpos($cat_comb, 'sticker') !== false || strpos($cat_comb, 'decal') !== false) {
-            $design_url = "/printflow/public/images/products/product_21.jpg";
-        }
+        $service_id = !empty($custom['service_id']) ? (int)$custom['service_id'] : 0;
+        $design_url = get_customer_notification_service_image($service_id, $name);
     }
 
     // Field Map for Labels
@@ -234,14 +228,8 @@ function render_order_item_clean($item, $is_cart_item = false, $show_price = tru
 
     // Fallback logic for design_url if still null
     if (!$design_url) {
-        $cat_comb = strtolower(($item['category'] ?? '') . ' ' . ($name ?? ''));
-        if (strpos($cat_comb, 't-shirt') !== false || strpos($cat_comb, 'tshirt') !== false) {
-            $design_url = "/printflow/public/images/products/product_31.jpg";
-        } else if (strpos($cat_comb, 'tarpaulin') !== false) {
-            $design_url = "/printflow/public/images/products/product_42.jpg";
-        } else if (strpos($cat_comb, 'reflectorized') !== false || strpos($cat_comb, 'signage') !== false || strpos($cat_comb, 'sticker') !== false || strpos($cat_comb, 'decal') !== false) {
-            $design_url = "/printflow/public/images/products/product_21.jpg";
-        }
+        $service_id = !empty($custom['service_id']) ? (int)$custom['service_id'] : 0;
+        $design_url = get_customer_notification_service_image($service_id, $name);
     }
 
     $field_map = [

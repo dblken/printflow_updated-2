@@ -87,7 +87,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="mb-6 pb-6 border-b border-gray-100">
                     <h1 class="text-2xl font-bold text-gray-900 mb-2"><?= htmlspecialchars($product['name']) ?></h1>
                     <div class="text-3xl font-bold text-blue-600 mb-4">
-                        <?= format_currency($product['base_price']) ?>
+                        <?= format_currency($product['price']) ?>
                     </div>
                     <div class="text-sm text-gray-600 leading-relaxed">
                         <?= nl2br(htmlspecialchars($product['description'])) ?>
@@ -161,7 +161,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <div class="bg-gray-50 border border-gray-200 p-6 text-center">
                                     <p class="text-sm text-gray-600 mb-1 font-bold uppercase">Total Amount</p>
                                     <div class="text-3xl font-black text-gray-900 mb-4">
-                                        <?= format_currency($product['base_price']) ?>
+                                        <?= format_currency($product['price']) ?>
                                     </div>
                                     
                                     <div class="h-px bg-gray-200 my-4"></div>

@@ -118,11 +118,14 @@ if (isset($_FILES[$logo_key]) && $_FILES[$logo_key]['error'] === UPLOAD_ERR_OK) 
 // Prepare Cart Item
 $item_key = uniqid('item_');
 $product_name = $fields['product_type'];
-$price = 0; // Service orders usually have price determined after review or via helper
 
-// For Reflectorized, let's try to get a base price if possible, or default to 0
-$price = 0; 
-if ($isTempPlate) $price = 450; // Example static price for temp plates if needed
+$service_price = 0;
+$_s_row = db_query("SELECT price FROM services WHERE customer_link LIKE '%order_reflectorized%' LIMIT 1");
+if(!empty($_s_row)) { 
+    $service_price = (float)$_s_row[0]['price'];
+}
+
+$price = $service_price; // Fetched from database
 
 // Ensure branch_id is not duplicated in customization if stored at top level
 $customization = $fields;

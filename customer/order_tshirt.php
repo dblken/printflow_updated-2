@@ -29,6 +29,14 @@ $edit_item_key = trim((string)($_GET['edit_item'] ?? $_POST['edit_item'] ?? ''))
 $is_edit_mode = false;
 $edit_existing_item = null;
 
+$_s_name = 'PrintFlow Service';
+$service_price = 0;
+$_s_row = db_query("SELECT name, price FROM services WHERE customer_link LIKE '%order_tshirt%' LIMIT 1");
+if(!empty($_s_row)) { 
+    $_s_name = $_s_row[0]['name']; 
+    $service_price = (float)$_s_row[0]['price'];
+}
+
 if ($edit_item_key !== '' && isset($_SESSION['cart'][$edit_item_key]) && is_array($_SESSION['cart'][$edit_item_key])) {
     $candidate = $_SESSION['cart'][$edit_item_key];
     $cat_name = strtolower(((string)($candidate['category'] ?? '')) . ' ' . ((string)($candidate['name'] ?? '')));
@@ -160,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'type' => 'Service',
                     'source_page' => 'services',
                     'name' => 'T-Shirt Printing',
-                    'price' => 350.00,
+                    'price' => $service_price,
                     'quantity' => $quantity,
                     'category' => 'T-Shirts',
                     'branch_id' => $branch_id,
@@ -245,9 +253,7 @@ if ($display_img !== '' && strpos($display_img, 'http') === false && $display_im
                 $sold_count = (int)($stats['sold_count'] ?? 0);
                 $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k' : $sold_count;
                 
-                $_s_name = 'PrintFlow Service';
-                $_s_row = db_query("SELECT name FROM services WHERE customer_link LIKE '%order_tshirt%' LIMIT 1");
-                if(!empty($_s_row)) { $_s_name = $_s_row[0]['name']; }
+                $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k' : $sold_count;
                 ?>
                 <div class="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
                     <div class="flex items-center gap-1">

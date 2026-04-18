@@ -45,12 +45,12 @@ $q1 = "
         o.order_id               AS payment_id,
         o.order_id               AS ref_order_id,
         NULL                     AS ref_cust_id,
-        COALESCE(NULLIF(TRIM(CONCAT_WS(' ', c.first_name, c.last_name)), ''), 'Walk-in Guest') AS customer_name,
+        COALESCE(pay.customer_name, NULLIF(TRIM(CONCAT_WS(' ', c.first_name, c.last_name)), ''), 'Walk-in Guest') AS customer_name,
         pay.sender_name          AS sender_name,
         IF(o.order_type = 'product', 'PRODUCT', 'SERVICE') AS order_type_label,
         COALESCE(pay.source, IF(o.order_source = 'pos', 'POS', 'Online')) AS source_label,
-        COALESCE(pay.amount, o.total_amount, 0)             AS amount,
-        COALESCE(o.total_amount, 0)                         AS original_total,
+        COALESCE(NULLIF(pay.amount, 0), o.downpayment_amount, 0) AS amount,
+        COALESCE(o.total_amount, 0)             AS original_total,
         COALESCE(pay.payment_method, o.payment_method, 'Cash') AS payment_method,
         CASE
             WHEN pay.payment_status = 'Incomplete' THEN 'INCOMPLETE'
@@ -69,7 +69,10 @@ $q1 = "
         pay.reference_id
     FROM orders o
     LEFT JOIN customers c ON o.customer_id = c.customer_id
-    LEFT JOIN (SELECT order_id, sender_name, amount, source, reference_id, payment_method, payment_status FROM payments) pay ON o.order_id = pay.order_id
+    LEFT JOIN (
+        SELECT p1.* FROM payments p1
+        INNER JOIN (SELECT MAX(id) AS max_id FROM payments GROUP BY order_id) p2 ON p1.id = p2.max_id
+    ) pay ON o.order_id = pay.order_id
     WHERE 1=1 $branch_cond_o
 " ;
 
@@ -79,11 +82,11 @@ $q2 = "
         cust.customization_id    AS payment_id,
         o.order_id               AS ref_order_id,
         cust.customization_id    AS ref_cust_id,
-        COALESCE(NULLIF(TRIM(CONCAT_WS(' ', c.first_name, c.last_name)), ''), 'Walk-in Guest') AS customer_name,
+        COALESCE(pay.customer_name, NULLIF(TRIM(CONCAT_WS(' ', c.first_name, c.last_name)), ''), 'Walk-in Guest') AS customer_name,
         pay.sender_name          AS sender_name,
         'SERVICE'                AS order_type_label,
         COALESCE(pay.source, IF(COALESCE(o.order_source,'online') = 'pos', 'POS', 'Online')) AS source_label,
-        COALESCE(pay.amount, o.total_amount, 0)                     AS amount,
+        COALESCE(NULLIF(pay.amount, 0), o.downpayment_amount, 0) AS amount,
         COALESCE(o.total_amount, 0)                                 AS original_total,
         COALESCE(pay.payment_method, o.payment_method, 'N/A')       AS payment_method,
         CASE
@@ -103,7 +106,10 @@ $q2 = "
     FROM customizations cust
     INNER JOIN orders o ON cust.order_id = o.order_id
     LEFT JOIN  customers c ON cust.customer_id = c.customer_id
-    LEFT JOIN (SELECT order_id, sender_name, amount, source, reference_id, payment_method, payment_status FROM payments) pay ON o.order_id = pay.order_id
+    LEFT JOIN (
+        SELECT p1.* FROM payments p1
+        INNER JOIN (SELECT MAX(id) AS max_id FROM payments GROUP BY order_id) p2 ON p1.id = p2.max_id
+    ) pay ON o.order_id = pay.order_id
     WHERE 1=1 $branch_cond_c
 " ;
 
@@ -130,6 +136,8 @@ if ($filter_status === 'to_verify') { $extra .= " AND pay_status = 'TO_VERIFY'";
 if ($filter_status === 'verified')  { $extra .= " AND pay_status = 'VERIFIED'"; }
 if ($filter_status === 'rejected')  { $extra .= " AND pay_status = 'REJECTED'"; }
 if ($filter_status === 'to_pay')    { $extra .= " AND pay_status = 'TO_PAY'"; }
+// Default: Only show VERIFIED if no status filter is active (as per strict system rules)
+if ($filter_status === '') { $extra .= " AND pay_status = 'VERIFIED'"; }
 if ($filter_date_from !== '') { $extra .= " AND DATE(paid_at) >= ?"; $ep[] = $filter_date_from; $et .= 's'; }
 if ($filter_date_to   !== '') { $extra .= " AND DATE(paid_at) <= ?"; $ep[] = $filter_date_to;   $et .= 's'; }
 if ($filter_search    !== '') {
@@ -321,7 +329,6 @@ $page_title = 'Payment List – PrintFlow Staff';
                             <tr>
                                 <th>Order #</th>
                                 <th>Customer Name</th>
-                                <th>Sender Name</th>
                                 <th>Type</th>
                                 <th>Source</th>
                                 <th>Amount</th>
@@ -404,9 +411,6 @@ $page_title = 'Payment List – PrintFlow Staff';
                                 </div>
                             </td>
                             <td>
-                                <span style="font-weight:500;color:#4b5563;font-size:13px;"><?= htmlspecialchars($p['sender_name'] ?: '—') ?></span>
-                            </td>
-                            <td>
                                 <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;letter-spacing:0.04em; <?= $isService ? 'background:#fefce8;color:#a16207;border:1px solid #fef08a;' : 'background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;' ?>">
                                     <?= $isService ? 'SERVICE' : 'PRODUCT' ?>
                                 </span>
@@ -416,7 +420,7 @@ $page_title = 'Payment List – PrintFlow Staff';
                                     <?= strtoupper($p['source_label'] ?: 'Online') ?>
                                 </span>
                             </td>
-                            <td style="font-weight:700;color:#0f172a;">₱<?= number_format((float)$p['amount'],2) ?></td>
+                            <td style="font-weight:700;color:#0f172a;"><?= ($p['amount'] !== null && $p['amount'] > 0) ? '₱' . number_format((float)$p['amount'], 2) : '<span style="color:#94a3b8;font-weight:500;">N/A</span>' ?></td>
                             <td>
                                 <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;letter-spacing:0.04em; <?= $methodStyle ?>">
                                     <?= htmlspecialchars($p['payment_method']?:'—') ?>
@@ -481,7 +485,9 @@ function openPayModal(data) {
 
     const isPOS = data.source === 'POS';
     const isSvc = data.order_type === 'SERVICE';
-    const amt = parseFloat(data.amount||0).toLocaleString('en-PH',{minimumFractionDigits:2});
+    const amt = (data.amount !== null && parseFloat(data.amount) > 0) 
+        ? '₱' + parseFloat(data.amount).toLocaleString('en-PH', {minimumFractionDigits: 2}) 
+        : 'N/A';
     const orderTotal = parseFloat(data.original_total||0).toLocaleString('en-PH',{minimumFractionDigits:2});
     const dateFmt = data.paid_at ? new Date(data.paid_at).toLocaleString('en-PH',{dateStyle:'medium',timeStyle:'short'}) : '—';
 
@@ -533,12 +539,11 @@ function openPayModal(data) {
         ${data.status_html}
       </div>
       <div class="pm-field"><span class="pm-label">Order #</span><span class="pm-value order-id-wrap">#${data.order_id}</span></div>
-      <div class="pm-field"><span class="pm-label">Sender Name</span><span class="pm-value" style="color:#0f172a;font-weight:800;">${data.sender_name}</span></div>
       <div class="pm-field"><span class="pm-label">Customer</span><span class="pm-value">${data.customer_name}</span></div>
       <div class="pm-field">
         <span class="pm-label">Amount Paid</span>
         <div style="text-align:right;">
-            <div class="pm-value" style="color:#0f172a;font-size:1.5rem;font-weight:800;">₱${amt}</div>
+            <div class="pm-value" style="color:#0f172a;font-size:1.5rem;font-weight:800;">${amt}</div>
             <div style="font-size:11px;color:#64748b;font-weight:500;">Detected via OCR</div>
         </div>
       </div>
