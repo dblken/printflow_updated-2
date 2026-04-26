@@ -135,14 +135,22 @@ if (in_array($order['status'], ['Completed', 'To Rate', 'Rated'], true)) {
     $rating_res = db_query("SELECT * FROM reviews WHERE order_id = ?", 'i', [$order_id]);
     if (!empty($rating_res)) {
         $r = $rating_res[0];
+        $ref_id = (int)$r['reference_id'];
+        if ($r['review_type'] === 'custom' && $ref_id <= 0 && !empty($r['service_type'])) {
+            $svc = db_query("SELECT service_id FROM services WHERE name = ? LIMIT 1", 's', [$r['service_type']]);
+            if (!empty($svc)) {
+                $ref_id = (int)$svc[0]['service_id'];
+            }
+        }
+
         $rating_data = [
             'rating' => (int)$r['rating'],
             'comment' => $r['comment'] ?? '',
             'image_url' => null, // Multiple images handled by review_images table
             'created_at' => format_datetime($r['created_at']),
-            'view_url' => ($r['review_type'] === 'custom') 
-                ? "/printflow/customer/order_service_dynamic.php?service_id=" . $r['reference_id'] . "#review-" . $r['id']
-                : "/printflow/customer/order_create.php?product_id=" . $r['reference_id'] . "#review-" . $r['id']
+            'view_url' => ($r['review_type'] === 'custom' && $ref_id > 0) 
+                ? "/printflow/customer/order_service_dynamic.php?service_id=" . $ref_id . "#review-" . $r['id']
+                : "/printflow/customer/order_create.php?product_id=" . $ref_id . "#review-" . $r['id']
         ];
     }
 }

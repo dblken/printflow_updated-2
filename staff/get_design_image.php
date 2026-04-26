@@ -16,7 +16,7 @@ $res = db_query("SELECT design_image FROM order_items WHERE order_item_id = ?", 
 if (!$res || empty($res[0]['design_image'])) {
     // Return placeholder
     header('Content-Type: image/png');
-    readfile(__DIR__ . '/../public/assets/images/services/default.png');
+    readfile(__DIR__ . '/../public/assets/uploads/profiles/default.png');
     exit;
 }
 

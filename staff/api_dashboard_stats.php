@@ -8,8 +8,14 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/branch_context.php';
 
+// Suppress accidental output that might break JSON
+error_reporting(0);
+ini_set('display_errors', 0);
+ob_start();
+
 // Check staff access
 if (!has_role('Staff')) {
+    ob_end_clean();
     header('Content-Type: application/json');
     echo json_encode(['error' => 'Unauthorized']);
     exit;
@@ -30,28 +36,49 @@ $timeframe = $_GET['timeframe'] ?? 'today';
 // --- Timeframe Logic ---
 $timeframe_sql = "DATE(o.order_date) = CURDATE()";
 $timeframe_sql_no_alias = "DATE(order_date) = CURDATE()";
+$display_label = "Today (" . date('F j, Y') . ")";
 
 switch ($timeframe) {
     case 'week': 
-        $timeframe_sql = "YEARWEEK(o.order_date, 1) = YEARWEEK(CURDATE(), 1)"; 
-        $timeframe_sql_no_alias = "YEARWEEK(order_date, 1) = YEARWEEK(CURDATE(), 1)"; 
+        // Get Monday and Sunday of this week
+        $monday = date('Y-m-d', strtotime('monday this week'));
+        $sunday = date('Y-m-d', strtotime('sunday this week'));
+        
+        $timeframe_sql = "DATE(o.order_date) BETWEEN '$monday' AND '$sunday'"; 
+        $timeframe_sql_no_alias = "DATE(order_date) BETWEEN '$monday' AND '$sunday'"; 
+        
+        $start_day = date('j', strtotime($monday));
+        $end_day = date('j', strtotime($sunday));
+        $start_month = date('F', strtotime($monday));
+        $end_month = date('F', strtotime($sunday));
+        $year = date('Y', strtotime($sunday));
+        
+        if ($start_month === $end_month) {
+            $display_label = "This Week ($start_month $start_day-$end_day, $year)";
+        } else {
+            $display_label = "This Week ($start_month $start_day - $end_month $end_day, $year)";
+        }
         break;
     case 'month': 
-        $timeframe_sql = "YEAR(o.order_date) = YEAR(CURDATE()) AND MONTH(o.order_date) = MONTH(CURDATE())"; 
-        $timeframe_sql_no_alias = "YEAR(order_date) = YEAR(CURDATE()) AND MONTH(order_date) = MONTH(CURDATE())"; 
+        $first_day = date('Y-m-01');
+        $last_day = date('Y-m-t');
+        $timeframe_sql = "DATE(o.order_date) BETWEEN '$first_day' AND '$last_day'"; 
+        $timeframe_sql_no_alias = "DATE(order_date) BETWEEN '$first_day' AND '$last_day'"; 
+        $display_label = "This Month (" . date('F Y') . ")"; 
         break;
 }
 
 // 1. Stats
-$completed_products = db_query("
+$res_products = db_query("
     SELECT COUNT(DISTINCT o.order_id) as count 
     FROM orders o 
     JOIN order_items oi ON o.order_id = oi.order_id
     JOIN products p ON oi.product_id = p.product_id
     WHERE o.status = 'Completed' AND o.branch_id = ? AND o.order_type = 'product' AND $timeframe_sql_no_alias
-", 'i', [$staffBranchId])[0]['count'] ?? 0;
+", 'i', [$staffBranchId]);
+$completed_products = !empty($res_products) ? (int)($res_products[0]['count'] ?? 0) : 0;
 
-$completed_custom = db_query("
+$res_custom = db_query("
     SELECT COUNT(DISTINCT o.order_id) as count 
     FROM orders o 
     JOIN order_items oi ON o.order_id = oi.order_id
@@ -59,9 +86,11 @@ $completed_custom = db_query("
     LEFT JOIN services s ON oi.product_id = s.service_id
     WHERE o.status = 'Completed' AND o.branch_id = ? AND $timeframe_sql_no_alias
       AND (s.service_id IS NOT NULL OR jo.id IS NOT NULL OR o.order_type = 'custom')
-", 'i', [$staffBranchId])[0]['count'] ?? 0;
+", 'i', [$staffBranchId]);
+$completed_custom = !empty($res_custom) ? (int)($res_custom[0]['count'] ?? 0) : 0;
 
-$total_revenue = db_query("SELECT SUM(total_amount) as total FROM orders WHERE $timeframe_sql_no_alias AND status != 'Cancelled' AND branch_id = ?", 'i', [$staffBranchId])[0]['total'] ?? 0;
+$res_rev = db_query("SELECT SUM(total_amount) as total FROM orders WHERE $timeframe_sql_no_alias AND status != 'Cancelled' AND branch_id = ?", 'i', [$staffBranchId]);
+$total_revenue = !empty($res_rev) ? (float)($res_rev[0]['total'] ?? 0) : 0;
 
 // 2. Optimized & Dynamic Chart Data
 $chart_labels = [];
@@ -89,17 +118,18 @@ switch($timeframe) {
             $h = str_pad($i, 2, "0", STR_PAD_LEFT);
             $chart_labels[] = $h . ":00";
             $res = db_query("SELECT SUM(o.total_amount) as total FROM orders o $chart_sql_cond AND DATE(o.order_date) = CURDATE() AND HOUR(o.order_date) = ?", $chart_types.'i', array_merge($chart_params, [$i]));
-            $chart_values[] = (float)($res[0]['total'] ?? 0);
+            $chart_values[] = !empty($res) ? (float)($res[0]['total'] ?? 0) : 0;
         }
         break;
         
     case 'week':
-        $chart_title = "Weekly Trend (Daily)";
-        for ($i = 6; $i >= 0; $i--) {
-            $d = date('Y-m-d', strtotime("-$i days"));
+        $chart_title = "Weekly Trend (Mon-Sun)";
+        $monday_ts = strtotime('monday this week');
+        for ($i = 0; $i < 7; $i++) {
+            $d = date('Y-m-d', strtotime("+$i days", $monday_ts));
             $chart_labels[] = date('D', strtotime($d));
             $res = db_query("SELECT SUM(o.total_amount) as total FROM orders o $chart_sql_cond AND DATE(o.order_date) = ?", $chart_types.'s', array_merge($chart_params, [$d]));
-            $chart_values[] = (float)($res[0]['total'] ?? 0);
+            $chart_values[] = !empty($res) ? (float)($res[0]['total'] ?? 0) : 0;
         }
         break;
         
@@ -110,7 +140,7 @@ switch($timeframe) {
             $d = date('Y-m-') . str_pad($i, 2, "0", STR_PAD_LEFT);
             $chart_labels[] = $i;
             $res = db_query("SELECT SUM(o.total_amount) as total FROM orders o $chart_sql_cond AND DATE(o.order_date) = ?", $chart_types.'s', array_merge($chart_params, [$d]));
-            $chart_values[] = (float)($res[0]['total'] ?? 0);
+            $chart_values[] = !empty($res) ? (float)($res[0]['total'] ?? 0) : 0;
         }
         break;
         
@@ -122,7 +152,7 @@ switch($timeframe) {
             $d = date('Y-m-d', strtotime("-$i days"));
             $chart_labels[] = date('D', strtotime($d));
             $res = db_query("SELECT SUM(o.total_amount) as total FROM orders o $chart_sql_cond AND DATE(o.order_date) = ?", $chart_types.'s', array_merge($chart_params, [$d]));
-            $chart_values[] = (float)($res[0]['total'] ?? 0);
+            $chart_values[] = !empty($res) ? (float)($res[0]['total'] ?? 0) : 0;
         }
 }
 
@@ -170,7 +200,8 @@ if ($search_filter) {
     $types .= "ss";
 }
 
-$total_rows = db_query("SELECT COUNT(*) as count FROM orders o LEFT JOIN customers c ON o.customer_id = c.customer_id" . $sql_cond, $types, $params)[0]['count'] ?? 0;
+$res_rows = db_query("SELECT COUNT(*) as count FROM orders o LEFT JOIN customers c ON o.customer_id = c.customer_id" . $sql_cond, $types, $params);
+$total_rows = !empty($res_rows) ? (int)($res_rows[0]['count'] ?? 0) : 0;
 
 $orders = db_query("
     SELECT o.order_id, CONCAT(c.first_name, ' ', c.last_name) as customer_name,
@@ -195,6 +226,8 @@ foreach ($orders as &$order) {
     $order['manage_url'] = "customizations.php?order_id={$order['order_id']}&status=" . urlencode($order['status']) . "&job_type=ORDER";
 }
 
+// Clean buffer and send JSON
+ob_end_clean();
 header('Content-Type: application/json');
 echo json_encode([
     'stats' => [
@@ -208,12 +241,13 @@ echo json_encode([
         'values' => $chart_values,
         'title' => $chart_title
     ],
-    'top_services' => $top_services,
-    'orders' => $orders,
+    'top_services' => $top_services ?: [],
+    'orders' => $orders ?: [],
     'pagination' => [
         'current_page' => $page,
         'total_pages' => ceil($total_rows / $limit),
         'total_rows' => (int)$total_rows
     ],
-    'timeframe_label' => $timeframe === 'today' ? 'Today' : ($timeframe === 'week' ? 'This Week' : 'This Month')
+    'timeframe_label' => $display_label,
+    'short_label' => $timeframe === 'today' ? 'Today' : ($timeframe === 'week' ? 'This Week' : 'This Month')
 ]);

@@ -56,12 +56,66 @@ if ($user_type === 'Customer') {
                 u.profile_picture AS avatar
          FROM order_messages m
          JOIN users u ON u.user_id = m.sender_id
-         WHERE m.order_id = ? AND m.sender = 'Staff'
+         WHERE m.order_id = ?
+           AND m.sender_id > 0
+           AND m.sender IN ('Staff','System')
          ORDER BY m.message_id DESC
          LIMIT 1",
         'i',
         [$order_id]
     );
+
+    // Fallback #1: last staff who opened the chat (user_status)
+    if (empty($partner_row)) {
+        $partner_row = db_query(
+            "SELECT u.user_id AS id,
+                    TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) AS name,
+                    u.profile_picture AS avatar
+             FROM user_status us
+             JOIN users u ON u.user_id = us.user_id
+             WHERE us.order_id = ? AND us.user_type = 'Staff'
+             ORDER BY us.last_activity DESC
+             LIMIT 1",
+            'i',
+            [$order_id]
+        );
+    }
+
+    // Fallback #2: use job_orders assignment / verifier if no staff message yet
+    if (empty($partner_row)) {
+        $partner_row = db_query(
+            "SELECT u.user_id AS id,
+                    TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) AS name,
+                    u.profile_picture AS avatar
+             FROM users u
+             WHERE u.user_id = (
+                 SELECT COALESCE(NULLIF(jo.assigned_to, 0), NULLIF(jo.payment_verified_by, 0), NULLIF(jo.created_by, 0))
+                 FROM job_orders jo
+                 WHERE jo.order_id = ?
+                 ORDER BY jo.updated_at DESC, jo.id DESC
+                 LIMIT 1
+             )
+             LIMIT 1",
+            'i',
+            [$order_id]
+        );
+    }
+
+    // Fallback #3: last staff activity log mentioning this order (best-effort backfill for older data)
+    if (empty($partner_row)) {
+        $partner_row = db_query(
+            "SELECT u.user_id AS id,
+                    TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) AS name,
+                    u.profile_picture AS avatar
+             FROM activity_logs al
+             JOIN users u ON u.user_id = al.user_id
+             WHERE al.details LIKE CONCAT('%Order #', ?, '%')
+             ORDER BY al.created_at DESC
+             LIMIT 1",
+            'i',
+            [$order_id]
+        );
+    }
 
     if (!empty($partner_row)) {
         $partner = [

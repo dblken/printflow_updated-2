@@ -23,11 +23,6 @@ $current_user = get_logged_in_user();
     <link rel="stylesheet" href="/printflow/public/assets/css/output.css">
     <link rel="stylesheet" href="/printflow/public/assets/css/bootstrap-icons.min.css">
     
-    <!-- Load Socket.io and WebRTC Call Assets -->
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <link rel="stylesheet" href="/printflow/public/assets/css/printflow_call.css">
-    <script src="/printflow/public/assets/js/printflow_call.js"></script>
-
     <?php include __DIR__ . '/../includes/admin_style.php'; ?>
     <style>
         .hidden { display: none !important; }
@@ -86,6 +81,7 @@ $current_user = get_logged_in_user();
         }
         .dot-online { position: absolute; bottom: -2px; right: -2px; width: 14px; height: 14px; background: #22c55e; border-radius: 50%; border: 3px solid #fff; display: none; }
         .dot-online.active { display: block; }
+        .dot-online.busy { display: block; background: #f59e0b; }
         
         .conv-info { flex: 1; min-width: 0; }
         .conv-name-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -136,6 +132,127 @@ $current_user = get_logged_in_user();
 
         .bubble-meta { font-size: 0.65rem; color: #94a3b8; font-weight: 700; margin-top: 4px; display: flex; align-items: center; gap: 6px; }
         .bubble-row.self .bubble-meta { justify-content: flex-end; }
+
+        /* Order Update Message Styles */
+        .bubble-row.system.order-update.staff-view { justify-content: flex-end !important; margin: 12px 0; }
+        .order-update-bubble.staff {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            padding: 1rem;
+            max-width: 320px;
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .order-update-bubble.staff:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            border-color: #06A1A1;
+            background: #fff;
+        }
+        .order-update-bubble.staff:active {
+            transform: translateY(0);
+        }
+        .order-update-label {
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+        }
+        .order-update-content {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .order-thumb-wrap {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            flex-shrink: 0;
+        }
+        .order-thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .order-text {
+            flex: 1;
+            min-width: 0;
+        }
+        .order-title {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #1e293b;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-bottom: 2px;
+        }
+        .order-message {
+            font-size: 0.78rem;
+            color: #64748b;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .order-update-time {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            text-align: right;
+            margin-top: 2px;
+        }
+
+        /* Call Log Bubbles */
+        .call-log-bubble {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 20px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: default;
+            user-select: none;
+            transition: all 0.2s;
+            max-width: 260px;
+            position: relative;
+        }
+        .bubble-row.other .call-log-bubble {
+            background: #ffffff;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+        .bubble-row.self .call-log-bubble {
+            background: #ffffff;
+            color: #0a2530;
+            border: 1px solid rgba(10, 37, 48, 0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+        .call-log-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 1.1rem;
+        }
+        .bubble-row.other .call-log-icon { background: #f1f5f9; color: #64748b; }
+        .bubble-row.self .call-log-icon { background: #f1f5f9; color: #0a2530; }
+        
+        .call-log-details { display: flex; flex-direction: column; gap: 1px; }
+        .call-log-title { font-weight: 800; font-size: 0.9rem; }
+        .call-log-status { font-size: 0.72rem; font-weight: 600; opacity: 0.6; }
 
         /* --- Messenger Layout --- */
         .msg-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #e2e8f0; border: 1px solid #cbd5e1; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 800; color: #475569; flex-shrink: 0; }
@@ -197,6 +314,67 @@ $current_user = get_logged_in_user();
             max-height: 420px;
             object-fit: cover; 
             display: block; 
+        }
+
+        /* --- Premium Toast System --- */
+        #staff-toast-container {
+            position: fixed;
+            top: 32px;
+            left: 0;
+            width: 100%;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            pointer-events: none;
+        }
+        .staff-toast-item {
+            pointer-events: auto;
+            min-width: 320px;
+            max-width: 420px;
+            background: #ffffff !important;
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(15, 37, 48, 0.15);
+            border-radius: 20px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 20px 40px rgba(15, 37, 48, 0.15);
+            animation: toast-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .staff-toast-item.exit { animation: toast-out 0.3s ease forwards; }
+        .toast-icon {
+            width: 40px; height: 40px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; font-size: 1.25rem;
+        }
+        .toast-content { flex: 1; }
+        .toast-title { font-size: 0.95rem; font-weight: 900; color: #0a2530; margin-bottom: 2px; }
+        .toast-message { font-size: 0.82rem; color: #64748b; font-weight: 600; line-height: 1.4; }
+        .toast-progress { position: absolute; bottom: 0; left: 0; height: 3px; background: rgba(0,0,0,0.03); width: 100%; }
+        .toast-progress-bar { height: 100%; width: 0%; transition: width linear; }
+        
+        .toast-error .toast-icon { background: #fee2e2 !important; color: #ef4444 !important; }
+        .toast-error .toast-progress-bar { background: #ef4444 !important; }
+        .toast-success .toast-icon { background: #dcfce7 !important; color: #22c55e !important; }
+        .toast-success .toast-progress-bar { background: #22c55e !important; }
+        .toast-warning .toast-icon { background: #fef3c7 !important; color: #f59e0b !important; }
+        .toast-warning .toast-progress-bar { background: #f59e0b !important; }
+
+        @keyframes toast-in {
+            from { opacity: 0; transform: translateY(-40px) scale(0.9); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes toast-out {
+            from { opacity: 1; transform: translateY(0) scale(1); }
+            to { opacity: 0; transform: translateY(-20px) scale(0.95); }
         }
         
         .reply-preview-bubble { 
@@ -415,6 +593,10 @@ $current_user = get_logged_in_user();
         .details-modal-content { display: grid; grid-template-columns: 260px 1fr; flex: 1; overflow: hidden; }
         .details-sidebar { background: #f8fafc; border-right: 1px solid #f1f5f9; padding: 1.25rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; padding-bottom: 2.5rem; }
         .details-main { padding: 1.5rem; overflow-y: auto; background: #fff; }
+        
+        /* Ready States */
+        .call-btns { transition: all 0.2s; }
+        .call-btns.pf-not-ready { opacity: 0.3 !important; cursor: not-allowed !important; filter: grayscale(1); pointer-events: none; }
         
         /* High-Density Components */
         .pf-mini-card { background: #fff; border-radius: 20px; padding: 1.25rem; border: 1px solid #eef2f6; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
@@ -750,8 +932,8 @@ $current_user = get_logged_in_user();
         <img id="staffLightboxImg" src="" style="max-width:100%;max-height:80vh;border-radius:1rem;box-shadow:0 0 60px rgba(0,0,0,0.6);display:none;object-fit:contain;">
         <video id="staffLightboxVideo" controls style="max-width:100%;max-height:80vh;border-radius:1rem;box-shadow:0 0 60px rgba(0,0,0,0.6);display:none;background:#000;outline:none;" preload="metadata"></video>
         <div style="display:flex; justify-content:center; gap:1.5rem; margin-top:1.5rem;">
-            <a id="staffLightboxDownload" href="" download class="h-btn bg-white" style="width:auto; padding:0 20px; font-weight:700;">&#x2B07; Download</a>
-            <button onclick="closeLightbox()" class="h-btn bg-white" style="width:auto; padding:0 20px; font-weight:700;">&#x2715; Close</button>
+            <a id="staffLightboxDownload" href="" download class="h-btn bg-white" style="width:auto; padding:0 20px; font-weight:700;">Download</a>
+            <button onclick="closeLightbox()" class="h-btn bg-white" style="width:auto; padding:0 20px; font-weight:700;">Close</button>
         </div>
     </div>
 </div>
@@ -831,31 +1013,106 @@ const REACTION_EMOJIS = {
     'like': '👍', 'love': '❤️', 'haha': '😂', 'wow': '😮', 'sad': '😢', 'angry': '😡'
 };
 
-// --- Call Integration ---
-let callSystem = null;
+
+// Call system singleton is accessed via window.PFCall
+
 function initCallSystem() {
-    if (callSystem) return;
-    callSystem = new PrintFlowCall({
-        userId: <?php echo get_user_id(); ?>,
-        role: 'Staff',
-        userName: '<?php echo str_replace("'", "\\'", $_SESSION['user_name'] ?? "Staff"); ?>',
-        userAvatar: '<?= addslashes(get_profile_image($current_user['profile_picture'] ?? null)) ?>'
+    if (window.__pfCallInitDone) return;
+    if (!window.PFCall) {
+        console.warn('[PFCall] System object not found during init');
+        return;
+    }
+    window.__pfCallInitDone = true;
+
+    // Ensure activeId is synced for call events
+    if (!window.PFCallState) window.PFCallState = {};
+    window.PFCallState.activeId = activeId;
+
+    window.PFCall.initialize(
+        <?php echo get_user_id(); ?>,
+        'Staff',
+        '<?php echo str_replace("'", "\\'", $_SESSION['user_name'] ?? "Staff"); ?>',
+        '<?= addslashes(get_profile_image($current_user['profile_picture'] ?? null)) ?>',
+        window.baseUrl || ''
+    );
+
+    // Real-time status updates
+    window.PFCall.socket.on('user-status-change', (data) => {
+        console.log('[PFCall][UI] Status changed:', data);
+        // Find the conversation card and update the dot
+        const cards = document.querySelectorAll('.conv-card');
+        cards.forEach(card => {
+            // This is a bit tricky because card doesn't explicitly store userId
+            // But we can check if it matches the active chat or re-fetch convs if needed
+            // For now, the simplest is to just trigger a re-fetch of convs for real-time feel
+            // or we could store userId on the card.
+        });
+        loadConvs(); // Simple and effective
     });
 }
 
+// Enable/Disable call buttons based on connection
+window.addEventListener('PFCallConnected', () => {
+    console.log('[PFCall][UI] Socket connected, enabling call UI');
+    document.querySelectorAll('.call-btns').forEach(btn => {
+        btn.classList.remove('pf-not-ready');
+        btn.disabled = false;
+        btn.title = btn.getAttribute('data-orig-title') || btn.title;
+    });
+});
+
+window.addEventListener('PFCallDisconnected', () => {
+    console.warn('[PFCall][UI] Socket disconnected, disabling call UI');
+    document.querySelectorAll('.call-btns').forEach(btn => {
+        btn.classList.add('pf-not-ready');
+        btn.disabled = true;
+        if (!btn.getAttribute('data-orig-title')) btn.setAttribute('data-orig-title', btn.title);
+        btn.title = 'Reconnecting to call server...';
+    });
+});
+
 function initiateCall(type) {
     if (!activeId) return;
-    initCallSystem();
+
+    // Check if system is ready
+    if (!window.PFCallReady || !window.PFCall || !window.PFCall.userId) {
+        console.warn('[PFCall] System not ready, waiting for initialization before starting call...');
+        
+        // Attempt manual recovery if possible
+        if (window.PFCall && typeof initCallSystem === 'function') {
+            initCallSystem();
+        }
+
+        const handler = () => {
+            console.log('[PFCall] System ready, retrying call...');
+            initiateCall(type);
+        };
+        document.addEventListener('PFCallGlobalReady', handler, { once: true });
+        return;
+    }
+
+    // Double check the singleton
+    if (typeof window.PFCall.startCall !== 'function') {
+        console.error('[PFCall] startCall method not found');
+        showToast('Call system error. Please refresh.', 'error');
+        return;
+    }
+
     const fd = new FormData();
     fd.append('order_id', activeId);
     api('/public/api/chat/status.php', 'POST', fd)
         .then(res => {
-            if (!res.partner) { alert("Customer is unavailable."); return; }
+            if (!res.partner) { showToast("Customer is unavailable.", "error"); return; }
             const pId = res.partner.id;
             const pName = res.partner.name;
             const pAvatar = resolveProfileUrl(res.partner.avatar);
             
-            callSystem.startCall(pId, 'Customer', type, activeId, pName, pAvatar);
+            if (window.PFCall && typeof window.PFCall.startCall === 'function') {
+                window.PFCall.startCall(pId, 'Customer', pName, pAvatar, type);
+            } else {
+                console.error('[PFCall] PFCall or startCall method is missing');
+                showToast('Calling system error. Please refresh the page.', 'error');
+            }
         });
 }
 
@@ -866,8 +1123,16 @@ async function api(url, method = 'GET', body = null) {
     try {
         const r = await fetch(window.baseUrl + url, opts);
         if (!r.ok) throw new Error('Request failed with status ' + r.status);
-        return await r.json();
+        const text = await r.text();
+        const jsonStart = text.indexOf('{');
+        if (jsonStart !== -1) {
+            return JSON.parse(text.substring(jsonStart));
+        }
+        return JSON.parse(text);
     } catch (e) {
+        if (e.message.includes('JSON') || e.message.includes('Unexpected token')) {
+            return { success: false, error: 'File upload exceeded server limits. Please select fewer or smaller files.' };
+        }
         return { success: false, error: e.message };
     }
 }
@@ -888,7 +1153,8 @@ function loadConvs() {
             }
             list.innerHTML = data.conversations.map(c => {
                 const active = activeId === c.order_id ? 'active' : '';
-                const online = c.is_online ? 'active' : '';
+                const online = c.online_status === 'online' ? 'active' : '';
+                const busy = c.online_status === 'in-call' ? 'busy' : '';
                 // Fallback values and safe escaping for onclick parameters
                 const safeCustName = (c.customer_name || 'Customer').replace(/'/g, "\\'");
                 const safeProdName = (c.product_name || 'Order').replace(/'/g, "\\'");
@@ -898,7 +1164,7 @@ function loadConvs() {
                 <div class="conv-card ${active}" onclick="openChat(${c.order_id}, '${safeCustName}', '${safeProdName}', ${c.is_archived}, '${safeAvatar}')">
                     <div class="conv-avatar" style="overflow: hidden;">
                         ${c.customer_avatar ? `<img src="${resolveProfileUrl(c.customer_avatar)}" style="width:100%;height:100%;object-fit:cover;" onerror="${PROFILE_IMAGE_ONERROR}">` : ((c.customer_name || '?')[0] || '?').toUpperCase()}
-                        <div class="dot-online ${online}"></div>
+                        <div class="dot-online ${online} ${busy}"></div>
                     </div>
                     <div class="conv-info">
                         <div class="conv-name-row">
@@ -952,20 +1218,29 @@ function openChat(id, name, meta, archived, avatar = '') {
     lastId = 0;
     partnerAvatarUrl = avatar ? resolveProfileUrl(avatar) : null;
     window.staffUiOpened = true;
-    document.getElementById('welcomeScreen').style.display = 'none';
-    document.getElementById('chatInterface').style.display = 'flex';
-    document.getElementById('activeName').textContent = name;
-    document.getElementById('activeMeta').textContent = meta.toLowerCase();
+    const welcomeEl = document.getElementById('welcomeScreen');
+    const chatEl = document.getElementById('chatInterface');
+    if (welcomeEl) welcomeEl.style.display = 'none';
+    if (chatEl) chatEl.style.display = 'flex';
+    
+    const nameEl = document.getElementById('activeName');
+    if (nameEl) nameEl.textContent = name;
+    
+    const metaEl = document.getElementById('activeMeta');
+    if (metaEl) metaEl.textContent = meta.toLowerCase();
     
     const avatarEl = document.getElementById('activeAvatar');
-    avatarEl.style.overflow = 'hidden';
-    if (avatar) {
-        avatarEl.innerHTML = `<img src="${resolveProfileUrl(avatar)}" style="width:100%;height:100%;object-fit:cover;" onerror="${PROFILE_IMAGE_ONERROR}">`;
-    } else {
-        avatarEl.textContent = name[0].toUpperCase();
+    if (avatarEl) {
+        avatarEl.style.overflow = 'hidden';
+        if (avatar) {
+            avatarEl.innerHTML = `<img src="${resolveProfileUrl(avatar)}" style="width:100%;height:100%;object-fit:cover;" onerror="${PROFILE_IMAGE_ONERROR}">`;
+        } else {
+            avatarEl.textContent = (name && name[0] ? name[0].toUpperCase() : '?');
+        }
     }
     
-    document.getElementById('messagesArea').innerHTML = '<div class="p-8 text-center text-slate-400">Loading history...</div>';
+    const msgsArea = document.getElementById('messagesArea');
+    if (msgsArea) msgsArea.innerHTML = '<div class="p-8 text-center text-slate-400">Loading history...</div>';
     
     // Set initial archive UI
     updateArchiveUI(!!archived);
@@ -1009,6 +1284,10 @@ function toggleArchStatus(id, st) {
 function loadMsgs() {
     if (!activeId) return;
     const box = document.getElementById('messagesArea');
+    if (!box) {
+        if (pollId) { clearInterval(pollId); pollId = null; }
+        return;
+    }
     api(`/public/api/chat/fetch_messages.php?order_id=${activeId}&last_id=${lastId}&is_active=1`)
         .then(data => {
             if (!data.success) {
@@ -1018,8 +1297,8 @@ function loadMsgs() {
                 }
                 return;
             }
-            if (lastId === 0) box.innerHTML = '';
-            
+            const isInitialLoad = (lastId === 0);
+            if (isInitialLoad) box.innerHTML = '';
             data.messages.forEach(m => {
                 appendMsgUI(m);
                 lastId = Math.max(lastId, m.id);
@@ -1030,10 +1309,29 @@ function loadMsgs() {
                 renderAllReactions();
             }
             
-            document.getElementById('partnerStatus').style.display = data.partner.is_online ? 'inline-block' : 'none';
+            const partnerStatus = document.getElementById('partnerStatus');
+            if (partnerStatus) {
+                partnerStatus.style.display = data.partner.is_online ? 'inline-block' : 'none';
+                partnerStatus.className = 'dot-online'; // reset
+                if (data.partner.online_status === 'online') partnerStatus.classList.add('active');
+                if (data.partner.online_status === 'in-call') partnerStatus.classList.add('busy');
+            }
             partnerAvatarUrl = (data.partner && data.partner.avatar) ? resolveProfileUrl(data.partner.avatar) : partnerAvatarUrl;
             if (data.is_archived !== undefined) updateArchiveUI(data.is_archived);
-            if (data.messages.length) scrollToBottom(lastId === 0 ? false : true, lastId === 0);
+            if (data.messages.length) {
+                if (isInitialLoad) {
+                    // Instant jump to last message
+                    const last = box.lastElementChild;
+                    if (last) {
+                        last.scrollIntoView({ block: 'end' });
+                        // Safety jumps for media/layout
+                        setTimeout(() => last.scrollIntoView({ block: 'end' }), 50);
+                        setTimeout(() => last.scrollIntoView({ block: 'end' }), 150);
+                    }
+                } else {
+                    scrollToBottom(true, false);
+                }
+            }
             
             if (data.last_seen_message_id !== undefined) {
                 updateStaffSeenIndicators(data.last_seen_message_id);
@@ -1047,6 +1345,7 @@ function loadMsgs() {
 function updatePinnedBar(pinned) {
     const bar = document.getElementById('pinnedBar');
     const text = document.getElementById('pinnedCountText');
+    if (!bar || !text) return;
     if (!pinned || pinned.length === 0) {
         bar.style.display = 'none';
         bar.classList.remove('pin-bar-active');
@@ -1108,9 +1407,12 @@ function appendMsgUI(m) {
                       prevRow.getAttribute('data-sender') === (m.is_self ? 'self' : m.sender) && 
                       currentMin === prevMin;
 
+    const isCallLog = m.message_type === 'call_log' || m.message_type === 'call_event' || /voice call|video call|missed|declined|busy/i.test(m.message);
+    const rowClass = (m.is_system && !isCallLog) ? 'system' : (m.is_self ? 'self' : 'other');
+
     const row = document.createElement('div');
     row.id = `ms-${m.id}`;
-    row.className = `bubble-row ${m.is_system ? 'system' : (m.is_self ? 'self' : 'other')}`;
+    row.className = `bubble-row ${rowClass}`;
     row.setAttribute('data-sender', m.is_self ? 'self' : m.sender);
     row.setAttribute('data-time', m.created_at);
 
@@ -1119,7 +1421,31 @@ function appendMsgUI(m) {
         row.classList.add('grouped-msg-next');
     }
 
-    if (m.is_system) {
+    if (m.is_system && !isCallLog) {
+        if (m.message_type === 'order_update') {
+            let payload = {};
+            try { payload = JSON.parse(m.message); } catch(e) { console.error("Invalid order update payload", m.message); }
+            row.className = 'bubble-row system order-update staff-view';
+            row.innerHTML = `
+                <div class="msg-content-col">
+                    <div class="order-update-bubble staff" onclick="openDetails(activeId)" title="Click to view order details">
+                        <div class="order-update-label">[ Order Update ]</div>
+                        <div class="order-update-content">
+                            <div class="order-thumb-wrap">
+                                <img src="${payload.product_image || DEFAULT_PROFILE_IMAGE}" class="order-thumb" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" />
+                            </div>
+                            <div class="order-text">
+                                <div class="order-title">${escapeHtml(payload.product_name || 'Order')}</div>
+                                <div class="order-message">${escapeHtml(payload.status_text || '')}</div>
+                            </div>
+                        </div>
+                        <div class="order-update-time">${formatTime(m.created_at)}</div>
+                    </div>
+                </div>
+            `;
+            box.appendChild(row);
+            return;
+        }
         row.innerHTML = `<div class="msg-content-col"><div class="bubble">${escapeHtml(m.message)}</div></div>`;
         box.appendChild(row); return;
     }
@@ -1169,8 +1495,25 @@ function appendMsgUI(m) {
             ${m.reply_id ? `<a href="javascript:void(0)" onclick="document.getElementById('ms-${m.reply_id}')?.scrollIntoView({behavior: 'smooth', block: 'center'})" class="reply-preview-bubble">↳ Replying: ${m.reply_image ? 'Photo' : (m.reply_message ? escapeHtml(m.reply_message) : 'Message')}</a>` : ''}
     `;
 
-    if (m.message_type === 'voice') {
-        const audioSrc = resolveAppUrl(m.message_file || m.file_path || m.image_path);
+    if (isCallLog) {
+        const isVideo = m.message.toLowerCase().includes('video');
+        const isMissed = m.message.toLowerCase().includes('missed') || m.message.toLowerCase().includes('declined') || m.message.toLowerCase().includes('busy');
+        const icon = isVideo ? '<i class="bi bi-camera-video-fill"></i>' : '<i class="bi bi-telephone-fill"></i>';
+        
+        let title = m.message;
+        const statusText = m.is_self ? 'Outgoing' : 'Incoming';
+
+        colHtml += `
+            <div class="call-log-bubble">
+                <div class="call-log-icon" style="${isMissed ? 'color: #ef4444; background: #fef2f2;' : ''}">${icon}</div>
+                <div class="call-log-details">
+                    <div class="call-log-title" style="${isMissed ? 'color: #ef4444;' : ''}">${escapeHtml(title)}</div>
+                    <div class="call-log-status">${statusText}</div>
+                </div>
+            </div>
+        `;
+    } else if (m.message_type === 'voice') {
+        const audioSrc = resolveAppUrl(m.message_file || m.file_path || m.image_path) + '?v=' + Date.now();
         colHtml += `
         <div class="voice-bubble-player" id="voice-p-${m.id}">
             <button class="play-pause-btn" onclick="toggleVoicePlayer(${m.id}, '${audioSrc}')">
@@ -1194,10 +1537,10 @@ function appendMsgUI(m) {
                 </div>
             </div>`;
         } else {
-            colHtml += `<div class="chat-image-wrap" onclick="zoomImg('${m.image_path.replace(/'/g, "\\'")}')"><img src="${m.image_path}" onload="scrollToBottom(true)"></div>`; 
+            colHtml += `<div class="chat-image-wrap" onclick="zoomImg('${m.image_path.replace(/'/g, "\\'")}')"><img src="${m.image_path}" onload="this.closest('.bubble-row').parentElement.scrollTop = this.closest('.bubble-row').parentElement.scrollHeight;"></div>`; 
         }
     }
-    if (m.message) colHtml += `<span>${escapeHtml(m.message)}</span>`;
+    if (m.message && !isCallLog && m.message_type !== 'voice') colHtml += `<span>${escapeHtml(m.message)}</span>`;
     if (!m.is_system) colHtml += `<div class="reaction-display-container" id="reactions-for-${m.id}" style="display:none;"></div>`;
     colHtml += `</div><div class="bubble-meta">${formatTime(m.created_at)}</div>`;
     if (m.is_self) colHtml += `<div class="seen-wrapper" id="seen-container-${m.id}"></div>`;
@@ -1314,7 +1657,7 @@ async function pinMessage(msgId) {
             loadMsgs();
             closeAllMenus();
         } else {
-            alert(res.error || "Pin failed");
+            showToast(res.error || "Pin failed", "error");
         }
     });
 }
@@ -1485,7 +1828,7 @@ async function processForward() {
 
     closeForwardModal();
     if (successCount > 0) {
-        alert(`Successfully forwarded to ${successCount} conversation(s).`);
+        showToast(`Successfully forwarded to ${successCount} conversation(s).`, "success");
         loadConvs();
     } else {
         btn.disabled = false;
@@ -1541,10 +1884,15 @@ document.getElementById('msgInput').onkeydown = (e) => {
 document.getElementById('btnSend').onclick = sendMsg;
 
 document.getElementById('mediaInput').onchange = function() {
+    if (this.files.length + uploadFiles.length > 10) {
+        showToast("You can only send up to 10 images at a time!", "warning");
+        this.value = '';
+        return;
+    }
     for (let f of this.files) {
         const isVideo = f.type.startsWith('video/');
         const maxMb = isVideo ? 50 : 10;
-        if (f.size > maxMb * 1048576) { alert(`"${f.name}" exceeds the ${maxMb}MB limit.`); continue; }
+        if (f.size > maxMb * 1048576) { showToast(`"${f.name}" exceeds the ${maxMb}MB limit.`, "error"); continue; }
         uploadFiles.push(f);
     }
     renderPreviews(); this.value='';
@@ -1570,55 +1918,58 @@ function openDetails(id) {
         const it = data.items || [];
         
         let h = `
-        <div class="details-sidebar">
-            <!-- Profile -->
-            <div class="pf-mini-card" style="background:#06A1A1; color:#fff; border:none; text-align:center; padding:1.25rem 0.75rem;">
-                <div style="width:48px; height:48px; border-radius:15px; background:rgba(255,255,255,0.2); margin:0 auto 0.75rem; display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:900;">
-                    ${(c.full_name || '?')[0].toUpperCase()}
+        <div class="details-sidebar" style="gap:1rem;">
+            <!-- Customer Info -->
+            <div class="pf-mini-card" style="padding:0.75rem;">
+                <div class="pf-spec-key" style="margin-bottom:6px; font-size:9px;">Customer Profile</div>
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div style="width:32px; height:32px; border-radius:8px; background:#06A1A1; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.8rem; overflow:hidden;">
+                        ${c.profile_picture && !c.profile_picture.includes('default.png') ? `<img src="${c.profile_picture}" style="width:100%;height:100%;object-fit:cover;">` : (c.full_name || '?')[0].toUpperCase()}
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:0.85rem; font-weight:900; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(c.full_name || 'Guest')}</div>
+                        <div style="font-size:8px; font-weight:700; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(c.email || '')}</div>
+                    </div>
                 </div>
-                <div class="pf-spec-key" style="color:rgba(255,255,255,0.6); margin-bottom:4px;">Customer Profile</div>
-                <div style="font-size:0.95rem; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(c.full_name || 'Guest')}">${escapeHtml(c.full_name || 'Guest')}</div>
-                <div style="font-size:10px; font-weight:700; opacity:0.8; margin-top:2px;">${escapeHtml(c.email || 'No Email')}</div>
-                <div style="font-size:10px; font-weight:700; opacity:0.8;">${escapeHtml(c.contact_number || 'No Contact')}</div>
             </div>
 
             <!-- Workflow -->
-            <div class="pf-mini-card" style="padding:1.25rem;">
-                <div class="pf-spec-key" style="margin-bottom:8px;">Workflow Status</div>
-                <div style="display:flex; align-items:center; justify-content:space-between; background:#f8fafc; padding:10px; border-radius:12px; border:1px solid #f1f5f9;">
-                     <div style="font-size:11px; font-weight:900; color:#1e293b;">${escapeHtml(o.status)}</div>
-                     <span style="width:10px; height:10px; border-radius:50%; background:${o.status === 'Completed' ? '#10b981' : '#3b82f6'};"></span>
+            <div class="pf-mini-card" style="padding:0.75rem;">
+                <div class="pf-spec-key" style="margin-bottom:6px; font-size:9px;">Workflow Status</div>
+                <div style="display:flex; align-items:center; justify-content:space-between; background:#f8fafc; padding:6px 10px; border-radius:8px; border:1px solid #f1f5f9;">
+                     <div style="font-size:10px; font-weight:900; color:#1e293b;">${escapeHtml(o.status)}</div>
+                     <span style="width:8px; height:8px; border-radius:50%; background:${o.status === 'Completed' ? '#10b981' : '#3b82f6'};"></span>
                 </div>
             </div>
 
             <!-- Payment -->
-            <div class="pf-mini-card" style="padding:1.25rem;">
-                <div class="pf-spec-key" style="margin-bottom:8px;">Payment Summary</div>
-                <div style="display:flex; align-items:center; justify-content:space-between; background:#f8fafc; padding:10px; border-radius:12px; border:1px solid #f1f5f9;">
-                     <div style="font-size:11px; font-weight:900; color:#1e293b;">${escapeHtml(o.payment_status || 'Unverified')}</div>
-                     <span style="width:10px; height:10px; border-radius:50%; background:${o.payment_status === 'Paid' ? '#10b981' : '#f59e0b'};"></span>
+            <div class="pf-mini-card" style="padding:0.75rem;">
+                <div class="pf-spec-key" style="margin-bottom:6px; font-size:9px;">Payment Summary</div>
+                <div style="display:flex; align-items:center; justify-content:space-between; background:#f8fafc; padding:6px 10px; border-radius:8px; border:1px solid #f1f5f9;">
+                     <div style="font-size:10px; font-weight:900; color:#1e293b;">${escapeHtml(o.payment_status || 'Unverified')}</div>
+                     <span style="width:8px; height:8px; border-radius:50%; background:${o.payment_status === 'Paid' ? '#10b981' : '#f59e0b'};"></span>
                 </div>
             </div>
 
             <!-- Finance -->
-            <div class="pf-mini-card" style="background:#0f172a; color:#fff; border:none; padding:1rem; margin-bottom:1rem;">
-                 <div class="pf-spec-key" style="color:#06A1A1; margin-bottom:2px;">Statement</div>
-                 <div style="font-size:1.35rem; font-weight:900; line-height:1; margin-bottom:0.75rem;">${o.total_amount || '—'}</div>
-                 <a href="${window.baseUrl}/staff/customizations.php?order_id=${o.order_id}" style="display:block; text-align:center; background:#06A1A1; color:#fff; padding:10px; border-radius:12px; font-size:11px; font-weight:900; text-decoration:none !important; border:1px solid rgba(255,255,255,0.05); box-shadow:0 4px 8px rgba(0,0,0,0.3);">
+            <div class="pf-mini-card" style="background:#0f172a; color:#fff; border:none; padding:0.75rem; margin-bottom:0;">
+                 <div class="pf-spec-key" style="color:#06A1A1; margin-bottom:2px; font-size:9px;">Total</div>
+                 <div style="font-size:1.1rem; font-weight:900; line-height:1; margin-bottom:0.5rem;">${o.total_amount || '—'}</div>
+                 <a href="${window.baseUrl}/staff/customizations.php?order_id=${o.order_id}" style="display:block; text-align:center; background:#06A1A1; color:#fff; padding:6px; border-radius:8px; font-size:10px; font-weight:900; text-decoration:none !important; border:1px solid rgba(255,255,255,0.05); box-shadow:0 4px 8px rgba(0,0,0,0.3);">
                     MANAGE ORDER
                  </a>
             </div>
         </div>
 
-        <div class="details-main">
-            <div style="font-size:10px; font-weight:900; color:#94a3b8; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:1.5rem;">Production Roadmap Details</div>
-            <div style="display:flex; flex-direction:column; gap:1.25rem;">
+        <div class="details-main" style="padding-left:1rem;">
+            <div style="font-size:9px; font-weight:900; color:#94a3b8; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:1rem;">Production Roadmap Details</div>
+            <div style="display:flex; flex-direction:column; gap:0.75rem;">
                 ${it.length ? it.map(i => {
                     const specs = i.customization || {};
                     const entries = Object.entries(specs).filter(([k,v]) => v && v !== 'null' && typeof v !== 'object' && k !== 'service_type' && k !== 'branch_id');
                     
-                    // Advanced Placement Preview Logic
-                    let displayImg = i.design_url;
+                    // Advanced Placement Preview Logic (Priority: Service Image > Design Preview)
+                    let displayImg = i.service_image || i.design_url;
                     if (!displayImg) {
                          const placement = specs['print_placement'] || specs['placement'] || '';
                          if (placement.includes('Front Center')) {
@@ -1633,29 +1984,29 @@ function openDetails(id) {
                     }
 
                     return `
-                    <div style="background:#fff; border:1px solid #f1f5f9; border-radius:24px; padding:1.5rem;">
-                        <div style="display:flex; align-items:flex-start; gap:1.5rem;">
-                            <div style="width:112px; height:112px; border-radius:24px; background:#f8fafc; border:1px solid #f1f5f9; overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                                ${displayImg ? `<img src="${displayImg}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.src='${window.baseUrl}/public/assets/img/placeholder.png'; this.style.opacity=0.3;">` : '<span style="font-size:2.5rem; opacity:0.1;">🎨</span>'}
+                    <div style="background:#fff; border:1px solid #f1f5f9; border-radius:16px; padding:1rem;">
+                        <div style="display:flex; align-items:flex-start; gap:1rem;">
+                            <div style="width:72px; height:72px; border-radius:12px; background:#f8fafc; border:1px solid #f1f5f9; overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <img src="${displayImg}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.src='${window.baseUrl}/public/assets/images/services/default.png'; this.style.opacity=0.3;">
                             </div>
-                            <div style="flex:1;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                                    <div style="font-size:1.35rem; font-weight:900; color:#1e293b; line-height:1;">${escapeHtml(i.service_name)}</div>
-                                    <div style="text-align:right;">
-                                         <div class="pf-spec-key" style="margin:0;">Total Order Value</div>
-                                         <div style="font-size:1.35rem; font-weight:900; color:#06A1A1;">${i.subtotal || '—'}</div>
+                            <div style="flex:1; min-width:0;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                    <div style="font-size:1.1rem; font-weight:900; color:#1e293b; line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(i.product_name || 'Order Item')}">${escapeHtml(i.product_name || 'Order Item')}</div>
+                                    <div style="text-align:right; flex-shrink:0; margin-left:1rem;">
+                                         <div class="pf-spec-key" style="margin:0; font-size:9px;">Total</div>
+                                         <div style="font-size:1.1rem; font-weight:900; color:#06A1A1;">${i.subtotal || '—'}</div>
                                     </div>
                                 </div>
                                 <div style="display:flex; align-items:center; gap:8px;">
-                                    <span style="font-size:11px; font-weight:900; color:#64748b; text-transform:uppercase;">${escapeHtml(i.category)}</span>
-                                    <span style="background:#f1f5f9; padding:2px 10px; border-radius:20px; font-size:10px; font-weight:900; color:#475569;">UNITS: ${i.quantity}</span>
+                                    <span style="font-size:9px; font-weight:900; color:#64748b; text-transform:uppercase;">${escapeHtml(i.category)}</span>
+                                    <span style="background:#f1f5f9; padding:2px 8px; border-radius:12px; font-size:9px; font-weight:900; color:#475569;">UNITS: ${i.quantity}</span>
                                 </div>
                                 
-                                <div class="pf-spec-grid" style="margin-top:1.5rem;">
+                                <div class="pf-spec-grid" style="margin-top:1rem; gap:6px;">
                                     ${entries.map(([k,v]) => `
-                                        <div class="pf-spec-box">
-                                            <div class="pf-spec-key">${k.replace(/_/g,' ').replace('shirt ','')}</div>
-                                            <div class="pf-spec-val" style="word-break: break-all;">${v}</div>
+                                        <div class="pf-spec-box" style="padding:6px 8px; border-radius:8px;">
+                                            <div class="pf-spec-key" style="font-size:8px;">${k.replace(/_/g,' ').replace('shirt ','')}</div>
+                                            <div class="pf-spec-val" style="word-break: break-all; font-size:11px;">${v}</div>
                                         </div>
                                     `).join('')}
                                 </div>
@@ -1749,7 +2100,7 @@ function renderMediaGrid() {
 let mediaRecorder;
 let audioChunks = [];
 let timerInterval;
-const MAX_DURATION = 180; // seconds
+const MAX_DURATION = 60; // seconds
 
 const startBtn = document.getElementById("startRecord");
 const stopBtn = document.getElementById("stopRecord");
@@ -1869,7 +2220,7 @@ function initRecordingEvents() {
 window.startRecording = async function() {
     if (mediaRecorder && mediaRecorder.state === "recording") return;
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-        alert("Microphone access denied");
+        showToast("Microphone access denied", "error");
         return;
     }
     try {
@@ -1899,7 +2250,7 @@ window.startRecording = async function() {
         mediaRecorder.onstop = () => { stopVoiceVisualizer(); showVoicePreview(); };
         startVoiceVisualizer(stream);
     } catch (e) {
-        alert("Microphone access denied");
+        showToast("Microphone access denied", "error");
     }
 };
 
@@ -1985,7 +2336,7 @@ async function drawWaveformFromUrl(url, canvasId, color) {
     }
     let waveformContext = null;
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, { cache: 'no-store' });
         if (!response.ok) return;
         const arrayBuffer = await response.arrayBuffer();
         if (!arrayBuffer.byteLength) return;
@@ -2087,7 +2438,7 @@ function sendMsg() {
     const txt = input.value.trim();
     
     if (txt.length > 500) {
-        alert("Message cannot exceed 500 characters.");
+        showToast("Message cannot exceed 500 characters.", "warning");
         return;
     }
 
@@ -2122,7 +2473,7 @@ function sendMsg() {
                 // Reset textarea height
                 input.style.height = 'auto';
             } else {
-                alert(r.error || 'Failed to send message');
+                showToast(r.error || 'Failed to send message', "error");
             }
         })
         .finally(() => {
@@ -2195,7 +2546,7 @@ function sendAudio() {
             cancelRecording();
             cancelReply();
             loadMsgs();
-        } else alert(res.error || "Failed to send voice");
+        } else showToast(res.error || "Failed to send voice", "error");
     }).finally(() => {
         btn.disabled = false;
         btn.innerHTML = oldIcon;
@@ -2224,6 +2575,40 @@ function safeBase64Decode(b64) {
     try {
         return decodeURIComponent(escape(atob(b64)));
     } catch(e) { return ''; }
+}
+
+function showToast(message, type = 'error', duration = 4000) {
+    let container = document.getElementById('staff-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'staff-toast-container';
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.className = `staff-toast-item toast-${type}`;
+    let icon = 'bi-exclamation-circle-fill';
+    if (type === 'success') icon = 'bi-check-circle-fill';
+    if (type === 'warning') icon = 'bi-exclamation-triangle-fill';
+    toast.innerHTML = `
+        <div class="toast-icon"><i class="bi ${icon}"></i></div>
+        <div class="toast-content">
+            <div class="toast-title" style="color: #0a2530 !important;">${type === 'error' ? 'Oops!' : (type === 'success' ? 'Success' : 'Notice')}</div>
+            <div class="toast-message" style="color: #64748b !important;">${message}</div>
+        </div>
+        <div class="toast-progress"><div class="toast-progress-bar"></div></div>
+    `;
+    container.appendChild(toast);
+    const progressBar = toast.querySelector('.toast-progress-bar');
+    setTimeout(() => {
+        progressBar.style.transitionDuration = `${duration}ms`;
+        progressBar.style.width = '100%';
+    }, 10);
+    const removeToast = () => {
+        toast.classList.add('exit');
+        setTimeout(() => toast.remove(), 300);
+    };
+    const autoRemove = setTimeout(removeToast, duration);
+    toast.onclick = () => { clearTimeout(autoRemove); removeToast(); };
 }
 
 function formatTime(d) {
@@ -2282,10 +2667,17 @@ function closeLightbox() {
 function scrollToBottom(smooth = true, force = false) {
     const box = document.getElementById('messagesArea');
     if (!box) return;
-    const threshold = 150;
+    
+    if (!smooth || force) {
+        // Instant jump
+        box.scrollTop = box.scrollHeight;
+        return;
+    }
+
+    const threshold = 100;
     const isNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < threshold;
-    if (force || isNearBottom) {
-        box.scrollTo({ top: box.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    if (isNearBottom) {
+        box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
     }
 }
 
@@ -2333,6 +2725,21 @@ function initStaffChatPage() {
                 loadConvs();
             }, 300);
         });
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeLightbox();
+            closeDetailsModal();
+            closeForwardModal();
+        }
+    });
+
+    // Initialize call system immediately so socket is ready before first call
+    if (window.PFCallReady) {
+        initCallSystem();
+    } else {
+        window.addEventListener('PFCallGlobalReady', initCallSystem, { once: true });
     }
 }
 

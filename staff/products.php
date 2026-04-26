@@ -35,7 +35,7 @@ if (!empty($search)) {
 }
 
 // Pagination settings
-$items_per_page = 15;
+$items_per_page = 10;
 $current_page = max(1, (int)($_GET['page'] ?? 1));
 $offset = ($current_page - 1) * $items_per_page;
 

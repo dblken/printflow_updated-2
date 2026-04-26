@@ -23,7 +23,7 @@ $filter_search    = trim($_GET['search']    ?? '');
 $filter_date_from = trim($_GET['date_from'] ?? '');
 $filter_date_to   = trim($_GET['date_to']   ?? '');
 $page_num         = max(1, (int)($_GET['page'] ?? 1));
-$per_page         = 15;
+$per_page         = 10;
 $offset           = ($page_num - 1) * $per_page;
 
 // ─── Build branch conditions ──────────────────────────────────────────────────
@@ -49,7 +49,7 @@ $q1 = "
         pay.sender_name          AS sender_name,
         IF(o.order_type = 'product', 'PRODUCT', 'SERVICE') AS order_type_label,
         COALESCE(pay.source, IF(o.order_source = 'pos', 'POS', 'Online')) AS source_label,
-        COALESCE(NULLIF(pay.amount, 0), o.downpayment_amount, 0) AS amount,
+        COALESCE(pay.amount, 0) AS amount,
         COALESCE(o.total_amount, 0)             AS original_total,
         COALESCE(pay.payment_method, o.payment_method, 'Cash') AS payment_method,
         CASE
@@ -86,7 +86,7 @@ $q2 = "
         pay.sender_name          AS sender_name,
         'SERVICE'                AS order_type_label,
         COALESCE(pay.source, IF(COALESCE(o.order_source,'online') = 'pos', 'POS', 'Online')) AS source_label,
-        COALESCE(NULLIF(pay.amount, 0), o.downpayment_amount, 0) AS amount,
+        COALESCE(pay.amount, 0) AS amount,
         COALESCE(o.total_amount, 0)                                 AS original_total,
         COALESCE(pay.payment_method, o.payment_method, 'N/A')       AS payment_method,
         CASE
@@ -106,10 +106,12 @@ $q2 = "
     FROM customizations cust
     INNER JOIN orders o ON cust.order_id = o.order_id
     LEFT JOIN  customers c ON cust.customer_id = c.customer_id
-    LEFT JOIN (
-        SELECT p1.* FROM payments p1
-        INNER JOIN (SELECT MAX(id) AS max_id FROM payments GROUP BY order_id) p2 ON p1.id = p2.max_id
-    ) pay ON o.order_id = pay.order_id
+    LEFT JOIN payments pay ON pay.id = (
+        SELECT p_inner.id FROM payments p_inner 
+        WHERE p_inner.order_id = o.order_id OR p_inner.order_id = cust.customization_id 
+        ORDER BY (p_inner.order_id = cust.customization_id) DESC, p_inner.id DESC 
+        LIMIT 1
+    )
     WHERE 1=1 $branch_cond_c
 " ;
 
@@ -170,6 +172,130 @@ $payments = db_query(
     $p_params ?: null
 ) ?: [];
 
+// Shared pagination params (keep consistent for HTML + AJAX)
+$active_filters = [
+    'source'    => $filter_source,
+    'type'      => $filter_type,
+    'status'    => $filter_status,
+    'search'    => $filter_search,
+    'date_from' => $filter_date_from,
+    'date_to'   => $filter_date_to
+];
+
+// Handle AJAX request for pagination/table updates (match orders.php behavior)
+if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
+    ob_start();
+    if (empty($payments)) {
+        echo '<tr><td colspan="11" style="text-align:center;padding:40px;color:#6b7280;">No payment records match your filters.</td></tr>';
+    } else {
+        foreach ($payments as $p) {
+            $isService = ($p['order_type_label'] === 'SERVICE');
+            $isPOS     = (strtoupper($p['source_label'] ?? '') === 'POS');
+            $ps        = $p['pay_status'];
+            
+            $badgeHtml = match($ps) {
+                'TO_VERIFY'  => '<span class="status-badge badge-pending">To Verify</span>',
+                'VERIFIED'   => '<span class="status-badge badge-fulfilled">Verified</span>',
+                'REJECTED'   => '<span class="status-badge badge-cancelled">Rejected</span>',
+                'TO_PAY'     => '<span class="status-badge badge-processing">To Pay</span>',
+                'INCOMPLETE' => '<span class="status-badge" style="background:#fff7ed;color:#9a3412;border:1px solid #ffedd5;">Incomplete</span>',
+                default      => '<span class="status-badge" style="background:#f1f5f9;color:#64748b;">—</span>'
+            };
+
+            // proof url
+            $proof_url = '';
+            if (!empty($p['proof_path'])) {
+                $pf = $p['proof_path'];
+                if (str_starts_with($pf, 'http')) $proof_url = htmlspecialchars($pf);
+                else {
+                    $proof_url = '/printflow/api_view_proof.php?file=' . rawurlencode($pf);
+                }
+            }
+
+            // avatar
+            if (!empty($p['profile_pic'])) {
+                $avatarHtml = '<img src="'.get_profile_image($p['profile_pic']).'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px;flex-shrink:0;">';
+            } else {
+                $dispName = $p['customer_name'] ?: 'Guest';
+                $ini = strtoupper(substr($dispName,0,1)?:'?');
+                $avatarHtml = '<div style="width:28px;height:28px;border-radius:50%;background:#e0f2fe;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#0284c7;margin-right:8px;flex-shrink:0;">'.$ini.'</div>';
+            }
+
+            // payment method coloring
+            $pm = strtoupper($p['payment_method'] ?? '');
+            if (str_contains($pm, 'GCASH')) {
+                $pmLabel = 'GCash';
+                $methodStyle = 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;';
+            } elseif (str_contains($pm, 'MAYAMA') || str_contains($pm, 'MAYA')) {
+                $pmLabel = 'PayMaya';
+                $methodStyle = 'background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;';
+            } else {
+                $pmLabel = $p['payment_method'] ?: 'Cash';
+                $methodStyle = 'background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;';
+            }
+
+            $modal_data = htmlspecialchars(json_encode([
+                'order_id'     => $p['ref_order_id'],
+                'customer_name'=> $p['customer_name'],
+                'sender_name'  => $p['sender_name'] ?: '—',
+                'order_type'   => $p['order_type_label'],
+                'source'       => $p['source_label'],
+                'amount'       => $p['amount'],
+                'original_total'=> $p['original_total'],
+                'method'       => $p['payment_method'],
+                'status'       => $ps,
+                'status_html'  => $badgeHtml,
+                'raw_status'   => $p['raw_status'],
+                'proof_url'    => $proof_url,
+                'paid_at'      => $p['paid_at'],
+                'reference_id' => $p['reference_id']
+            ]),ENT_QUOTES);
+            ?>
+                        <tr onclick="openPayModal(<?= $modal_data ?>)">
+                            <td class="order-id-wrap">#<?= $p['ref_order_id'] ?></td>
+                            <td>
+                                <div style="display:flex;align-items:center;font-weight:600;color:#111827;">
+                                    <?= $avatarHtml ?>
+                                    <span style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?= htmlspecialchars($p['customer_name']) ?>"><?= htmlspecialchars($p['customer_name']) ?></span>
+                                </div>
+                            </td>
+                            <td>
+                                <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;letter-spacing:0.04em; <?= $isService ? 'background:#fefce8;color:#a16207;border:1px solid #fef08a;' : 'background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;' ?>">
+                                    <?= $isService ? 'SERVICE' : 'PRODUCT' ?>
+                                </span>
+                            </td>
+                            <td>
+                                <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;letter-spacing:0.04em; <?= $isPOS ? 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;' : 'background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;' ?>">
+                                    <?= strtoupper($p['source_label'] ?: 'Online') ?>
+                                </span>
+                            </td>
+                            <td style="font-weight:700;color:#0f172a;"><?= ($p['amount'] !== null && $p['amount'] > 0) ? '₱' . number_format((float)$p['amount'], 2) : '<span style="color:#94a3b8;font-weight:500;">N/A</span>' ?></td>
+                            <td>
+                                <span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;<?= $methodStyle ?>" class="cell-ellipsis" title="<?= htmlspecialchars($pmLabel) ?>">
+                                    <?= htmlspecialchars($pmLabel) ?>
+                                </span>
+                            </td>
+                            <td style="font-size:12px;color:#0f172a;font-family:monospace;"><?= htmlspecialchars($p['reference_id']?:'—') ?></td>
+                            <td><?= $badgeHtml ?></td>
+                            <td style="font-size:12px;color:#64748b;"><?= $p['paid_at'] ? date('M d, Y',strtotime($p['paid_at'])) : '—' ?></td>
+                            <td>
+                                <button type="button" class="btn-sm btn-outline" style="border-radius:6px;padding:4px 10px;font-size:11px;" onclick="openPayModal(<?= $modal_data ?>); event.stopPropagation();">View</button>
+                            </td>
+                        </tr>
+            <?php
+        }
+    }
+    $tbody = ob_get_clean();
+    $pagination = get_pagination_links($page_num, $total_pages, $active_filters);
+    
+    header('Content-Type: application/json');
+    echo json_encode([
+        'tbody'      => $tbody,
+        'pagination' => $pagination
+    ]);
+    exit;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function buildQueryString(array $overrides = []): string {
     $base   = array_filter(['source'=>$_GET['source']??'','type'=>$_GET['type']??'','status'=>$_GET['status']??'','search'=>$_GET['search']??'','date_from'=>$_GET['date_from']??'','date_to'=>$_GET['date_to']??'','page'=>$_GET['page']??'']);
@@ -191,7 +317,8 @@ $page_title = 'Payment List – PrintFlow Staff';
     <style>
         .pm-field { display:flex; justify-content:space-between; align-items:flex-start; padding:10px 0; border-bottom:1px solid #f1f5f9; }
         .pm-field:last-child { border-bottom:none; }
-        .pm-label { font-size:11.5px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.05em; flex-shrink:0; min-width:120px; padding-top:1px; }
+        .pm-label { font-size:12px; font-weight:700; color:#64748b; flex-shrink:0; min-width:140px; }
+        .pm-badge-base { font-size:10px; font-weight:800; padding:4px 10px; border-radius:12px; letter-spacing:0.04em; text-transform:uppercase; display:inline-flex; align-items:center; height:22px; }
         .pm-value { font-size:0.875rem; font-weight:600; color:#1e293b; text-align:right; }
         .pm-btn { border:none; border-radius:9px; padding:11px 22px; font-size:0.875rem; font-weight:700; cursor:pointer; transition:all .2s; }
         .pm-approve { background:#0d9488; color:#fff; }
@@ -204,7 +331,7 @@ $page_title = 'Payment List – PrintFlow Staff';
 <div class="dashboard-container">
     <?php include __DIR__ . '/../includes/staff_sidebar.php'; ?>
 
-    <div class="main-content" x-data="{ filterOpen: false, hasActiveFilters: <?= (!empty($filter_source) || !empty($filter_type) || !empty($filter_status) || !empty($filter_search) || !empty($filter_date_from) || !empty($filter_date_to)) ? 'true' : 'false' ?> }">
+    <div class="main-content" x-data="paymentManager()" x-init="init()">
         <header>
             <div>
                 <h1 class="page-title">Payment List</h1>
@@ -378,11 +505,15 @@ $page_title = 'Payment List – PrintFlow Staff';
 
                             // payment method coloring
                             $pm = strtoupper($p['payment_method'] ?? '');
-                            $methodStyle = 'background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;';
                             if (str_contains($pm, 'GCASH')) {
-                                $methodStyle = 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;'; 
+                                $pmLabel = 'GCash';
+                                $methodStyle = 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;';
                             } elseif (str_contains($pm, 'MAYAMA') || str_contains($pm, 'MAYA')) {
+                                $pmLabel = 'PayMaya';
                                 $methodStyle = 'background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;';
+                            } else {
+                                $pmLabel = $p['payment_method'] ?: 'Cash';
+                                $methodStyle = 'background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;';
                             }
 
                             $modal_data = htmlspecialchars(json_encode([
@@ -422,8 +553,8 @@ $page_title = 'Payment List – PrintFlow Staff';
                             </td>
                             <td style="font-weight:700;color:#0f172a;"><?= ($p['amount'] !== null && $p['amount'] > 0) ? '₱' . number_format((float)$p['amount'], 2) : '<span style="color:#94a3b8;font-weight:500;">N/A</span>' ?></td>
                             <td>
-                                <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;letter-spacing:0.04em; <?= $methodStyle ?>">
-                                    <?= htmlspecialchars($p['payment_method']?:'—') ?>
+                                <span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;<?= $methodStyle ?>" class="cell-ellipsis" title="<?= htmlspecialchars($pmLabel) ?>">
+                                    <?= htmlspecialchars($pmLabel) ?>
                                 </span>
                             </td>
                             <td style="font-size:12px;color:#0f172a;font-family:monospace;"><?= htmlspecialchars($p['reference_id']?:'—') ?></td>
@@ -441,14 +572,7 @@ $page_title = 'Payment List – PrintFlow Staff';
 
             <!-- PAGINATION -->
             <div style="margin-top:20px;">
-                <?php echo get_pagination_links($page_num, $total_pages, [
-                    'source' => $filter_source,
-                    'type' => $filter_type,
-                    'status' => $filter_status,
-                    'search' => $filter_search,
-                    'date_from' => $filter_date_from,
-                    'date_to' => $filter_date_to
-                ]); ?>
+                <?php echo get_pagination_links($page_num, $total_pages, $active_filters); ?>
             </div>
 
         </main>
@@ -485,81 +609,100 @@ function openPayModal(data) {
 
     const isPOS = data.source === 'POS';
     const isSvc = data.order_type === 'SERVICE';
-    const amt = (data.amount !== null && parseFloat(data.amount) > 0) 
-        ? '₱' + parseFloat(data.amount).toLocaleString('en-PH', {minimumFractionDigits: 2}) 
-        : 'N/A';
+    const amtValue = parseFloat(data.amount || 0);
+    const amt = amtValue > 0 
+        ? '₱' + amtValue.toLocaleString('en-PH', {minimumFractionDigits: 2}) 
+        : '<span style="color:#ef4444;">Failed to detect</span>';
     const orderTotal = parseFloat(data.original_total||0).toLocaleString('en-PH',{minimumFractionDigits:2});
     const dateFmt = data.paid_at ? new Date(data.paid_at).toLocaleString('en-PH',{dateStyle:'medium',timeStyle:'short'}) : '—';
 
     // Amount Mismatch Warning
     let amountWarning = '';
-    const diff = Math.abs(parseFloat(data.amount||0) - parseFloat(data.original_total||0));
-    if (diff > 0.01) {
+    const diff = Math.abs(amtValue - parseFloat(data.original_total||0));
+    if (amtValue > 0 && diff > 0.01) {
         amountWarning = `<div style="margin-bottom:16px;padding:12px;background:#fff7ed;border:1px solid #ffedd5;border-radius:10px;display:flex;gap:12px;align-items:center;">
             <div style="background:#f97316;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;">!</div>
             <div>
                 <div style="font-size:13px;font-weight:700;color:#9a3412;">Amount Mismatch Warning</div>
-                <div style="font-size:11px;color:#c2410c;">Paid ₱${amt} vs. Order Total ₱${orderTotal}. Please verify if this is a downpayment or partial payment.</div>
+                <div style="font-size:11px;color:#c2410c;">OCR parsed ₱${amtValue.toFixed(2)} vs. Order Total ₱${orderTotal}.</div>
+            </div>
+        </div>`;
+    } else if (amtValue === 0) {
+        amountWarning = `<div style="margin-bottom:16px;padding:12px;background:#fef2f2;border:1px solid #fee2e2;border-radius:10px;display:flex;gap:12px;align-items:center;">
+            <div style="background:#ef4444;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;">!</div>
+            <div>
+                <div style="font-size:13px;font-weight:700;color:#991b1b;">OCR Extraction Failed</div>
+                <div style="font-size:11px;color:#b91c1c;">Could not automatically read the amount from this image.</div>
             </div>
         </div>`;
     }
 
     const proofHtml = data.proof_url
         ? `<div style="margin:20px 0 10px;">
-             <div class="pm-label" style="margin-bottom:8px;">Proof of Payment</div>
+             <div class="pm-label" style="margin-bottom:8px;">Uploaded Receipt Image</div>
              <div onclick="openZModal('${data.proof_url}')" style="display:block;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;background:#f8fafc;cursor:zoom-in;">
-               <img src="${data.proof_url}" style="width:100%;max-height:300px;object-fit:contain;display:block;">
+               <img src="${data.proof_url}" style="width:100%;max-height:400px;object-fit:contain;display:block;">
              </div>
-             <button type="button" onclick="openZModal('${data.proof_url}')" style="background:none;border:none;display:block;width:100%;text-align:center;font-size:12px;color:#0d9488;margin-top:8px;font-weight:600;cursor:pointer;">Click to enlarge image ↗</button>
+             <button type="button" onclick="openZModal('${data.proof_url}')" style="background:none;border:none;display:block;width:100%;text-align:center;font-size:12px;color:#0d9488;margin-top:8px;font-weight:600;cursor:pointer;">Click to enlarge receipt ↗</button>
            </div>`
-        : `<div style="margin:20px 0;padding:16px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;text-align:center;color:#64748b;font-size:13px;font-weight:500;">No proof of payment uploaded</div>`;
+        : `<div style="margin:20px 0;padding:16px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;text-align:center;color:#64748b;font-size:13px;font-weight:500;">No receipt image found</div>`;
 
     const actionHtml = (data.status === 'TO_VERIFY' && data.order_id)
         ? `<div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid #f1f5f9;padding-top:20px;">
-             <button class="pm-btn pm-approve" onclick="doVerify(${data.order_id},'Approve')">Approve Payment</button>
-             <button class="pm-btn pm-reject"  onclick="doVerify(${data.order_id},'Reject')">Reject Payment...</button>
+             <button class="pm-btn pm-approve" onclick="doVerify(${data.order_id},'Approve')">Verify & Approve</button>
+             <button class="pm-btn pm-reject"  onclick="doVerify(${data.order_id},'Reject')">Reject & Request New Proof</button>
            </div>` : '';
 
-    const badgePosHtml = `<span style="font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;letter-spacing:0.04em; ${isPOS ? 'background:#eff6ff;color:#1d4ed8;' : 'background:#ecfdf5;color:#047857;'}">${data.source.toUpperCase()}</span>`;
-    const badgeTypeHtml = `<span style="font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;letter-spacing:0.04em; ${isSvc ? 'background:#fefce8;color:#a16207;' : 'background:#f8fafc;color:#64748b;'}">${data.order_type}</span>`;
+    const statusBadgeHtml = data.status_html.replace('status-badge', 'pm-badge-base');
+
+    const badgePosHtml = `<span class="pm-badge-base" style="${isPOS ? 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;' : 'background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;'}">${data.source.toUpperCase()}</span>`;
+    const badgeTypeHtml = `<span class="pm-badge-base" style="${isSvc ? 'background:#fefce8;color:#a16207;border:1px solid #fef08a;' : 'background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;'}">${data.order_type}</span>`;
 
     // Method Badge
     const pm = (data.method || '').toUpperCase();
-    let mStyle = 'background:#f1f5f9;color:#64748b;';
-    if (pm.includes('GCASH')) mStyle = 'background:#eff6ff;color:#1d4ed8;';
-    else if (pm.includes('MAYA')) mStyle = 'background:#ecfdf5;color:#047857;';
-    const badgeMethodHtml = `<span style="font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;letter-spacing:0.04em; ${mStyle}">${data.method||'—'}</span>`;
+    let pmLabel = '';
+    let mStyle = 'background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;';
+    if (pm.includes('GCASH')) {
+        pmLabel = 'GCash';
+        mStyle = 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;';
+    } else if (pm.includes('MAYA')) {
+        pmLabel = 'PayMaya';
+        mStyle = 'background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;';
+    } else {
+        pmLabel = data.method || 'Cash';
+        mStyle = 'background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;';
+    }
 
     body.innerHTML = `
       ${amountWarning}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;align-items:center;">
         ${badgePosHtml}
         ${badgeTypeHtml}
-        ${badgeMethodHtml}
-        ${data.status_html}
+        <span class="pm-badge-base" style="${mStyle}">${pmLabel}</span>
+        ${statusBadgeHtml}
       </div>
-      <div class="pm-field"><span class="pm-label">Order #</span><span class="pm-value order-id-wrap">#${data.order_id}</span></div>
-      <div class="pm-field"><span class="pm-label">Customer</span><span class="pm-value">${data.customer_name}</span></div>
-      <div class="pm-field">
-        <span class="pm-label">Amount Paid</span>
+      
+      <div class="pm-field"><span class="pm-label">Order reference</span><span class="pm-value order-id-wrap">#${data.order_id}</span></div>
+      
+      <div class="pm-field" style="background:#f8fafc; margin: 10px -24px; padding: 20px 24px; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;">
+        <span class="pm-label" style="color:#334155;">Extracted amount</span>
         <div style="text-align:right;">
-            <div class="pm-value" style="color:#0f172a;font-size:1.5rem;font-weight:800;">${amt}</div>
-            <div style="font-size:11px;color:#64748b;font-weight:500;">Detected via OCR</div>
+            <div class="pm-value" style="color:#0f172a;font-size:1.85rem;font-weight:900;letter-spacing:-0.01em;">${amt}</div>
+            <div style="font-size:10px;color:#94a3b8;font-weight:700;letter-spacing:0.04em;margin-top:2px;">Direct from image (OCR)</div>
         </div>
       </div>
-      <div class="pm-field">
-        <span class="pm-label">Method</span>
-        <span class="pm-value">${data.method||'—'}</span>
-      </div>
-      <div class="pm-field">
-        <span class="pm-label">Reference ID</span>
+
+      <div class="pm-field" style="padding:14px 0;">
+        <span class="pm-label">Reference number</span>
         <div style="display:flex;flex-direction:column;align-items:flex-end;">
-            <input type="text" id="edit_ref_id" value="${data.reference_id||''}" class="filter-input" style="text-align:right;width:180px;font-family:monospace;font-weight:700;margin-bottom:4px;" placeholder="No ID detected" readonly>
-            <span style="font-size:10px;color:#64748b;">Strict OCR Result (Read-only)</span>
+            <input type="text" id="edit_ref_id" value="${data.reference_id||''}" style="text-align:right;width:220px;font-family:monospace;font-weight:800;font-size:1.15rem;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;color:#0f172a;" placeholder="No ID detected" readonly>
+            <span style="font-size:10px;color:#94a3b8;font-weight:700;letter-spacing:0.04em;margin-top:4px;">Strict parsed result</span>
         </div>
       </div>
-      <div class="pm-field"><span class="pm-label">Order Status</span><span class="pm-value">${data.raw_status||'—'}</span></div>
-      <div class="pm-field"><span class="pm-label">Date</span><span class="pm-value">${dateFmt}</span></div>
+
+      <div class="pm-field"><span class="pm-label">Sender name (OCR)</span><span class="pm-value" style="color:#64748b;font-weight:700;">${data.sender_name||'Not detected'}</span></div>
+      <div class="pm-field"><span class="pm-label">Transaction date</span><span class="pm-value">${dateFmt}</span></div>
+      
       ${proofHtml}
       ${actionHtml}`;
 
@@ -610,6 +753,71 @@ async function doVerify(orderId, action) {
         if (d.success) { closePayModal(); location.reload(); }
         else alert('Error: ' + (d.error || 'Unknown error'));
     } catch(e) { alert('Network error. Please try again.'); }
+}
+
+function paymentManager() {
+    return {
+        filterOpen: false,
+        hasActiveFilters: <?= (!empty($filter_source) || !empty($filter_type) || !empty($filter_status) || !empty($filter_search) || !empty($filter_date_from) || !empty($filter_date_to)) ? 'true' : 'false' ?>,
+        
+        init() {
+            attachPaginationHandlers();
+        }
+    };
+}
+
+// ── AJAX Pagination/Table Updates (copied from orders.php behavior) ─────────────
+function buildFilterURL(overrides = {}, isAjax = false) {
+    const params = new URLSearchParams(window.location.search);
+    if (overrides.page !== undefined) {
+        params.set('page', overrides.page);
+    } else if (overrides.resetPage !== false) {
+        params.delete('page');
+    }
+    if (isAjax) params.set('ajax', '1');
+    else params.delete('ajax');
+    return window.location.pathname + '?' + params.toString();
+}
+
+async function fetchUpdatedTable(overrides = {}) {
+    const url = buildFilterURL(overrides, true);
+    const container = document.querySelector('.staff-orders-table tbody');
+    if (!container) return;
+
+    container.style.opacity = '0.5';
+    container.style.pointerEvents = 'none';
+
+    try {
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        container.innerHTML = data.tbody;
+
+        const pag = document.querySelector('.pagination-container');
+        if (pag && data.pagination) {
+            pag.outerHTML = data.pagination;
+            attachPaginationHandlers();
+        }
+
+        const displayUrl = buildFilterURL(overrides, false);
+        window.history.replaceState({ path: displayUrl }, '', displayUrl);
+    } catch (e) { console.error('Error updating table:', e); }
+
+    container.style.opacity = '1';
+    container.style.pointerEvents = 'all';
+}
+
+function attachPaginationHandlers() {
+    const paginationLinks = document.querySelectorAll('.pagination-container a');
+    paginationLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = new URL(this.href);
+            const page = url.searchParams.get('page') || 1;
+            fetchUpdatedTable({ page: page, resetPage: false });
+            document.querySelector('.staff-orders-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
 }
 </script>
 </body>

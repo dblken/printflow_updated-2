@@ -50,12 +50,106 @@ if ($user_type === 'Customer') {
     
     $sql = "
         SELECT o.order_id, o.status, o.order_date, $archive_col as is_archived,
-               (SELECT m.message FROM order_messages m WHERE m.order_id = o.order_id ORDER BY m.message_id DESC LIMIT 1) AS last_message,
+               (SELECT CASE 
+                    WHEN m.message != '' THEN m.message 
+                    WHEN m.message_type = 'image' THEN (CASE WHEN m.file_type = 'video' THEN '🎥 Video' ELSE '📸 Photo' END)
+                    WHEN m.message_type = 'voice' THEN '🎤 Voice message'
+                    ELSE 'Attachment'
+                END FROM order_messages m WHERE m.order_id = o.order_id ORDER BY m.message_id DESC LIMIT 1) AS last_message,
                (SELECT m.created_at FROM order_messages m WHERE m.order_id = o.order_id ORDER BY m.message_id DESC LIMIT 1) AS last_message_at,
                (SELECT COUNT(*) FROM order_messages m WHERE m.order_id = o.order_id AND m.sender = 'Staff' AND m.read_receipt != 2) AS unread_count,
                (SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(oi.customization_data, '$.service_type')), p.name, 'Order') FROM order_items oi LEFT JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = o.order_id LIMIT 1) AS product_name,
-               (SELECT TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,''))) FROM order_messages m JOIN users u ON u.user_id = m.sender_id WHERE m.order_id = o.order_id AND m.sender = 'Staff' ORDER BY m.message_id DESC LIMIT 1) AS staff_name,
-               (SELECT u.profile_picture FROM order_messages m JOIN users u ON u.user_id = m.sender_id WHERE m.order_id = o.order_id AND m.sender = 'Staff' ORDER BY m.message_id DESC LIMIT 1) AS staff_avatar
+               COALESCE(
+                   (SELECT m.sender_id FROM order_messages m WHERE m.order_id = o.order_id AND m.sender_id > 0 AND m.sender IN ('Staff','System') ORDER BY m.message_id DESC LIMIT 1),
+                   (SELECT us.user_id FROM user_status us WHERE us.order_id = o.order_id AND us.user_type = 'Staff' ORDER BY us.last_activity DESC LIMIT 1),
+                   (SELECT jo.assigned_to FROM job_orders jo WHERE jo.order_id = o.order_id AND jo.assigned_to IS NOT NULL ORDER BY jo.updated_at DESC LIMIT 1),
+                   (SELECT jo.created_by FROM job_orders jo WHERE jo.order_id = o.order_id AND jo.created_by IS NOT NULL ORDER BY jo.updated_at DESC LIMIT 1),
+                   (SELECT user_id FROM users WHERE role = 'Admin' ORDER BY user_id ASC LIMIT 1)
+               ) AS staff_id,
+               COALESCE(
+                   (SELECT TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,'')))
+                    FROM order_messages m
+                    JOIN users u ON u.user_id = m.sender_id
+                    WHERE m.order_id = o.order_id AND m.sender_id > 0 AND m.sender IN ('Staff','System')
+                    ORDER BY m.message_id DESC
+                    LIMIT 1),
+                   (SELECT TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,'')))
+                    FROM user_status us
+                    JOIN users u ON u.user_id = us.user_id
+                    WHERE us.order_id = o.order_id AND us.user_type = 'Staff'
+                    ORDER BY us.last_activity DESC
+                    LIMIT 1),
+                   (SELECT TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,'')))
+                    FROM job_orders jo
+                    JOIN users u ON u.user_id = jo.assigned_to
+                    WHERE jo.order_id = o.order_id AND jo.assigned_to IS NOT NULL
+                    ORDER BY jo.updated_at DESC, jo.id DESC
+                    LIMIT 1),
+                   (SELECT TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,'')))
+                    FROM job_orders jo
+                    JOIN users u ON u.user_id = jo.payment_verified_by
+                    WHERE jo.order_id = o.order_id AND jo.payment_verified_by IS NOT NULL
+                    ORDER BY COALESCE(jo.payment_verified_at, jo.updated_at) DESC, jo.id DESC
+                    LIMIT 1),
+                   (SELECT TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,'')))
+                    FROM job_orders jo
+                    JOIN users u ON u.user_id = jo.created_by
+                    WHERE jo.order_id = o.order_id AND jo.created_by IS NOT NULL
+                    ORDER BY jo.updated_at DESC, jo.id DESC
+                    LIMIT 1),
+                   (SELECT TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,''))) FROM users u WHERE u.role = 'Admin' ORDER BY u.user_id ASC LIMIT 1),
+                   (SELECT TRIM(CONCAT(COALESCE(u.first_name,''), ' ', COALESCE(u.last_name,'')))
+                    FROM activity_logs al
+                    JOIN users u ON u.user_id = al.user_id
+                    WHERE al.details LIKE CONCAT('%Order #', o.order_id, '%')
+                    ORDER BY al.created_at DESC
+                    LIMIT 1)
+               ) AS staff_name,
+               COALESCE(
+                   (SELECT u.profile_picture
+                    FROM order_messages m
+                    JOIN users u ON u.user_id = m.sender_id
+                    WHERE m.order_id = o.order_id AND m.sender_id > 0 AND m.sender IN ('Staff','System')
+                    ORDER BY m.message_id DESC
+                    LIMIT 1),
+                   (SELECT u.profile_picture
+                    FROM user_status us
+                    JOIN users u ON u.user_id = us.user_id
+                    WHERE us.order_id = o.order_id AND us.user_type = 'Staff'
+                    ORDER BY us.last_activity DESC
+                    LIMIT 1),
+                   (SELECT u.profile_picture
+                    FROM job_orders jo
+                    JOIN users u ON u.user_id = jo.assigned_to
+                    WHERE jo.order_id = o.order_id AND jo.assigned_to IS NOT NULL
+                    ORDER BY jo.updated_at DESC, jo.id DESC
+                    LIMIT 1),
+                   (SELECT u.profile_picture
+                    FROM job_orders jo
+                    JOIN users u ON u.user_id = jo.payment_verified_by
+                    WHERE jo.order_id = o.order_id AND jo.payment_verified_by IS NOT NULL
+                    ORDER BY COALESCE(jo.payment_verified_at, jo.updated_at) DESC, jo.id DESC
+                    LIMIT 1),
+                   (SELECT u.profile_picture
+                    FROM job_orders jo
+                    JOIN users u ON u.user_id = jo.created_by
+                    WHERE jo.order_id = o.order_id AND jo.created_by IS NOT NULL
+                    ORDER BY jo.updated_at DESC, jo.id DESC
+                    LIMIT 1),
+                   (SELECT u.profile_picture FROM users u WHERE u.role = 'Admin' ORDER BY u.user_id ASC LIMIT 1),
+                   (SELECT u.profile_picture
+                    FROM activity_logs al
+                    JOIN users u ON u.user_id = al.user_id
+                    WHERE al.details LIKE CONCAT('%Order #', o.order_id, '%')
+                    ORDER BY al.created_at DESC
+                    LIMIT 1)
+               ) AS staff_avatar,
+               COALESCE(
+                   (SELECT u.online_status FROM users u WHERE u.user_id = (SELECT m.sender_id FROM order_messages m WHERE m.order_id = o.order_id AND m.sender_id > 0 AND m.sender IN ('Staff','System') ORDER BY m.message_id DESC LIMIT 1)),
+                   (SELECT u.online_status FROM users u WHERE u.user_id = (SELECT us.user_id FROM user_status us WHERE us.order_id = o.order_id AND us.user_type = 'Staff' ORDER BY us.last_activity DESC LIMIT 1)),
+                   (SELECT u.online_status FROM users u WHERE u.user_id = (SELECT jo.assigned_to FROM job_orders jo WHERE jo.order_id = o.order_id AND jo.assigned_to IS NOT NULL ORDER BY jo.updated_at DESC LIMIT 1)),
+                   'offline'
+               ) AS staff_status
         FROM orders o
         WHERE o.customer_id = ?" . ($has_archived ? " AND $archive_col = ?" : "") . " $search_clause
         ORDER BY COALESCE((SELECT MAX(mx.created_at) FROM order_messages mx WHERE mx.order_id = o.order_id), o.order_date) DESC
@@ -73,11 +167,17 @@ if ($user_type === 'Customer') {
     $activity_sel = $has_activity ? "c.last_activity as partner_last_activity," : "NULL as partner_last_activity,";
 
     $sql = "
-        SELECT o.order_id, o.status, o.order_date, $archive_col as is_archived,
+        SELECT o.order_id, o.customer_id, o.status, o.order_date, $archive_col as is_archived,
                TRIM(CONCAT(COALESCE(c.first_name,''), ' ', COALESCE(c.last_name,''))) AS customer_name,
                c.profile_picture AS customer_avatar,
+               c.online_status AS customer_status,
                $activity_sel
-               (SELECT m.message FROM order_messages m WHERE m.order_id = o.order_id ORDER BY m.message_id DESC LIMIT 1) AS last_message,
+               (SELECT CASE 
+                    WHEN m.message != '' THEN m.message 
+                    WHEN m.message_type = 'image' THEN (CASE WHEN m.file_type = 'video' THEN '🎥 Video' ELSE '📸 Photo' END)
+                    WHEN m.message_type = 'voice' THEN '🎤 Voice message'
+                    ELSE 'Attachment'
+                END FROM order_messages m WHERE m.order_id = o.order_id ORDER BY m.message_id DESC LIMIT 1) AS last_message,
                (SELECT m.created_at FROM order_messages m WHERE m.order_id = o.order_id ORDER BY m.message_id DESC LIMIT 1) AS last_message_at,
                (SELECT COUNT(*) FROM order_messages m WHERE m.order_id = o.order_id AND m.sender = 'Customer' AND m.read_receipt != 2) AS unread_count,
                (SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(oi.customization_data, '$.service_type')), p.name, 'Order') FROM order_items oi LEFT JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = o.order_id LIMIT 1) AS product_name
@@ -104,18 +204,28 @@ foreach ($rows ?: [] as $r) {
     $customer_name = trim((string)($r['customer_name'] ?? ''));
     if ($customer_name === '') $customer_name = 'Customer';
     $staff_name = trim((string)($r['staff_name'] ?? ''));
-    if ($staff_name === '') $staff_name = 'PrintFlow Team';
+    if ($staff_name === '') $staff_name = 'Customer Support';
     
     $is_online = false;
-    if ($user_type !== 'Customer' && !empty($r['partner_last_activity'])) {
-        $last_active = strtotime($r['partner_last_activity']);
-        $is_online = (time() - $last_active) < 90; // Online if active in last 90s
+    $status = 'offline';
+    if ($user_type !== 'Customer') {
+        $status = $r['customer_status'] ?? 'offline';
+        if (!empty($r['partner_last_activity'])) {
+            $last_active = strtotime($r['partner_last_activity']);
+            $is_online = (time() - $last_active) < 90;
+        }
+    } else {
+        $status = $r['staff_status'] ?? 'offline';
+        // For customer view, we might not have staff_last_activity easily, 
+        // but online_status 'online' or 'in-call' is enough.
+        $is_online = ($status === 'online' || $status === 'in-call');
     }
 
     $customer_avatar = get_profile_image($r['customer_avatar'] ?? null);
 
     $conv = [
         'order_id' => (int)$r['order_id'],
+        'customer_id' => isset($r['customer_id']) ? (int)$r['customer_id'] : null,
         'status' => $r['status'] ?? '',
         'product_name' => $r['product_name'] ?? 'Order',
         'customer_name' => $customer_name,
@@ -124,11 +234,13 @@ foreach ($rows ?: [] as $r) {
         'last_message_at' => $r['last_message_at'] ?? $r['order_date'] ?? null,
         'unread_count' => (int)($r['unread_count'] ?? 0),
         'is_archived' => (bool)$r['is_archived'],
-        'is_online' => $is_online
+        'is_online' => $is_online,
+        'online_status' => $status
     ];
     if ($user_type === 'Customer') {
+        $conv['staff_id'] = isset($r['staff_id']) ? (int)$r['staff_id'] : null;
         $conv['staff_name'] = $staff_name;
-        $conv['staff_avatar'] = $r['staff_avatar'] ?? null;
+        $conv['staff_avatar'] = get_profile_image($r['staff_avatar'] ?? null, 'Staff');
     }
         $conversations[] = $conv;
     }

@@ -25,20 +25,39 @@ $status_filter = $_GET['status'] ?? '';
 $search_filter = $_GET['search'] ?? '';
 $timeframe = $_GET['timeframe'] ?? 'today';
 
-$timeframe_sql = "DATE(o.order_date) = CURDATE()";
-$timeframe_label = "Today";
-$timeframe_sql_no_alias = "DATE(order_date) = CURDATE()";
+$today = date('Y-m-d');
+$timeframe_sql = "DATE(o.order_date) = '$today'";
+$timeframe_sql_no_alias = "DATE(order_date) = '$today'";
+$timeframe_label = "Today (" . date('F j, Y') . ")";
+$short_label = "Today";
 
 switch ($timeframe) {
     case 'week': 
-        $timeframe_sql = "YEARWEEK(o.order_date, 1) = YEARWEEK(CURDATE(), 1)"; 
-        $timeframe_sql_no_alias = "YEARWEEK(order_date, 1) = YEARWEEK(CURDATE(), 1)"; 
-        $timeframe_label = "This Week"; 
+        $monday = date('Y-m-d', strtotime('monday this week'));
+        $sunday = date('Y-m-d', strtotime('sunday this week'));
+        $timeframe_sql = "DATE(o.order_date) BETWEEN '$monday' AND '$sunday'"; 
+        $timeframe_sql_no_alias = "DATE(order_date) BETWEEN '$monday' AND '$sunday'"; 
+        
+        $start_day = date('j', strtotime($monday));
+        $end_day = date('j', strtotime($sunday));
+        $start_month = date('F', strtotime($monday));
+        $end_month = date('F', strtotime($sunday));
+        $year = date('Y', strtotime($sunday));
+        
+        if ($start_month === $end_month) {
+            $timeframe_label = "This Week ($start_month $start_day-$end_day, $year)";
+        } else {
+            $timeframe_label = "This Week ($start_month $start_day - $end_month $end_day, $year)";
+        }
+        $short_label = "This Week";
         break;
     case 'month': 
-        $timeframe_sql = "YEAR(o.order_date) = YEAR(CURDATE()) AND MONTH(o.order_date) = MONTH(CURDATE())"; 
-        $timeframe_sql_no_alias = "YEAR(order_date) = YEAR(CURDATE()) AND MONTH(order_date) = MONTH(CURDATE())"; 
-        $timeframe_label = "This Month"; 
+        $first_day = date('Y-m-01');
+        $last_day = date('Y-m-t');
+        $timeframe_sql = "DATE(o.order_date) BETWEEN '$first_day' AND '$last_day'"; 
+        $timeframe_sql_no_alias = "DATE(order_date) BETWEEN '$first_day' AND '$last_day'"; 
+        $timeframe_label = "This Month (" . date('F Y') . ")"; 
+        $short_label = "This Month";
         break;
 }
 
@@ -251,7 +270,18 @@ $page_title = 'Staff Dashboard - PrintFlow';
 <div class="dashboard-container">
     <?php include __DIR__ . '/../includes/staff_sidebar.php'; ?>
 
-    <div class="main-content" x-data="{ sortOpen: false, filterOpen: false, activeStatus: '<?php echo $status_filter; ?>', activeTimeframe: '<?php echo $timeframe; ?>' }">
+    <div class="main-content" x-data="{ 
+        sortOpen: false, 
+        filterOpen: false, 
+        activeStatus: '<?php echo $status_filter; ?>', 
+        activeTimeframe: '<?php echo $timeframe; ?>',
+        getButtonLabel(type) {
+            if (type === 'today') return 'Today';
+            if (type === 'week') return 'This Week';
+            if (type === 'month') return 'This Month';
+            return type.charAt(0).toUpperCase() + type.slice(1);
+        }
+    }">
         <header>
             <div>
                 <h1 class="page-title">Dashboard</h1>
@@ -263,12 +293,12 @@ $page_title = 'Staff Dashboard - PrintFlow';
                 <div style="position:relative;">
                     <button class="toolbar-btn" :class="{ active: sortOpen }" @click="sortOpen = !sortOpen; filterOpen = false">
                         <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span x-text="activeTimeframe.charAt(0).toUpperCase() + activeTimeframe.slice(1)">Today</span>
+                        <span x-text="getButtonLabel(activeTimeframe)">Today</span>
                     </button>
                     <div class="dropdown-panel sort-dropdown" x-show="sortOpen" x-cloak @click.outside="sortOpen = false">
-                        <a href="#" class="sort-option" :class="{ active: activeTimeframe === 'today' }" @click.prevent="activeTimeframe = 'today'; sortOpen = false; $nextTick(() => refreshDashboard(1))">Today</a>
-                        <a href="#" class="sort-option" :class="{ active: activeTimeframe === 'week' }" @click.prevent="activeTimeframe = 'week'; sortOpen = false; $nextTick(() => refreshDashboard(1))">This Week</a>
-                        <a href="#" class="sort-option" :class="{ active: activeTimeframe === 'month' }" @click.prevent="activeTimeframe = 'month'; sortOpen = false; $nextTick(() => refreshDashboard(1))">This Month</a>
+                        <a href="#" class="sort-option" :class="{ active: activeTimeframe === 'today' }" @click.prevent="activeTimeframe = 'today'; sortOpen = false; refreshDashboard(1, activeStatus, 'today')">Today</a>
+                        <a href="#" class="sort-option" :class="{ active: activeTimeframe === 'week' }" @click.prevent="activeTimeframe = 'week'; sortOpen = false; refreshDashboard(1, activeStatus, 'week')">This Week</a>
+                        <a href="#" class="sort-option" :class="{ active: activeTimeframe === 'month' }" @click.prevent="activeTimeframe = 'month'; sortOpen = false; refreshDashboard(1, activeStatus, 'month')">This Month</a>
                     </div>
                 </div>
 
@@ -279,11 +309,11 @@ $page_title = 'Staff Dashboard - PrintFlow';
                         Status: <span x-text="activeStatus ? activeStatus : 'All'"></span>
                     </button>
                     <div class="dropdown-panel sort-dropdown" x-show="filterOpen" x-cloak @click.outside="filterOpen = false">
-                        <a href="#" class="sort-option" :class="{ active: !activeStatus }" @click.prevent="activeStatus = ''; filterOpen = false; $nextTick(() => refreshDashboard(1))">All Statuses</a>
-                        <a href="#" class="sort-option" :class="{ active: activeStatus === 'Pending' }" @click.prevent="activeStatus = 'Pending'; filterOpen = false; $nextTick(() => refreshDashboard(1))">Pending</a>
-                        <a href="#" class="sort-option" :class="{ active: activeStatus === 'Processing' }" @click.prevent="activeStatus = 'Processing'; filterOpen = false; $nextTick(() => refreshDashboard(1))">Processing</a>
-                        <a href="#" class="sort-option" :class="{ active: activeStatus === 'Ready for Pickup' }" @click.prevent="activeStatus = 'Ready for Pickup'; filterOpen = false; $nextTick(() => refreshDashboard(1))">Ready</a>
-                        <a href="#" class="sort-option" :class="{ active: activeStatus === 'Completed' }" @click.prevent="activeStatus = 'Completed'; filterOpen = false; $nextTick(() => refreshDashboard(1))">Completed</a>
+                        <a href="#" class="sort-option" :class="{ active: !activeStatus }" @click.prevent="activeStatus = ''; filterOpen = false; refreshDashboard(1, '', activeTimeframe)">All Statuses</a>
+                        <a href="#" class="sort-option" :class="{ active: activeStatus === 'Pending' }" @click.prevent="activeStatus = 'Pending'; filterOpen = false; refreshDashboard(1, 'Pending', activeTimeframe)">Pending</a>
+                        <a href="#" class="sort-option" :class="{ active: activeStatus === 'Processing' }" @click.prevent="activeStatus = 'Processing'; filterOpen = false; refreshDashboard(1, 'Processing', activeTimeframe)">Processing</a>
+                        <a href="#" class="sort-option" :class="{ active: activeStatus === 'Ready for Pickup' }" @click.prevent="activeStatus = 'Ready for Pickup'; filterOpen = false; refreshDashboard(1, 'Ready for Pickup', activeTimeframe)">Ready</a>
+                        <a href="#" class="sort-option" :class="{ active: activeStatus === 'Completed' }" @click.prevent="activeStatus = 'Completed'; filterOpen = false; refreshDashboard(1, 'Completed', activeTimeframe)">Completed</a>
                     </div>
                 </div>
 
@@ -361,7 +391,7 @@ $page_title = 'Staff Dashboard - PrintFlow';
                 <div class="card">
                     <div class="loading-progress"></div>
                     <div class="content-transition">
-                        <div id="top-sales-title" style="font-size: 16px; font-weight: 700; color: #013a3a; margin-bottom: 16px;">Top Sales (<?php echo $timeframe_label; ?>)</div>
+                        <div id="top-sales-title" style="font-size: 16px; font-weight: 700; color: #013a3a; margin-bottom: 16px;">Top Sales (<?php echo $short_label; ?>)</div>
                         <div style="margin-top: 10px;" id="top-services-list">
                             <?php if (!empty($top_services)): ?>
                                 <?php foreach ($top_services as $service): ?>
@@ -436,7 +466,7 @@ $page_title = 'Staff Dashboard - PrintFlow';
 var salesChartInstance = null;
 var dashAbortController = null;
 
-async function refreshDashboard(page = 1) {
+async function refreshDashboard(page = 1, status = null, timeframe = null) {
     const main = document.getElementById('dashboard-main');
     if (!main) return;
 
@@ -444,15 +474,21 @@ async function refreshDashboard(page = 1) {
     if (dashAbortController) dashAbortController.abort();
     dashAbortController = new AbortController();
 
-    const statusEl = document.getElementById('filter-status');
-    const timeframeEl = document.getElementById('filter-timeframe');
-    if (!statusEl || !timeframeEl) return;
+    // Use passed values or fallback to hidden inputs
+    if (status === null) {
+        const sEl = document.getElementById('filter-status');
+        status = sEl ? sEl.value : '';
+    }
+    if (timeframe === null) {
+        const tEl = document.getElementById('filter-timeframe');
+        timeframe = tEl ? tEl.value : 'today';
+    }
 
     // 2. Visual Feedback (Immediate)
     main.classList.add('is-loading');
     
     try {
-        const response = await fetch(`api_dashboard_stats.php?page=${page}&status=${encodeURIComponent(statusEl.value)}&timeframe=${encodeURIComponent(timeframeEl.value)}`, {
+        const response = await fetch(`api_dashboard_stats.php?page=${page}&status=${encodeURIComponent(status)}&timeframe=${encodeURIComponent(timeframe)}`, {
             signal: dashAbortController.signal
         });
         if (!response.ok) throw new Error('Refresh failed');
@@ -469,7 +505,7 @@ async function refreshDashboard(page = 1) {
         if (subtitleEl) subtitleEl.textContent = `Metrics for ${data.timeframe_label} at <?php echo addslashes($branch_name); ?>`;
 
         const salesTitleEl = document.getElementById('top-sales-title');
-        if (salesTitleEl) salesTitleEl.textContent = `Top Sales (${data.timeframe_label})`;
+        if (salesTitleEl) salesTitleEl.textContent = `Top Sales (${data.short_label || 'Today'})`;
 
         // Top Services list update
         const servicesList = document.getElementById('top-services-list');
@@ -525,7 +561,7 @@ async function refreshDashboard(page = 1) {
             let pagHtml = '<div style="display:flex; justify-content:center; gap:4px; margin-top:20px;">';
             for (let i = 1; i <= data.pagination.total_pages; i++) {
                 const active = i === data.pagination.current_page ? 'background:#06A1A1; color:#fff; border-color:#06A1A1;' : 'background:#fff; color:#64748b; border-color:#e2e8f0;';
-                pagHtml += `<button onclick="refreshDashboard(${i})" style="width:32px; height:32px; border:1px solid; border-radius:8px; cursor:pointer; font-weight:700; font-size:12px; transition:all 0.2s; ${active}">${i}</button>`;
+                pagHtml += `<button onclick="refreshDashboard(${i}, null, null)" style="width:32px; height:32px; border:1px solid; border-radius:8px; cursor:pointer; font-weight:700; font-size:12px; transition:all 0.2s; ${active}">${i}</button>`;
             }
             pagHtml += '</div>';
             pagWrapper.innerHTML = pagHtml;

@@ -51,7 +51,7 @@ if ($customer_id) {
         $addr_sel = ", CONCAT_WS(', ', NULLIF(TRIM(c.street_address),''), NULLIF(TRIM(c.barangay),''), NULLIF(TRIM(c.city),''), NULLIF(TRIM(c.province),'')) as address";
     }
     $cust_result = db_query("
-        SELECT c.first_name, c.middle_name, c.last_name, c.email, c.contact_number
+        SELECT c.first_name, c.middle_name, c.last_name, c.email, c.contact_number, c.profile_picture
         $addr_sel
         FROM customers c WHERE c.customer_id = ?
     ", 'i', [$customer_id]);
@@ -61,6 +61,7 @@ if ($customer_id) {
             'full_name' => trim(($c['first_name'] ?? '') . ' ' . ($c['middle_name'] ?? '') . ' ' . ($c['last_name'] ?? '')),
             'contact_number' => $c['contact_number'] ?? '',
             'email' => $c['email'] ?? '',
+            'profile_picture' => get_profile_image($c['profile_picture'] ?? null),
         ];
         if (isset($c['address']) && trim((string)$c['address']) !== '') {
             $customer['address'] = trim($c['address']);
@@ -97,11 +98,15 @@ foreach ($items ?: [] as $item) {
 
     $product_name = get_service_name_from_customization($custom_data, 'Order Item');
     $product_name = normalize_service_name($product_name, 'Order Item');
-    if ((empty($item['product_name']) || in_array(strtolower(trim($item['product_name'])), ['custom order', 'customer order', 'service order', 'order item'])) && !empty($custom_data['service_type'])) {
-        $product_name = normalize_service_name($custom_data['service_type'], 'Order Item');
-    } elseif (!empty($item['product_name']) && !in_array(strtolower(trim($item['product_name'])), ['custom order', 'customer order', 'service order', 'order item'])) {
-        $product_name = normalize_service_name($item['product_name'], 'Order Item');
+    // Prioritize service_type from customization data over the base product name
+    $raw_service_name = !empty($custom_data['service_type']) ? $custom_data['service_type'] : '';
+    if (empty($raw_service_name) && !empty($item['product_name'])) {
+        $raw_service_name = $item['product_name'];
     }
+    
+    // Check if the resulting name is generic. If it is, and we have a service_type, we might want to ensure we use it,
+    // but our logic above already prioritizes service_type. Let's just normalize it now.
+    $product_name = normalize_service_name($raw_service_name, 'Order Item');
 
     $design_url = null;
     $ref_url = null;
@@ -114,6 +119,13 @@ foreach ($items ?: [] as $item) {
         $ref_url = '/printflow/public/serve_design.php?type=order_item&id=' . (int)$item['order_item_id'] . '&field=reference';
     }
 
+    $service_id = !empty($custom_data['service_id']) ? (int)$custom_data['service_id'] : 0;
+    $service_image = get_customer_notification_service_image($service_id, $product_name);
+
+    if (!$design_url) {
+        $design_url = $service_image;
+    }
+
     $items_out[] = [
         'order_item_id'     => (int)$item['order_item_id'],
         'product_name'      => $product_name,
@@ -123,6 +135,7 @@ foreach ($items ?: [] as $item) {
         'subtotal'          => $show_price ? format_currency($item['quantity'] * $item['unit_price']) : null,
         'customization'     => $custom_data,
         'design_url'        => $design_url,
+        'service_image'     => $service_image,
         'reference_url'     => $ref_url,
     ];
 }

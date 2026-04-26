@@ -97,7 +97,7 @@ log_activity($staff_id, 'Order Status Update', "Order #{$order_id} → {$new_sta
 
 $notif = get_order_status_notification_payload($order_id, $new_status);
 create_notification($customer_id, 'Customer', $notif['message'], $notif['type'], false, false, $order_id);
-add_order_system_message($order_id, $notif['message']);
+send_order_update_message($order_id, $notif['message']);
 
 echo json_encode([
     'success'    => true,

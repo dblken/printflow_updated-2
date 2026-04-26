@@ -297,10 +297,10 @@ require_once __DIR__ . '/../includes/header.php';
     .compact-card { padding: 1.25rem !important; }
     .review-title { text-align: center; margin-bottom: 2rem; color: #1f2937 !important; }
     .review-card {
-        background: rgba(0,49,61,0.85) !important;
-        border: 1px solid rgba(83,197,224,0.2) !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
         border-radius: 12px !important;
-        backdrop-filter: blur(8px);
+        backdrop-filter: none;
     }
     .review-heading {
         color: #111827 !important;
@@ -330,9 +330,9 @@ require_once __DIR__ . '/../includes/header.php';
         margin-bottom: 2px;
     }
     .review-input-disabled {
-        background: rgba(0,49,61,0.5) !important;
-        border: 1px solid rgba(83,197,224,0.2) !important;
-        color: #e0f2fe !important;
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        color: #1e293b !important;
         font-weight: 600;
         font-size: 0.85rem;
         font-family: inherit !important;
@@ -348,7 +348,7 @@ require_once __DIR__ . '/../includes/header.php';
         font-size: 0.85rem !important;
         font-weight: 600 !important;
         font-family: inherit !important;
-        color: #374151 !important;
+        color: #1e293b !important;
     }
     .review-policy-card {
         background: #fef3c7 !important;
@@ -362,12 +362,12 @@ require_once __DIR__ . '/../includes/header.php';
         font-size: .9rem;
         border-radius: 10px;
         border: none;
-        background: linear-gradient(135deg, #53C5E0, #32a1c4) !important;
+        background: #0d9488 !important;
         color: #ffffff !important;
         text-transform: uppercase;
         letter-spacing: .02em;
         cursor: pointer;
-        box-shadow: 0 10px 22px rgba(50,161,196,0.3);
+        box-shadow: 0 10px 22px rgba(13, 148, 136, 0.3);
         transition: all .2s;
     }
     .review-cancel-btn {
@@ -375,20 +375,20 @@ require_once __DIR__ . '/../includes/header.php';
         align-items: center;
         justify-content: center;
         width: auto;
-        border: 1px solid rgba(83,197,224,.28);
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
         font-size: .9rem;
-        color: #d9e6ef;
+        color: #475569;
         text-decoration: none;
         font-weight: 700;
         padding: 0 1.15rem;
         transition: all 0.2s;
-        background: rgba(255,255,255,.06);
+        background: #f8fafc;
     }
     .review-cancel-btn:hover {
-        background: rgba(83,197,224,.12);
-        border-color: rgba(83,197,224,.52);
-        color: #fff;
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        color: #1e293b;
     }
     .review-actions-row {
         display: flex;
@@ -424,23 +424,23 @@ require_once __DIR__ . '/../includes/header.php';
         transition: all .2s;
     }
     .tshirt-btn-secondary {
-        background: rgba(83,197,224,0.08) !important;
-        border: 1px solid rgba(83,197,224,0.3) !important;
-        color: #e0f2fe !important;
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        color: #475569 !important;
     }
     .tshirt-btn-secondary:hover {
-        background: rgba(83,197,224,0.15) !important;
-        border-color: rgba(83,197,224,0.5) !important;
-        color: #ffffff !important;
+        background: #f1f5f9 !important;
+        border-color: #cbd5e1 !important;
+        color: #0f172a !important;
     }
     .tshirt-btn-primary {
         border: none;
-        background: #0a2530 !important;
+        background: #0d9488 !important;
         color: #fff !important;
         text-transform: uppercase;
         letter-spacing: .02em;
         cursor: pointer;
-        box-shadow: 0 4px 12px rgba(10, 37, 48, 0.3);
+        box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
     }
     .tshirt-btn:active {
         transform: translateY(1px) scale(0.99);
@@ -466,7 +466,7 @@ require_once __DIR__ . '/../includes/header.php';
         border-radius: 12px;
         border: 1px solid rgba(83, 197, 224, 0.35);
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
-        background: #0a2530;
+        background: #ffffff;
     }
 
     /* 
@@ -487,7 +487,7 @@ require_once __DIR__ . '/../includes/header.php';
         background: rgba(83, 197, 224, 0.08);
         border: 1px dashed rgba(83, 197, 224, 0.3);
         border-radius: 10px;
-        color: #0369a1;
+        color: #0d9488;
         font-weight: 600;
         font-size: 0.9rem;
         cursor: pointer;
@@ -522,7 +522,7 @@ require_once __DIR__ . '/../includes/header.php';
     .success-modal-overlay.active { opacity: 1; pointer-events: auto; }
     
     .success-modal-card {
-        background: linear-gradient(160deg, #0f3340, #0a2530); width: 90%; max-width: 400px; padding: 40px 30px;
+        background: #ffffff; width: 90%; max-width: 400px; padding: 40px 30px;
         border-radius: 24px; text-align: center;
         transform: scale(0.9); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
@@ -533,7 +533,7 @@ require_once __DIR__ . '/../includes/header.php';
     .success-icon-wrap {
         width: 80px; height: 80px; background: rgba(83, 197, 224, 0.2); border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        margin: 0 auto 24px; color: #53c5e0;
+        margin: 0 auto 24px; color: #0d9488;
     }
     .success-checkmark { font-size: 3rem; animation: checkmarkScale 0.5s ease 0.2s both; }
     @keyframes checkmarkScale { 
@@ -542,12 +542,12 @@ require_once __DIR__ . '/../includes/header.php';
         100% { transform: scale(1); opacity: 1; }
     }
 
-    .success-title { font-size: 1.25rem; font-weight: 800; color: #e8f6fb; margin-bottom: 8px; }
-    .success-msg { font-size: 0.95rem; color: #bfdce8; line-height: 1.5; margin-bottom: 24px; }
+    .success-title { font-size: 1.25rem; font-weight: 800; color: #1e293b; margin-bottom: 8px; }
+    .success-msg { font-size: 0.95rem; color: #475569; line-height: 1.5; margin-bottom: 24px; }
     
-    .loading-bar-wrap { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.14); border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
-    .loading-bar-fill { width: 0%; height: 100%; background: #53c5e0; transition: width 3s linear; }
-    .redirect-msg { font-size: 0.75rem; color: #9ec3d3; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    .loading-bar-wrap { width: 100%; height: 6px; background: #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+    .loading-bar-fill { width: 0%; height: 100%; background: #0d9488; transition: width 3s linear; }
+    .redirect-msg { font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
     @media (max-width: 640px) {
         .review-contact-grid { grid-template-columns: 1fr; }
         .review-contact-full { grid-column: span 1; }
@@ -927,9 +927,9 @@ require_once __DIR__ . '/../includes/header.php';
 
                 <?php if (!$is_product_order): ?>
                 <!-- 3. Payment Policy Notice -->
-                <div style="background: rgba(0,49,61,0.7); border: 1px solid #53c5e0; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; backdrop-filter: blur(8px);">
-                    <h3 style="font-size:0.95rem; font-weight:700; color:#53c5e0; margin-bottom:0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">Payment Policy</h3>
-                    <p style="font-size:0.85rem; color:#e0f2fe; line-height:1.6; margin:0;">
+                <div style="background: #f8fafc; border: 1px solid #53c5e0; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; backdrop-filter: none;">
+                    <h3 style="font-size:0.95rem; font-weight:700; color:#0369a1; margin-bottom:0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">Payment Policy</h3>
+                    <p style="font-size:0.85rem; color:#374151; line-height:1.6; margin:0;">
                         The payment option (100% Full Payment) will become available once staff reviews your order and sets the price. 
                         You will receive a notification when your order is ready for payment.
                     </p>

@@ -746,6 +746,14 @@ if (isset($_GET['ajax'])) {
                         return `<span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;${style}">${status || 'N/A'}</span>`;
                     },
 
+                    formatPaymentMethod(method) {
+                        if (!method || method === '—' || method === 'N/A') return '—';
+                        const m = method.toUpperCase();
+                        if (m.includes('GCASH')) return 'GCash';
+                        if (m.includes('MAYA')) return 'PayMaya';
+                        return method;
+                    },
+
                     openModal(orderId) {
                         this.showModal = true;
                         this.loading = true;
@@ -1238,6 +1246,16 @@ if (isset($_GET['ajax'])) {
                                 <span style="font-size:13px;color:#6b7280;">Payment</span>
                                 <span x-html="statusBadge(order ? order.payment_status : 'N/A', 'payment')"></span>
                             </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span style="font-size:13px;color:#6b7280;">Method</span>
+                                <span x-text="formatPaymentMethod(order ? order.payment_method : '—')" style="font-weight:600;font-size:13px;color:#1f2937;"></span>
+                            </div>
+                            <template x-if="order && order.payment_reference">
+                                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                    <span style="font-size:13px;color:#6b7280;">Ref ID</span>
+                                    <span x-text="order.payment_reference" style="font-family:monospace;font-weight:600;font-size:12px;color:#4F46E5;"></span>
+                                </div>
+                            </template>
                             <div style="display:flex;justify-content:space-between;align-items:center;">
                                 <span style="font-size:13px;color:#6b7280;">Total</span>
                                 <span x-text="order ? (order.total_amount || '₱0.00') : '₱0.00'" style="font-weight:700;font-size:16px;color:#1f2937;"></span>

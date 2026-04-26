@@ -400,7 +400,10 @@ class JobOrderService {
                     'i', [$storeOrderId]
                 );
 
-                $canComplete = ($currentStatus === 'TO_RECEIVE') || !empty($isPOSOrder) || !empty($isPaidInStore) || !empty($hasVerifiedPayment) || !empty($isCash);
+                $normStatus = strtoupper(trim($currentStatus));
+                $readyStatuses = ['TO_RECEIVE', 'READY_TO_COLLECT', 'READY FOR PICKUP', 'READY FOR COLLECTION', 'READY'];
+
+                $canComplete = in_array($normStatus, $readyStatuses) || !empty($isPOSOrder) || !empty($isPaidInStore) || !empty($hasVerifiedPayment) || !empty($isCash);
                 
                 if (!$canComplete) {
                     throw new Exception('Cannot mark as Completed: Payment must be VERIFIED first.');
@@ -443,6 +446,9 @@ class JobOrderService {
                 $types .= "i";
                 
                 db_execute("UPDATE orders SET " . implode(', ', $sql_parts) . " WHERE order_id = ?", $types, $params);
+
+                // Sync status back to customizations table if it exists
+                db_execute("UPDATE customizations SET status = ?, updated_at = NOW() WHERE order_id = ?", 'si', [$storeStatus, $order['order_id']]);
             }
 
             // Send real-time notification to customer on every status change

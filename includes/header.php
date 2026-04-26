@@ -42,7 +42,7 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="PrintFlow - Your trusted printing shop for tarpaulins, t-shirts, stickers, and more">
-    <meta name="theme-color" content="#4F46E5">
+    <meta name="theme-color" content="#0d9488">
     <title><?php echo $page_title ?? 'PrintFlow - Printing Shop'; ?></title>
     <?php include __DIR__ . '/favicon_links.php'; ?>
     <?php if (function_exists('render_order_item_styles')) render_order_item_styles(); ?>
@@ -66,7 +66,31 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
     <script src="<?php echo $asset_base; ?>/assets/js/turbo.min.js" defer></script>
     <script src="<?php echo $asset_base; ?>/assets/js/alpine.min.js" defer></script>
     <script src="<?php echo $asset_base; ?>/assets/js/alpine-init-helper.js"></script>
-    <script src="<?php echo $asset_base; ?>/assets/js/turbo-init.js" defer></script>
+        <script src="<?php echo $asset_base; ?>/assets/js/turbo-init.js" defer></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <link rel="stylesheet" href="<?php echo $asset_base; ?>/assets/css/printflow_call.css?v=<?php echo $ver; ?>">
+    <script>window.PFCallReady = false;</script>
+    <script src="<?php echo $asset_base; ?>/assets/js/printflow_call.js?v=<?php echo $ver; ?>"></script>
+    <?php if ($is_logged_in): ?>
+    <script>
+    (function initGlobalCall() {
+        const init = () => {
+            if (window.PFCall) {
+                const userId = <?php echo (int)get_user_id(); ?>;
+                const userType = '<?php echo get_user_type(); ?>';
+                const userName = '<?php echo addslashes($_SESSION['user_name'] ?? 'User'); ?>';
+                const userAvatar = '<?php echo addslashes(get_profile_image($current_user['profile_picture'] ?? null)); ?>';
+                const basePath = '<?php echo $base_url; ?>';
+                window.PFCall.initialize(userId, userType, userName, userAvatar, basePath);
+            }
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+        else init();
+        document.addEventListener('turbo:load', init);
+    })();
+    </script>
+    <?php endif; ?>
+
     <!-- Critical: base link/layout so page is never unstyled -->
     <style>
         /* Prevent layout shift from scrollbar */
@@ -84,15 +108,15 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
         
         /* Transparent hero nav for landing page only */
         body.lp-page #main-header.lp-hero-nav:not(.sticky-active) { background: transparent !important; border-bottom-color: rgba(255,255,255,0.1) !important; box-shadow: none !important; }
-        body.lp-page #main-header.sticky-active { background: #0a2530 !important; box-shadow: 0 4px 20px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(83,197,224,0.1); }
-        body:not(.lp-page) #main-header.sticky-active { background: rgba(10,37,48,0.92) !important; box-shadow: 0 4px 20px rgba(0,0,0,0.28) !important; border-bottom: 1px solid rgba(83,197,224,0.16) !important; backdrop-filter: blur(6px); }
+        body.lp-page #main-header.sticky-active { background: #0a2530 !important; box-shadow: 0 4px 20px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(13,148,136,0.1); }
+        body:not(.lp-page) #main-header.sticky-active { background: rgba(10,37,48,0.92) !important; box-shadow: 0 4px 20px rgba(0,0,0,0.28) !important; border-bottom: 1px solid rgba(13,148,136,0.16) !important; backdrop-filter: blur(6px); }
         
         body #main-header nav > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
         body #main-header nav > div > div:last-child { display: flex; align-items: center; gap: 1rem; }
         body #main-header a { color: rgba(255,255,255,0.8); font-weight: 500; }
-        body #main-header a:hover { color: #53C5E0; }
+        body #main-header a:hover { color: #0d9488; }
         body #main-header a.nav-link { color: rgba(255,255,255,0.8); }
-        body #main-header a.nav-link:hover { color: #53C5E0; }
+        body #main-header a.nav-link:hover { color: #0d9488; }
         /* Unified header text style (except brand/site name) */
         body #main-header a.nav-link,
         body #main-header a[data-auth-modal="login"],
@@ -102,8 +126,8 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
-        body #main-header .text-2xl.font-bold { color: #53C5E0; }
-        body #main-header .btn-gradient-primary { background: var(--lp-accent, #32a1c4) !important; color: #fff !important; padding: 0.5rem 1.25rem; border-radius: 0.5rem; font-weight: 500; }
+        body #main-header .text-2xl.font-bold { color: #0d9488; }
+        body #main-header .btn-gradient-primary { background: var(--lp-accent, #0d9488) !important; color: #fff !important; padding: 0.5rem 1.25rem; border-radius: 0.5rem; font-weight: 500; }
         body #main-header .pf-auth-cta {
             width: 148px;
             height: 36px;
@@ -143,16 +167,16 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
             transform: translateY(-1px);
         }
         /* Active nav link — mirrors hover state (non-hero pages) */
-        a.nav-link.nav-active { color: #53C5E0 !important; }
+        a.nav-link.nav-active { color: #0d9488 !important; }
         a.nav-link.nav-active > span:last-child { width: 100% !important; }
         /* Dark hero nav: force white text overriding Tailwind text-gray-700 */
         body.lp-page #main-header.lp-hero-nav a,
         body.lp-page #main-header.lp-hero-nav a.nav-link { color: rgba(255,255,255,0.85) !important; }
-        body.lp-page #main-header.lp-hero-nav a.nav-link:hover { color: #53C5E0 !important; }
-        body.lp-page #main-header.lp-hero-nav a.nav-link.nav-active { color: #53C5E0 !important; }
+        body.lp-page #main-header.lp-hero-nav a.nav-link:hover { color: #0d9488 !important; }
+        body.lp-page #main-header.lp-hero-nav a.nav-link.nav-active { color: #0d9488 !important; }
         body.lp-page #main-header.lp-hero-nav a.nav-link.nav-active > span:last-child { width: 100% !important; }
         .pwa-install-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; font-size: 0.875rem; font-weight: 500; color: rgba(255,255,255,0.8); background: transparent; border: 1px solid rgba(255,255,255,0.2); border-radius: 0.5rem; cursor: pointer; transition: all 0.2s; }
-        .pwa-install-btn:hover { color: #53C5E0; border-color: #53C5E0; background: rgba(83,197,224,0.05); }
+        .pwa-install-btn:hover { color: #0d9488; border-color: #0d9488; background: rgba(13,148,136,0.05); }
         .pwa-install-btn.hidden { display: none !important; }
         /* Landing-page nav needs flex layout too */
         #main-header nav > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
@@ -168,8 +192,8 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
             max-width: 450px;
             background: rgba(10, 37, 48, 0.92);
             backdrop-filter: blur(16px);
-            border: 1px solid rgba(83, 197, 224, 0.28);
-            border-left: 4px solid #53c5e0;
+            border: 1px solid rgba(13, 148, 136, 0.28);
+            border-left: 4px solid #0d9488;
             padding: 1rem 1.4rem;
             border-radius: 12px;
             box-shadow: 0 12px 40px rgba(0,0,0,0.55);
@@ -232,7 +256,7 @@ $url_google_auth    = $base_url . '/public/google-auth.php';
 </head>
 <body class="bg-gray-50<?php echo !empty($use_landing_css) ? ' lp-page' : ''; ?><?php echo !empty($use_customer_css) ? ' customer-theme' : ''; ?><?php echo !empty($is_chat_page) ? ' chat-page' : ''; ?>">
     <!-- Skip to main content (accessibility) - hidden until focused -->
-    <a href="#main-content" style="position:absolute;left:-9999px;z-index:9999;padding:0.5rem 1rem;background:#4F46E5;color:#fff;font-weight:500;" id="skip-link">Skip to main content</a>
+    <a href="#main-content" style="position:absolute;left:-9999px;z-index:9999;padding:0.5rem 1rem;background:#0d9488;color:#fff;font-weight:500;" id="skip-link">Skip to main content</a>
     <script>document.getElementById('skip-link').addEventListener('focus',function(){ this.style.left='0'; }); document.getElementById('skip-link').addEventListener('blur',function(){ this.style.left='-9999px'; });</script>
 
     <?php if (empty($use_landing_css)): ?>

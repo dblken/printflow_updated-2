@@ -103,7 +103,7 @@ function render_service_card($srv) {
             
             <div class="rating-stars">
                 <?php for($i=1; $i<=5; $i++): ?>
-                    <svg style="width: 14px; height: 14px;" fill="<?php echo ($i <= round($ravg)) ? '#ffca11' : '#e5e7eb'; ?>" viewBox="0 0 20 20">
+                    <svg style="width: 14px; height: 14px;" fill="<?php echo ($i <= round($ravg)) ? '#ffca11' : '#cbd5e1'; ?>" viewBox="0 0 20 20">
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                     </svg>
                 <?php endfor; ?>
@@ -121,29 +121,29 @@ function render_service_card($srv) {
 
 <style>
     :root {
-        --shopee-orange: #53c5e0;
-        --shopee-bg: #00151b;
-        --shopee-card-bg: rgba(0,49,61,0.85);
-        --shopee-text: #e0f2fe;
-        --shopee-muted: #94a3b8;
-        --shopee-border: rgba(83,197,224,0.2);
+        --shopee-orange: #0369a1;
+        --shopee-bg: #f8fafc;
+        --shopee-card-bg: #ffffff;
+        --shopee-text: #0f172a;
+        --shopee-muted: #475569;
+        --shopee-border: #e2e8f0;
     }
     
     .shopee-card {
         background: var(--shopee-card-bg);
-        border: none;
-        border-radius: 0;
-        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid var(--shopee-border);
+        border-radius: 0.5rem;
+        transition: all 0.2s;
         cursor: pointer;
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        backdrop-filter: blur(8px);
+        backdrop-filter: none;
     }
     
     .shopee-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(83,197,224,0.1);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
     
     .shopee-img {
@@ -168,8 +168,9 @@ function render_service_card($srv) {
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
-        color: var(--shopee-text);
+        color: #0f172a;
         margin-bottom: 6px;
+        font-weight: 700;
     }
     
     .shopee-category {
@@ -227,10 +228,10 @@ function render_service_card($srv) {
     }
     
     .shopee-btn-buy {
-        background: var(--shopee-orange);
+        background: #0d9488;
         color: #fff;
         width: 100%;
-        box-shadow: 0 0 12px rgba(83, 197, 224, 0.2);
+        border-radius: 0.25rem;
     }
     
     .shopee-btn-buy:hover {
@@ -256,15 +257,15 @@ function render_service_card($srv) {
     }
     
     #service-modal-content {
-        background: rgba(0,28,36,0.97) !important;
-        border: 1px solid rgba(83,197,224,0.28) !important;
-        box-shadow: 0 25px 50px rgba(0,0,0,0.6) !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
     }
-    #modal-name { color: #eaf6fb !important; }
-    #modal-intro-text { color: #b9d4df !important; }
+    #modal-name { color: #0f172a !important; }
+    #modal-intro-text { color: #64748b !important; }
     #modal-cart-section {
-        background: rgba(0,18,24,0.97) !important;
-        border-top-color: rgba(83,197,224,0.24) !important;
+        background: #f8fafc !important;
+        border-top-color: #e2e8f0 !important;
     }
 </style>
 
@@ -276,7 +277,7 @@ function render_service_card($srv) {
         </div>
         
         <?php if (empty($core_services)): ?>
-            <div class="ct-empty" style="padding:4rem;text-align:center;color:#6b7280; background: rgba(15, 23, 42, 0.5); border-radius: 1rem;">
+            <div class="ct-empty" style="padding:4rem;text-align:center;color:#6b7280; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 1rem;">
                 <div style="font-size: 4rem; margin-bottom: 1rem;">🏢</div>
                 <p>No services are available at the moment.</p>
             </div>
@@ -296,18 +297,18 @@ function render_service_card($srv) {
     <!-- Backdrop -->
     <div onclick="closeServiceModal()" style="position: absolute; inset: 0; background-color: rgba(0, 0, 0, 0.45);"></div>
     
-    <div id="service-modal-content" style="position: relative; background: rgba(10, 37, 48, 0.96); border: none; border-radius: 0; width: 620px; max-width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); transform: translateY(20px); transition: all 0.3s ease;">
+    <div id="service-modal-content" style="position: relative; background: #ffffff; border: none; border-radius: 0.75rem; width: 620px; max-width: 100%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2); transform: translateY(20px); transition: all 0.3s ease;">
         
         <style>
             #service-modal-scroll-body::-webkit-scrollbar { width: 6px; }
             #service-modal-scroll-body::-webkit-scrollbar-track { background: transparent; }
             #service-modal-scroll-body::-webkit-scrollbar-thumb { background: rgba(83, 197, 224, 0.7); border-radius: 10px; }
             .modal-action-row { display: flex; align-items: stretch; gap: 1rem; }
-            .modal-qty-block { display: flex; align-items: center; border: none; border-radius: 0; height: 48px; flex-shrink: 0; background: rgba(12, 43, 56, 0.92); }
-            .modal-qty-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: #e8f4f8; font-weight: 700; transition: all 0.2s; }
+            .modal-qty-block { display: flex; align-items: center; border: 1px solid #e2e8f0; border-radius: 0.5rem; height: 48px; flex-shrink: 0; background: #f8fafc; }
+            .modal-qty-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: #1e293b; font-weight: 700; transition: all 0.2s; }
             .modal-action-buttons { display: grid; grid-template-columns: 1fr; gap: 0.75rem; flex: 1; }
-            .modal-action-btn { height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; border-radius: 0; border: none; cursor: pointer; transition: all 0.3s; font-size: 0.9rem; text-transform: uppercase; background: var(--shopee-orange); color: #001c24; box-shadow: 0 0 15px rgba(83, 197, 224, 0.25); letter-spacing: 0.05em; }
-            .modal-action-btn:hover { background: #7adcf5; box-shadow: 0 0 25px rgba(83, 197, 224, 0.5); transform: translateY(-2px); }
+            .modal-action-btn { height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.3s; font-size: 0.9rem; text-transform: uppercase; background: #0d9488; color: #ffffff; box-shadow: 0 4px 12px rgba(13, 148, 136, 0.1); letter-spacing: 0.05em; }
+            .modal-action-btn:hover { background: #111111; transform: translateY(-2px); }
         </style>
         
         <button onclick="closeServiceModal()" style="position: absolute; top: 1rem; right: 1rem; z-index: 100; padding: 0.5rem; background: #ffffff; border: none; border-radius: 0; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center;">
@@ -340,18 +341,18 @@ function render_service_card($srv) {
 
             <div style="padding: 1.5rem 2rem; display: flex; flex-direction: column;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
-                    <h2 id="modal-name" style="font-size: 1.5rem; font-weight: 800; color: #eaf6fb; margin: 0;">Service Name</h2>
+                    <h2 id="modal-name" style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Service Name</h2>
                     <div id="modal-rating-pill" style="display: flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.1); border: none; padding: 4px 10px; border-radius: 0;">
                         <span style="color: #f59e0b; font-size: 14px;">★</span>
                         <span id="modal-rating-val" style="color: #f59e0b; font-size: 0.85rem; font-weight: 800;">0.0</span>
                     </div>
                 </div>
-                <p id="modal-intro-text" style="color: #b9d4df; margin: 0 0 1.25rem; line-height: 1.6; font-size: 0.9rem;"></p>
+                <p id="modal-intro-text" style="color: #64748b; margin: 0 0 1.25rem; line-height: 1.6; font-size: 0.9rem;"></p>
             </div>
             <div id="modal-ratings-section" style="padding: 0 2rem 1.5rem;"></div>
         </div>
 
-        <div id="modal-cart-section" style="padding: 1.25rem 2rem; background: rgba(8, 30, 39, 0.95); border-top: 1px solid rgba(83, 197, 224, 0.24);">
+        <div id="modal-cart-section" style="padding: 1.25rem 2rem; background: #f8fafc; border-top: 1px solid #e2e8f0;">
             <div class="modal-action-row">
                 <div class="modal-action-buttons">
                     <button type="button" onclick="buyNowService()" class="modal-action-btn">
@@ -365,207 +366,213 @@ function render_service_card($srv) {
 </div>
 
 <script>
-var currentModalData = {};
-var modalImages = [];
-var currentModalImageIndex = 0;
+    {
+        var currentModalData = {};
+        var modalImages = [];
+        var currentModalImageIndex = 0;
 
-function openServiceModal(id, name, category, images, link, is_service, price, stock, modalIntro, avgRating, reviewCount) {
-    document.getElementById('modal-name').textContent = name;
-    document.getElementById('modal-category').textContent = category;
-    document.getElementById('modal-intro-text').textContent = modalIntro;
-    
-    // Handle images array
-    modalImages = Array.isArray(images) ? images : [images];
-    currentModalImageIndex = 0;
-    
-    // Setup carousel
-    const carousel = document.getElementById('modal-image-carousel');
-    carousel.innerHTML = '';
-    
-    modalImages.forEach((img, index) => {
-        const imgEl = document.createElement('img');
-        imgEl.src = img;
-        imgEl.alt = name;
-        imgEl.style.cssText = 'position:absolute;top:0;left:' + (index === 0 ? '0' : '100%') + ';width:100%;height:100%;object-fit:cover;transition:left 0.4s ease-in-out;';
-        imgEl.className = 'modal-carousel-image';
-        imgEl.dataset.index = index;
-        carousel.appendChild(imgEl);
-    });
-    
-    // Show/hide navigation
-    const prevBtn = document.getElementById('modal-carousel-prev');
-    const nextBtn = document.getElementById('modal-carousel-next');
-    const counter = document.getElementById('modal-image-counter');
-    
-    if (modalImages.length > 1) {
-        prevBtn.style.display = 'none'; // Hide on first image
-        nextBtn.style.display = 'flex';
-        counter.style.display = 'block';
-        document.getElementById('modal-total-images').textContent = modalImages.length;
-        document.getElementById('modal-current-image').textContent = '1';
-    } else {
-        prevBtn.style.display = 'none';
-        nextBtn.style.display = 'none';
-        counter.style.display = 'none';
-    }
-    
-    const ratingVal = parseFloat(avgRating || 0).toFixed(1);
-    document.getElementById('modal-rating-val').textContent = ratingVal;
-    document.getElementById('modal-reviews-link').href = 'reviews.php?service_id=' + id;
-    
-    currentModalData = { id, name, link };
-    
-    // Load reviews
-    loadModalReviews(id);
-    
-    const modal = document.getElementById('service-modal');
-    const content = document.getElementById('service-modal-content');
-    
-    modal.style.display = 'flex';
-    void modal.offsetWidth;
-    modal.style.opacity = '1';
-    modal.style.pointerEvents = 'auto';
-    content.style.transform = 'translateY(0)';
-    document.body.style.overflow = 'hidden';
-}
-
-function changeModalImage(direction) {
-    const newIndex = currentModalImageIndex + direction;
-    
-    if (newIndex < 0 || newIndex >= modalImages.length) return;
-    
-    const images = document.querySelectorAll('.modal-carousel-image');
-    const oldImg = images[currentModalImageIndex];
-    const newImg = images[newIndex];
-    
-    // Position new image
-    if (direction > 0) {
-        newImg.style.left = '100%';
-    } else {
-        newImg.style.left = '-100%';
-    }
-    
-    // Force reflow
-    newImg.offsetHeight;
-    
-    // Animate
-    if (direction > 0) {
-        oldImg.style.left = '-100%';
-    } else {
-        oldImg.style.left = '100%';
-    }
-    newImg.style.left = '0';
-    
-    currentModalImageIndex = newIndex;
-    
-    // Update counter
-    document.getElementById('modal-current-image').textContent = currentModalImageIndex + 1;
-    
-    // Update arrow visibility
-    const prevBtn = document.getElementById('modal-carousel-prev');
-    const nextBtn = document.getElementById('modal-carousel-next');
-    prevBtn.style.display = currentModalImageIndex === 0 ? 'none' : 'flex';
-    nextBtn.style.display = currentModalImageIndex === modalImages.length - 1 ? 'none' : 'flex';
-}
-
-function closeServiceModal() {
-    const modal = document.getElementById('service-modal');
-    const content = document.getElementById('service-modal-content');
-    modal.style.opacity = '0';
-    modal.style.pointerEvents = 'none';
-    content.style.transform = 'translateY(20px)';
-    setTimeout(() => {
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-    }, 300);
-}
-
-function loadModalReviews(serviceId) {
-    const container = document.getElementById('modal-ratings-section');
-    container.innerHTML = '';
-
-    fetch('/printflow/public/api/modal_reviews.php?service_id=' + encodeURIComponent(serviceId))
-        .then(r => r.json())
-        .then(data => {
-            const reviews = data.reviews || [];
-            const avg = parseFloat(data.avg || 0);
-            const count = parseInt(data.count || 0);
-
-            const starSvg = (w, filled) =>
-                `<svg width="${w}" height="${w}" fill="${filled ? '#ef4444' : '#d1d5db'}" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>`;
-
-            let html = `<div style="background:rgba(0,28,36,0.95);border:1px solid rgba(83,197,224,0.16);border-radius:8px;padding:1.5rem;">`;
-            html += `<h2 style="font-size:1.1rem;font-weight:700;color:#eaf6fb;margin:0 0 0.75rem;">Product Ratings</h2>`;
-
-            if (reviews.length === 0) {
-                html += `<div style="text-align:center;padding:3rem 1rem;color:#6b7280;">`;
-                html += `<svg width="56" height="56" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>`;
-                html += `<p style="font-size:1rem;font-weight:600;margin:0.75rem 0 0.25rem;">No Reviews Yet</p>`;
-                html += `<p style="font-size:0.875rem;color:#9ca3af;">Be the first to review this product!</p>`;
-                html += `</div>`;
+        const openServiceModal = function(id, name, category, images, link, is_service, price, stock, modalIntro, avgRating, reviewCount) {
+            document.getElementById('modal-name').textContent = name;
+            document.getElementById('modal-category').textContent = category;
+            document.getElementById('modal-intro-text').textContent = modalIntro;
+            
+            // Handle images array
+            modalImages = Array.isArray(images) ? images : [images];
+            currentModalImageIndex = 0;
+            
+            // Setup carousel
+            const carousel = document.getElementById('modal-image-carousel');
+            carousel.innerHTML = '';
+            
+            modalImages.forEach((img, index) => {
+                const imgEl = document.createElement('img');
+                imgEl.src = img;
+                imgEl.alt = name;
+                imgEl.style.cssText = 'position:absolute;top:0;left:' + (index === 0 ? '0' : '100%') + ';width:100%;height:100%;object-fit:cover;transition:left 0.4s ease-in-out;';
+                imgEl.className = 'modal-carousel-image';
+                imgEl.dataset.index = index;
+                carousel.appendChild(imgEl);
+            });
+            
+            // Show/hide navigation
+            const prevBtn = document.getElementById('modal-carousel-prev');
+            const nextBtn = document.getElementById('modal-carousel-next');
+            const counter = document.getElementById('modal-image-counter');
+            
+            if (modalImages.length > 1) {
+                prevBtn.style.display = 'none'; // Hide on first image
+                nextBtn.style.display = 'flex';
+                counter.style.display = 'block';
+                document.getElementById('modal-total-images').textContent = modalImages.length;
+                document.getElementById('modal-current-image').textContent = '1';
             } else {
-                html += `<div style="background:rgba(83,197,224,0.05);border:1px solid rgba(83,197,224,0.18);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;">`;
-                html += `<div style="display:flex;gap:2rem;align-items:center;flex-wrap:wrap;">`;
-                html += `<div style="text-align:center;"><div style="font-size:3rem;font-weight:700;color:#ef4444;line-height:1;">${avg.toFixed(1)}</div>`;
-                html += `<div style="font-size:0.875rem;color:#6b7280;margin-top:0.25rem;">out of 5</div>`;
-                html += `<div style="display:flex;gap:2px;margin-top:0.5rem;justify-content:center;">${[1,2,3,4,5].map(i => starSvg(22, i <= Math.round(avg))).join('')}</div></div>`;
-                html += `</div></div>`;
-
-                reviews.forEach(rv => {
-                    const name = ((rv.first_name || '') + ' ' + (rv.last_name || '')).trim();
-                    const initial = (name[0] || '?').toUpperCase();
-                    const rating = parseInt(rv.rating);
-                    const date = rv.created_at ? rv.created_at.substring(0, 16) : '';
-                    const msg = rv.message ? rv.message.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
-
-                    html += `<div style="padding:1.5rem;border-bottom:1px solid rgba(83,197,224,0.1);">`;
-                    html += `<div style="display:flex;gap:1rem;">`;
-                    html += `<div style="flex-shrink:0;"><div style="width:48px;height:48px;border-radius:50%;background:rgba(83,197,224,0.15);display:flex;align-items:center;justify-content:center;font-weight:600;color:#e0f2fe;">${initial}</div></div>`;
-                    html += `<div style="flex:1;"><div style="font-weight:600;color:#eaf6fb;margin-bottom:0.25rem;">${name}</div>`;
-                    html += `<div style="display:flex;gap:2px;margin-bottom:0.5rem;">${[1,2,3,4,5].map(i => starSvg(16, i <= rating)).join('')}</div>`;
-                    html += `<div style="font-size:0.875rem;color:#6b7280;margin-bottom:0.5rem;">${date}</div>`;
-                    
-                    if (msg) html += `<div style="color:#b9d4df;line-height:1.6;margin-bottom:0.75rem;">${msg}</div>`;
-                    
-                    // Photos
-                    if (rv.images && rv.images.length > 0) {
-                        html += `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap:8px; margin-bottom:0.75rem;">`;
-                        rv.images.forEach(img => {
-                            html += `<div style="aspect-ratio:1; border-radius:6px; overflow:hidden; border:1px solid rgba(83,197,224,0.12);">`;
-                            html += `<img src="${img.image_path}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="window.open(this.src, '_blank')">`;
-                            html += `</div>`;
-                        });
-                        html += `</div>`;
-                    }
-                    
-                    // Video
-                    if (rv.video_path) {
-                        html += `<div style="margin-bottom:0.75rem; max-width:260px;">`;
-                        html += `<div style="position:relative; width:100%; aspect-ratio:16/9; border-radius:8px; overflow:hidden; border:1px solid rgba(83,197,224,0.2);">`;
-                        html += `<video src="${rv.video_path}" controls style="width:100%; height:100%; object-fit:cover;"></video>`;
-                        html += `</div></div>`;
-                    }
-
-                    html += `</div></div></div>`;
-                });
-
-                if (count > reviews.length) {
-                    html += `<div style="text-align:center;padding:1rem;"><a href="reviews.php?service_id=${serviceId}" style="font-size:0.875rem;color:#3b82f6;font-weight:600;text-decoration:none;">See all ${count} reviews →</a></div>`;
-                }
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                counter.style.display = 'none';
             }
+            
+            const ratingVal = parseFloat(avgRating || 0).toFixed(1);
+            document.getElementById('modal-rating-val').textContent = ratingVal;
+            document.getElementById('modal-reviews-link').href = 'reviews.php?service_id=' + id;
+            
+            currentModalData = { id, name, link };
+            
+            // Load reviews
+            loadModalReviews(id);
+            
+            const modal = document.getElementById('service-modal');
+            const content = document.getElementById('service-modal-content');
+            
+            modal.style.display = 'flex';
+            void modal.offsetWidth;
+            modal.style.opacity = '1';
+            modal.style.pointerEvents = 'auto';
+            content.style.transform = 'translateY(0)';
+            document.body.style.overflow = 'hidden';
+        };
+        window.openServiceModal = openServiceModal;
 
-            html += `</div>`;
-            container.innerHTML = html;
-        })
-        .catch(() => { container.innerHTML = ''; });
-}
+        const changeModalImage = function(direction) {
+            const newIndex = currentModalImageIndex + direction;
+            
+            if (newIndex < 0 || newIndex >= modalImages.length) return;
+            
+            const images = document.querySelectorAll('.modal-carousel-image');
+            const oldImg = images[currentModalImageIndex];
+            const newImg = images[newIndex];
+            
+            // Position new image
+            if (direction > 0) {
+                newImg.style.left = '100%';
+            } else {
+                newImg.style.left = '-100%';
+            }
+            
+            // Force reflow
+            newImg.offsetHeight;
+            
+            // Animate
+            if (direction > 0) {
+                oldImg.style.left = '-100%';
+            } else {
+                oldImg.style.left = '100%';
+            }
+            newImg.style.left = '0';
+            
+            currentModalImageIndex = newIndex;
+            
+            // Update counter
+            document.getElementById('modal-current-image').textContent = currentModalImageIndex + 1;
+            
+            // Update arrow visibility
+            const prevBtn = document.getElementById('modal-carousel-prev');
+            const nextBtn = document.getElementById('modal-carousel-next');
+            prevBtn.style.display = currentModalImageIndex === 0 ? 'none' : 'flex';
+            nextBtn.style.display = currentModalImageIndex === modalImages.length - 1 ? 'none' : 'flex';
+        };
+        window.changeModalImage = changeModalImage;
 
+        const closeServiceModal = function() {
+            const modal = document.getElementById('service-modal');
+            const content = document.getElementById('service-modal-content');
+            modal.style.opacity = '0';
+            modal.style.pointerEvents = 'none';
+            content.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+            }, 300);
+        };
+        window.closeServiceModal = closeServiceModal;
 
-function buyNowService() {
-    if (currentModalData.link) {
-        window.location.href = currentModalData.link;
+        const loadModalReviews = function(serviceId) {
+            const container = document.getElementById('modal-ratings-section');
+            container.innerHTML = '';
+
+            fetch('/printflow/public/api/modal_reviews.php?service_id=' + encodeURIComponent(serviceId))
+                .then(r => r.json())
+                .then(data => {
+                    const reviews = data.reviews || [];
+                    const avg = parseFloat(data.avg || 0);
+                    const count = parseInt(data.count || 0);
+
+                    const starSvg = (w, filled) =>
+                        `<svg width="${w}" height="${w}" fill="${filled ? '#ef4444' : '#d1d5db'}" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>`;
+
+                    let html = `<div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:1.5rem;">`;
+                    html += `<h2 style="font-size:1.1rem;font-weight:700;color:#0f172a;margin:0 0 0.75rem;">Product Ratings</h2>`;
+
+                    if (reviews.length === 0) {
+                        html += `<div style="text-align:center;padding:3rem 1rem;color:#6b7280;">`;
+                        html += `<svg width="56" height="56" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>`;
+                        html += `<p style="font-size:1rem;font-weight:600;margin:0.75rem 0 0.25rem;">No Reviews Yet</p>`;
+                        html += `<p style="font-size:0.875rem;color:#9ca3af;">Be the first to review this product!</p>`;
+                        html += `</div>`;
+                    } else {
+                        html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;">`;
+                        html += `<div style="display:flex;gap:2rem;align-items:center;flex-wrap:wrap;">`;
+                        html += `<div style="text-align:center;"><div style="font-size:3rem;font-weight:700;color:#0f172a;line-height:1;">${avg.toFixed(1)}</div>`;
+                        html += `<div style="font-size:0.875rem;color:#64748b;margin-top:0.25rem;">out of 5</div>`;
+                        html += `<div style="display:flex;gap:2px;margin-top:0.5rem;justify-content:center;">${[1,2,3,4,5].map(i => starSvg(22, i <= Math.round(avg))).join('')}</div></div>`;
+                        html += `</div></div>`;
+
+                        reviews.forEach(rv => {
+                            const name = ((rv.first_name || '') + ' ' + (rv.last_name || '')).trim();
+                            const initial = (name[0] || '?').toUpperCase();
+                            const rating = parseInt(rv.rating);
+                            const date = rv.created_at ? rv.created_at.substring(0, 16) : '';
+                            const msg = rv.message ? rv.message.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+
+                            html += `<div style="padding:1.5rem;border-bottom:1px solid rgba(83,197,224,0.1);">`;
+                            html += `<div style="display:flex;gap:1rem;">`;
+                            html += `<div style="flex-shrink:0;"><div style="width:48px;height:48px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-weight:600;color:#1e293b;">${initial}</div></div>`;
+                            html += `<div style="flex:1;"><div style="font-weight:600;color:#0f172a;margin-bottom:0.25rem;">${name}</div>`;
+                            html += `<div style="display:flex;gap:2px;margin-bottom:0.5rem;">${[1,2,3,4,5].map(i => starSvg(16, i <= rating)).join('')}</div>`;
+                            html += `<div style="font-size:0.875rem;color:#6b7280;margin-bottom:0.5rem;">${date}</div>`;
+                            
+                            if (msg) html += `<div style="color:#1e293b;line-height:1.6;margin-bottom:0.75rem;">${msg}</div>`;
+                            
+                            // Photos
+                            if (rv.images && rv.images.length > 0) {
+                                html += `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap:8px; margin-bottom:0.75rem;">`;
+                                rv.images.forEach(img => {
+                                    html += `<div style="aspect-ratio:1; border-radius:6px; overflow:hidden; border:1px solid rgba(83,197,224,0.12);">`;
+                                    html += `<img src="${img.image_path}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="window.open(this.src, '_blank')">`;
+                                    html += `</div>`;
+                                });
+                                html += `</div>`;
+                            }
+                            
+                            // Video
+                            if (rv.video_path) {
+                                html += `<div style="margin-bottom:0.75rem; max-width:260px;">`;
+                                html += `<div style="position:relative; width:100%; aspect-ratio:16/9; border-radius:8px; overflow:hidden; border:1px solid rgba(83,197,224,0.2);">`;
+                                html += `<video src="${rv.video_path}" controls style="width:100%; height:100%; object-fit:cover;"></video>`;
+                                html += `</div></div>`;
+                            }
+
+                            html += `</div></div></div>`;
+                        });
+
+                        if (count > reviews.length) {
+                            html += `<div style="text-align:center;padding:1rem;"><a href="reviews.php?service_id=${serviceId}" style="font-size:0.875rem;color:#3b82f6;font-weight:600;text-decoration:none;">See all ${count} reviews →</a></div>`;
+                        }
+                    }
+
+                    html += `</div>`;
+                    container.innerHTML = html;
+                })
+                .catch(() => { container.innerHTML = ''; });
+        };
+        window.loadModalReviews = loadModalReviews;
+
+        const buyNowService = function() {
+            if (currentModalData.link) {
+                window.location.href = currentModalData.link;
+            }
+        };
+        window.buyNowService = buyNowService;
     }
-}
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

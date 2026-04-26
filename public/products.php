@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Public Products Page
  * PrintFlow - Printing Shop PWA
@@ -99,13 +99,13 @@ $section_i = 0;
 foreach ($products_by_category as $cat_name => $cat_products):
     $dark = ($section_i % 2 === 0);
     $section_i++;
-    $bg = $dark ? 'var(--lp-bg2)' : '#f8fafc';
-    $card_bg = $dark ? 'var(--lp-surface)' : '#fff';
-    $card_border = $dark ? '1px solid rgba(83,197,224,0.12)' : '1px solid #e2e8f0';
-    $heading_col = $dark ? '#fff' : '#0f172a';
-    $sub_col = $dark ? 'var(--lp-muted)' : '#64748b';
-    $name_col = $dark ? '#fff' : '#0f172a';
-    $desc_col = $dark ? 'var(--lp-muted)' : '#64748b';
+    $bg = '#f8fafc';
+    $card_bg = '#ffffff';
+    $card_border = '1px solid #e2e8f0';
+    $heading_col = '#0f172a';
+    $sub_col = '#64748b';
+    $name_col = '#0f172a';
+    $desc_col = '#64748b';
 ?>
 <section style="padding:4rem 0;background:<?php echo $bg; ?>;">
     <div class="lp-wrap">
@@ -139,8 +139,8 @@ foreach ($products_by_category as $cat_name => $cat_products):
                     <?php endif; ?>
                 </div>
                 <?php else: ?>
-                <div style="width:100%;aspect-ratio:4/3;background:<?php echo $dark ? '#001a22' : '#f1f5f9'; ?>;display:flex;align-items:center;justify-content:center;position:relative;">
-                    <svg style="width:52px;height:52px;color:<?php echo $dark ? '#1e4a5c' : '#cbd5e1'; ?>;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <div style="width:100%;aspect-ratio:4/3;background:#f1f5f9;display:flex;align-items:center;justify-content:center;position:relative;">
+                    <svg style="width:52px;height:52px;color:#cbd5e1;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     <?php if ($product['is_featured'] ?? 0): ?>
                     <span style="position:absolute;top:.75rem;left:.75rem;background:var(--lp-accent);color:#fff;font-size:.65rem;font-weight:800;letter-spacing:.08em;padding:.25rem .7rem;border-radius:20px;text-transform:uppercase;">★ Popular</span>
                     <?php endif; ?>
@@ -156,9 +156,9 @@ foreach ($products_by_category as $cat_name => $cat_products):
                     <?php else: ?>
                     <div style="flex:1;"></div>
                     <?php endif; ?>
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.75rem;padding-top:.875rem;border-top:1px solid <?php echo $dark ? 'rgba(83,197,224,0.1)' : '#f1f5f9'; ?>;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.75rem;padding-top:.875rem;border-top:1px solid #f1f5f9;">
                         <div>
-                            <div style="font-size:1.5rem;font-weight:800;color:<?php echo $dark ? '#fff' : '#0f172a'; ?>;line-height:1;">₱<?php echo number_format($product['price'], 2); ?></div>
+                            <div style="font-size:1.5rem;font-weight:800;color:#0f172a;line-height:1;">₱<?php echo number_format($product['price'], 2); ?></div>
                             <div style="font-size:.75rem;color:<?php echo $desc_col; ?>;margin-top:2px;">Starting price</div>
                         </div>
                         <?php if (is_logged_in() && is_customer()): ?>
@@ -170,8 +170,8 @@ foreach ($products_by_category as $cat_name => $cat_products):
                             </a>
                         <?php else: ?>
                             <a href="#" data-auth-modal="login"
-                               style="display:inline-flex;align-items:center;gap:.4rem;background:<?php echo $dark ? 'rgba(50,161,196,0.15)' : '#eef7fa'; ?>;color:var(--lp-accent);padding:.55rem 1.125rem;border-radius:.625rem;font-size:.875rem;font-weight:700;transition:background .2s;border:1px solid rgba(50,161,196,0.25);"
-                               onmouseover="this.style.background='var(--lp-accent)';this.style.color='#fff'" onmouseout="this.style.background='<?php echo $dark ? 'rgba(50,161,196,0.15)' : '#eef7fa'; ?>'; this.style.color='var(--lp-accent)'">
+                               style="display:inline-flex;align-items:center;gap:.4rem;background:#eef7fa;color:var(--lp-accent);padding:.55rem 1.125rem;border-radius:.625rem;font-size:.875rem;font-weight:700;transition:background .2s;border:1px solid rgba(50,161,196,0.25);"
+                               onmouseover="this.style.background='var(--lp-accent)';this.style.color='#fff'" onmouseout="this.style.background='#eef7fa'; this.style.color='var(--lp-accent)'">
                                 Order
                                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                             </a>

@@ -79,7 +79,7 @@ require_once __DIR__ . '/../includes/header.php';
     .notif-page-title {
         font-size: 1.75rem;
         font-weight: 800;
-        color: #eaf6fb;
+        color: #0f172a;
         display: flex;
         align-items: center;
         gap: 0.75rem;
@@ -91,9 +91,9 @@ require_once __DIR__ . '/../includes/header.php';
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.03em;
-        background: rgba(83, 197, 224, 0.1);
+        background: rgba(3, 105, 161, 0.05);
         border: none;
-        color: #53c5e0;
+        color: #0369a1;
         text-decoration: none;
         transition: all 0.2s;
         white-space: nowrap;
@@ -107,7 +107,7 @@ require_once __DIR__ . '/../includes/header.php';
     .notif-group-label {
         font-size: 0.7rem;
         font-weight: 800;
-        color: rgba(83, 197, 224, 0.6);
+        color: #64748b;
         text-transform: uppercase;
         letter-spacing: 0.1em;
         margin: 2rem 0 0.75rem;
@@ -119,9 +119,9 @@ require_once __DIR__ . '/../includes/header.php';
 
     /* Notification Card */
     .notif-card {
-        background: #0a2530;
-        border: none;
-        border-radius: 0;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
         padding: 1rem;
         margin-bottom: 0.75rem;
         transition: all 0.2s;
@@ -129,12 +129,13 @@ require_once __DIR__ . '/../includes/header.php';
         display: block;
     }
     .notif-card:hover {
-        background: #0d3240;
+        background: #f8fafc;
         transform: translateX(4px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
     .notif-card.unread {
-        background: #0d3240;
-        border-left: 3px solid #53c5e0;
+        background: #f0f9ff;
+        border-left: 4px solid #53c5e0;
     }
 
     /* Desktop Layout */
@@ -165,7 +166,7 @@ require_once __DIR__ . '/../includes/header.php';
     .notif-title {
         font-size: 0.9rem;
         font-weight: 700;
-        color: #eaf6fb;
+        color: #0f172a;
         margin-bottom: 0.35rem;
     }
     .notif-card.unread .notif-title {
@@ -174,7 +175,7 @@ require_once __DIR__ . '/../includes/header.php';
     .notif-description {
         font-size: 0.85rem;
         line-height: 1.5;
-        color: #9fc4d4;
+        color: #475569;
         margin-bottom: 0.5rem;
         word-wrap: break-word;
     }
@@ -203,15 +204,15 @@ require_once __DIR__ . '/../includes/header.php';
         white-space: nowrap;
     }
     .notif-card:hover .notif-view-btn {
-        background: #53c5e0;
-        color: #030d11;
+        background: #0369a1;
+        color: #ffffff;
     }
 
     /* Empty State */
     .notif-empty {
         text-align: center;
         padding: 4rem 2rem;
-        color: rgba(255, 255, 255, 0.4);
+        color: #64748b;
     }
     .notif-empty-icon {
         font-size: 3rem;
@@ -260,7 +261,7 @@ require_once __DIR__ . '/../includes/header.php';
             <h1 class="notif-page-title">
                 Notifications
                 <?php if ($unread_total > 0): ?>
-                    <span style="background: #53c5e0; color: #030d11; padding: 4px 12px; border-radius: 0; font-size: 0.75rem; font-weight: 900; box-shadow: 0 0 15px rgba(83, 197, 224, 0.4);"><?php echo $unread_total; ?></span>
+                    <span style="background: #0369a1; color: #ffffff; padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 900;"><?php echo $unread_total; ?></span>
                 <?php endif; ?>
             </h1>
             <?php if ($unread_total > 0): ?>

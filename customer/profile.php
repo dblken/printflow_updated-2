@@ -350,26 +350,25 @@ require_once __DIR__ . '/../includes/header.php';
 <style>
 /* ── Modern Profile Page (Refactored to Project Specs) ─── */
 :root {
-    --pf-primary: #53c5e0;
-    --pf-secondary: #00232b;
-    --pf-accent: #53c5e0;
-    --pf-accent-hover: #32a1c4;
-    --pf-text-main: #e0f2fe;
-    --pf-text-muted: #94a3b8;
-    --pf-border: rgba(83,197,224,0.2);
-    --pf-card-bg: rgba(0,49,61,0.85);
+    --pf-primary: #0d9488;
+    --pf-secondary: #f8fafc;
+    --pf-accent: #0d9488;
+    --pf-accent-hover: #0f766e;
+    --pf-text-main: #1e293b;
+    --pf-text-muted: #475569;
+    --pf-border: #e2e8f0;
+    --pf-card-bg: #ffffff;
 }
 
 .profile-container {
     max-width: 1100px;
     margin: 40px auto;
     padding: 2.5rem;
-    background: rgba(0,49,61,0.8);
-    border: none;
-    border-radius: 0;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 4px 25px rgba(0,0,0,0.06);
     box-sizing: border-box;
-    backdrop-filter: blur(12px);
 }
 
 /* Mobile: reduce padding and margin */
@@ -416,7 +415,7 @@ require_once __DIR__ . '/../includes/header.php';
 .sidebar-content {
     text-align: center;
     padding: 1.5rem;
-    background: rgba(0,28,36,0.85);
+    background: #f8fafc;
     border-radius: 0;
     border: none;
     backdrop-filter: blur(8px);
@@ -439,8 +438,8 @@ require_once __DIR__ . '/../includes/header.php';
     height: 130px;
     border-radius: 0;
     overflow: hidden;
-    background: #00151b;
-    border: 3px solid var(--pf-accent);
+    background: #ffffff;
+    border: 4px solid #ffffff;
     box-shadow: 0 4px 12px rgba(83,197,224,0.1);
     margin: 0 auto;
 }
@@ -465,14 +464,14 @@ require_once __DIR__ . '/../includes/header.php';
     width: 32px;
     height: 32px;
     border-radius: 0;
-    background: var(--pf-accent);
-    color: #001820;
+    background: #0d9488;
+    color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     box-shadow: 0 4px 10px rgba(83,197,224,0.3);
-    border: 2px solid #00151b;
+    border: 2px solid #e2e8f0;
 }
 
 .profile-user-name {
@@ -495,7 +494,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 .profile-user-email {
     font-size: 0.875rem;
-    color: #64748b;
+    color: #475569;
     margin-bottom: 1rem;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -512,9 +511,19 @@ require_once __DIR__ . '/../includes/header.php';
 .profile-info-pill {
     display: flex;
     justify-content: space-between;
-    padding: 0.75rem 0;
+    padding: 0.85rem 0;
     border-top: 1px solid #e2e8f0;
     font-size: 0.813rem;
+    color: #475569;
+}
+
+.profile-info-pill span:first-child {
+    font-weight: 600;
+}
+
+.profile-info-pill span:last-child {
+    color: #0d9488;
+    font-weight: 700;
 }
 
 @media (max-width: 768px) {
@@ -538,7 +547,7 @@ require_once __DIR__ . '/../includes/header.php';
 }
 
 .profile-card {
-    background: rgba(0,28,36,0.7);
+    background: #ffffff;
     border: none;
     border-radius: 0;
     padding: 1.5rem;
@@ -557,10 +566,12 @@ require_once __DIR__ . '/../includes/header.php';
 }
 
 .profile-card-title {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: #0f172a;
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: #0d9488;
     margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -614,22 +625,22 @@ require_once __DIR__ . '/../includes/header.php';
 .pf-input {
     width: 100%;
     padding: 12px 14px;
-    border: 1px solid rgba(83,197,224,0.2) !important;
-    border-radius: 0 !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 0.5rem !important;
     font-size: 0.95rem;
-    color: #e0f2fe !important;
-    background: rgba(0,49,61,0.6) !important;
+    color: #1e293b !important;
+    background: #ffffff !important;
     box-sizing: border-box;
     transition: 0.2s;
-    color-scheme: dark;
+    color-scheme: light;
 }
 
 .pf-input:-webkit-autofill,
 .pf-input:-webkit-autofill:hover, 
 .pf-input:-webkit-autofill:focus, 
 .pf-input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 30px rgba(0,28,36,0.95) inset !important;
-    -webkit-text-fill-color: #e0f2fe !important;
+    -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+    -webkit-text-fill-color: #1e293b !important;
     transition: background-color 5000s ease-in-out 0s;
 }
 
@@ -644,34 +655,40 @@ require_once __DIR__ . '/../includes/header.php';
 .pf-input:focus {
     outline: none;
     border-color: var(--pf-accent) !important;
-    background: rgba(0,49,61,0.8) !important;
-    box-shadow: 0 0 0 3px rgba(83, 197, 224, 0.1);
+    background: #ffffff !important;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
 }
 
 select.pf-input option {
-    background: #00151b;
-    color: #e0f2fe;
+    background: #ffffff;
+    color: #1e293b;
 }
 
 .pf-btn-primary {
-    padding: 7px 24px;
-    border-radius: 0;
+    padding: 10px 24px;
+    border-radius: 8px !important;
     border: none;
-    background: linear-gradient(135deg, #268dae, #53c5e0) !important;
+    background: #0d9488 !important;
     color: #ffffff !important;
     font-weight: 700;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    text-transform: uppercase;
-    font-size: 0.9rem;
-    letter-spacing: 0.05em;
     text-decoration: none;
     min-height: 48px;
-    box-shadow: 0 4px 15px rgba(83, 197, 224, 0.4), inset 0 1px 0 rgba(255,255,255,0.3) !important;
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25) !important;
+}
+
+.pf-btn-primary:hover {
+    background: #0f766e !important;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(13, 148, 136, 0.35) !important;
 }
 
 @media (max-width: 768px) {
@@ -701,13 +718,13 @@ select.pf-input option {
 
 /* Quick Actions Nav */
 .profile-nav-card {
-    background: rgba(0,28,36,0.85); border-radius: 0; border: none; padding: 0.5rem;
+    background: #f8fafc; border-radius: 0; border: none; padding: 0.5rem;
     backdrop-filter: blur(8px);
 }
 .profile-nav-list { list-style: none; padding: 0; margin: 0; }
 .profile-nav-item a {
     display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-    border-radius: 8px; font-weight: 600; color: #94a3b8; text-decoration: none; transition: 0.2s;
+    border-radius: 8px; font-weight: 600; color: #475569; text-decoration: none; transition: 0.2s;
 }
 .profile-nav-item a:hover { background: rgba(83,197,224,0.1); color: var(--pf-accent); }
 .profile-nav-item a.active { background: rgba(83,197,224,0.12); color: var(--pf-accent); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
@@ -800,13 +817,13 @@ select.pf-input option {
                     <div style="margin-top: 1rem;">
                         <div class="profile-info-pill">
                             <span>Since</span>
-                            <span style="font-weight:700;color:#e0f2fe;"><?php echo isset($customer['created_at']) ? date('M Y', strtotime($customer['created_at'])) : '2026'; ?></span>
+                            <span><?php echo isset($customer['created_at']) ? date('M Y', strtotime($customer['created_at'])) : '2026'; ?></span>
                         </div>
                         <div class="profile-info-pill" style="border-bottom: none;">
                             <span>Status</span>
                             <?php
                             $id_st = $customer['id_status'] ?? 'None';
-                            $st_color = $id_st==='Verified' ? '#16a34a' : ($id_st==='Pending' ? '#b45309' : ($id_st==='Rejected' ? '#b91c1c' : '#64748b'));
+                            $st_color = $id_st==='Verified' ? '#16a34a' : ($id_st==='Pending' ? '#b45309' : ($id_st==='Rejected' ? '#b91c1c' : '#475569'));
                             $st_label = $id_st==='Verified' ? 'ID Verified' : ($id_st==='Pending' ? 'Pending Review' : ($id_st==='Rejected' ? 'ID Rejected' : 'Unverified'));
                             ?>
                             <span style="font-weight:700;color:<?php echo $st_color;?>"><?php echo $st_label; ?></span>
@@ -924,9 +941,9 @@ select.pf-input option {
                             <input type="text" id="addr_street" name="street_address" class="pf-input" placeholder="e.g. #123 Sampaguita st., Phase 2" value="<?php echo htmlspecialchars($customer['street_address'] ?? ''); ?>">
                         </div>
 
-                        <div id="addr-preview" style="display:none; background:rgba(0,0,0,0.2); border:1px solid rgba(83,197,224,0.2); border-radius:0; padding:1rem; margin-top:1.5rem; font-size:0.875rem; color:#e0f2fe;">
-                            <span style="color:#64748b; font-weight:600; display:block; margin-bottom:4px;">Delivery Summary</span>
-                            <div id="addr-preview-text" style="color:#0f172a; line-height:1.4;"></div>
+                        <div id="addr-preview" style="display:none; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:1rem; margin-top:1.5rem; font-size:0.875rem;">
+                            <span style="color:#0369a1; font-weight:700; display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Delivery Summary</span>
+                            <div id="addr-preview-text" style="color:#1e293b; line-height:1.6; font-weight:500;"></div>
                         </div>
 
                         <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
@@ -956,7 +973,7 @@ select.pf-input option {
                             </div>
                             <div class="pf-field-group">
                                 <!-- empty column for alignment or extra info -->
-                                <div style="font-size:0.813rem; color:#64748b; padding-top:2rem;">
+                                <div style="font-size:0.813rem; color:#475569; padding-top:2rem;">
                                     Confirm your identity to make security changes.
                                 </div>
                             </div>
@@ -1010,20 +1027,20 @@ select.pf-input option {
                     </h3>
 
                     <?php if ($id_status === 'Rejected'): ?>
-                    <div style="background:rgba(248, 113, 113, 0.1);border:1px solid rgba(248, 113, 113, 0.2);border-radius:0;padding:12px 16px;margin-bottom:1.25rem;font-size:0.875rem;color:#fca5a5;">
+                    <div style="background:#fef2f2; border:1px solid #fee2e2; border-radius:8px; padding:12px 16px; margin-bottom:1.25rem; font-size:0.875rem; color:#b91c1c;">
                         <strong>Rejected:</strong> <?php echo htmlspecialchars($id_reject ?: 'Your ID was rejected. Please resubmit a clearer photo.'); ?>
                     </div>
                     <?php endif; ?>
 
                     <?php if ($id_status === 'Verified'): ?>
-                    <div style="background:rgba(74, 222, 128, 0.1);border:1px solid rgba(74, 222, 128, 0.2);border-radius:0;padding:16px;font-size:0.9rem;color:#86efac;">
+                    <div style="background:#f0fdf4; border:1px solid #dcfce7; border-radius:8px; padding:16px; font-size:0.9rem; color:#15803d;">
                         <strong>✓ Your identity has been verified.</strong> You can now place orders.
                     </div>
                     <?php else: ?>
-                    <p style="font-size:0.875rem;color:#94a3b8;margin-bottom:1.25rem;">Upload a valid government-issued ID to verify your identity before placing orders.</p>
+                    <p style="font-size:0.875rem; color:#475569; margin-bottom:1.25rem;">Upload a valid government-issued ID to verify your identity before placing orders.</p>
 
                     <?php if (!empty($id_image) && $id_status === 'Pending'): ?>
-                    <div style="margin-bottom:1.25rem;padding:12px 16px;background:rgba(252, 211, 77, 0.1);border:1px solid rgba(252, 211, 77, 0.2);border-radius:0;font-size:0.875rem;color:#fde047;">
+                    <div style="margin-bottom:1.25rem; padding:12px 16px; background:#fffbeb; border:1px solid #fef3c7; border-radius:8px; font-size:0.875rem; color:#b45309;">
                         ⏳ Your ID is currently under review. We'll notify you once it's approved.
                     </div>
                     <?php endif; ?>
@@ -1051,7 +1068,7 @@ select.pf-input option {
                         </div>
                         <?php if (!empty($id_image)): ?>
                         <div style="margin-top:1rem;">
-                            <p style="font-size:0.75rem;color:#64748b;margin-bottom:6px;">Previously submitted:</p>
+                            <p style="font-size:0.75rem;color:#475569;margin-bottom:6px;">Previously submitted:</p>
                             <img src="/printflow/uploads/ids/<?php echo htmlspecialchars($id_image); ?>" style="max-height:140px;border-radius:8px;border:1px solid #e2e8f0;">
                         </div>
                         <?php endif; ?>
@@ -1092,7 +1109,7 @@ select.pf-input option {
     width: 14px;
     height: 14px;
     border: 2px solid #d1d5db;
-    border-top-color: #0a2530;
+    border-top-color: #0d9488;
     border-radius: 50%;
     animation: addr-spin 0.7s linear infinite;
     pointer-events: none;
@@ -1198,7 +1215,7 @@ select.pf-input option {
 }
 
 .password-toggle:hover {
-    color: #53C5E0;
+    color: #0d9488;
 }
 
 .pf-field-group.is-invalid .pf-input {

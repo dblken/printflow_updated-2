@@ -937,7 +937,7 @@ try {
     </style>
 </head>
 
-<body data-turbo="false">
+<body>
 
     <div class="dashboard-container">
         <?php
@@ -949,7 +949,7 @@ try {
         ?>
 
         <div class="main-content"
-            style="padding: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; width: 100%; min-height: 0;">
+            style="padding: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; min-height: 0;">
             <main style="flex: 1; display: flex; flex-direction: column; width: 100%; min-height: 0;">
                 <div class="pos-wrapper" style="width: 100%; flex: 1; min-height: 0;">
 
@@ -1390,19 +1390,6 @@ try {
         let currentTotal = 0;
         let currentMode = null; // 'products' or 'services'
 
-        // Initialize Select2 for customer dropdown
-        $(document).ready(function () {
-            $('#pos-customer').select2({
-                placeholder: '-- Select Customer --',
-                allowClear: false,
-                width: '100%',
-                minimumResultsForSearch: 0 // Always show search box
-            });
-
-            // Set default to guest
-            $('#pos-customer').val('guest').trigger('change');
-        });
-
         function showPOSMode(mode) {
             currentMode = mode;
             document.getElementById('selection-view').style.display = 'none';
@@ -1410,7 +1397,6 @@ try {
             if (mode === 'products') {
                 document.getElementById('products-view').style.display = 'flex';
                 document.getElementById('services-view').style.display = 'none';
-                // Force re-render products to ensure they show with icons
                 if (products.length > 0) {
                     renderProducts();
                 } else {
@@ -1429,7 +1415,25 @@ try {
             document.getElementById('services-view').style.display = 'none';
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
+        async function printflowInitPOSPage() {
+
+            const container = document.querySelector('.dashboard-container');
+            if (!container || container.dataset.pfPosInit === '1') return;
+            container.dataset.pfPosInit = '1';
+
+            console.log('[POS] Initializing POS system...');
+
+            // Initialize Select2 for customer dropdown
+            if (typeof $ !== 'undefined' && $('#pos-customer').length) {
+                $('#pos-customer').select2({
+                    placeholder: '-- Select Customer --',
+                    allowClear: false,
+                    width: '100%',
+                    minimumResultsForSearch: 0
+                });
+                $('#pos-customer').val('guest').trigger('change');
+            }
+
             fetchProducts();
             refreshCart(); // Initialize cart from session
             const searchEl = document.getElementById('pos-search');
@@ -1440,23 +1444,25 @@ try {
             // Check if returning from customizations page with updated price
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('from_customizations') === '1') {
-                // Restore customer selection if saved
                 const savedState = sessionStorage.getItem('pos_cart_state');
                 if (savedState) {
                     try {
                         const state = JSON.parse(savedState);
-                        if (state.customer) {
+                        if (state.customer && typeof $ !== 'undefined') {
                             $('#pos-customer').val(state.customer).trigger('change');
                         }
                     } catch (e) { }
                     sessionStorage.removeItem('pos_cart_state');
                 }
-                // Cart price already updated in session — just refresh silently
                 await refreshCart();
-                // Clean URL
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
-        });
+        }
+
+        document.addEventListener('DOMContentLoaded', printflowInitPOSPage);
+        document.addEventListener('printflow:page-init', printflowInitPOSPage);
+        document.addEventListener('turbo:load', printflowInitPOSPage);
+
 
         async function syncedCartAction(action, payload = {}) {
             console.log('syncedCartAction:', action, payload);

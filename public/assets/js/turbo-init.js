@@ -178,6 +178,14 @@
             try {
                 document.documentElement.dispatchEvent(new CustomEvent('printflow:turbo-page', { bubbles: true }));
             } catch (e) { /* ignore */ }
+            
+            // Release transition lock only after everything is ready
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    document.documentElement.classList.remove('pf-turbo-nav');
+                    console.log('[turbo] Transitions re-enabled');
+                });
+            });
         }
 
         /* Inline <script> in the new body defines x-data factories; initTree must run after them.
@@ -241,7 +249,8 @@
     document.addEventListener('turbo:load', function () {
         requestAnimationFrame(function () {
             requestAnimationFrame(function () {
-                document.documentElement.classList.remove('pf-turbo-nav');
+                // Transitions are now released in finishPageBoot() to ensure no jumps
+
                 
                 // Wait for Alpine to be fully loaded and ready
                 function waitForAlpineAndInit() {

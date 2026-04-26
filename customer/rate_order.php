@@ -26,7 +26,7 @@ if ($order_id <= 0) {
 }
 
 $order_rows = db_query("
-    SELECT o.order_id, o.customer_id, o.status,
+    SELECT o.order_id, o.customer_id, o.status, o.order_type, o.reference_id,
            (SELECT oi.customization_data FROM order_items oi WHERE oi.order_id = o.order_id ORDER BY oi.order_item_id ASC LIMIT 1) AS customization_data,
            (SELECT p.name FROM order_items oi LEFT JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = o.order_id ORDER BY oi.order_item_id ASC LIMIT 1) AS product_name,
            (SELECT oi.order_item_id FROM order_items oi WHERE oi.order_id = o.order_id ORDER BY oi.order_item_id ASC LIMIT 1) AS first_item_id
@@ -148,10 +148,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ref_id = 0;
                     $rev_type = 'custom';
                     
-                    $item_ref = db_query("SELECT product_id FROM order_items WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
-                    if (!empty($item_ref) && !empty($item_ref[0]['product_id'])) {
-                        $ref_id = (int)$item_ref[0]['product_id'];
-                        $rev_type = 'product';
+                    // Priority 1: Use direct reference from order table for custom/service orders
+                    if (!empty($order['order_type']) && $order['order_type'] === 'custom' && !empty($order['reference_id'])) {
+                        $ref_id = (int)$order['reference_id'];
+                        $rev_type = 'custom';
+                    } else {
+                        // Priority 2: Standard product orders (from order_items)
+                        $item_ref = db_query("
+                            SELECT oi.product_id, p.category 
+                            FROM order_items oi 
+                            LEFT JOIN products p ON oi.product_id = p.product_id 
+                            WHERE oi.order_id = ? 
+                            LIMIT 1
+                        ", 'i', [$order_id]);
+
+                        if (!empty($item_ref) && !empty($item_ref[0]['product_id'])) {
+                            $ref_id = (int)$item_ref[0]['product_id'];
+                            $category = strtolower(trim($item_ref[0]['category'] ?? ''));
+                            // Only 'Merchandise' category uses the product page; everything else (services) uses dynamic service page
+                            if ($category === 'merchandise') {
+                                $rev_type = 'product';
+                            } else {
+                                $rev_type = 'custom';
+                            }
+                        }
                     }
 
                     if ($needs_message_update) {
@@ -203,37 +223,37 @@ require_once __DIR__ . '/../includes/header.php';
 
 <style>
 .rate-wrap { max-width: 1200px; margin: 0 auto; padding: 1rem; }
-.rate-card { background: linear-gradient(165deg, rgba(10, 37, 48, 0.94), rgba(7, 26, 34, 0.96)); border: 1px solid rgba(83, 197, 224, 0.25); border-radius: 1.25rem; padding: 2.5rem; box-shadow: 0 20px 45px rgba(0, 0, 0, .45); }
-.rate-title { font-size: 1.75rem; font-weight: 800; color: #ffffff; margin: 0 0 0.5rem; letter-spacing: -0.01em; font-family: inherit; }
-.rate-sub { font-size: 1rem; font-weight: 500; color: #a6e7f6; margin: 0 0 1.75rem; font-family: inherit; }
+.rate-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 2.5rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); }
+.rate-title { font-size: 1.75rem; font-weight: 800; color: #1e293b; margin: 0 0 0.5rem; letter-spacing: -0.01em; font-family: inherit; }
+.rate-sub { font-size: 1rem; font-weight: 500; color: #64748b; margin: 0 0 1.75rem; font-family: inherit; }
 
 /* Two-column layout */
 .rate-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; align-items: start; }
 @media (max-width: 768px) { .rate-columns { grid-template-columns: 1fr; gap: 1.5rem; } }
 
 .rate-stars { display: flex; gap: 10px; margin-bottom: 1.75rem; flex-wrap: wrap; }
-.rate-star-btn { width: 52px; height: 52px; border: 1px solid rgba(83, 197, 224, 0.2); border-radius: 0.85rem; background: rgba(0, 21, 27, 0.45); color: #374151; font-size: 32px; line-height: 1; cursor: pointer; transition: all .24s; display: flex; align-items: center; justify-content: center; padding-bottom: 4px; font-family: inherit; }
-.rate-star-btn:hover { border-color: #f59e0b; color: #f59e0b; background: rgba(245, 158, 11, 0.08); transform: translateY(-3px); box-shadow: 0 6px 15px rgba(245, 158, 11, 0.15); }
-.rate-star-btn.active { border-color: #f59e0b; background: rgba(245, 158, 11, 0.12); color: #f59e0b; box-shadow: 0 6px 15px rgba(245, 158, 11, 0.2); }
+.rate-star-btn { width: 52px; height: 52px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; color: #cbd5e1; font-size: 32px; line-height: 1; cursor: pointer; transition: all .24s; display: flex; align-items: center; justify-content: center; padding-bottom: 4px; font-family: inherit; }
+.rate-star-btn:hover { border-color: #f59e0b; color: #f59e0b; background: #fffbeb; transform: translateY(-3px); box-shadow: 0 6px 15px rgba(245, 158, 11, 0.15); }
+.rate-star-btn.active { border-color: #f59e0b; background: #fffbeb; color: #f59e0b; box-shadow: 0 6px 15px rgba(245, 158, 11, 0.2); }
 .rate-star-btn:disabled { cursor: default; transform: none !important; opacity: 1 !important; }
-.rate-label { display: block; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #9be2f3; margin-bottom: 0.6rem; font-family: inherit; }
-.rate-textarea { width: 100%; min-height: 200px; border: 1px solid rgba(83, 197, 224, 0.28); border-radius: 1rem; background: rgba(0, 21, 27, 0.6); color: #f8fafc; padding: 1.25rem; font-size: 1rem; font-family: inherit; resize: vertical; outline: none; transition: all 0.2s; line-height: 1.6; box-sizing: border-box; }
-.rate-textarea:focus { border-color: #53c5e0; background: rgba(0, 21, 27, 0.82); box-shadow: 0 0 0 4px rgba(83, 197, 224, 0.18); }
-.rate-textarea::placeholder { color: #5a7b8c; font-family: inherit; }
+.rate-label { display: block; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #64748b; margin-bottom: 0.6rem; font-family: inherit; }
+.rate-textarea { width: 100%; min-height: 200px; border: 1px solid #e2e8f0; border-radius: 1rem; background: #f8fafc; color: #1e293b; padding: 1.25rem; font-size: 1rem; font-family: inherit; resize: vertical; outline: none; transition: all 0.2s; line-height: 1.6; box-sizing: border-box; }
+.rate-textarea:focus { border-color: #0d9488; background: #ffffff; box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1); }
+.rate-textarea::placeholder { color: #94a3b8; font-family: inherit; }
 
 .upload-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; margin-top: 10px; }
-.upload-box { position: relative; aspect-ratio: 1; border: 2px dashed rgba(83, 197, 224, 0.3); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9be2f3; cursor: pointer; transition: all 0.2s; overflow: hidden; background: rgba(0, 21, 27, 0.4); font-family: inherit; }
-.upload-box:hover { border-color: #53c5e0; background: rgba(83, 197, 224, 0.08); }
+.upload-box { position: relative; aspect-ratio: 1; border: 2px dashed #e2e8f0; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b; cursor: pointer; transition: all 0.2s; overflow: hidden; background: #f8fafc; font-family: inherit; }
+.upload-box:hover { border-color: #0d9488; background: #f0fdfa; color: #0d9488; }
 .upload-box img, .upload-box video { width: 100%; height: 100%; object-fit: cover; }
 .upload-box .remove-btn { position: absolute; top: 4px; right: 4px; background: rgba(220, 38, 38, 0.8); color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; border: none; cursor: pointer; font-family: inherit; }
 
 .rate-actions { margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
-.rate-btn-primary { background: linear-gradient(135deg, #53c5e0, #32a1c4); color: #ffffff !important; border: none; border-radius: 0.85rem; padding: 1rem 2rem; font-weight: 700; font-size: 1rem; font-family: inherit; cursor: pointer; transition: all 0.25s; box-shadow: 0 6px 18px rgba(50, 161, 196, 0.3); text-transform: uppercase; letter-spacing: 0.04em; }
-.rate-btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, #32a1c4, #2788a8); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(50, 161, 196, 0.45); }
+.rate-btn-primary { background: #0d9488; color: #ffffff !important; border: none; border-radius: 10px; padding: 1rem 2rem; font-weight: 700; font-size: 1rem; font-family: inherit; cursor: pointer; transition: all 0.25s; box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2); text-transform: uppercase; letter-spacing: 0.04em; }
+.rate-btn-primary:hover:not(:disabled) { background: #0f766e; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(13, 148, 136, 0.3); }
 .rate-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.rate-btn-secondary { background: rgba(10, 37, 48, 0.6); color: #e2e8f0; border: 1px solid rgba(83, 197, 224, 0.25); border-radius: 0.85rem; padding: 0.95rem 1.75rem; font-weight: 600; font-size: 1rem; font-family: inherit; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; }
-.rate-btn-secondary:hover { background: rgba(15, 54, 70, 0.9); border-color: #53c5e0; color: #fff; }
-.rate-error { background: rgba(220, 38, 38, 0.15); border: 1px solid rgba(220, 38, 38, 0.35); color: #fecaca; border-radius: 0.85rem; padding: 1.15rem 1.5rem; margin-bottom: 2rem; font-size: 0.95rem; font-weight: 600; font-family: inherit; }
+.rate-btn-secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.95rem 1.75rem; font-weight: 600; font-size: 1rem; font-family: inherit; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.rate-btn-secondary:hover { background: #f1f5f9; border-color: #cbd5e1; color: #1e293b; }
+.rate-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 10px; padding: 1.15rem 1.5rem; margin-bottom: 2rem; font-size: 0.95rem; font-weight: 600; font-family: inherit; }
 </style>
 
 <div class="min-h-screen py-10">
@@ -243,7 +263,7 @@ require_once __DIR__ . '/../includes/header.php';
             <p class="rate-sub">Order #<?php echo str_pad((string)$order_id, 5, '0', STR_PAD_LEFT); ?> &bull; <?php echo htmlspecialchars($service_type_label); ?></p>
 
             <?php if ($already_rated): ?>
-                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #a7f3d0; border-radius: 1rem; padding: 1.5rem; margin-bottom: 2rem; display: flex; align-items: center; gap: 12px;">
+                <div style="background: #ecfdf5; border: 1px solid #d1fae5; color: #065f46; border-radius: 1rem; padding: 1.5rem; margin-bottom: 2rem; display: flex; align-items: center; gap: 12px;">
                     <svg width="24" height="24" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
                     <span style="font-weight: 600;">You have already submitted a review for this order.</span>
                 </div>

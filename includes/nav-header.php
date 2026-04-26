@@ -48,11 +48,11 @@ if ($initials === '') {
         #main-header .pf-header-mid { flex: 1 1 auto; min-width: 0; display: none; align-items: center; justify-content: center; gap: 1.25rem; }
         #main-header .pf-nav-links { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
         #main-header .pf-search-wrap { width: min(460px, 100%); }
-        #main-header .pf-search-form { display: flex; align-items: center; gap: .55rem; height: 2.6rem; border-radius: 9999px; border: 1px solid rgba(83,197,224,.28); background: rgba(255,255,255,.06); padding: 0 .9rem; box-shadow: inset 0 1px 0 rgba(255,255,255,.08); transition: border-color .2s, box-shadow .2s, background .2s; }
-        #main-header .pf-search-form:focus-within { border-color: rgba(83,197,224,.7); box-shadow: 0 0 0 4px rgba(83,197,224,.12); background: rgba(255,255,255,.09); }
-        #main-header .pf-search-icon { width: 1rem; height: 1rem; color: rgba(255,255,255,.72); flex-shrink: 0; }
-        #main-header .pf-search-input { width: 100%; background: transparent; border: none; outline: none; color: #fff; font-size: .88rem; box-shadow: none; }
-        #main-header .pf-search-input::placeholder { color: rgba(255,255,255,.58); }
+        #main-header .pf-search-form { display: flex; align-items: center; gap: .55rem; height: 2.6rem; border-radius: 9999px; border: 1px solid rgba(13,148,136,.4); background: #04151a; padding: 0 .9rem 0 1.1rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); transition: border-color .2s, box-shadow .2s, background .2s; }
+        #main-header .pf-search-form:focus-within { border-color: rgba(13,148,136,.8); box-shadow: 0 0 0 4px rgba(13,148,136,.12); background: #04151a; }
+        #main-header .pf-search-icon { width: 1rem; height: 1rem; color: #94a3b8; flex-shrink: 0; opacity: 0.8; }
+        #main-header .pf-search-input { width: 100%; background: transparent !important; border: none !important; outline: none !important; color: #fff !important; font-size: .9rem; font-weight: 500; box-shadow: none !important; appearance: none; }
+        #main-header .pf-search-input::placeholder { color: #94a3b8; }
         #main-header .pf-header-right { flex: 0 0 auto; margin-left: auto; display: flex; align-items: center; gap: .6rem; }
         #main-header .pf-icon-btn { position: relative; width: 2.55rem; height: 2.55rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,.86); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.11); transition: all .2s ease; overflow: visible; }
         #main-header .pf-icon-btn:hover { color: #53C5E0; border-color: rgba(83,197,224,.5); background: rgba(83,197,224,.12); transform: translateY(-1px); }
@@ -472,13 +472,13 @@ if ($initials === '') {
                         <div data-pf-notif-menu class="pf-notif-dropdown">
                             <div class="pf-notif-header">
                                 <span>Notifications</span>
-                                <a href="<?php echo $base_url; ?>/<?php echo strtolower($user_type); ?>/notifications.php<?php echo is_customer() ? '?mark_all_read=1' : '?action=mark_all_read'; ?>" style="font-size:0.7rem !important; color:#53c5e0; text-decoration:none; font-weight:800; letter-spacing:0.05em;">Mark all read</a>
+                                <a href="<?php echo $base_url; ?>/<?php echo strtolower($user_type); ?>/notifications.php<?php echo is_customer() ? '?mark_all_read=1' : '?action=mark_all_read'; ?>" style="font-size:0.7rem !important; text-decoration:none; font-weight:800; letter-spacing:0.05em;">Mark all read</a>
                             </div>
                             <div class="pf-notif-list" data-pf-notif-list>
                                 <div class="pf-notif-empty">Loading notifications...</div>
                             </div>
                             <div class="pf-notif-footer">
-                                <a href="<?php echo $base_url; ?>/<?php echo strtolower($user_type); ?>/notifications.php" style="font-size:0.7rem !important; color:#53c5e0; font-weight:800 !important; text-decoration:none; letter-spacing:0.05em;">View all notifications</a>
+                                <a href="<?php echo $base_url; ?>/<?php echo strtolower($user_type); ?>/notifications.php" style="font-size:0.7rem !important; font-weight:800 !important; text-decoration:none; letter-spacing:0.05em;">View all notifications</a>
                             </div>
                         </div>
                     </div>

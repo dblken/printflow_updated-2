@@ -17,17 +17,17 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="flex items-center justify-between mb-8">
             <h1 class="ct-page-title" style="margin-bottom: 0;">Messages</h1>
         </div>
-        <div class="card" style="background: rgba(10, 37, 48, 0.48) !important; backdrop-filter: blur(12px); padding: 0; overflow: hidden; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.25); border: 1px solid rgba(83, 197, 224, 0.2) !important;">
-            <div id="conversationsList" style="color: #eaf6fb;">
+        <div class="card" style="background: #ffffff !important; padding: 0; overflow: hidden; border-radius: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0 !important;">
+            <div id="conversationsList" style="color: #1e293b;">
                 <div class="p-12 text-center" id="loadingState">
                     <div style="font-size: 2rem; margin-bottom: 1rem;">⌛</div>
-                    <p style="color: #9fc4d4; font-weight: 600;">Loading conversations...</p>
+                    <p style="color: #64748b; font-weight: 600;">Loading conversations...</p>
                 </div>
             </div>
             <div id="emptyState" style="display: none;" class="p-16 text-center">
-                <div style="font-size: 4rem; margin-bottom: 1.5rem; filter: drop-shadow(0 0 15px rgba(83, 197, 224, 0.3));">💬</div>
-                <h3 style="color: #eaf6fb; font-weight: 800; font-size: 1.25rem; margin-bottom: 0.5rem;">No conversations yet</h3>
-                <p style="color: #9fc4d4; font-size: 0.95rem; margin-bottom: 2rem;">When you place an order, you can chat with us about it here.</p>
+                <div style="font-size: 4rem; margin-bottom: 1.5rem;">💬</div>
+                <h3 style="color: #0f172a; font-weight: 800; font-size: 1.25rem; margin-bottom: 0.5rem;">No conversations yet</h3>
+                <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 2rem;">When you place an order, you can chat with us about it here.</p>
                 <a href="<?php echo BASE_URL; ?>/customer/orders.php" class="btn-primary" style="padding: 0.8rem 2rem; text-decoration: none; display: inline-flex;">View My Orders</a>
             </div>
         </div>

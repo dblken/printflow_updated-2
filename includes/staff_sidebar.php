@@ -149,6 +149,14 @@ if (isset($_SESSION['user_id'])) {
                 <div class="user-role">Staff<?php if ($is_pending): ?> <span style="color:#f59e0b;">• Pending</span><?php endif; ?></div>
             </div>
         </a>
+        <!-- PWA Install Button (Hidden by default, shown by PwaManager) -->
+        <button id="pwa-install-btn" class="hidden" title="Install App">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            Install App
+        </button>
+
         <button type="button" onclick="document.getElementById('staffLogoutModal').style.display='flex'" class="logout-btn" title="Log out" style="border:none;background:transparent;cursor:pointer;font:inherit;width:100%;text-align:left;">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
@@ -176,28 +184,43 @@ if (isset($_SESSION['user_id'])) {
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const toggleBtn = document.getElementById('global-sidebar-toggle');
+function printflowSyncSidebarState() {
     const sidebar = document.querySelector('.sidebar');
     const toggleIcon = document.getElementById('sidebar-toggle-icon');
+    if (!sidebar) return;
     
-    // Check localStorage for saved state
     const collapsed = localStorage.getItem('sidebarCollapsed') === 'true' || localStorage.getItem('sidebarCollapsed') === '1';
-    if (collapsed) {
-        sidebar.classList.add('collapsed');
-        if (toggleIcon) {
+    
+    // Assert state on HTML and Body immediately
+    if (document.documentElement) {
+        document.documentElement.classList.toggle('sidebar-preload-collapsed', collapsed);
+        document.documentElement.classList.toggle('sidebar-collapsed', collapsed);
+    }
+    if (document.body) {
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+    }
+
+    
+    sidebar.classList.toggle('collapsed', collapsed);
+    if (toggleIcon) {
+        if (collapsed) {
             toggleIcon.classList.remove('fa-chevron-left');
             toggleIcon.classList.add('fa-chevron-right');
-        }
-    } else {
-        sidebar.classList.remove('collapsed');
-        if (toggleIcon) {
+        } else {
             toggleIcon.classList.remove('fa-chevron-right');
             toggleIcon.classList.add('fa-chevron-left');
         }
     }
-    document.body.classList.remove('sidebar-collapsed');
-    document.documentElement.classList.remove('sidebar-preload-collapsed');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    printflowSyncSidebarState();
+    
+    const toggleBtn = document.getElementById('global-sidebar-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    
+    document.documentElement.classList.remove('sidebar-boot-pending');
+    
     requestAnimationFrame(function () {
         requestAnimationFrame(function () {
             document.documentElement.classList.add('sidebar-transitions-enabled');
@@ -205,26 +228,25 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     if (toggleBtn) {
-        toggleBtn.addEventListener('click', function() {
-            if (sidebar.dataset.pfToggleLock === '1') return;
-            sidebar.dataset.pfToggleLock = '1';
-            sidebar.classList.toggle('collapsed');
-            const isCollapsed = sidebar.classList.contains('collapsed');
-            localStorage.setItem('sidebarCollapsed', isCollapsed ? 'true' : 'false');
-            window.setTimeout(function () { sidebar.dataset.pfToggleLock = '0'; }, 320);
-            
-            if (toggleIcon) {
-                if (isCollapsed) {
-                    toggleIcon.classList.remove('fa-chevron-left');
-                    toggleIcon.classList.add('fa-chevron-right');
-                } else {
-                    toggleIcon.classList.remove('fa-chevron-right');
-                    toggleIcon.classList.add('fa-chevron-left');
-                }
-            }
-        });
+        // Use a persistent listener check
+        if (!toggleBtn.dataset.pfListenerBound) {
+            toggleBtn.dataset.pfListenerBound = '1';
+            toggleBtn.addEventListener('click', function() {
+                const sb = document.querySelector('.sidebar');
+                if (!sb || sb.dataset.pfToggleLock === '1') return;
+                sb.dataset.pfToggleLock = '1';
+                
+                const isCollapsed = !sb.classList.contains('collapsed');
+                localStorage.setItem('sidebarCollapsed', isCollapsed ? 'true' : 'false');
+                
+                printflowSyncSidebarState();
+                
+                window.setTimeout(function () { sb.dataset.pfToggleLock = '0'; }, 350);
+            });
+        }
     }
 
+    // Nav Scroll Persistence
     var nav = document.querySelector('#printflow-persistent-sidebar .sidebar-nav') || document.querySelector('.sidebar-nav');
     if (nav && sidebar) {
         var scrollKey = 'printflow_staff_sidebar_nav_scroll';
@@ -267,6 +289,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+
+// Re-sync on Turbo load
+document.addEventListener('printflow:page-init', printflowSyncSidebarState);
+document.addEventListener('turbo:load', printflowSyncSidebarState);
 </script>
 
 <div id="pf-fg-portal" class="pf-fg-portal" aria-hidden="true"></div>
@@ -278,4 +304,7 @@ $_pf_utype = isset($_SESSION['user_type']) ? $_SESSION['user_type']       : 'Sta
 <script>window.PFConfig = { userId: <?php echo json_encode($_pf_uid); ?>, userType: <?php echo json_encode($_pf_utype); ?> };</script>
 <script src="/printflow/public/assets/js/notifications.js" defer></script>
 <script src="/printflow/public/assets/js/inactivity_logout.js" defer></script>
+<!-- PWA Assets -->
+<link rel="stylesheet" href="/printflow/public/assets/css/pwa.css">
+<script src="/printflow/public/assets/js/pwa.js" defer></script>
 </div>

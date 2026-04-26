@@ -65,7 +65,7 @@ if ($search !== '') {
     $types .= 's';
 }
 
-$per_page = 15;
+$per_page = 10;
 $page = max(1, (int)($_GET['page'] ?? 1));
 $count_row = db_query("SELECT COUNT(*) as cnt FROM notifications WHERE $where", $types, $params);
 $total_count = (int)($count_row[0]['cnt'] ?? 0);
@@ -89,6 +89,87 @@ if ($search !== '') {
     $notif_pagination_params['search'] = $search;
 }
 
+// Handle AJAX request for pagination/list updates (match orders.php behavior)
+if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
+    ob_start();
+    if (empty($notifications)): ?>
+        <div class="empty-notif">
+            <div class="empty-notif-icon">
+                <svg width="28" height="28" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+            </div>
+            <div class="empty-notif-title">No notifications</div>
+            <p class="empty-notif-text">
+                <?php if ($filter === 'unread'): ?>You're all caught up! No unread notifications.
+                <?php elseif ($search !== ''): ?>No results for "<?php echo htmlspecialchars($search); ?>"
+                <?php else: ?>You don't have any notifications yet.<?php endif; ?>
+            </p>
+        </div>
+    <?php else:
+        $grouped = ['New' => [], 'Earlier' => []];
+        foreach ($notifications as $n) {
+            $grouped[$n['is_read'] == 0 ? 'New' : 'Earlier'][] = $n;
+        }
+        $grouped = array_filter($grouped);
+
+        foreach ($grouped as $group => $notifs): ?>
+            <div class="notif-group-label"><?php echo htmlspecialchars($group); ?></div>
+            <?php foreach ($notifs as $notif):
+                $t = strtolower((string)$notif['type']);
+                $type_slug = 'system';
+                if (strpos($t, 'stock') !== false) {
+                    $type_slug = 'stock';
+                } elseif (strpos($t, 'order') !== false || strpos($t, 'job') !== false || strpos($t, 'payment') !== false || strpos($t, 'design') !== false) {
+                    $type_slug = 'order';
+                }
+
+                $is_unread = !(int)$notif['is_read'];
+                $target_url = staff_notification_target_url($notif);
+
+                $iconSvg = match ($type_slug) {
+                    'order' => '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>',
+                    'stock' => '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>',
+                    default => '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+                };
+                ?>
+            <div class="notif-item <?php echo $is_unread ? '' : 'read'; ?>" data-id="<?php echo (int)$notif['notification_id']; ?>">
+                <div class="notif-dot <?php echo $is_unread ? '' : 'read'; ?>"></div>
+                <div class="notif-body" style="padding-left: 12px; border-left: 2px solid #eef2f3;">
+                    <a href="<?php echo htmlspecialchars($target_url); ?>" class="notif-msg" style="text-decoration:none;display:block;" data-turbo="false" onclick="handleNotifClick(event, <?php echo (int)$notif['notification_id']; ?>, <?php echo json_encode($target_url, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE); ?>, <?php echo $is_unread ? 'true' : 'false'; ?>)">
+                        <?php
+                        $clean_msg = (string)$notif['message'];
+                        $clean_msg = preg_replace('/[\x{1F300}-\x{1F64F}\x{1F680}-\x{1F6FF}\x{2600}-\x{26FF}\x{2700}-\x{27BF}]/u', '', $clean_msg);
+                        echo htmlspecialchars(trim($clean_msg));
+                        ?>
+                    </a>
+                    <div class="notif-time">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <?php echo htmlspecialchars(time_ago($notif['created_at'])); ?>
+                        <span class="type-pill <?php echo htmlspecialchars($type_slug); ?>"><?php echo htmlspecialchars($notif['type']); ?></span>
+                    </div>
+                </div>
+                <div class="notif-actions-wrap">
+                    <button type="button" onclick='handleNotifClick(event, <?php echo (int)$notif['notification_id']; ?>, <?php echo htmlspecialchars(json_encode($target_url), ENT_QUOTES); ?>, <?php echo !(int)$notif['is_read'] ? "true" : "false"; ?>)' class="notif-action-btn" style="background:#06A1A1; color:#fff; border:none; padding:6px 12px; border-radius: 6px; cursor: pointer;">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        View
+                    </button>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        <?php endforeach;
+    endif;
+    $html = ob_get_clean();
+    $pagination = render_pagination($page, $total_pages, $notif_pagination_params);
+
+    header('Content-Type: application/json');
+    echo json_encode([
+        'html'       => $html,
+        'pagination' => $pagination
+    ]);
+    exit;
+}
+
 $page_title = 'Notifications - Staff';
 ?>
 <!DOCTYPE html>
@@ -96,7 +177,6 @@ $page_title = 'Notifications - Staff';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="turbo-visit-control" content="reload">
     <title><?php echo htmlspecialchars($page_title); ?></title>
     <link rel="stylesheet" href="/printflow/public/assets/css/output.css">
     <?php include __DIR__ . '/../includes/admin_style.php'; ?>
@@ -504,17 +584,93 @@ function notifResetField(which) {
     notifNavigate(1);
 }
 var ntSearchTimer = null;
-document.addEventListener('DOMContentLoaded', function () {
+
+// ── AJAX Pagination/List Updates (copied from orders.php behavior) ──────────────
+function buildFilterURL(overrides = {}, isAjax = false) {
+    const params = new URLSearchParams(window.location.search);
+    const fields = {
+        filter: () => document.getElementById('nt_fp_filter')?.value || 'all',
+        search: () => (document.getElementById('nt_fp_search')?.value || '').trim()
+    };
+    for (const [key, getter] of Object.entries(fields)) {
+        let val = (overrides[key] !== undefined) ? overrides[key] : getter();
+        if (val && !(key === 'filter' && val === 'all')) params.set(key, val);
+        else params.delete(key);
+    }
+    // Keep page parameter if it exists in overrides, otherwise delete it only when applying new filters
+    if (overrides.page !== undefined) {
+        params.set('page', overrides.page);
+    } else if (overrides.resetPage !== false) {
+        params.delete('page');
+    }
+    if (isAjax) params.set('ajax', '1');
+    else params.delete('ajax');
+    return window.location.pathname + '?' + params.toString();
+}
+
+async function fetchUpdatedTable(overrides = {}) {
+    const url = buildFilterURL(overrides, true);
+    const container = document.getElementById('notifications-container');
+    if (!container) return;
+
+    container.style.opacity = '0.5';
+    container.style.pointerEvents = 'none';
+
+    try {
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        container.innerHTML = data.html || '';
+
+        const pag = document.querySelector('.pagination-container');
+        if (pag && data.pagination) {
+            pag.outerHTML = data.pagination;
+            attachPaginationHandlers();
+        }
+
+        const displayUrl = buildFilterURL(overrides, false);
+        window.history.replaceState({ path: displayUrl }, '', displayUrl);
+    } catch (e) { console.error('Error updating list:', e); }
+
+    container.style.opacity = '1';
+    container.style.pointerEvents = 'all';
+}
+
+function attachPaginationHandlers() {
+    const paginationLinks = document.querySelectorAll('.pagination-container a');
+    paginationLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = new URL(this.href);
+            const page = url.searchParams.get('page') || 1;
+            fetchUpdatedTable({ page: page, resetPage: false });
+            document.getElementById('notifications-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+}
+
+function printflowInitNotificationsPage() {
     var sel = document.getElementById('nt_fp_filter');
-    if (sel) sel.addEventListener('change', function () { notifNavigate(1); });
+    if (sel && !sel.dataset.pfInit) { 
+        sel.dataset.pfInit = '1';
+        sel.addEventListener('change', function () { notifNavigate(1); }); 
+    }
     var inp = document.getElementById('nt_fp_search');
-    if (inp) {
+    if (inp && !inp.dataset.pfInit) {
+        inp.dataset.pfInit = '1';
         inp.addEventListener('input', function () {
             clearTimeout(ntSearchTimer);
             ntSearchTimer = setTimeout(function () { notifNavigate(1); }, 500);
         });
     }
-});
+
+    // Attach pagination handlers on initial load
+    attachPaginationHandlers();
+}
+
+document.addEventListener('DOMContentLoaded', printflowInitNotificationsPage);
+document.addEventListener('printflow:page-init', printflowInitNotificationsPage);
+document.addEventListener('turbo:load', printflowInitNotificationsPage);
 
 let autoRefreshInterval;
 function startAutoRefresh() {

@@ -54,7 +54,7 @@ if (!$updated) {
 $msg = "Your design has been approved.";
 if ($customer_id) {
     create_notification($customer_id, 'Customer', $msg, 'Design', false, false, $order_id);
-    add_order_system_message($order_id, $msg);
+    send_order_update_message($order_id, $msg);
 }
 
 echo json_encode(['success' => true, 'message' => 'Design successfully approved.']);

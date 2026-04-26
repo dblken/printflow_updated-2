@@ -32,7 +32,7 @@ $available_services = db_query("
 ") ?: [];
 
 // Pagination
-$items_per_page = 15;
+$items_per_page = 10;
 $current_page = max(1, (int) ($_GET['page'] ?? 1));
 $offset = ($current_page - 1) * $items_per_page;
 
@@ -151,6 +151,155 @@ function stars_text($value)
 
 $csrf_token = generate_csrf_token();
 $page_title = 'Review Management - Staff';
+
+// Handle AJAX request for pagination/list updates (match orders.php behavior)
+if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
+    ob_start();
+    if (empty($reviews)) {
+        ?>
+                        <div class="rv-empty">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">💬</div>
+                            <p>No reviews found matching your criteria.</p>
+                        </div>
+        <?php
+    } else {
+        ?>
+                        <div class="rv-card">
+                            <?php foreach ($reviews as $review): ?>
+                                <div class="review-item" id="review-<?php echo $review['id']; ?>">
+                                    <div class="review-header">
+                                        <div>
+                                            <div class="review-user">
+                                                <?php echo htmlspecialchars($review['first_name'] . ' ' . $review['last_name']); ?>
+                                            </div>
+                                            <div class="review-meta">
+                                                <span
+                                                    class="type-badge <?php echo $review['review_type'] === 'product' ? 'type-product' : 'type-custom'; ?>">
+                                                    <?php echo $review['review_type'] === 'product' ? 'Fixed Product' : 'Custom Service'; ?>
+                                                </span>
+                                                <span style="font-weight: 700; color: #0a2530;">
+                                                    <?php echo htmlspecialchars($review['item_name'] ?: ($review['legacy_service_type'] ?: 'Unknown Item')); ?>
+                                                </span>
+
+                                                <span>&bull;</span>
+                                                <span><?php echo date('M d, Y h:i A', strtotime($review['created_at'])); ?></span>
+                                                <?php if (($review['helpful_count'] ?? 0) > 0): ?>
+                                                    <span>&bull;</span>
+                                                    <span
+                                                        style="color: #059669; font-weight: 700; background: rgba(5, 150, 105, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 11px;">
+                                                        <svg style="width: 12px; height: 12px; margin-right: 2px; vertical-align: middle;"
+                                                            viewBox="0 0 20 20" fill="currentColor">
+                                                            <path
+                                                                d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+                                                        </svg>
+                                                        <?php echo $review['helpful_count']; ?> Helpful
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                        <div class="review-stars"><?php echo stars_text($review['rating']); ?></div>
+                                    </div>
+
+                                    <div class="review-msg"><?php echo nl2br(htmlspecialchars($review['comment'] ?: '')); ?>
+                                    </div>
+
+                                    <?php
+                                    $has_imgs = !empty($review['images']);
+                                    $has_vid = !empty($review['video_path']);
+                                    ?>
+                                    <?php if ($has_imgs || $has_vid): ?>
+                                        <div class="review-media">
+                                            <?php if ($has_vid):
+                                                $vpath = $review['video_path'];
+                                                if (strpos($vpath, 'http') === 0) {
+                                                    $vsrc = $vpath;
+                                                } elseif (isset($vpath[0]) && $vpath[0] === '/') {
+                                                    $vsrc = $vpath;
+                                                } elseif (!str_contains($vpath, '/')) {
+                                                    $vsrc = '/printflow/uploads/reviews_videos/' . $vpath;
+                                                } else {
+                                                    $vsrc = '/printflow/' . ltrim($vpath, '/');
+                                                }
+                                            ?>
+                                                <div class="media-thumb video-thumb"
+                                                    onclick="openMediaModal('<?php echo htmlspecialchars($vsrc); ?>', 'video')">
+                                                    <video src="<?php echo htmlspecialchars($vsrc); ?>" muted playsinline preload="metadata"></video>
+                                                </div>
+                                            <?php endif; ?>
+
+                                            <?php foreach ($review['images'] as $img):
+                                                $ipath = $img['image_path'];
+                                                if (strpos($ipath, 'http') === 0) {
+                                                    $isrc = $ipath;
+                                                } elseif (isset($ipath[0]) && $ipath[0] === '/') {
+                                                    $isrc = $ipath;
+                                                } elseif (!str_contains($ipath, '/')) {
+                                                    $isrc = '/printflow/uploads/reviews_images/' . $ipath;
+                                                } else {
+                                                    $isrc = '/printflow/' . ltrim($ipath, '/');
+                                                }
+                                            ?>
+                                                <img class="media-thumb"
+                                                    src="<?php echo htmlspecialchars($isrc); ?>"
+                                                    style="object-fit: cover; aspect-ratio: 1;"
+                                                    onclick="openMediaModal('<?php echo htmlspecialchars($isrc); ?>', 'image')">
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+
+                                    <div class="replies-area">
+                                        <div class="replies-container" id="replies-<?php echo $review['id']; ?>" <?php echo empty($review['replies']) ? 'style="display:none"' : ''; ?>>
+                                            <?php foreach ($review['replies'] as $reply): ?>
+                                                <div class="reply-item">
+                                                    <div class="reply-header">
+                                                        <span>Staff Response &bull;
+                                                            <?php echo htmlspecialchars($reply['first_name'] . ' ' . $reply['last_name']); ?></span>
+                                                        <span><?php echo date('M d, Y', strtotime($reply['created_at'])); ?></span>
+                                                    </div>
+                                                    <div class="reply-msg">
+                                                        <?php echo nl2br(htmlspecialchars($reply['reply_message'])); ?>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+
+                                        <div class="reply-form">
+                                            <select class="rv-select" style="width: 100%; font-size: 12px;"
+                                                onchange="applyQuickReply(this, <?php echo $review['id']; ?>)">
+                                                <option value="">⚡ Quick Reply Suggestions...</option>
+                                                <option
+                                                    value="Thank you! We're happy to hear you're satisfied with your order.">
+                                                    Positive Feedback</option>
+                                                <option
+                                                    value="We apologize for the inconvenience. Please contact us so we can resolve this.">
+                                                    Negative Feedback</option>
+                                            </select>
+                                            <div class="reply-input-wrap">
+                                                <textarea class="reply-textarea" placeholder="Type your response..."
+                                                    id="reply-text-<?php echo $review['id']; ?>"></textarea>
+                                                <button class="reply-submit"
+                                                    onclick="submitReply(<?php echo $review['id']; ?>, this)">Reply</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div style="margin-top:20px;">
+                            <?php echo get_pagination_links($current_page, $total_pages, $page_query_params); ?>
+                        </div>
+        <?php
+    }
+    $html = ob_get_clean();
+
+    header('Content-Type: application/json');
+    echo json_encode([
+        'html' => $html
+    ]);
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -402,29 +551,37 @@ $page_title = 'Review Management - Staff';
         }
 
         .video-thumb {
-            background: #0f172a;
             position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid #3b82f6 !important;
+            border: 1px solid #e2e8f0 !important;
+            overflow: hidden;
+            background: #0f172a;
+        }
+
+        .video-thumb video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            pointer-events: none;
+            position: absolute;
+            inset: 0;
+            z-index: 0;
         }
 
         .video-thumb::after {
             content: '▶';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
             color: #fff;
             font-size: 24px;
-            filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5));
+            filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.6));
+            z-index: 1;
         }
 
         .video-thumb::before {
-            content: 'VIDEO';
-            position: absolute;
-            bottom: 4px;
-            font-size: 8px;
-            font-weight: 800;
-            color: #3b82f6;
-            letter-spacing: 0.1em;
+            content: '';
         }
 
         .replies-container {
@@ -498,11 +655,6 @@ $page_title = 'Review Management - Staff';
 
         .reply-submit:hover {
             background: #1a3a4a;
-        }
-
-        .rv-pager {
-            padding: 20px;
-            text-align: center;
         }
 
         .rv-empty {
@@ -781,17 +933,23 @@ $page_title = 'Review Management - Staff';
                                             style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; max-width: 600px;">
                                             <?php if ($has_vid):
                                                 $vpath = $review['video_path'];
-                                                if (strpos($vpath, 'http') === false && (!isset($vpath[0]) || $vpath[0] !== '/'))
-                                                    $vpath = '/printflow/' . $vpath;
+                                                if (strpos($vpath, 'http') === false && (!isset($vpath[0]) || $vpath[0] !== '/')) {
+                                                    if (!str_contains($vpath, '/')) $vpath = '/printflow/uploads/reviews_videos/' . $vpath;
+                                                    else $vpath = '/printflow/' . ltrim($vpath, '/');
+                                                }
                                                 ?>
                                                 <div class="media-thumb video-thumb" style="width: 100%; aspect-ratio: 1;"
-                                                    onclick="openMediaModal('<?php echo htmlspecialchars($vpath); ?>', 'video')"></div>
+                                                    onclick="openMediaModal('<?php echo htmlspecialchars($vpath); ?>', 'video')">
+                                                    <video src="<?php echo htmlspecialchars($vpath); ?>" muted playsinline preload="metadata"></video>
+                                                </div>
                                             <?php endif; ?>
 
                                             <?php foreach ($review['images'] as $img):
                                                 $ipath = $img['image_path'];
-                                                if (strpos($ipath, 'http') === false && (!isset($ipath[0]) || $ipath[0] !== '/'))
-                                                    $ipath = '/printflow/' . $ipath;
+                                                if (strpos($ipath, 'http') === false && (!isset($ipath[0]) || $ipath[0] !== '/')) {
+                                                    if (!str_contains($ipath, '/')) $ipath = '/printflow/uploads/reviews_images/' . $ipath;
+                                                    else $ipath = '/printflow/' . ltrim($ipath, '/');
+                                                }
                                                 ?>
                                                 <img src="<?php echo htmlspecialchars($ipath); ?>" class="media-thumb"
                                                     style="width: 100%; aspect-ratio: 1;"
@@ -839,7 +997,8 @@ $page_title = 'Review Management - Staff';
                             <?php endforeach; ?>
                         </div>
 
-                        <div class="rv-pager">
+                        <!-- Pagination -->
+                        <div style="margin-top:20px;">
                             <?php echo get_pagination_links($current_page, $total_pages, $page_query_params); ?>
                         </div>
                     <?php endif; ?>
@@ -874,7 +1033,7 @@ $page_title = 'Review Management - Staff';
                 },
 
                 init() {
-                    // Keep state
+                    attachPaginationHandlers();
                 },
 
                 get filterActiveCount() {
@@ -905,6 +1064,55 @@ $page_title = 'Review Management - Staff';
                     window.location.href = 'reviews.php';
                 }
             };
+        }
+
+        // ── AJAX Pagination/List Updates (copied from orders.php behavior) ───────
+        function buildFilterURL(overrides = {}, isAjax = false) {
+            const params = new URLSearchParams(window.location.search);
+            if (overrides.page !== undefined) {
+                params.set('page', overrides.page);
+            } else if (overrides.resetPage !== false) {
+                params.delete('page');
+            }
+            if (isAjax) params.set('ajax', '1');
+            else params.delete('ajax');
+            return window.location.pathname + '?' + params.toString();
+        }
+
+        async function fetchUpdatedTable(overrides = {}) {
+            const url = buildFilterURL(overrides, true);
+            const container = document.getElementById('reviewsList');
+            if (!container) return;
+
+            container.style.opacity = '0.5';
+            container.style.pointerEvents = 'none';
+
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+
+                container.innerHTML = data.html || '';
+                attachPaginationHandlers();
+
+                const displayUrl = buildFilterURL(overrides, false);
+                window.history.replaceState({ path: displayUrl }, '', displayUrl);
+            } catch (e) { console.error('Error updating list:', e); }
+
+            container.style.opacity = '1';
+            container.style.pointerEvents = 'all';
+        }
+
+        function attachPaginationHandlers() {
+            const paginationLinks = document.querySelectorAll('.pagination-container a');
+            paginationLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const url = new URL(this.href);
+                    const page = url.searchParams.get('page') || 1;
+                    fetchUpdatedTable({ page: page, resetPage: false });
+                    document.querySelector('.rv-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            });
         }
 
         function openMediaModal(src, type) {

@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
                     
                     // Pass order_id as data_id for shortcut linking
                     create_notification($customer_id, 'Customer', $msg, 'Order', false, false, $order_id);
-                    add_order_system_message($order_id, $msg);
+                    add_order_system_message($order_id, $msg, $staff_id);
                 }
             } else {
                 // Status is already the same, consider it a "soft" success
@@ -177,7 +177,7 @@ $sql = "SELECT o.*, COALESCE(NULLIF(TRIM(CONCAT_WS(' ', c.first_name, c.last_nam
 $count_sql = "SELECT COUNT(*) as total FROM orders o LEFT JOIN customers c ON o.customer_id = c.customer_id WHERE 1=1" . $sql_conditions;
 
 // Pagination settings
-$items_per_page = 15;
+$items_per_page = 10;
 $current_page = max(1, (int)($_GET['page'] ?? 1));
 $offset = ($current_page - 1) * $items_per_page;
 
@@ -326,7 +326,6 @@ $page_title = 'Orders - Staff';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="turbo-visit-control" content="reload">
     <title><?php echo $page_title; ?></title>
     <link rel="stylesheet" href="/printflow/public/assets/css/output.css">
     <?php include __DIR__ . '/../includes/admin_style.php'; ?>
@@ -337,6 +336,7 @@ $page_title = 'Orders - Staff';
             display: flex;
             flex-wrap: wrap;
             align-items: center;
+            justify-content: center;
             gap: 10px;
             margin-bottom: 24px;
             border-bottom: 1px solid #f1f5f9;
@@ -773,9 +773,14 @@ $page_title = 'Orders - Staff';
             if (overrides.sort && overrides.sort !== 'newest') params.set('sort', overrides.sort);
             else params.delete('sort');
         }
+        // Keep page parameter if it exists in overrides, otherwise delete it only when applying new filters
+        if (overrides.page !== undefined) {
+            params.set('page', overrides.page);
+        } else if (overrides.resetPage !== false) {
+            params.delete('page');
+        }
         if (isAjax) params.set('ajax', '1');
         else params.delete('ajax');
-        params.delete('page');
         return window.location.pathname + '?' + params.toString();
     }
 
@@ -794,7 +799,11 @@ $page_title = 'Orders - Staff';
             container.innerHTML = data.tbody;
             
             const pag = document.querySelector('.pagination-container');
-            if (pag && data.pagination) pag.outerHTML = data.pagination;
+            if (pag && data.pagination) {
+                pag.outerHTML = data.pagination;
+                // Re-attach click handlers to new pagination links
+                attachPaginationHandlers();
+            }
             
             const bc = document.getElementById('filterBadgeContainer');
             if (bc) bc.innerHTML = data.badge > 0 ? `<span class="filter-badge">${data.badge}</span>` : '';
@@ -835,6 +844,21 @@ $page_title = 'Orders - Staff';
             if (el) el.value = '';
         });
         fetchUpdatedTable();
+    }
+
+    // Attach click handlers to pagination links for AJAX navigation
+    function attachPaginationHandlers() {
+        const paginationLinks = document.querySelectorAll('.pagination-container a');
+        paginationLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = new URL(this.href);
+                const page = url.searchParams.get('page') || 1;
+                fetchUpdatedTable({ page: page, resetPage: false });
+                // Scroll to top of table
+                document.querySelector('.staff-orders-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
     }
 
     function ordersPage() {
@@ -897,46 +921,6 @@ $page_title = 'Orders - Staff';
         };
     }
 
-    // Inside fetchUpdatedTable, update Alpine counts
-    const originalFetchUpdatedTable = fetchUpdatedTable;
-    fetchUpdatedTable = async function(overrides = {}) {
-        const url = buildFilterURL(overrides, true);
-        const container = document.querySelector('.staff-orders-table tbody');
-        if (!container) return;
-
-        container.style.opacity = '0.5';
-        container.style.pointerEvents = 'none';
-
-        try {
-            const resp = await fetch(url);
-            const data = await resp.json();
-            
-            container.innerHTML = data.tbody;
-            
-            const pag = document.querySelector('.pagination-container');
-            if (pag && data.pagination) pag.outerHTML = data.pagination;
-            
-            const bc = document.getElementById('filterBadgeContainer');
-            if (bc) bc.innerHTML = data.badge > 0 ? `<span class="filter-badge">${data.badge}</span>` : '';
-            
-            const countEl = document.getElementById('totalOrdersCount');
-            if (countEl) countEl.textContent = data.total;
-
-            // Updated bit: update Alpine tab counts
-            const dashboard = document.querySelector('[x-data^="ordersPage"]').__x.$data;
-            if (dashboard && data.counts) {
-                dashboard.updateCounts(data.counts);
-            }
-
-            window.dispatchEvent(new CustomEvent('filter-badge-update', { detail: { badge: data.badge } }));
-            
-            const displayUrl = buildFilterURL(overrides, false);
-            window.history.replaceState({ path: displayUrl }, '', displayUrl);
-        } catch (e) { console.error('Error updating table:', e); }
-        
-        container.style.opacity = '1';
-        container.style.pointerEvents = 'all';
-    }
     window.ordersPage = ordersPage;
 
     // ── Open / close order modal ─────────────────────────
@@ -1242,7 +1226,7 @@ $page_title = 'Orders - Staff';
 
         var notesBlock = d.notes ? '<div class="om-notes-section" style="margin-top:20px; padding:16px; border-radius:12px; border:1px solid #e5e7eb; background:#fff;">' +
             '<label style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;display:block;margin-bottom:8px;">Order Notes</label>' +
-            '<div style="font-size:13px;color:#1f2937;line-height:1.5;background:#fefce8;padding:12px;border:1px solid #fef3c7;border-radius:8px;">' + esc(d.notes).replace(/\n/g,'<br>') + '</div>' +
+            '<div style="font-size:13px;color:#1f2937;line-height:1.5;background:#fefce8;padding:12px;border:1px solid #fef3c7;border-radius:8px;word-break:break-word;overflow-wrap:anywhere;">' + esc(d.notes).replace(/\n/g,'<br>') + '</div>' +
             '</div>' : '';
 
         var payBlock = '';
@@ -1375,15 +1359,18 @@ $page_title = 'Orders - Staff';
     }
 
     // ── DOMContentLoaded: event listeners & auto-open ────
-    document.addEventListener('DOMContentLoaded', function() {
+    function printflowInitOrdersPage() {
+        // Attach pagination handlers on initial load
+        attachPaginationHandlers();
+        
         // Escape key closes modal
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeOrderModal();
-        });
-
+        document.removeEventListener('keydown', handleOrderEscapeKey);
+        document.addEventListener('keydown', handleOrderEscapeKey);
+        
         // Revision form: combine reason fields
         var revForm = document.getElementById('revForm');
-        if (revForm) {
+        if (revForm && !revForm.dataset.pfInit) {
+            revForm.dataset.pfInit = '1';
             revForm.addEventListener('submit', function(e) {
                 var submitBtn = this.querySelector('button[type="submit"]');
                 if (submitBtn) {
@@ -1411,7 +1398,15 @@ $page_title = 'Orders - Staff';
         var urlParams = new URLSearchParams(window.location.search);
         var orderId = urlParams.get('order_id');
         if (orderId) { openOrderModal(orderId); }
-    });
+    }
+
+    function handleOrderEscapeKey(e) {
+        if (e.key === 'Escape') closeOrderModal();
+    }
+
+    document.addEventListener('DOMContentLoaded', printflowInitOrdersPage);
+    document.addEventListener('printflow:page-init', printflowInitOrdersPage);
+    document.addEventListener('turbo:load', printflowInitOrdersPage);
     </script>
 </head>
 <body>
@@ -1664,7 +1659,9 @@ $page_title = 'Orders - Staff';
             </div>
 
             <!-- Pagination -->
-            <?php echo get_pagination_links($current_page, $total_pages, $active_filters); ?>
+            <div style="margin-top:20px;">
+                <?php echo get_pagination_links($current_page, $total_pages, $active_filters); ?>
+            </div>
         </main>
     </div>
 </div>

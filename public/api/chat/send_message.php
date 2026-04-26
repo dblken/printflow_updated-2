@@ -14,6 +14,13 @@ if (!is_logged_in()) {
     exit();
 }
 
+// Check if post_max_size was exceeded
+if (empty($_POST) && empty($_FILES) && isset($_SERVER['CONTENT_LENGTH']) && $_SERVER['CONTENT_LENGTH'] > 0) {
+    ob_end_clean();
+    echo json_encode(['success' => false, 'error' => 'Total file size exceeds server limits. Please upload fewer or smaller files at once.']);
+    exit();
+}
+
 $order_id = isset($_POST['order_id']) ? (int)$_POST['order_id'] : 0;
 $reply_id = isset($_POST['reply_id']) && (int)$_POST['reply_id'] > 0 ? (int)$_POST['reply_id'] : null;
 $message = isset($_POST['message']) ? trim($_POST['message']) : '';
@@ -21,6 +28,7 @@ $user_id = get_user_id();
 $user_type = get_user_type();
 
 if (!$order_id) {
+    ob_end_clean();
     echo json_encode(['success' => false, 'error' => 'Missing order ID']);
     exit();
 }

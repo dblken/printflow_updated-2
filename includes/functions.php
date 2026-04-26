@@ -893,12 +893,22 @@ function get_order_status_notification_payload($order_id, $status) {
 
     $message = $map[$status] ?? "Your order #{$order_id} status has been updated to: {$status}";
     
-    // Add price to "To Pay" notification
+    // Build price-inclusive, product-name-inclusive "To Pay" notification
     if ($status === 'To Pay') {
-        $order = db_query("SELECT total_amount FROM orders WHERE order_id = ?", 'i', [$order_id]);
-        if (!empty($order) && $order[0]['total_amount'] > 0) {
-            $amount = format_currency($order[0]['total_amount']);
-            $message = "Your order is now ready for payment. Total amount: {$amount}";
+        $order_row = db_query(
+            "SELECT o.total_amount,
+                    COALESCE(
+                        (SELECT p.name FROM order_items oi JOIN products p ON oi.product_id = p.product_id WHERE oi.order_id = o.order_id LIMIT 1),
+                        (SELECT cust.service_type FROM customizations cust WHERE cust.order_id = o.order_id LIMIT 1),
+                        'your order'
+                    ) AS product_name
+             FROM orders o WHERE o.order_id = ?",
+            'i', [$order_id]
+        );
+        if (!empty($order_row)) {
+            $amount       = number_format((float)($order_row[0]['total_amount'] ?? 0), 2);
+            $product_name = !empty($order_row[0]['product_name']) ? $order_row[0]['product_name'] : 'your order';
+            $message = "Your order for {$product_name} is now ready for payment. The final price is \u20b1{$amount}. Please proceed with your payment.";
         }
     }
     
@@ -917,14 +927,109 @@ function get_order_status_notification_payload($order_id, $status) {
  * @param string $message
  * @return bool
  */
-function add_order_system_message($order_id, $message) {
+function add_order_system_message($order_id, $message, $actor_user_id = 0) {
     $order_id = (int)$order_id;
     $message = trim($message);
+    $actor_user_id = (int)$actor_user_id;
     if (!$order_id || $message === '') return false;
 
     $sql = "INSERT INTO order_messages (order_id, sender, sender_id, message, message_type, read_receipt)
-            VALUES (?, 'System', 0, ?, 'text', 1)";
-    return (bool) db_execute($sql, 'is', [$order_id, $message]);
+            VALUES (?, 'System', ?, ?, 'text', 1)";
+    return (bool) db_execute($sql, 'iis', [$order_id, $actor_user_id, $message]);
+}
+
+/**
+ * Send an enhanced Shopee-style order update message with product thumbnail.
+ *
+ * @param int    $order_id
+ * @param string $status_message
+ * @return bool
+ */
+function send_order_update_message($order_id, $status_message) {
+    $order_id = (int)$order_id;
+    // Fetch product info (first item)
+    $img_col = get_notification_product_image_column_sql();
+    $item = db_query("
+        SELECT p.name as product_name, {$img_col} as product_image, 
+               oi.customization_data, oi.product_id, oi.design_image, oi.order_item_id,
+               oi.design_file, oi.reference_image_file
+        FROM order_items oi
+        LEFT JOIN products p ON oi.product_id = p.product_id
+        WHERE oi.order_id = ?
+        ORDER BY oi.order_item_id ASC
+        LIMIT 1
+    ", 'i', [$order_id]);
+
+    if (empty($item)) return false;
+
+    $it = $item[0];
+    $p_item_id = $it['order_item_id'];
+    $p_name = $it['product_name'] ?: 'Order Update';
+    $p_image = '';
+    
+    // Priority 1: Direct file paths for designs/customizations
+    if (!empty($it['design_file'])) {
+        $p_image = $it['design_file'];
+    } 
+    // Priority 2: Stored BLOB design image (serve via proxy)
+    elseif (!empty($it['design_image'])) {
+        $p_image = '/printflow/staff/get_design_image.php?id=' . (int)$p_item_id;
+    } 
+    // Priority 3: Reference image uploaded by customer
+    elseif (!empty($it['reference_image_file'])) {
+        $p_image = $it['reference_image_file'];
+    }
+    // Priority 4: Standard catalog product image
+    elseif (!empty($it['product_image'])) {
+        $p_image = $it['product_image'];
+    }
+    
+    // Resolve the best service name
+    $name_data = !empty($it['customization_data']) ? json_decode($it['customization_data'], true) : [];
+    $raw_service_name = trim((string)($name_data['service_type'] ?? ''));
+    if ($raw_service_name === '') {
+        $raw_service_name = get_service_name_from_customization($name_data, $p_name);
+    }
+    $p_name = normalize_service_name($raw_service_name, $p_name);
+
+    // Attempt to get the correct service image from the database (admin-uploaded images)
+    // This takes priority for Order Updates to represent the "Merchandise" accurately.
+    $service_id_from_data = (int)($name_data['service_id'] ?? 0);
+    $service_match = get_customer_notification_service_match($service_id_from_data, $raw_service_name ?: $p_name);
+    
+    if (!empty($service_match['image'])) {
+        $p_image = $service_match['image'];
+    } elseif (!$p_image) {
+        // Fallback to whatever we had if no service match found
+        $p_image = $it['product_image'] ?? '';
+    }
+
+    // Standardize image path using the central utility
+    $p_image = normalize_notification_image_url($p_image);
+    
+    // Debug log for troubleshooting thumbnail issue
+    error_log("Order Update Image Resolved: Order #{$order_id} -> Name: {$p_name} -> Image: {$p_image}");
+
+    $payload = [
+        'type' => 'order_update',
+        'product_name' => $p_name,
+        'product_image' => $p_image,
+        'status_text' => $status_message
+    ];
+
+    $json = json_encode($payload);
+    $actor_id = get_user_id() ?: 0;
+    
+    // Fallback: If no session actor (e.g. background job), use the assigned staff
+    if (!$actor_id) {
+        $res = db_query("SELECT assigned_to FROM job_orders WHERE order_id = ? LIMIT 1", 'i', [$order_id]);
+        if (!empty($res)) $actor_id = (int)$res[0]['assigned_to'];
+    }
+    
+    return (bool) db_execute("
+        INSERT INTO order_messages (order_id, sender, sender_id, message, message_type, read_receipt)
+        VALUES (?, 'System', ?, ?, 'order_update', 1)
+    ", 'iis', [$order_id, $actor_id, $json]);
 }
 
 /**
@@ -1541,22 +1646,30 @@ function get_customer_notifications_for_display(int $customer_id, int $limit = 1
         );
 
         $is_payment_notification = (
-            $notif_type === 'Payment' ||
             $notif_type === 'Payment Issue' ||
             strpos($message_text_lower, 'payment required') !== false ||
-            strpos($message_text_lower, 'to_pay') !== false ||
-            strpos($message_text_lower, 'to pay') !== false ||
-            strpos($message_text_lower, 'rejected') !== false ||
-            strpos($message_text_lower, 'proceed to payment') !== false ||
-            strpos($message_text_lower, 'ready for payment') !== false ||
+            strpos($message_text_lower, 'proceed with your payment') !== false ||
+            strpos($message_text_lower, 'the final price is') !== false ||
             strpos($message_text_lower, 'submit payment') !== false ||
-            strpos($message_text_lower, 'payment of') !== false
+            strpos($message_text_lower, 'payment of') !== false ||
+            (
+                // "Payment" type only routes to payment when it's a genuine TO_PAY notification
+                $notif_type === 'Payment' &&
+                strpos($message_text_lower, 'proceed with your payment') !== false
+            )
         );
 
-        $current_status = (string)($notification['current_order_status'] ?? $notification['job_order_status'] ?? '');
-        if ($current_status !== '' && (stripos($current_status, 'to pay') !== false || stripos($current_status, 'to_pay') !== false)) {
+        // Also route to payment if the notification was specifically about a TO_PAY transition
+        // Check the STORED notification message — not the live order status — to avoid misrouting
+        // old APPROVED notifications after the order later advances to TO_PAY in the DB.
+        if (!$is_payment_notification && strpos($message_text_lower, 'please proceed') !== false) {
             $is_payment_notification = true;
         }
+
+        // $current_status is used for tab routing on the orders.php link below.
+        // It is intentionally NOT used for payment routing to avoid misrouting APPROVED
+        // notifications after the order has since advanced to TO_PAY in the DB.
+        $current_status = (string)($notification['current_order_status'] ?? $notification['job_order_status'] ?? '');
 
         $data_id = (int)($notification['data_id'] ?? 0);
         if ($data_id > 0) {
@@ -1717,12 +1830,13 @@ function render_pagination($current_page, $total_pages, $extra_params = [], $pag
     if ($total_pages <= 1) return '';
 
     $current_page = (int)$current_page;
-    $window = 2; // Show 2 pages before and after current
+    $window = 3; // Show 3 pages before and after current
     $pages = [];
     
     // Always include first page
     $pages[] = 1;
     
+    // Add pages around current page
     $range_start = max(2, $current_page - $window);
     $range_end   = min($total_pages - 1, $current_page + $window);
     for ($i = $range_start; $i <= $range_end; $i++) {
@@ -1747,7 +1861,7 @@ function render_pagination($current_page, $total_pages, $extra_params = [], $pag
     $params = $extra_params;
     unset($params[$page_param]);
     
-    $html = '<div style="display:flex; align-items:center; justify-content:center; gap:6px; margin-top:24px; padding:16px 0; border-top:1px solid #f1f5f9; width:100%;">';
+    $html = '<div class="pagination-container" style="display:flex; align-items:center; justify-content:center; gap:6px; margin-top:24px; padding:16px 0; border-top:1px solid #f1f5f9; width:100%;">';
 
     // Previous button
     if ($current_page > 1) {
@@ -1854,13 +1968,13 @@ function normalize_service_name($name, $fallback = 'Custom Order') {
         'tshirt' => 'T-Shirt Printing',
         't-shirt printing' => 'T-Shirt Printing',
         'tshirt printing' => 'T-Shirt Printing',
-        'stickers' => 'Decals/Stickers (Print/Cut)',
-        'sticker' => 'Decals/Stickers (Print/Cut)',
-        'decal' => 'Decals/Stickers (Print/Cut)',
-        'decals' => 'Decals/Stickers (Print/Cut)',
-        'decals/stickers (print/cut)' => 'Decals/Stickers (Print/Cut)',
-        'decals / stickers (print/cut)' => 'Decals/Stickers (Print/Cut)',
-        'decals / stickers (print & cut)' => 'Decals/Stickers (Print/Cut)',
+        'stickers' => 'Stickers/Decals',
+        'sticker' => 'Stickers/Decals',
+        'decal' => 'Stickers/Decals',
+        'decals' => 'Stickers/Decals',
+        'decals / stickers (print & cut)' => 'Stickers/Decals',
+        'stickers/decals' => 'Stickers/Decals',
+        'sticker pack' => 'Stickers/Decals',
         'sintraboard' => 'Sintraboard Standees',
         'sintra board' => 'Sintraboard Standees',
         'standee' => 'Sintraboard Standees',
@@ -1926,6 +2040,7 @@ function get_services_image_map() {
         'shirt'       => $base . '/images/products/product_31.jpg',
         'stickers'    => $base . '/images/products/product_21.jpg',
         'sticker'     => $base . '/images/products/product_21.jpg',
+        'decals'      => $base . '/images/products/product_21.jpg',
         'decal'       => $base . '/images/products/product_21.jpg',
         'glass'       => $base . '/images/products/Glass Stickers  Wall  Frosted Stickers.png',
         'frosted'     => $base . '/images/products/Glass Stickers  Wall  Frosted Stickers.png',
@@ -1946,16 +2061,16 @@ function get_services_image_map() {
  */
 function get_service_image_url($service_type_or_name) {
     $cat = strtolower(trim(preg_replace('/\s+/', ' ', (string)$service_type_or_name)));
-    if ($cat === '') return '/printflow/public/assets/images/services/default.png';
+    if ($cat === '') return '/printflow/public/assets/uploads/profiles/default.png';
 
     $map = get_services_image_map();
     foreach ($map as $keyword => $img) {
-        if (strpos($cat, $keyword) !== false) {
+        if (stripos($cat, $keyword) !== false) {
             return $img;
         }
     }
 
-    return '/printflow/public/assets/images/services/default.png';
+    return '/printflow/public/assets/uploads/profiles/default.png';
 }
 
 /**
@@ -2105,33 +2220,115 @@ function extract_payment_details($imagePath) {
 
     if (file_exists($outputFile)) {
         $text = file_get_contents($outputFile);
-        @unlink($outputFile); // Clean up
+        $clean_text = preg_replace('/\s+/', ' ', $text); // Normalize spaces
+        @unlink($outputFile); 
 
         // 1. Reference ID Extraction
-        if (preg_match('/\b\d{8,20}\b/', $text, $match)) {
-            $details['reference_id'] = $match[0];
+        // Prioritizing keyword-based "Reference" anchors for Maya alphanumeric support
+        $ref_found = false;
+        $ref_patterns = [
+            '/(?:Transaction\s*Reference|Reference\s*ID|Reference)[:\s]*([A-Z0-9\s]{8,24})/i', // Maya Keyword Priority
+            '/(?:Transaction\s*ID|Ref\s*No|Ref|No\.?|ID)[:\s]*([A-Z0-9\s]{8,24})/i',      // Other generic labels
+            '/\b([A-Z]{1,4}\d{4,}[A-Z0-9]*)\b/i',                                         // Alphanumeric specialized
+            '/\b(\d[\d\s]{7,20}\d)\b/'                                                    // Generic numeric (GCash)
+        ];
+
+        foreach ($ref_patterns as $pattern) {
+            if (preg_match($pattern, $clean_text, $match)) {
+                $raw_ref = trim($match[1]);
+                
+                // Strict Cleaning: Stop at first lowercase letter or space (effectively removes "SendMoney", etc.)
+                // Use a dedicated regex to extract only the valid uppercase alphanumeric prefix
+                if (preg_match('/^([A-Z0-9]+)/', $raw_ref, $clean_match)) {
+                    $ref = $clean_match[1];
+                } else {
+                    $ref = preg_replace('/\s+/', '', $raw_ref);
+                }
+
+                // Maya IDs can be alphanumeric; GCash are numeric. 8-24 chars is standard.
+                // Final validation check for minimum length and containing at least one digit
+                if (strlen($ref) >= 8 && preg_match('/\d/', $ref)) {
+                    $details['reference_id'] = $ref;
+                    $ref_found = true;
+                    break;
+                }
+            }
         }
 
         // 2. Exact Amount Extraction
-        if (preg_match_all('/₱\s?\d{1,6}(\.\d{2})?|\b\d{1,6}\.\d{2}\b/', $text, $matches)) {
-            $found_amount = end($matches[0]);
-            $details['amount'] = preg_replace('/[^0-9.]/', '', $found_amount);
+        // Search for "Amount" or "Total" and then skip non-digit characters until we find a price
+        // Handling Peso sign via unicode and common misreads (P, Php, PHP)
+        if (preg_match('/(?:Amount|Total|Paid|Sent)[:\s]*[^\d]*\s?([\d,]+\.\d{2})/i', $clean_text, $match)) {
+            $details['amount'] = preg_replace('/[^0-9.]/', '', $match[1]);
+        }
+        
+        // Fallback: look for anywhere with currency symbols
+        if (!$details['amount']) {
+            // Match ₱ (u20B1), PHP, Php, P 
+            if (preg_match_all('/(?:\x{20B1}|PHP|Php|P)\s*?([\d,]+\.\d{2})/iu', $clean_text, $matches)) {
+                $found_amount = end($matches[1]);
+                $details['amount'] = preg_replace('/[^0-9.]/', '', $found_amount);
+            }
+        }
+        
+        // Final fallback: any price-like pattern
+        if (!$details['amount']) {
+            if (preg_match_all('/\b[\d,]+\.\d{2}\b/', $clean_text, $matches)) {
+                $details['amount'] = preg_replace('/[^0-9.]/', '', end($matches[0]));
+            }
         }
 
         // 3. Sender Name Extraction
-        if (preg_match('/From[:\-]?\s*(.+)/i', $text, $match)) {
+        if (preg_match('/From[:\-]?\s*([A-Za-z\s\*]{3,})/i', $clean_text, $match)) {
             $details['sender_name'] = trim($match[1]);
-        } elseif (preg_match('/Sender[:\-]?\s*(.+)/i', $text, $match)) {
+        } elseif (preg_match('/Sender[:\-]?\s*([A-Za-z\s\*]{3,})/i', $clean_text, $match)) {
             $details['sender_name'] = trim($match[1]);
         }
 
-        // 4. Payment Method Detection
-        $text_lower = strtolower($text);
-        if (strpos($text_lower, 'gcash') !== false || strpos($text_lower, 'g-cash') !== false) {
-            $details['payment_method'] = 'GCash';
-        } elseif (strpos($text_lower, 'maya') !== false || strpos($text_lower, 'paymaya') !== false || strpos($text_lower, 'pay maya') !== false) {
-            $details['payment_method'] = 'Maya';
+        // 4. Payment Method Detection (High-Confidence Heuristics)
+        $method = 'Unknown';
+        $text_lower = strtolower($clean_text);
+        
+        // A. Fuzzy Keyword Match (PRIORITY: Check for Maya keywords first)
+        if (preg_match('/pay\s*maya|maya/i', $text_lower)) {
+            $method = 'Maya';
+        } elseif (preg_match('/gcash|g\s*cash/i', $text_lower)) {
+            $method = 'GCash';
         }
+        
+        // B. Reference Format Match (Fallback if keyword missing)
+        if ($method === 'Unknown' && !empty($details['reference_id'])) {
+            // Numeric only doesn't strictly mean GCash if it's very short, but 8+ digits is likely
+            if (ctype_digit($details['reference_id']) && strlen($details['reference_id']) >= 10) {
+                $method = 'GCash';
+            } elseif (preg_match('/[A-Z]/', $details['reference_id'])) {
+                $method = 'Maya';
+            }
+        }
+        
+        // C. Visual Theme Detection (Final Fallback: Blue = GCash, Green = Maya)
+        // Note: Some Maya app versions have blue headers, so we only use this if OCR is silent.
+        if ($method === 'Unknown' && function_exists('imagecreatefromstring')) {
+            $imgData = @file_get_contents($imagePath);
+            if ($imgData) {
+                $img = @imagecreatefromstring($imgData);
+                if ($img) {
+                    $w = imagesx($img); $h = imagesy($img);
+                    $bluePoints = 0; $greenPoints = 0;
+                    for ($i=0; $i<150; $i++) {
+                        $c = imagecolorat($img, rand(0, $w-1), rand(0, $h-1));
+                        $r = ($c >> 16) & 0xFF; $g = ($c >> 8) & 0xFF; $b = $c & 0xFF;
+                        // Detection: Blue theme (GCash) vs Green theme (Maya)
+                        if ($b > $r && $b > $g && $b > 80) $bluePoints++;
+                        if ($g > $r && $g > $b && $g > 80) $greenPoints++;
+                    }
+                    if ($bluePoints > $greenPoints && $bluePoints > 15) $method = 'GCash';
+                    elseif ($greenPoints > $bluePoints && $greenPoints > 15) $method = 'Maya';
+                    @imagedestroy($img);
+                }
+            }
+        }
+        $details['payment_method'] = $method;
     }
 
     return $details;

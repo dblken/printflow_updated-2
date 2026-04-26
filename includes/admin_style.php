@@ -29,6 +29,30 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
     unset($__pf_asset_js);
 }
 ?>
+<!-- PrintFlow Call System (Global) -->
+<link rel="stylesheet" href="/printflow/public/assets/css/printflow_call.css?v=1.0.7">
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="/printflow/public/assets/js/printflow_call.js?v=1.0.7"></script>
+<script>
+(function initGlobalCallStaff() {
+    const init = () => {
+        if (window.PFCall) {
+            // PFCall.initialize(userId, userType, userName, userAvatar, basePath)
+            // Note: These values are usually available in SESSION for staff
+            const userId = <?php echo (int)($_SESSION['user_id'] ?? 0); ?>;
+            if (!userId) return;
+            const userType = '<?php echo addslashes($_SESSION['user_type'] ?? 'Staff'); ?>';
+            const userName = '<?php echo addslashes($_SESSION['user_name'] ?? 'User'); ?>';
+            const userAvatar = '<?php echo addslashes(get_profile_image($_SESSION['profile_picture'] ?? null)); ?>';
+            const basePath = '/printflow';
+            window.PFCall.initialize(userId, userType, userName, userAvatar, basePath);
+        }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+    document.addEventListener('turbo:load', init);
+})();
+</script>
 
 <?php if (strpos($_SERVER['REQUEST_URI'] ?? '', '/staff/') !== false): ?>
 <script>(function(){document.documentElement.classList.add('printflow-staff');})();</script>
@@ -70,10 +94,21 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
         --border-color: #f3f4f6;
         --border-hover: #e5e7eb;
         --accent-color: #3b82f6;
+        
+        /* Layout Constants */
         --sidebar-w-expanded: 240px;
         --sidebar-w-collapsed: 72px;
         --sidebar-dur: 0.28s;
         --sidebar-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+        /* Reactive layout variable - Locked to HTML root */
+        --sidebar-w: var(--sidebar-w-expanded);
+    }
+
+    html.sidebar-collapsed,
+    html.sidebar-preload-collapsed,
+    body.sidebar-collapsed {
+        --sidebar-w: var(--sidebar-w-collapsed) !important;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -104,60 +139,55 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
         transition: none !important;
     }
     
-    /* Layout */
+    /* 
+     * Core Portal Layout - Structural Stabilization
+     * Using Block + Margin instead of Flex to prevent Hotwire Turbo "sibling jumps"
+     */
     .dashboard-container {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: nowrap;
-        align-items: stretch;
+        display: block;
         min-height: 100vh;
+        width: 100%;
+        position: relative;
     }
-    /* Turbo permanent wrapper: inner <aside> is position:fixed — no in-flow width.
-       order:-1 keeps layout correct even if Turbo leaves this node after .main-content in the DOM. */
+
+    /* Target persistent wrapper (survives Turbo navigation) */
     #printflow-persistent-sidebar {
-        order: -1;
-        flex: 0 0 0;
-        width: 0;
-        min-width: 0;
-        overflow: visible;
-        position: relative;
-        align-self: stretch;
+        display: block;
+        width: var(--sidebar-w);
+        height: 100vh;
+        height: 100dvh;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        transition: width var(--sidebar-dur) var(--sidebar-ease);
+        background: #000; /* Prevent transparency flashes during body swap */
     }
-    /* z-index: keeps toolbar/buttons above the #printflow-persistent-sidebar flex shim (width:0; overflow:visible) in odd stacking cases */
+
     .main-content {
-        flex: 1;
-        margin-left: var(--sidebar-w-expanded);
-        overflow-y: auto;
+        display: block;
+        width: auto;
+        min-height: 100vh;
         position: relative;
-        z-index: 1;
+        margin-left: var(--sidebar-w);
+        overflow-x: hidden;
+        z-index: 1; /* Stay above any background elements */
     }
-    /* Keep main in sync with fixed sidebar width (same duration/easing = no “jump”) */
+
+    /* Desktop Sync Logic: Hard-bound to HTML root for absolute persistence */
     @media (min-width: 769px) {
         .main-content {
             transition: margin-left var(--sidebar-dur) var(--sidebar-ease);
         }
-        /* Avoid main column “sliding” on Turbo body swap (sidebar is fixed; only markup changes) */
+        
+        /* Collapsed State margins handled by --sidebar-w variable above */
+
+        /* Prevent manual shifts or transitions during Turbo page swaps */
         html.pf-turbo-nav .main-content {
-            transition: none !important;
-        }
-        /* No animated nav/width churn on the persistent sidebar while Turbo swaps main */
-        html.pf-turbo-nav #printflow-persistent-sidebar a.nav-item {
-            transition: none !important;
-        }
-        html.pf-turbo-nav aside.sidebar {
             transition: none !important;
         }
     }
 
-    /* Expanded (default): 240px sidebar — collapsed: 72px + main offset (before <aside> gets .collapsed) */
-    html.sidebar-preload-collapsed aside.sidebar,
-    body.sidebar-collapsed aside.sidebar {
-        width: var(--sidebar-w-collapsed) !important;
-    }
-    html.sidebar-preload-collapsed .main-content,
-    body.sidebar-collapsed .main-content {
-        margin-left: var(--sidebar-w-collapsed) !important;
-    }
     
     /* Common Headers */
     .top-bar, header { 
@@ -351,18 +381,14 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
         .kpi-row { grid-template-columns: 1fr; gap: 12px; }
     }
 
-    /* Sidebar — full dark theme */
     .sidebar {
-        width: var(--sidebar-w-expanded);
+        width: 100%;
+        height: 100%;
         background: linear-gradient(180deg, #000508 0%, #000d12 22%, #001018 55%, #001920 100%);
         border-right: 1px solid rgba(83, 197, 224, 0.12);
         display: flex;
         flex-direction: column;
-        position: fixed;
-        height: 100vh;
-        height: 100dvh;
-        top: 0;
-        left: 0;
+        position: relative; /* Relative to fixed wrapper */
         z-index: 50;
         overflow-x: hidden;
         box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
@@ -589,19 +615,7 @@ if (empty($GLOBALS['__printflow_shell_core_js'])) {
     .logout-btn:hover { color: #f0fafc; background: rgba(255, 255, 255, 0.06); }
     a.user-profile:hover { background: rgba(255, 255, 255, 0.05); }
 
-    /* Collapsible Sidebar Support */
-    .sidebar.collapsed { width: var(--sidebar-w-collapsed); }
-    /* Legacy: aside was direct sibling of .main-content */
-    .sidebar.collapsed ~ .main-content { margin-left: var(--sidebar-w-collapsed); }
-    /*
-     * Turbo shell: sidebar lives inside #printflow-persistent-sidebar, so .main-content is a sibling
-     * of the wrapper — use :has() so collapsed width still pulls main content left (desktop).
-     */
-    @media (min-width: 769px) {
-        #printflow-persistent-sidebar:has(.sidebar.collapsed) ~ .main-content {
-            margin-left: var(--sidebar-w-collapsed);
-        }
-    }
+    /* Margins now globally synced via CSS variable --sidebar-w on html root */
     
     .sidebar.collapsed .sidebar-header { padding: 24px 12px; justify-content: center; flex-direction: column; gap: 12px; }
     .sidebar.collapsed .logo { flex-direction: column; gap: 4px; }

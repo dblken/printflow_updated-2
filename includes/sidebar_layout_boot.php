@@ -12,9 +12,14 @@
         if (document.body) {
             document.body.classList.toggle('sidebar-collapsed', collapsed);
         }
+        if (document.documentElement) {
+            document.documentElement.classList.toggle('sidebar-preload-collapsed', collapsed);
+            document.documentElement.classList.toggle('sidebar-collapsed', collapsed);
+        }
     } catch (e) {}
     var root = document.documentElement;
     root.classList.add('sidebar-layout-ready', 'ready');
     root.classList.remove('sidebar-boot-pending');
 })();
 </script>
+

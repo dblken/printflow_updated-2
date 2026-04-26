@@ -259,38 +259,38 @@ function render_order_item_clean($item, $is_cart_item = false, $show_price = tru
     ];
     $skip = ['design_upload', 'reference_upload', 'notes', 'additional_notes', 'other_instructions', 'design_notes', 'Branch_ID', 'service_type', 'product_type', 'unit', 'install_province', 'install_city', 'install_barangay', 'install_street'];
     ?>
-    <div style="background: #0a2530; padding: 0; overflow: hidden; border: none; border-radius: 0; margin-bottom: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 100%; max-width: 100%; box-sizing: border-box;">
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0; overflow: hidden; border: none; border-radius: 0; margin-bottom: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); width: 100%; max-width: 100%; box-sizing: border-box;">
         <!-- Core Info -->
-        <div class="order-item-header" style="padding: 1.25rem; display: flex; gap: 1.25rem; align-items: flex-start; border-bottom: 1px solid rgba(83, 197, 224, 0.15); background: rgba(255,255,255,0.02);">
-            <div class="order-item-image" style="width: 130px; height: 130px; border-radius: 0; overflow: hidden; background: rgba(0,0,0,0.35); border: none; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);">
+        <div class="order-item-header" style="padding: 1.25rem; display: flex; gap: 1.25rem; align-items: flex-start; border-bottom: 1px solid rgba(83, 197, 224, 0.15); background: #f8fafc;">
+            <div class="order-item-image" style="width: 130px; height: 130px; border-radius: 0; overflow: hidden; background: #f1f5f9; border: none; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);">
                 <?php if ($design_url): ?>
                     <img src="<?php echo $design_url; ?>" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease-in-out;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
                 <?php else: ?>
-                    <span style="font-size: 2.2rem; color: rgba(255,255,255,0.15);">Item</span>
+                    <span style="font-size: 2.2rem; color: #cbd5e1;">Item</span>
                 <?php endif; ?>
             </div>
             
             <div class="order-item-content" style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
-                <h3 style="font-size: 0.95rem; line-height: 1.3rem; font-weight: 600; color: #ffffff !important; margin: 0 0 0.3rem 0; word-wrap: break-word;"><?php echo htmlspecialchars($name); ?></h3>
-                <div style="display: inline-flex; font-size: 0.72rem; font-weight: 700; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 0; background: rgba(83, 197, 224, 0.12); border: none; margin-bottom: 1.25rem; align-self: flex-start;">
+                <h3 style="font-size: 0.95rem; line-height: 1.3rem; font-weight: 600; color: #1e293b !important; margin: 0 0 0.3rem 0; word-wrap: break-word;"><?php echo htmlspecialchars($name); ?></h3>
+                <div style="display: inline-flex; font-size: 0.72rem; font-weight: 700; color: #0369a1; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 0; background: #e0f2fe; border: none; margin-bottom: 1.25rem; align-self: flex-start;">
                     <?php echo htmlspecialchars($category); ?>
                 </div>
                 
                 <div class="order-item-details" style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: auto;">
                     <?php if ($show_quantity): ?>
                     <div class="review-detail-row" style="flex: 1; min-width: 80px;">
-                        <div class="review-detail-label" style="font-size: 0.68rem; color: #9fc4d4; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Quantity</div>
-                        <div class="review-detail-value" style="font-size: 1rem; color: #eaf6fb; font-weight: 700;"><?php echo $quantity; ?></div>
+                        <div class="review-detail-label" style="font-size: 0.68rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Quantity</div>
+                        <div class="review-detail-value" style="font-size: 1rem; color: #1e293b; font-weight: 700;"><?php echo $quantity; ?></div>
                     </div>
                     <?php endif; ?>
                     <?php if ($show_price): ?>
                     <div class="review-detail-row" style="flex: 1; min-width: 100px;">
-                        <div class="review-detail-label" style="font-size: 0.68rem; color: #9fc4d4; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Unit Price</div>
-                        <div class="review-detail-value" style="font-size: 1rem; color: #eaf6fb; font-weight: 700;"><?php echo format_currency($unit_price); ?></div>
+                        <div class="review-detail-label" style="font-size: 0.68rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Unit Price</div>
+                        <div class="review-detail-value" style="font-size: 1rem; color: #1e293b; font-weight: 700;"><?php echo format_currency($unit_price); ?></div>
                     </div>
                     <div class="review-total-row" style="flex: 1; min-width: 100px;">
-                        <div class="review-total-label" style="font-size: 0.68rem; color: #53c5e0; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total</div>
-                        <div class="review-total-value" style="font-size: 1rem; color: #53c5e0; font-weight: 800;"><?php echo format_currency($subtotal); ?></div>
+                        <div class="review-total-label" style="font-size: 0.68rem; color: #0369a1; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Total</div>
+                        <div class="review-total-value" style="font-size: 1rem; color: #0369a1; font-weight: 800;"><?php echo format_currency($subtotal); ?></div>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -299,8 +299,8 @@ function render_order_item_clean($item, $is_cart_item = false, $show_price = tru
 
         <!-- Specifications -->
         <div style="padding: 1.25rem; background: transparent;">
-            <h4 style="font-size: 0.85rem; font-weight: 800; color: #eaf6fb; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(83, 197, 224, 0.12); padding-bottom: 0.5rem;">
-                <svg style="width: 16px; height: 16px; color: #53c5e0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <h4 style="font-size: 0.85rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(13, 148, 136, 0.12); padding-bottom: 0.5rem;">
+                <svg style="width: 16px; height: 16px; color: #0d9488;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 Order Specifications
             </h4>
             
@@ -313,14 +313,14 @@ function render_order_item_clean($item, $is_cart_item = false, $show_price = tru
                     $label = $field_map[$ck] ?? ucwords(str_replace(['_', '-'], ' ', $ck));
                     $display_val = ($ck === 'tshirt_provider' && $cv === 'shop') ? 'Shop will provide' : (($ck === 'tshirt_provider' && $cv === 'customer') ? 'Customer will provide' : (($ck === 'installation_fee' && is_numeric($cv)) ? format_currency((float)$cv) : $cv));
                 ?>
-                    <div style="background: rgba(255, 255, 255, 0.04); border: none; padding: 0.75rem 0.85rem; border-radius: 0; transition: border-color 0.2s;">
-                        <div style="font-size: 0.65rem; color: #9fc4d4; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.02em;"><?php echo $label; ?></div>
-                        <div style="font-size: 0.95rem; font-weight: 700; color: #eaf6fb; overflow-wrap: break-word; word-break: break-word;"><?php echo htmlspecialchars($display_val); ?></div>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem 0.85rem; border-radius: 0; transition: border-color 0.2s;">
+                        <div style="font-size: 0.65rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.02em;"><?php echo $label; ?></div>
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #1e293b; overflow-wrap: break-word; word-break: break-word;"><?php echo htmlspecialchars($display_val); ?></div>
                     </div>
                 <?php endforeach; ?>
                 
                 <?php if (!$has_specs): ?>
-                    <p style="font-size: 0.9rem; color: #9fc4d4; font-style: italic; white-space: nowrap;">No specific customizations.</p>
+                    <p style="font-size: 0.9rem; color: #64748b; font-style: italic; white-space: nowrap;">No specific customizations.</p>
                 <?php endif; ?>
             </div>
 
@@ -329,22 +329,22 @@ function render_order_item_clean($item, $is_cart_item = false, $show_price = tru
             $notes = $custom['notes'] ?? $custom['additional_notes'] ?? $custom['other_instructions'] ?? ($custom['design_description'] ?? ($custom['tshirt_design_description'] ?? ($custom['tarp_design_description'] ?? ($custom['design_notes'] ?? ($item['design_notes'] ?? null)))));
             if ($notes):
             ?>
-                <div style="margin-top: 1.5rem; padding: 1.25rem; background: rgba(83, 197, 224, 0.08); border: none; border-radius: 0;">
-                    <div style="font-size: 0.75rem; font-weight: 800; color: #53c5e0; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <div style="margin-top: 1.5rem; padding: 1.25rem; background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; border: none; border-radius: 0;">
+                    <div style="font-size: 0.75rem; font-weight: 800; color: #0f766e; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
                         Special Instructions & Notes
                     </div>
-                    <div style="font-size: 0.95rem; color: #eaf6fb; line-height: 1.6; font-weight: 600; overflow-wrap: break-word; word-break: break-word; white-space: pre-wrap; transition: color 0.2s;"><?php echo nl2br(htmlspecialchars($notes)); ?></div>
+                    <div style="font-size: 0.95rem; color: #1e293b; line-height: 1.6; font-weight: 600; overflow-wrap: break-word; word-break: break-word; white-space: pre-wrap; transition: color 0.2s;"><?php echo nl2br(htmlspecialchars($notes)); ?></div>
                 </div>
             <?php endif; ?>
         </div>
 
         <!-- Reference -->
         <?php if ($ref_url): ?>
-            <div style="padding: 1.25rem; border-top: 1px solid rgba(83, 197, 224, 0.15); background: rgba(0,0,0,0.12);">
-                <div style="font-size: 0.85rem; font-weight: 800; color: #eaf6fb; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
+            <div style="padding: 1.25rem; border-top: 1px solid rgba(13, 148, 136, 0.15); background: #f8fafc;">
+                <div style="font-size: 0.85rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
                     Reference Attachment
                 </div>
-                <div style="width: 140px; border-radius: 0; overflow: hidden; border: none; padding: 5px; background: rgba(0,0,0,0.2);">
+                <div style="width: 140px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; padding: 4px; background: #ffffff;">
                     <img src="<?php echo $ref_url; ?>" style="width: 100%; height: auto; display: block; border-radius: 0;">
                 </div>
             </div>

@@ -1,0 +1,76 @@
+/**
+ * PrintFlow PWA Premium UI Styles
+ * Messenger-style install prompts and notifications
+ */
+
+#pwa-install-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 100px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    border: none;
+    cursor: pointer;
+    z-index: 1000;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+#pwa-install-btn:hover {
+    transform: translateY(-5px) scale(1.05);
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+}
+
+#pwa-install-btn:active {
+    transform: scale(0.95);
+}
+
+#pwa-install-btn svg {
+    width: 20px;
+    height: 20px;
+    color: #38bdf8;
+}
+
+.pwa-update-toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    z-index: 10000;
+    animation: slideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pwa-update-toast button {
+    background: #38bdf8;
+    color: #0f172a;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+@keyframes slideDown {
+    from { transform: translate(-50%, -100%); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+.hidden {
+    display: none !important;
+}

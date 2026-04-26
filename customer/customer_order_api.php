@@ -103,13 +103,13 @@ try {
 
             // Notify admin and staff of new job order
             $customerId = (int)($_POST['customer_id'] ?? ($_SESSION['user_type'] === 'Customer' ? $_SESSION['user_id'] : 0));
-            $adminUsers  = db_query("SELECT user_id FROM users WHERE user_type IN ('Admin','Manager') AND status = 'Activated'", '', []);
+            $adminUsers  = db_query("SELECT user_id FROM users WHERE role IN ('Admin','Manager') AND status = 'Activated'", '', []);
             foreach ((array)$adminUsers as $u) {
-                create_notification((int)$u['user_id'], 'Admin', "New Custom Job #{$orderId} submitted.", 'Job Order', false, false, $orderId);
+                create_notification((int)$u['user_id'], 'User', "New Custom Job #{$orderId} submitted.", 'Job Order', false, false, $orderId);
             }
-            $staffUsers = db_query("SELECT user_id FROM users WHERE user_type = 'Staff' AND status = 'Activated'", '', []);
+            $staffUsers = db_query("SELECT user_id FROM users WHERE role = 'Staff' AND status = 'Activated'", '', []);
             foreach ((array)$staffUsers as $u) {
-                create_notification((int)$u['user_id'], 'Staff', "New Custom Job #{$orderId} assigned.", 'Job Order', false, false, $orderId);
+                create_notification((int)$u['user_id'], 'User', "New Custom Job #{$orderId} assigned.", 'Job Order', false, false, $orderId);
             }
 
             echo json_encode(['success' => true, 'id' => $orderId]);

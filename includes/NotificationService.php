@@ -19,12 +19,12 @@ class NotificationService {
      * Status → human-readable notification messages.
      */
     private static $statusMessages = [
-        'APPROVED'     => 'Your customization order has been reviewed and approved.',
-        'TO_PAY'       => 'Your order is ready. Please proceed to payment of ₱{amount}.',
+        'APPROVED'     => 'Your inquiry has been approved. We are now preparing the final price for your order. Please get ready for payment.',
+        'TO_PAY'       => 'Your order for {product_name} is now ready for payment. The final price is ₱{amount}. Please proceed with your payment.',
         'VERIFY_PAY'   => 'Your payment has been received and is under verification.',
-        'IN_PRODUCTION'=> 'Payment verified! Your order is now being processed.',
-        'TO_RECEIVE'   => 'Great news! Your order is ready for pickup.',
-        'COMPLETED'    => 'Thank you! Your order has been marked as completed.',
+        'IN_PRODUCTION'=> 'Your payment has been verified. Your order is now in production.',
+        'TO_RECEIVE'   => 'Good news! Your order is now ready for pickup.',
+        'COMPLETED'    => 'Your order has been completed. Thank you for your purchase!',
         'CANCELLED'    => 'Your order has been cancelled. Please contact us for assistance.',
         'FOR REVISION' => 'Revision requested for your order. Reason: {reason}',
     ];
@@ -40,10 +40,24 @@ class NotificationService {
         if (!$message) return false;
 
         // Fetch order details for dynamic placeholders and linking
-        $order = db_query("SELECT id, order_id, estimated_total FROM job_orders WHERE id = ?", 'i', [$jobOrderId]);
+        $order = db_query("
+            SELECT jo.id, jo.order_id, jo.estimated_total, jo.job_title, jo.service_type,
+                   o.total_amount AS parent_total
+            FROM job_orders jo
+            LEFT JOIN orders o ON jo.order_id = o.order_id
+            WHERE jo.id = ?
+        ", 'i', [$jobOrderId]);
+
         if (!empty($order)) {
             $o = $order[0];
-            $amount = Number_Format((float)($o['estimated_total'] ?? 0), 2);
+            
+            // Prioritize staff-set parent total, fallback to job's estimated total
+            $raw_amount = ($o['parent_total'] > 0) ? $o['parent_total'] : ($o['estimated_total'] ?? 0);
+            $amount = number_format((float)$raw_amount, 2);
+            
+            // Resolve a readable product name for the notification
+            $product_name = !empty($o['job_title']) ? $o['job_title'] : ($o['service_type'] ?? 'your order');
+
             $orderNo = "#JO-" . str_pad((int)$o['id'], 5, '0', STR_PAD_LEFT);
             
             $rev_reason = 'No reason provided';
@@ -62,14 +76,19 @@ class NotificationService {
             }
 
             $message = str_replace(
-                ['{amount}', '{order_no}', '{reason}'], 
-                [$amount, $orderNo, $rev_reason], 
+                ['{product_name}', '{amount}', '{order_no}', '{reason}'], 
+                [$product_name, $amount, $orderNo, $rev_reason], 
                 $message
             );
         } else {
-            $message = str_replace(['{amount}', '{order_no}', '{reason}'], ['0.00', '', 'No reason provided'], $message);
+            $message = str_replace(['{product_name}', '{amount}', '{order_no}', '{reason}'], ['your order', '0.00', '', 'No reason provided'], $message);
             $linkId = $jobOrderId;
             $type = 'Job Order';
+        }
+
+        // Also send enhanced chat message if it's a standard order
+        if (!empty($o['order_id'])) {
+            send_order_update_message((int)$o['order_id'], $message);
         }
 
         return (bool) create_notification(

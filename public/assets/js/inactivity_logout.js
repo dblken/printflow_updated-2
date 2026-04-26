@@ -93,7 +93,7 @@
     // Ping server periodically to refresh session (optional - backend handles this on requests)
     setInterval(function() {
         if (document.visibilityState === 'visible' && Date.now() - lastActivity < WARNING_MS) {
-            fetch('/printflow/public/api_cart.php', {
+            fetch('/printflow/customer/api_cart.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'get_count', csrf_token: (document.querySelector('[name="csrf_token"]') || {}).value || '' }),

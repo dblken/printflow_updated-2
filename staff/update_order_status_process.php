@@ -81,6 +81,6 @@ if ($new_status === 'Completed' && $old_status !== 'Completed') {
 }
 
 // 5. System Message
-add_order_system_message($order_id, "Order status updated to '{$new_status}' by " . $_SESSION['user_name']);
+send_order_update_message($order_id, "Order status updated to '{$new_status}' by " . $_SESSION['user_name']);
 
 echo json_encode(['success' => true, 'message' => "Order #$order_id marked as $new_status"]);

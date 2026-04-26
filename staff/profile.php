@@ -313,7 +313,7 @@ $page_title = 'My Profile - Staff';
 .id-modal-img { display:block; max-width:85vw; max-height:85vh; border: 4px solid #fff; }
     </style>
 </head>
-<body data-turbo="false" class="printflow-staff">
+<body class="printflow-staff">
 
 <div class="dashboard-container">
     <?php include __DIR__ . '/../includes/staff_sidebar.php'; ?>

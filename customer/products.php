@@ -63,12 +63,12 @@ require_once __DIR__ . '/../includes/header.php';
 
 <style>
     :root {
-        --shopee-orange: #53c5e0;
-        --shopee-bg: #00151b;
-        --shopee-card-bg: rgba(0,49,61,0.85);
-        --shopee-text: #e0f2fe;
-        --shopee-muted: #94a3b8;
-        --shopee-border: rgba(83,197,224,0.2);
+        --shopee-orange: #0369a1;
+        --shopee-bg: #f8fafc;
+        --shopee-card-bg: #ffffff;
+        --shopee-text: #0f172a;
+        --shopee-muted: #475569;
+        --shopee-border: #e2e8f0;
     }
 
     .shopee-grid {
@@ -86,20 +86,20 @@ require_once __DIR__ . '/../includes/header.php';
 
     .shopee-card {
         background: var(--shopee-card-bg);
-        border: none;
-        border-radius: 0;
-        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid var(--shopee-border);
+        border-radius: 0.75rem;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
         overflow: hidden;
         display: flex;
         flex-direction: column;
         height: 100%;
-        backdrop-filter: blur(8px);
+        backdrop-filter: none;
     }
 
     .shopee-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(83,197,224,0.1);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
 
     .shopee-img {
@@ -124,8 +124,9 @@ require_once __DIR__ . '/../includes/header.php';
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
-        color: var(--shopee-text);
+        color: #0f172a;
         margin-bottom: 6px;
+        font-weight: 700;
     }
 
     .shopee-category {
@@ -185,14 +186,14 @@ require_once __DIR__ . '/../includes/header.php';
     }
 
     .shopee-btn-buy {
-        background: var(--shopee-orange);
-        color: #001c24;
-        box-shadow: 0 0 12px rgba(83, 197, 224, 0.2);
+        background: #0369a1;
+        color: #ffffff;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border-radius: 0.375rem;
     }
 
     .shopee-btn-buy:hover {
-        background: #7adcf5;
-        box-shadow: 0 0 20px rgba(83, 197, 224, 0.5);
+        background: #111111;
         transform: translateY(-1px);
     }
 
@@ -249,7 +250,7 @@ require_once __DIR__ . '/../includes/header.php';
                             
                             <div class="rating-stars">
                                 <?php for($i=1; $i<=5; $i++): ?>
-                                    <svg style="width: 14px; height: 14px;" fill="<?php echo ($i <= round($avg_rating)) ? '#ffca11' : '#e5e7eb'; ?>" viewBox="0 0 20 20">
+                                    <svg style="width: 14px; height: 14px;" fill="<?php echo ($i <= round($avg_rating)) ? '#ffca11' : '#cbd5e1'; ?>" viewBox="0 0 20 20">
                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                                     </svg>
                                 <?php endfor; ?>

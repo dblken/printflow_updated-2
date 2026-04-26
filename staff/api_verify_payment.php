@@ -69,7 +69,7 @@ try {
         db_execute(
             "UPDATE payments SET 
                 payment_status = 'Verified', 
-                reference_id = ?, 
+                reference_id = COALESCE(NULLIF(?, ''), reference_id), 
                 amount = COALESCE(NULLIF(amount, 0), ?) 
              WHERE order_id = ? ORDER BY id DESC LIMIT 1",
             'sdi', [$ref_id, $actual_amount, $order_id]
@@ -84,7 +84,7 @@ try {
             if (!empty($order['customer_id'])) {
                 create_notification((int)$order['customer_id'], 'Customer', $msg, 'Order', false, false, $order_id);
             }
-            add_order_system_message($order_id, $msg);
+            send_order_update_message($order_id, $msg);
             
             $log_desc = $is_product 
                 ? "Approved payment for Order #{$order_id}, moved to Ready for Pickup" 
@@ -103,9 +103,15 @@ try {
                 foreach ($jobs as $job) {
                     // Update payment fields first
                     db_execute(
-                        "UPDATE job_orders SET payment_proof_status = 'VERIFIED', payment_status = 'PAID', amount_paid = estimated_total WHERE id = ?",
-                        'i',
-                        [$job['id']]
+                        "UPDATE job_orders SET 
+                            payment_proof_status = 'VERIFIED', 
+                            payment_status = 'PAID', 
+                            amount_paid = estimated_total,
+                            payment_verified_by = ?,
+                            payment_verified_at = CURRENT_TIMESTAMP
+                         WHERE id = ?",
+                        'ii',
+                        [$staff_id, $job['id']]
                     );
                     if ($is_product) {
                         // Move product jobs straight to READY_TO_COLLECT
@@ -140,15 +146,16 @@ try {
             if (!empty($order['customer_id'])) {
                 create_notification((int)$order['customer_id'], 'Customer', $msg, 'Order', false, false, $order_id);
             }
-            add_order_system_message($order_id, "[PAYMENT REJECTION] " . $reason);
+            send_order_update_message($order_id, "[PAYMENT REJECTION] " . $reason);
             log_activity($staff_id, 'Payment Rejected', "Rejected payment for Order #{$order_id}. Reason: {$reason}");
             db_execute(
                 "UPDATE job_orders SET payment_proof_status = 'REJECTED', status = 'TO_PAY',
                  payment_rejection_reason = ?,
-                 payment_proof_path = NULL, payment_submitted_amount = 0, payment_proof_uploaded_at = NULL
+                 payment_proof_path = NULL, payment_submitted_amount = 0, payment_proof_uploaded_at = NULL,
+                 payment_verified_by = ?, payment_verified_at = CURRENT_TIMESTAMP
                  WHERE order_id = ? AND status NOT IN ('COMPLETED','CANCELLED')",
-                'si',
-                [$reason, $order_id]
+                'sii',
+                [$reason, $staff_id, $order_id]
             );
 
             // Update payments table status

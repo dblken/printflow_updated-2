@@ -1,227 +1,137 @@
 /**
- * PWA Registration and Installation
- * PrintFlow - Printing Shop PWA
+ * PrintFlow PWA Manager - Professional Install Flow
+ * Handles Progressive Web App lifecycle and installation prompt
  */
 
-// Register service worker
-if ('serviceWorker' in navigator && !window.__pfPwaRegistered) {
-    window.__pfPwaRegistered = true;
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/printflow/public/sw.js', {
-            updateViaCache: 'none'   // Always fetch fresh SW — picks up new cache versions immediately
-        })
-            .then((registration) => {
-                // Service Worker registered (no console log to avoid noise)
+if (typeof window.PwaManager === 'undefined') {
+    class PwaManager {
+        constructor() {
+            if (PwaManager.instance) return PwaManager.instance;
+            PwaManager.instance = this;
 
-                // If a new SW is waiting, activate it right away
-                if (registration.waiting) {
-                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                }
+            this.deferredPrompt = null;
+            this.installButtonId = 'pwa-install-btn';
+            this.isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
-                registration.addEventListener('updatefound', () => {
-                    const newWorker = registration.installing;
-                    newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            showUpdateNotification();
-                        }
-                    });
+            this.init();
+        }
+
+        init() {
+            // 1. Register Service Worker
+            this.registerServiceWorker();
+
+            // 2. Lifecycle Listeners
+            window.addEventListener('beforeinstallprompt', (e) => this.handleBeforeInstallPrompt(e));
+            window.addEventListener('appinstalled', () => this.handleAppInstalled());
+
+            // 3. UI Sync (Turbo-compatible)
+            document.addEventListener('DOMContentLoaded', () => this.syncUI());
+            document.addEventListener('turbo:load', () => this.syncUI());
+        }
+
+        registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/printflow/public/sw.js')
+                        .then(reg => {
+                            reg.onupdatefound = () => {
+                                const sw = reg.installing;
+                                sw.onstatechange = () => {
+                                    if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                                        this.notifyUpdate();
+                                    }
+                                };
+                            };
+                        })
+                        .catch(e => console.error('[PWA] Registration failed', e));
                 });
-            })
-            .catch((error) => {
-                console.error('[PWA] Service Worker registration failed:', error);
-            });
-    });
-}
-
-// Show update notification
-if (typeof showUpdateNotification === 'undefined') {
-    window.showUpdateNotification = function() {
-        if (confirm('A new version of PrintFlow is available. Reload to update?')) {
-            window.location.reload();
-        }
-    };
-}
-
-// Install prompt handling
-// This file can be loaded multiple times; keep state on `window` to avoid redeclare errors.
-var deferredPrompt = window.deferredPrompt || null;
-var _isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-var _isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-
-// Capture the install prompt when the browser fires it (prevents default banner; show via Install button)
-if (!window.__pfPwaBeforeInstallAdded) {
-    window.__pfPwaBeforeInstallAdded = true;
-    window.addEventListener('beforeinstallprompt', (e) => {
-        // Avoid capturing multiple times.
-        if (window.__pfPwaBeforeInstallCaptured) return;
-        window.__pfPwaBeforeInstallCaptured = true;
-
-        // Prevent default browser banner. We will show our install UI (or prompt immediately if needed).
-        e.preventDefault();
-        window.deferredPrompt = e;
-        deferredPrompt = e;
-
-        // If there's no install button on this page, we can't show the prompt automatically (requires user gesture).
-        // We'll just keep the event for when the user might encounter a button later or use the browser's own UI.
-    });
-
-    // Hide button once app is installed
-    window.addEventListener('appinstalled', () => {
-        window.deferredPrompt = null;
-        deferredPrompt = null;
-        window.__pfPwaBeforeInstallCaptured = false;
-        hideInstallButton();
-    });
-}
-
-if (typeof hideInstallButton === 'undefined') {
-    window.hideInstallButton = function() {
-        const btn = document.getElementById('pwa-install-btn');
-        if (btn) btn.style.display = 'none';
-    };
-}
-
-// Wire up click handler once DOM is ready
-if (!window.__pfPwaDomBound) {
-    window.__pfPwaDomBound = true;
-    const bindPwaInstall = () => {
-        const btn = document.getElementById('pwa-install-btn');
-        if (!btn) return;
-
-        // Already running as installed PWA → hide button
-        if (_isStandalone) {
-            hideInstallButton();
-            return;
-        }
-
-        // Remove old listeners if any (though Turbo re-executions make this tricky, better to just bind once or use a delegation)
-        btn.onclick = async () => {
-            if (window.deferredPrompt) {
-                window.deferredPrompt.prompt();
-                const { outcome } = await window.deferredPrompt.userChoice;
-                window.deferredPrompt = null;
-                deferredPrompt = null;
-                window.__pfPwaBeforeInstallCaptured = false;
-                if (outcome === 'accepted') hideInstallButton();
-            } else if (_isIOS) {
-                // iOS Safari — show manual instruction
-                alert('To install PrintFlow on iOS:\n\n1. Tap the Share button (\uf0e4) in Safari\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" to confirm');
-            } else {
-                // Fallback for browsers where prompt hasn't fired yet
-                alert('To install PrintFlow:\n\nOpen this page in Chrome or Edge and look for the install icon in the address bar, or revisit this page in a supported browser.');
             }
-        };
-    };
-    document.addEventListener('DOMContentLoaded', bindPwaInstall);
-    document.addEventListener('turbo:load', bindPwaInstall);
-}
+        }
 
-// Push notification subscription (optional)
-async function subscribeToPushNotifications() {
-    if ('PushManager' in window && 'serviceWorker' in navigator) {
-        try {
-            const registration = await navigator.serviceWorker.ready;
+        handleBeforeInstallPrompt(e) {
+            // Prevent default browser banner
+            e.preventDefault();
+            // Store for later user gesture
+            this.deferredPrompt = e;
+            console.log('[PWA] BeforeInstallPrompt captured');
+            
+            // Show the install UI
+            this.syncUI();
+        }
 
-            // Check if already subscribed
-            let subscription = await registration.pushManager.getSubscription();
+        handleAppInstalled() {
+            console.log('[PWA] Application installed successfully');
+            this.deferredPrompt = null;
+            this.syncUI();
+        }
 
-            if (!subscription) {
-                // Request permission
-                const permission = await Notification.requestPermission();
+        async triggerInstall() {
+            if (!this.deferredPrompt) {
+                this.handleManualInstructions();
+                return;
+            }
 
-                if (permission === 'granted') {
-                    // TODO: Replace with your VAPID public key
-                    const vapidPublicKey = 'YOUR_VAPID_PUBLIC_KEY';
+            try {
+                this.deferredPrompt.prompt();
+                const { outcome } = await this.deferredPrompt.userChoice;
+                console.log(`[PWA] Install outcome: ${outcome}`);
+                
+                // Clear prompt after use
+                this.deferredPrompt = null;
+                this.syncUI();
+            } catch (err) {
+                console.error('[PWA] Installation failed', err);
+            }
+        }
 
-                    subscription = await registration.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-                    });
+        handleManualInstructions() {
+            const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+            if (isIOS) {
+                alert('To install PrintFlow on iOS:\n1. Tap the Share button in Safari\n2. Scroll and tap "Add to Home Screen"\n3. Tap "Add"');
+            } else {
+                console.info('[PWA] Install prompt not available yet');
+            }
+        }
 
-                    console.log('[PWA] Push subscription:', subscription);
+        syncUI() {
+            const btn = document.getElementById(this.installButtonId);
+            if (!btn) return;
 
-                    // Send subscription to server
-                    await sendSubscriptionToServer(subscription);
+            // Hide if already running as standalone app
+            if (this.isStandalone) {
+                btn.classList.add('hidden');
+                return;
+            }
+
+            // Only show button if we have the deferred prompt ready
+            if (this.deferredPrompt) {
+                btn.classList.remove('hidden');
+                btn.onclick = () => this.triggerInstall();
+            } else {
+                // Keep hidden if no prompt (unless it's iOS where we might want to show instructions)
+                const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+                if (isIOS) {
+                    btn.classList.remove('hidden');
+                    btn.onclick = () => this.handleManualInstructions();
+                } else {
+                    btn.classList.add('hidden');
                 }
             }
+        }
 
-            return subscription;
-        } catch (error) {
-            console.error('[PWA] Push subscription failed:', error);
+        notifyUpdate() {
+            // Modern non-blocking update notification
+            const toast = document.createElement('div');
+            toast.className = 'pwa-update-toast';
+            toast.innerHTML = `
+                <span>New version available!</span>
+                <button onclick="window.location.reload()">Update</button>
+            `;
+            document.body.appendChild(toast);
         }
     }
+
+    // Initialize Global Manager
+    window.PwaManager = PwaManager;
+    window.PF_PWA = new PwaManager();
 }
-
-// Convert VAPID key
-function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-
-    for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-    }
-
-    return outputArray;
-}
-
-// Send subscription to server
-async function sendSubscriptionToServer(subscription) {
-    try {
-        const response = await fetch('/printflow/api/push-subscribe.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(subscription)
-        });
-
-        if (response.ok) {
-            console.log('[PWA] Subscription sent to server');
-        }
-    } catch (error) {
-        console.error('[PWA] Failed to send subscription:', error);
-    }
-}
-
-// Offline detection
-window.addEventListener('online', () => {
-    hideOfflineNotification();
-});
-
-window.addEventListener('offline', () => {
-    showOfflineNotification();
-});
-
-function showOfflineNotification() {
-    let notification = document.getElementById('offline-notification');
-
-    if (!notification) {
-        notification = document.createElement('div');
-        notification.id = 'offline-notification';
-        notification.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-        notification.innerHTML = `
-            <div class="flex items-center space-x-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3"></path>
-                </svg>
-                <span>You are offline. Some features may be unavailable.</span>
-            </div>
-        `;
-        document.body.appendChild(notification);
-    }
-}
-
-function hideOfflineNotification() {
-    const notification = document.getElementById('offline-notification');
-    if (notification) {
-        notification.remove();
-    }
-}
-
-// Auto-subscribe to push notifications on login (optional)
-// Uncomment when ready to implement push notifications
-// if (document.body.dataset.userLoggedIn === 'true') {
-//     subscribeToPushNotifications();
-// }

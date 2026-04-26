@@ -490,6 +490,34 @@ try {
                 }
             }
 
+            // Send TO_PAY notification to customer (only for new "To Pay" / "Pending Verification" transitions)
+            $notif_statuses = ['To Pay', 'Pending Verification'];
+            if (in_array($new_status, $notif_statuses, true)) {
+                // Fetch customer + product info for the notification
+                $notif_row = db_query(
+                    "SELECT cust.customer_id, cust.service_type,
+                            o.total_amount
+                     FROM customizations cust
+                     LEFT JOIN orders o ON cust.order_id = o.order_id
+                     WHERE cust.customization_id = ? LIMIT 1",
+                    'i', [$cust_id]
+                );
+                if (!empty($notif_row)) {
+                    $nr = $notif_row[0];
+                    $notif_customer_id = (int)($nr['customer_id'] ?? 0);
+                    $notif_product     = !empty($nr['service_type']) ? $nr['service_type'] : 'your order';
+                    $notif_amount      = number_format((float)($price ?? $nr['total_amount'] ?? 0), 2);
+                    $notif_message     = "Your order for {$notif_product} is now ready for payment. The final price is \u20b1{$notif_amount}. Please proceed with your payment.";
+                    if ($notif_customer_id) {
+                        require_once __DIR__ . '/../includes/NotificationService.php';
+                        create_notification($notif_customer_id, 'Customer', $notif_message, 'Payment', false, false, $linked_order_id ?? 0);
+                        if ($linked_order_id) {
+                            send_order_update_message($linked_order_id, $notif_message);
+                        }
+                    }
+                }
+            }
+
             echo json_encode(['success' => true]);
             break;
 
@@ -559,8 +587,16 @@ try {
                 'customization' => $details,
             ]];
 
+            // Fetch linked job_order materials so validationState is accurate
+            $linked_job = db_query(
+                'SELECT id FROM job_orders WHERE order_id = ? LIMIT 1',
+                'i', [$cust['order_id']]
+            );
+            $jid = $linked_job[0]['id'] ?? null;
+
             $data = [
                 'id'                       => $cust['customization_id'],
+                'job_order_id'             => $jid,
                 'order_id'                 => $cust['order_id'],
                 'order_type'               => 'CUSTOMIZATION',
                 'customer_full_name'       => $cust['customer_full_name'] ?? '',
@@ -587,13 +623,6 @@ try {
                 'items'                    => $items,
                 'customization_details'    => $details,
             ];
-
-            // Fetch linked job_order materials so validationState is accurate
-            $linked_job = db_query(
-                'SELECT id FROM job_orders WHERE order_id = ? LIMIT 1',
-                'i', [$cust['order_id']]
-            );
-            $jid = $linked_job[0]['id'] ?? null;
 
             $cust_materials = [];
             $cust_ink       = [];
@@ -772,7 +801,7 @@ try {
                 $o = db_query("SELECT order_id FROM job_orders WHERE id = ?", 'i', [$id]);
                 if (!empty($o) && !empty($o[0]['order_id'])) {
                     require_once __DIR__ . '/../includes/functions.php';
-                    add_order_system_message($o[0]['order_id'], "Revision required: " . $reason);
+                    send_order_update_message($o[0]['order_id'], "Revision required: " . $reason);
                     db_execute("UPDATE orders SET status = 'For Revision', design_status = 'Revision Requested', revision_reason = ? WHERE order_id = ?", 'si', [$reason, $o[0]['order_id']]);
                 }
             }

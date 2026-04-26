@@ -158,6 +158,7 @@ echo json_encode([
         'status' => $order['status'],
         'branch_name' => $order['branch_name'] ?? 'Main Branch',
         'payment_status' => $order['payment_status'],
+        'payment_method' => $order['payment_method'] ?? 'N/A',
         'payment_reference' => $order['payment_reference'] ?? '',
         'notes' => $order['notes'] ?? '',
     ],

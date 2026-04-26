@@ -4,6 +4,7 @@ TABLE: orders
  - order_date (timestamp)
  - updated_at (timestamp)
  - total_amount (decimal(10,2))
+ - estimated_price (decimal(10,2))
  - downpayment_amount (decimal(10,2))
  - status (varchar(100))
  - payment_status (enum('Unpaid','Paid','Refunded','Pending Verification'))
@@ -23,6 +24,10 @@ TABLE: orders
  - payment_type (enum('full_payment','50_percent','upon_pickup'))
  - payment_proof (varchar(255))
  - payment_submitted_at (timestamp)
+ - order_type (varchar(50))
+ - order_source (enum('customer','pos','walk-in'))
+ - reference_id (int)
+ - is_archived (tinyint(1))
 
 TABLE: job_orders
  - id (bigint)

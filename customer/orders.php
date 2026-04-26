@@ -133,23 +133,18 @@ if ($active_tab !== 'all' && isset($tab_status_map[$active_tab])) {
 }
 
 // Pagination settings
-// "All" tab must always show the complete list (no LIMIT).
 $items_per_page = 10;
-$current_page = ($active_tab === 'all') ? 1 : max(1, (int)($_GET['page'] ?? 1));
+$current_page = max(1, (int)($_GET['page'] ?? 1));
 $offset = ($current_page - 1) * $items_per_page;
 
 $total_result = db_query($count_sql, $count_types, $count_params);
 $total_items = (int)($total_result[0]['total'] ?? 0);
-$total_pages = ($active_tab === 'all') ? 1 : max(1, (int)ceil($total_items / $items_per_page));
+$total_pages = max(1, (int)ceil($total_items / $items_per_page));
 
-// Use inline LIMIT/OFFSET for filtered tabs.
-if ($active_tab === 'all') {
-    $sql .= " ORDER BY o.order_date DESC";
-} else {
-    $limit = (int)$items_per_page;
-    $offset_val = (int)$offset;
-    $sql .= " ORDER BY o.order_date DESC LIMIT {$limit} OFFSET {$offset_val}";
-}
+// Apply sorting and pagination to the SQL query
+$limit = (int)$items_per_page;
+$offset_val = (int)$offset;
+$sql .= " ORDER BY o.order_date DESC LIMIT {$limit} OFFSET {$offset_val}";
 
 $orders_raw = db_query($sql, $types, $params);
 $orders = is_array($orders_raw) ? $orders_raw : [];
@@ -160,35 +155,35 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <style>
-/* Orders Page — dark background compatible */
+/* Orders Page — light background compatible */
 .orders-theme-page {
-    --lp-text: #e0f2fe;
-    --lp-muted: #94a3b8;
-    --lp-border: rgba(83,197,224,0.18);
-    --lp-accent: #53c5e0;
-    --lp-accent-l: #7acae3;
-    color: #e0f2fe;
+    --lp-text: #1e293b;
+    --lp-muted: #64748b;
+    --lp-border: #e2e8f0;
+    --lp-accent: #0d9488;
+    --lp-accent-l: #14b8a6;
+    color: #1e293b;
     position: relative;
     z-index: 1;
 }
 .orders-page-container { margin-top: 1rem; margin-bottom: 2rem; max-width: 1100px; margin-left: auto; margin-right: auto; padding: 0 1rem; }
 
 .unified-dashboard {
-    background: rgba(0,49,61,0.75);
-    border: 1px solid rgba(83,197,224,0.18) !important;
+    background: #ffffff;
+    border: 1px solid #e2e8f0 !important;
     border-radius: 12px !important;
     overflow: hidden;
     margin-bottom: 3rem;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+    backdrop-filter: none;
 }
 
 .tt-tabs-wrapper {
     position: sticky; top: 0px; z-index: 40;
-    background: rgba(0,28,36,0.95);
-    border-bottom: 1px solid rgba(83,197,224,0.15) !important;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0 !important;
     border-radius: 0 !important;
-    padding: 0.75rem;
+    padding: 0.5rem 0.75rem;
 }
 
 .tt-tabs {
@@ -207,8 +202,8 @@ require_once __DIR__ . '/../includes/header.php';
 .tt-tabs::-webkit-scrollbar { display: none; }
 .tt-tab {
     padding: 0.75rem 1.25rem;
-    font-size: 0.82rem;
-    color: #94a3b8;
+    font-size: 0.85rem;
+    color: #64748b;
     font-weight: 700;
     text-decoration: none;
     border-radius: 10px !important;
@@ -223,27 +218,27 @@ require_once __DIR__ . '/../includes/header.php';
     .tt-tab { padding: 0.7rem 1.1rem; font-size: 0.85rem; }
 }
 .tt-tab:hover { 
-    color: #eaf6fb; 
-    background: rgba(83,197,224,0.08); 
-    border-color: rgba(83,197,224,0.15);
+    color: #0d9488; 
+    background: #f0fdfa; 
 }
 .tt-tab.active { 
-    background: rgba(83, 197, 224, 0.15); 
-    color: #53c5e0; 
-    border-color: rgba(83, 197, 224, 0.4);
-    box-shadow: 0 4px 15px rgba(83, 197, 224, 0.1);
+    background: #0d9488; 
+    color: #ffffff; 
+    border-color: #0d9488;
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
 }
 .tt-tab-count {
     font-size: 0.7rem;
-    background: rgba(255,255,255,0.05);
+    background: rgba(0, 0, 0, 0.1);
+    color: inherit;
     padding: 2px 7px;
     border-radius: 6px !important;
     font-weight: 800;
     transition: all 0.3s;
 }
 .tt-tab.active .tt-tab-count { 
-    background: #53c5e0; 
-    color: #00151b;
+    background: rgba(255, 255, 255, 0.2); 
+    color: #ffffff;
 }
 
 .orders-list-content { background: transparent; min-height: 500px; }
@@ -260,8 +255,8 @@ require_once __DIR__ . '/../includes/header.php';
 @media (max-width: 640px) {
     .ct-order-card { padding: 1.25rem 1rem; }
 }
-.ct-order-card + .ct-order-card { border-top: 1px solid rgba(83,197,224,0.1) !important; }
-.ct-order-card:hover { background: rgba(83,197,224,0.06) !important; }
+.ct-order-card + .ct-order-card { border-top: 1px solid #f1f5f9 !important; }
+.ct-order-card:hover { background: #f8fafc !important; }
 
 .card-top-row {
     display: flex;
@@ -362,24 +357,24 @@ require_once __DIR__ . '/../includes/header.php';
     .action-button svg { width: 16px; height: 16px; }
 }
 .btn-chat { 
-    background: rgba(83, 197, 224, 0.1) !important; 
-    color: #eaf6fb !important; 
-    border: 1px solid rgba(83, 197, 224, 0.4) !important;
-    box-shadow: 0 0 10px rgba(83, 197, 224, 0.1);
+    background: #f0fdfa !important; 
+    color: #0f766e !important; 
+    border: 1px solid rgba(13, 148, 136, 0.4) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 .btn-chat:hover { 
-    background: #53c5e0 !important; 
-    color: #00151b !important; 
-    box-shadow: 0 0 20px rgba(83, 197, 224, 0.4);
+    background: #0d9488 !important; 
+    color: #ffffff !important; 
+    box-shadow: 0 10px 15px -3px rgba(13, 148, 136, 0.3);
 }
 .btn-main-blue { 
     background: transparent !important; 
-    color: #eaf6fb !important; 
-    border: 1px solid #53c5e0 !important;
+    color: #0f766e !important; 
+    border: 1px solid #0d9488 !important;
 }
 .btn-main-blue:hover { 
-    background: rgba(83, 197, 224, 0.1) !important; 
-    box-shadow: 0 0 15px rgba(83, 197, 224, 0.2);
+    background: #f0fdfa !important; 
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.15);
 }
 .btn-rate-order { 
     background: rgba(249, 115, 22, 0.1) !important; 
@@ -389,7 +384,7 @@ require_once __DIR__ . '/../includes/header.php';
 }
 .btn-rate-order:hover { 
     background: #f97316 !important; 
-    color: #fff !important; 
+    color: #1e293b !important; 
     box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
 }
 
@@ -416,15 +411,15 @@ require_once __DIR__ . '/../includes/header.php';
 
 .empty-view {
     text-align: center; padding: 6rem 2rem;
-    background: rgba(0, 21, 27, 0.3); border-radius: 12px; border: 1px dashed rgba(83, 197, 224, 0.2);
+    background: #f8fafc; border-radius: 12px; border: 1px dashed rgba(13, 148, 136, 0.2);
 }
-.empty-view-title { font-size: 1.5rem; font-weight: 800; color: #eaf6fb; margin-bottom: 0.75rem; letter-spacing: 0.03em; }
-.empty-view-sub { color: #9fc4d4; font-size: 0.95rem; margin-bottom: 2rem; }
+.empty-view-title { font-size: 1.5rem; font-weight: 800; color: #1e293b; margin-bottom: 0.75rem; letter-spacing: 0.03em; }
+.empty-view-sub { color: #64748b; font-size: 0.95rem; margin-bottom: 2rem; }
 .empty-view-btn {
-    display: inline-block; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 0.95rem; font-weight: 800; text-align: center; text-transform: uppercase; background: transparent; color: #eaf6fb; border: 2px solid #53c5e0; letter-spacing: 0.05em; transition: all 0.3s;
+    display: inline-block; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 0.95rem; font-weight: 800; text-align: center; text-transform: uppercase; background: transparent; color: #1e293b; border: 2px solid #0d9488; letter-spacing: 0.05em; transition: all 0.3s;
 }
 .empty-view-btn:hover {
-    background: rgba(83, 197, 224, 0.15); box-shadow: 0 0 20px rgba(83, 197, 224, 0.2);
+    background: rgba(13, 148, 136, 0.1); box-shadow: 0 0 20px rgba(13, 148, 136, 0.15);
 }
 
 /* Modal stays dark — it overlays everything */
@@ -433,12 +428,14 @@ require_once __DIR__ . '/../includes/header.php';
     display: flex; align-items: center; justify-content: center;
     padding: 2rem 1rem; opacity: 0; pointer-events: none;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    background: rgba(8, 12, 15, 0.85);
+    background: rgba(248, 250, 252, 0.6); /* Professional light overlay */
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 #itemsModal.open { opacity: 1; pointer-events: auto; }
 .im-panel {
-    background: rgba(10, 37, 48, 0.99) !important;
-    border: 1px solid rgba(83,197,224,0.2);
+    background: #ffffff !important;
+    border: 1px solid rgba(13, 148, 136, 0.2);
     border-radius: 12px !important;
     width: 100%; max-width: 1150px;
     max-height: calc(100vh - 4rem);
@@ -451,59 +448,59 @@ require_once __DIR__ . '/../includes/header.php';
 #itemsModal.open .im-panel { transform: scale(1); }
 .im-header {
     padding: 0.75rem 1.25rem;
-    background: rgba(83,197,224,0.05);
-    border-bottom: 1px solid rgba(83,197,224,0.15);
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
     display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
 }
-.im-title { font-size: 1rem; font-weight: 800; color: #fff !important; margin: 0; }
-.im-subtitle { font-size: 0.82rem; color: rgba(255,255,255,0.5) !important; margin-top: 4px; font-weight: 600; }
+.im-title { font-size: 1rem; font-weight: 800; color: #1e293b !important; margin: 0; }
+.im-subtitle { font-size: 0.82rem; color: #64748b !important; margin-top: 4px; font-weight: 600; }
 .im-close {
     width: 42px; height: 42px; border-radius: 8px !important;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);
+    background: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b;
     cursor: pointer; transition: all 0.2s; font-size: 1.2rem;
 }
-.im-close:hover { background: rgba(255,100,100,0.1); color: #ff6b6b; }
+.im-close:hover { background: rgba(239,68,68,0.08); color: #ef4444; border-color: rgba(239,68,68,0.2); }
 .im-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
 .im-dashboard { display: grid; grid-template-columns: 1fr 340px; gap: 2rem; }
 .im-main { display: flex; flex-direction: column; gap: 1.5rem; min-width: 0; }
 .im-sidebar { display: flex; flex-direction: column; gap: 1.25rem; }
 .im-table { width: 100%; border-collapse: collapse; }
-.im-table th { text-align: left; padding: 0.75rem 0.5rem; font-size: 0.7rem; font-weight: 700; color: rgba(255,255,255,0.4); border-bottom: 2px solid rgba(255,255,255,0.08); }
-.im-table td { padding: 1.25rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: top; color: #eaf6fb; }
-.im-sec-card { background: rgba(255,255,255,0.02); border-left: 2px solid rgba(255,255,255,0.1); padding: 0.75rem 1.25rem; display: flex; flex-direction: column; }
-.im-sec-card.accent { border-left-color: #53c5e0; background: rgba(83,197,224,0.05); }
-.im-label { font-size: 0.68rem; color: rgba(255,255,255,0.4); font-weight: 700; margin-bottom: 6px; }
-.im-val { font-size: 0.95rem; font-weight: 800; color: #fff; }
-.im-chip { display: inline-flex; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); padding: 2px 8px; border-radius: 4px !important; font-size: 0.65rem; }
-.im-thumb { width: 90px; height: 90px; object-fit: cover; border-radius: 6px !important; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); }
+.im-table th { text-align: left; padding: 0.75rem 0.5rem; font-size: 0.7rem; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; }
+.im-table td { padding: 1.25rem 0.5rem; border-bottom: 1px solid #e2e8f0; vertical-align: top; color: #1e293b; }
+.im-sec-card { background: #f8fafc; border-left: 3px solid #e2e8f0; padding: 1rem 1.25rem; display: flex; flex-direction: column; border-radius: 8px; }
+.im-sec-card.accent { border-left-color: #0d9488; background: #f0fdfa; }
+.im-label { font-size: 0.68rem; color: #64748b; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.025em; }
+.im-val { font-size: 0.95rem; font-weight: 800; color: #1e293b; }
+.im-chip { display: inline-flex; background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; padding: 3px 10px; border-radius: 6px !important; font-size: 0.7rem; font-weight: 600; }
+.im-thumb { width: 90px; height: 90px; object-fit: cover; border-radius: 8px !important; border: 1px solid #e2e8f0; background: #fff; }
 
 #cancelModal {
     position: fixed; inset: 0; z-index: 100000;
     display: flex; align-items: center; justify-content: center;
     padding: 1.5rem; opacity: 0; pointer-events: none;
     transition: all 0.25s ease;
-    background: rgba(15,23,42,0.6);
-    backdrop-filter: blur(4px);
+    background: rgba(248, 250, 252, 0.7);
+    backdrop-filter: blur(10px);
 }
 #cancelModal.open { opacity: 1; pointer-events: auto; }
 .cm-box {
-    background: #0a2530 !important;
-    border: 1px solid rgba(83,197,224,0.2);
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0;
     border-radius: 20px;
     width: 100%; max-width: 460px;
     padding: 2rem;
-    box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.15);
 }
 .cm-opt-label {
     display: flex; align-items: center; gap: 1rem; padding: 1rem;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 10px; margin-bottom: 0.6rem;
-    cursor: pointer; transition: all 0.2s; color: #fff;
+    cursor: pointer; transition: all 0.2s; color: #1e293b;
 }
-.cm-opt-label:hover { background: rgba(255,255,255,0.06); }
-.cm-opt-label.active { border-color: #53c5e0; background: rgba(83,197,224,0.1); }
+.cm-opt-label:hover { background: #f1f5f9; border-color: #cbd5e1; }
+.cm-opt-label.active { border-color: #0d9488; background: #f0fdfa; }
 
 @media (max-width: 640px) {
     .im-dashboard { grid-template-columns: 1fr; }
@@ -655,11 +652,9 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
 
-            <?php if ($active_tab !== 'all'): ?>
-                <div class="mt-12">
-                    <?php echo get_pagination_links($current_page, $total_pages, ['tab' => $active_tab]); ?>
-                </div>
-            <?php endif; ?>
+            <div class="mt-12">
+                <?php echo get_pagination_links($current_page, $total_pages, ['tab' => $active_tab]); ?>
+            </div>
     </div>
 </div>
 
@@ -758,7 +753,7 @@ window.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="im-body" id="imBody">
             <div class="flex flex-col items-center justify-center py-16">
-                <div class="w-10 h-10 border-4 border-white/10 border-t-blue-400 rounded-full animate-spin"></div>
+                <div class="w-10 h-10 border-4 border-slate-200 border-t-blue-400 rounded-full animate-spin"></div>
                 <p class="mt-4 text-slate-400 font-bold text-sm">Gathering details...</p>
             </div>
         </div>
@@ -768,15 +763,15 @@ window.addEventListener('DOMContentLoaded', () => {
 <!-- Modal: Cancellation -->
 <div id="cancelModal" onclick="if(event.target === this) closeCancelModal()">
     <div class="cm-box">
-        <h2 class="text-2xl font-black text-white mb-2">Cancel Order?</h2>
-        <p class="text-slate-400 font-medium text-sm mb-6">Please tell us why you want to cancel. This action cannot be undone once confirmed.</p>
+        <h2 class="text-2xl font-black text-slate-800 mb-2">Cancel Order?</h2>
+        <p class="text-slate-500 font-medium text-sm mb-6">Please tell us why you want to cancel. This action cannot be undone once confirmed.</p>
         
         <div class="space-y-2">
             <label class="cm-opt-label"><input type="radio" name="cancel_reason" value="Change of mind"><span class="font-bold">Change of mind</span></label>
             <label class="cm-opt-label"><input type="radio" name="cancel_reason" value="Incorrect order details"><span class="font-bold">Incorrect details</span></label>
             <label class="cm-opt-label"><input type="radio" name="cancel_reason" value="Found another provider"><span class="font-bold">Found cheaper elsewhere</span></label>
             <label class="cm-opt-label"><input type="radio" name="cancel_reason" value="Other"><span class="font-bold">Other reasons</span></label>
-            <textarea id="cmOtherInput" class="w-full mt-3 p-4 bg-white/5 border-2 border-white/10 rounded-2xl hidden focus:border-blue-400 transition-all outline-none text-sm font-medium text-white" placeholder="Please specify your reason..."></textarea>
+            <textarea id="cmOtherInput" class="w-full mt-3 p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl hidden focus:border-blue-400 transition-all outline-none text-sm font-medium text-slate-700" placeholder="Please specify your reason..."></textarea>
         </div>
 
         <div class="grid grid-cols-2 gap-4 mt-8">
@@ -833,24 +828,24 @@ function openItemsModal(orderId) {
 
             return `<tr>
                 <td style="min-width: 250px;">
-                    <div style="font-weight: 700; color: #fff; font-size: 14px; margin-bottom: 0.5rem;">${escIM(item.product_name)}</div>
+                    <div style="font-weight: 700; color: #1e293b; font-size: 14px; margin-bottom: 0.5rem;">${escIM(item.product_name)}</div>
                     <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem;">${chips}</div>
                     
                     ${design || reference ? `
                         <div style="margin-top: 1rem;">
-                            <div style="font-size: 11px; font-weight: 700; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Uploaded Assets</div>
+                            <div style="font-size: 11px; font-weight: 700; color: #0d9488; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Uploaded Assets</div>
                             <div style="display: flex; gap: 0.75rem;">${design}${reference}</div>
                         </div>
                     ` : ''}
                 </td>
                 <td style="text-align: center; vertical-align: middle;">
-                    <div style="font-size: 16px; font-weight: 700; color: #eaf6fb;">${item.quantity}</div>
+                    <div style="font-size: 16px; font-weight: 700; color: #1e293b;">${item.quantity}</div>
                 </td>
                 <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
-                    <div style="font-size: 14px; font-weight: 400; color: #9fc4d4;">${escIM(item.unit_price)}</div>
+                    <div style="font-size: 14px; font-weight: 400; color: #64748b;">${escIM(item.unit_price)}</div>
                 </td>
                 <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
-                    <div style="font-size: 16px; font-weight: 700; color: #53c5e0;">${escIM(item.subtotal)}</div>
+                    <div style="font-size: 16px; font-weight: 700; color: #0d9488;">${escIM(item.subtotal)}</div>
                 </td>
             </tr>`;
         }).join('');
@@ -858,14 +853,14 @@ function openItemsModal(orderId) {
         document.getElementById('imBody').innerHTML = `
             <div class="im-dashboard">
                 <div class="im-main">
-                    <div style="background: rgba(0, 28, 36, 0.5); border: 1px solid rgba(83, 197, 224, 0.15); border-radius: 12px; overflow: hidden;">
+                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                         <table class="im-table">
-                            <thead style="background: rgba(83, 197, 224, 0.05);">
+                            <thead style="background: #f8fafc;">
                                 <tr>
-                                    <th style="padding: 1rem; font-size: 11px; font-weight: 700;">Service Description</th>
-                                    <th style="text-align: center; padding: 1rem; font-size: 11px; font-weight: 700;">Qty</th>
-                                    <th style="text-align: right; padding: 1rem; white-space: nowrap; font-size: 11px; font-weight: 700;">Unit Price</th>
-                                    <th style="text-align: right; padding: 1rem; font-size: 11px; font-weight: 700;">Total</th>
+                                    <th style="padding: 1rem; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Service Description</th>
+                                    <th style="text-align: center; padding: 1rem; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Qty</th>
+                                    <th style="text-align: right; padding: 1rem; white-space: nowrap; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Unit Price</th>
+                                    <th style="text-align: right; padding: 1rem; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Total</th>
                                 </tr>
                             </thead>
                             <tbody>${rows}</tbody>
@@ -873,9 +868,9 @@ function openItemsModal(orderId) {
                     </div>
                     
                     ${data.notes ? `
-                        <div style="margin-top: 1.5rem; padding: 1.25rem; background: rgba(83, 197, 224, 0.05); border: 1px solid rgba(83, 197, 224, 0.2); border-left: 4px solid #53c5e0; border-radius: 12px;">
-                            <div style="font-size: 11px; font-weight: 700; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Customer Notes</div>
-                            <div style="font-size: 14px; font-weight: 400; color: #eaf6fb; line-height: 1.6;">"${escIM(data.notes)}"</div>
+                        <div style="margin-top: 1.5rem; padding: 1.25rem; background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; border-radius: 12px;">
+                            <div style="font-size: 11px; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Customer Notes</div>
+                            <div style="font-size: 14px; font-weight: 600; color: #b45309; line-height: 1.6; word-break: break-word; overflow-wrap: anywhere;">"${escIM(data.notes)}"</div>
                         </div>
                     ` : ''}
                 </div>
@@ -885,26 +880,26 @@ function openItemsModal(orderId) {
                     <div class="im-sec-card accent">
                         <div class="flex justify-between items-start mb-4">
                             <div>
-                                <div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 4px;">Current status</div>
-                                <div style="font-size: 16px; font-weight: 700; color: #fff; line-height: 1.2;">${data.status}</div>
+                                <div style="font-size: 11px; font-weight: 700; color: #0f766e; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.025em;">Current status</div>
+                                <div style="font-size: 16px; font-weight: 800; color: #111827; line-height: 1.2;">${data.status}</div>
                             </div>
                             <div style="transform: scale(0.9); transform-origin: top right;">${imBadge(data.status)}</div>
                         </div>
-                        <div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 4px; margin-top: 16px;">Branch processing</div>
-                        <div style="font-size: 14px; font-weight: 400; color: #e0f2fe;">${escIM(data.branch_name)}</div>
+                        <div style="font-size: 11px; font-weight: 700; color: #0f766e; text-transform: uppercase; margin-bottom: 4px; margin-top: 16px; letter-spacing: 0.025em;">Branch processing</div>
+                        <div style="font-size: 14px; font-weight: 600; color: #1e293b;">${escIM(data.branch_name)}</div>
                     </div>
 
                     <div class="im-sec-card">
-                        <div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 12px;">Payment information</div>
+                        <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.025em;">Payment information</div>
                         <div class="space-y-4">
-                            <div><div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Method</div><div style="font-size: 14px; font-weight: 400; color: #e0f2fe;">${escIM(data.payment_method)}</div></div>
-                            <div><div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Status</div><div>${imBadge(data.payment_status)}</div></div>
+                            <div><div style="font-size: 11px; font-weight: 700; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;">Method</div><div style="font-size: 14px; font-weight: 600; color: #1e293b;">${escIM(data.payment_method)}</div></div>
+                            <div><div style="font-size: 11px; font-weight: 700; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase;">Status</div><div>${imBadge(data.payment_status)}</div></div>
                         </div>
                     </div>
 
-                    <div class="im-sec-card" style="border-left-color: #fbbf24;">
-                        <div style="font-size: 11px; font-weight: 700; color: #fbbf24; text-transform: uppercase; margin-bottom: 4px;">Estimated completion</div>
-                        <div style="font-size: 14px; font-weight: 400; color: #fbbf24;">${escIM(data.estimated_comp || 'Gathering timeframe...')}</div>
+                    <div class="im-sec-card" style="border-left-color: #f59e0b; background: #fffbeb;">
+                        <div style="font-size: 11px; font-weight: 700; color: #92400e; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.025em;">Estimated completion</div>
+                        <div style="font-size: 14px; font-weight: 700; color: #b45309;">${escIM(data.estimated_comp || 'Gathering timeframe...')}</div>
                     </div>
 
                     <!-- Actions Area -->
@@ -986,6 +981,11 @@ function submitOrderCancellation() {
             showToast(data.error || "Failed to cancel.");
             btn.disabled = false; btn.textContent = 'Cancel Order';
         }
+    })
+    .catch(err => {
+        console.error("Cancellation Error:", err);
+        showToast("An error occurred while processing your request.");
+        btn.disabled = false; btn.textContent = 'Cancel Order';
     });
 }
 
@@ -1064,7 +1064,7 @@ function escIM(str) {
                 }
                 
                 card.style.transition = 'background 0.3s';
-                card.style.background = 'rgba(83, 197, 224, 0.12)'; // Brief teal highlight
+                card.style.background = '#f0fdfa'; // Brief teal highlight
                 setTimeout(() => { card.style.background = ''; card.style.transition = ''; }, 1800);
             });
         });

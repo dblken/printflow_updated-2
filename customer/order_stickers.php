@@ -300,7 +300,7 @@ if ($stickers_lam_val !== '' && !in_array($stickers_lam_val, ['With Laminate', '
 </style>
 <div id="finishInfoModal" class="stickers-finish-modal" style="display:none; position:fixed; inset:0; z-index:99999; align-items:center; justify-content:center; padding:1rem;">
     <div onclick="closeFinishInfo()" style="position:absolute; inset:0; background:rgba(2,12,18,0.72);"></div>
-    <div class="stickers-finish-modal-inner" style="position:relative; background:#0a2530; border:1px solid rgba(83,197,224,0.28); border-radius:14px; width:min(920px, 96vw); max-height:90vh; overflow:auto; padding:1rem 1rem 1.25rem;">
+    <div class="stickers-finish-modal-inner" style="position:relative; background:#ffffff; border:1px solid rgba(83,197,224,0.28); border-radius:14px; width:min(920px, 96vw); max-height:90vh; overflow:auto; padding:1rem 1rem 1.25rem;">
         <button type="button" onclick="closeFinishInfo()" class="stickers-modal-close" style="position:absolute; top:8px; right:8px; border:1px solid rgba(83,197,224,0.28); background:rgba(15,53,68,0.95); border-radius:999px; width:30px; height:30px; cursor:pointer; color:#d8edf5;">×</button>
         <h3 style="font-size:1.1rem; font-weight:800; margin:0 0 0.8rem 0; color:#eaf6fb;">Finish Type Guide</h3>
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:0.9rem;">

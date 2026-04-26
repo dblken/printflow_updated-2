@@ -74,12 +74,12 @@ require_once __DIR__ . '/../includes/header.php';
         color: #0f172a !important;
     }
     .cart-theme-page .card {
-        background: rgba(0,49,61,0.85) !important;
-        border: none !important;
-        border-radius: 0 !important;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 0.75rem !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
         overflow: hidden;
-        backdrop-filter: blur(8px);
+        backdrop-filter: none;
     }
     .cart-theme-page table {
         background: transparent !important;
@@ -105,16 +105,16 @@ require_once __DIR__ . '/../includes/header.php';
         background: #f1f5f9 !important;
     }
     .cart-theme-page .btn-primary {
-        background: linear-gradient(135deg, #53C5E0, #32a1c4) !important;
+        background: #0d9488 !important;
         color: #fff !important;
         border: none !important;
-        box-shadow: 0 10px 22px rgba(50,161,196,0.3);
+        box-shadow: 0 10px 22px rgba(13, 148, 136, 0.2);
     }
     .cart-theme-page #checkout-btn {
-        background: linear-gradient(135deg, #53C5E0, #32a1c4) !important;
+        background: #0d9488 !important;
         color: #ffffff !important;
         border: none !important;
-        box-shadow: 0 10px 22px rgba(50,161,196,0.3) !important;
+        box-shadow: 0 10px 22px rgba(13, 148, 136, 0.2) !important;
     }
     .cart-theme-page #checkout-btn:hover { filter: brightness(1.05); }
     .cart-theme-page .btn-secondary {
@@ -154,7 +154,7 @@ require_once __DIR__ . '/../includes/header.php';
         transition: all 0.2s;
     }
     .qty-btn:hover:not(:disabled) {
-        background: #0a2530;
+        background: #0d9488;
         color: #fff;
         transform: scale(1.05);
     }
@@ -173,9 +173,9 @@ require_once __DIR__ . '/../includes/header.php';
         width: 20px;
         height: 20px;
         border-radius: 0;
-        border: 2px solid rgba(83, 197, 224, 0.35);
+        border: 2px solid rgba(13, 148, 136, 0.35);
         cursor: pointer;
-        accent-color: #53c5e0;
+        accent-color: #0d9488;
     }
 
     /* Trash Icon Styling */
@@ -212,7 +212,7 @@ require_once __DIR__ . '/../includes/header.php';
         
         .cart-theme-page .cart-row {
             display: block;
-            background: rgba(0,49,61,0.85) !important;
+            background: #ffffff !important;
             border: none !important;
             border-radius: 0;
             margin-bottom: 0.5rem;
@@ -496,12 +496,12 @@ require_once __DIR__ . '/../includes/header.php';
     }
 
     #removeModal > div:last-child {
-        background: rgba(10, 37, 48, 0.97) !important;
-        border: 1px solid rgba(83, 197, 224, 0.26) !important;
-        box-shadow: 0 24px 42px rgba(0,0,0,0.45) !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
     }
-    #removeModal h3 { color: #eaf6fb !important; }
-    #removeModal p { color: #b9d4df !important; }
+    #removeModal h3 { color: #0f172a !important; }
+    #removeModal p { color: #64748b !important; }
     .cart-info-modal {
         position: fixed;
         inset: 0;
@@ -521,10 +521,10 @@ require_once __DIR__ . '/../includes/header.php';
         width: min(560px, 100%);
         max-height: 85vh;
         overflow: hidden;
-        background: rgba(10, 37, 48, 0.97);
-        border: none;
-        border-radius: 0;
-        box-shadow: 0 18px 44px rgba(0,0,0,0.45);
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     }
     .cart-info-scroll {
         max-height: 85vh;
@@ -533,17 +533,17 @@ require_once __DIR__ . '/../includes/header.php';
         padding: 1.1rem 1.15rem 1rem;
         scrollbar-gutter: stable;
         scrollbar-width: thin;
-        scrollbar-color: rgba(83, 197, 224, 0.72) rgba(255, 255, 255, 0.08);
+        scrollbar-color: var(--ct-purple) #f1f5f9;
     }
     .cart-info-scroll::-webkit-scrollbar {
         width: 10px;
     }
     .cart-info-scroll::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.08);
+        background: #f1f5f9;
         border-radius: 999px;
     }
     .cart-info-scroll::-webkit-scrollbar-thumb {
-        background: rgba(83, 197, 224, 0.72);
+        background: var(--ct-purple);
         border-radius: 999px;
         border: 2px solid rgba(10, 37, 48, 0.95);
     }
@@ -552,13 +552,13 @@ require_once __DIR__ . '/../includes/header.php';
     }
     .cart-info-title {
         margin: 0 2rem 0.4rem 0;
-        color: #eaf6fb;
+        color: #0f172a;
         font-size: 1.05rem;
         font-weight: 800;
     }
     .cart-info-sub {
         margin: 0 0 0.85rem;
-        color: #9fc6d9;
+        color: #64748b;
         font-size: 0.85rem;
     }
     .cart-info-list {
@@ -570,10 +570,10 @@ require_once __DIR__ . '/../includes/header.php';
     }
     .cart-info-list li {
         padding: 0.6rem 0.7rem;
-        border: none;
-        border-radius: 0;
-        background: rgba(255, 255, 255, 0.04);
-        color: #d9e6ef;
+        border: 1px solid #f1f5f9;
+        border-radius: 0.5rem;
+        background: #f8fafc;
+        color: #1e293b;
         font-size: 0.86rem;
         line-height: 1.45;
     }
@@ -585,8 +585,8 @@ require_once __DIR__ . '/../includes/header.php';
         height: 30px;
         border-radius: 0;
         border: none;
-        background: rgba(255,255,255,0.08);
-        color: #d8edf5;
+        background: #f1f5f9;
+        color: #64748b;
         font-size: 1.05rem;
         cursor: pointer;
     }
@@ -602,8 +602,8 @@ require_once __DIR__ . '/../includes/header.php';
         padding: 0 1rem;
         border-radius: 0;
         border: none;
-        background: rgba(255,255,255,0.05);
-        color: #d9e6ef;
+        background: #f1f5f9;
+        color: #1e293b;
         font-weight: 700;
         font-size: 0.86rem;
         text-decoration: none;
@@ -614,9 +614,9 @@ require_once __DIR__ . '/../includes/header.php';
     }
     .cart-info-btn-primary {
         border: none;
-        background: linear-gradient(135deg, #53C5E0, #32a1c4);
+        background: #0d9488;
         color: #fff;
-        box-shadow: 0 10px 22px rgba(50,161,196,0.3);
+        box-shadow: 0 10px 22px rgba(13, 148, 136, 0.2);
     }
 </style>
 
@@ -663,7 +663,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="card" style="padding:0;">
                     <div class="overflow-x-auto">
                         <table style="width:100%; border-collapse:collapse;">
-                            <thead style="background:rgba(8,30,39,0.85); font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em; color:#9fc6d9;">
+                            <thead style="background:#f8fafc; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b;">
                                 <tr>
                                     <th style="padding:1rem; text-align:center; width: 50px;">
                                         <input type="checkbox" id="selectAll" class="cart-checkbox" onchange="toggleAll(this.checked)" <?php 
@@ -926,12 +926,12 @@ require_once __DIR__ . '/../includes/header.php';
 <!-- Remove Confirmation Modal -->
 <div id="removeModal" style="display:none; position:fixed; inset:0; z-index:50; align-items:center; justify-content:center;">
     <div style="position:absolute; inset:0; background:rgba(15,23,42,0.45);" onclick="closeRemoveModal()"></div>
-    <div style="position:relative; background:rgba(10,37,48,.97); padding:2rem; border-radius:0; max-width:400px; width:90%; box-shadow:0 20px 25px -5px rgba(0,0,0,0.4); z-index:51;">
-        <h3 style="font-size:1.25rem; font-weight:700; color:#eaf6fb; margin-bottom:0.5rem;">Remove from Cart?</h3>
-        <p style="color:#b9d4df; margin-bottom:1.5rem; line-height:1.5;">Are you sure you want to remove this item from your shopping cart?</p>
+    <div style="position:relative; background:#ffffff; padding:2.5rem 2rem; border-radius:1.25rem; max-width:400px; width:90%; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1); z-index:51; border:1px solid #e2e8f0;">
+        <h3 style="font-size:1.35rem; font-weight:800; color:#0f172a; margin-bottom:0.75rem;">Remove from Cart?</h3>
+        <p style="color:#64748b; margin-bottom:2rem; line-height:1.6; font-size:0.95rem;">Are you sure you want to remove this item from your shopping cart?</p>
         <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
-            <button type="button" onclick="closeRemoveModal()" style="padding:0.5rem 1.25rem; border-radius:0; background:rgba(255,255,255,.08); color:#d9e6ef; font-weight:600; border:none; cursor:pointer; transition:background 0.2s;">Cancel</button>
-            <button type="button" onclick="handleRemoveItem()" style="padding:0.5rem 1.25rem; border-radius:0; background:#ef4444; color:white; font-weight:600; border:none; cursor:pointer; transition:background 0.2s;">Delete</button>
+            <button type="button" onclick="closeRemoveModal()" style="padding:0.7rem 1.5rem; border-radius:10px; background:#f1f5f9; color:#475569; font-weight:700; border:none; cursor:pointer; transition:all 0.2s;">Cancel</button>
+            <button type="button" onclick="handleRemoveItem()" style="padding:0.7rem 1.5rem; border-radius:10px; background:#ef4444; color:white; font-weight:700; border:none; cursor:pointer; transition:all 0.2s;">Delete</button>
         </div>
     </div>
 </div>

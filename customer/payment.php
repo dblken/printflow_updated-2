@@ -113,6 +113,20 @@ if (!empty($order_result)) {
     $show_payment_form = ($order['payment_status'] !== 'PAID' && $order['payment_proof_status'] !== 'SUBMITTED' && $order_status !== 'CANCELLED');
 }
 
+// Logic for redirecting to the correct tab in orders.php
+$order_tab = 'all';
+$s = strtolower($order_status);
+if (strpos($s, 'pending') !== false || strpos($s, 'revision') !== false) $order_tab = 'pending';
+elseif (strpos($s, 'approved') !== false) $order_tab = 'approved';
+elseif (strpos($s, 'verify') !== false || strpos($s, 'submitted') !== false) $order_tab = 'toverify';
+elseif (strpos($s, 'pay') !== false) $order_tab = 'topay';
+elseif (strpos($s, 'production') !== false || strpos($s, 'process') !== false || strpos($s, 'print') !== false || strpos($s, 'paid') !== false) $order_tab = 'production';
+elseif (strpos($s, 'ready') !== false || strpos($s, 'pickup') !== false) $order_tab = 'pickup';
+elseif (strpos($s, 'completed') !== false || strpos($s, 'rate') !== false || strpos($s, 'rated') !== false) $order_tab = 'completed';
+elseif (strpos($s, 'cancelled') !== false) $order_tab = 'cancelled';
+
+$orders_redirect_url = "orders.php?tab={$order_tab}&highlight={$order_id}";
+
 $page_title = "Payment - Order #{$order_id}";
 $use_customer_css = true;
 require_once __DIR__ . '/../includes/header.php';
@@ -136,19 +150,19 @@ require_once __DIR__ . '/../includes/header.php';
         .payment-sidebar { order: -1; }
     }
     .payment-card {
-        background: rgba(0,49,61,0.88) !important;
-        border: none !important;
-        border-radius: 0 !important;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        background: #ffffff !important;
+        color: #1e293b !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
         overflow: hidden;
         margin-bottom: 1.25rem;
-        backdrop-filter: blur(10px);
+        backdrop-filter: none;
     }
     /* Fix all dark section titles → white */
     .payment-section-title {
         font-size: 0.95rem;
         font-weight: 800;
-        color: #eaf6fb !important;
+        color: #ffffff !important;
         margin-bottom: 1rem;
         display: flex;
         align-items: center;
@@ -161,7 +175,7 @@ require_once __DIR__ . '/../includes/header.php';
         display: block;
         font-size: 0.82rem;
         font-weight: 700;
-        color: #9fc4d4 !important;
+        color: #f1f5f9 !important;
         margin-bottom: 0.6rem;
         letter-spacing: 0.02em;
         text-transform: uppercase;
@@ -169,7 +183,7 @@ require_once __DIR__ . '/../includes/header.php';
     .amount-badge {
         background: linear-gradient(135deg, rgba(83,197,224,0.12), rgba(50,161,196,0.05));
         border: none;
-        color: #eaf6fb;
+        color: #1e293b;
         padding: 1.5rem 1.25rem;
         border-radius: 0;
         text-align: center;
@@ -178,7 +192,7 @@ require_once __DIR__ . '/../includes/header.php';
     .amount-label {
         font-size: 0.75rem;
         font-weight: 700;
-        color: #9fc4d4;
+        color: #64748b;
         text-transform: uppercase;
         letter-spacing: 0.1em;
         margin-bottom: 0.5rem;
@@ -186,7 +200,7 @@ require_once __DIR__ . '/../includes/header.php';
     .amount-value {
         font-size: 2.5rem;
         font-weight: 900;
-        color: #53c5e0;
+        color: #0d9488;
         letter-spacing: -0.02em;
     }
     .pm-tab-btn {
@@ -194,54 +208,54 @@ require_once __DIR__ . '/../includes/header.php';
         padding: 12px;
         border-radius: 0;
         border: none;
-        background: rgba(0,28,36,0.7);
-        color: #9fc4d4;
-        font-weight: 700;
-        cursor: pointer;
+        background: #0d9488;
+        color: #fff;
+        width: 100%;
+        border-radius: 0.25rem;
         transition: all 0.25s;
         text-align: center;
         font-size: 0.875rem;
     }
     .pm-tab-btn.active {
-        background: #53c5e0;
-        color: #001820;
-        box-shadow: 0 2px 8px rgba(83,197,224,0.35);
+        background: #ffffff;
+        color: #0d9488;
+        box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
     }
     .input-group { margin-bottom: 1.5rem; }
     .custom-input {
         width: 100%;
         padding: 12px 16px;
-        background: rgba(0,49,61,0.6);
+        background: #f8fafc;
         border: none;
         border-radius: 0;
         font-weight: 600;
-        color: #e0f2fe;
+        color: #1e293b;
         transition: all 0.25s;
         font-size: 1rem;
     }
     .custom-input:focus {
         outline: none;
-        background: rgba(0,49,61,0.8);
+        background: #f1f5f9;
         box-shadow: 0 0 0 3px rgba(83,197,224,0.12);
     }
     .dropzone {
-        border: 2px dashed rgba(83,197,224,0.35);
+        border: 2px dashed rgba(255,255,255,0.35);
         border-radius: 0;
         padding: 2rem 1.25rem;
         text-align: center;
         cursor: pointer;
         transition: all 0.25s;
-        background: rgba(0,28,36,0.5);
+        background: #f8fafc;
     }
     .dropzone:hover {
-        border-color: #53c5e0;
+        accent-color: #0d9488;
         background: rgba(83,197,224,0.06);
     }
     /* Fix dark dropzone text → white */
-    .dropzone .dz-title { font-weight: 700; color: #eaf6fb !important; font-size: 0.9rem; }
-    .dropzone .dz-sub   { font-size: 0.78rem; color: #9fc4d4 !important; }
+    .dropzone .dz-title { font-weight: 700; color: #1e293b !important; font-size: 0.9rem; }
+    .dropzone .dz-sub   { font-size: 0.78rem; color: #64748b !important; }
     /* Fix Items heading */
-    .items-heading { font-size: 0.88rem; font-weight: 800; color: #eaf6fb !important; }
+    .items-heading { font-size: 0.88rem; font-weight: 800; color: #1e293b !important; }
     /* Show More btn */
     .show-more-btn {
         width: 100%;
@@ -249,7 +263,7 @@ require_once __DIR__ . '/../includes/header.php';
         background: rgba(83,197,224,0.08);
         border: none;
         border-radius: 0;
-        color: #53c5e0 !important;
+        color: #0d9488 !important;
         font-weight: 700;
         font-size: 0.875rem;
         cursor: pointer;
@@ -274,6 +288,18 @@ require_once __DIR__ . '/../includes/header.php';
         h1 { font-size: 1rem !important; }
         .payment-card { margin-bottom: 0.5rem !important; }
     }
+    /* Spinner for OCR */
+    .spinner-sm {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(83, 197, 224, 0.2);
+        border-top-color: #0369a1;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
 </style>
 
 <div class="min-h-screen py-8">
@@ -286,11 +312,11 @@ require_once __DIR__ . '/../includes/header.php';
                     $back_url = 'order_review.php?item=' . urlencode($_SESSION['last_order_item_key']);
                 }
                 ?>
-                <a href="<?php echo $back_url; ?>" style="text-decoration: none; display: flex; align-items: center; gap: 4px; color: #9fc4d4; font-weight: 600; transition: color 0.2s;" onmouseover="this.style.color='#53c5e0'" onmouseout="this.style.color='#9fc4d4'">
+                <a href="<?php echo $back_url; ?>" style="text-decoration: none; display: flex; align-items: center; gap: 4px; color: #64748b; font-weight: 600; transition: color 0.2s;" onmouseover="this.style.color='#53c5e0'" onmouseout="this.style.color='#9fc4d4'">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     Back
                 </a>
-                <h1 class="text-2xl font-bold" style="margin: 0; position: absolute; left: 50%; transform: translateX(-50%); color: #eaf6fb;">Complete Payment</h1>
+                <h1 class="text-2xl font-bold" style="margin: 0; position: absolute; left: 50%; transform: translateX(-50%); color: #1e293b;">Complete Payment</h1>
             </div>
             
             <!-- TWO COLUMN LAYOUT -->
@@ -300,9 +326,9 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="payment-main">
                 <div class="payment-card p-6">
                 <!-- Grand Total -->
-                <div style="background: linear-gradient(135deg, #0f3340, #0a2530); border: none; border-radius: 0; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.25); text-align: center;">
-                    <span style="font-size: 0.78rem; font-weight: 700; color: #9fc4d4; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 0.4rem;">Order Total Amount</span>
-                    <span style="font-size: 2.25rem; font-weight: 900; color: #53c5e0; letter-spacing: -0.01em;">₱ <?php echo number_format($total_amount, 2); ?></span>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: none; text-align: center;">
+                    <span style="font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 0.4rem;">Order Total Amount</span>
+                    <span style="font-size: 2.25rem; font-weight: 900; color: #0369a1; letter-spacing: -0.01em;">₱ <?php echo number_format($total_amount, 2); ?></span>
                 </div>
 
                 <div style="margin-bottom: 1.5rem;">
@@ -332,43 +358,43 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php else: ?>
                             <!-- Job Order item style -->
                             <!-- Job Order item style (Matches the new dark renderer) -->
-                            <div style="background: #0a2530; padding: 0; overflow: hidden; border: none; border-radius: 0; margin-bottom: 1.25rem; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
-                                <div style="padding: 1.25rem; display: flex; gap: 1.25rem; align-items: flex-start; border-bottom: 1px solid rgba(83, 197, 224, 0.15); background: rgba(255,255,255,0.02);">
-                                    <div style="width: 130px; height: 130px; border-radius: 0; overflow: hidden; background: rgba(0,0,0,0.35); border: none; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);">
+                            <div style="background: #ffffff; padding: 0; overflow: hidden; border: none; border-radius: 0; margin-bottom: 1.25rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0;">
+                                <div style="padding: 1.25rem; display: flex; gap: 1.25rem; align-items: flex-start; border-bottom: 1px solid rgba(83, 197, 224, 0.15); background: #f8fafc;">
+                                    <div style="width: 130px; height: 130px; border-radius: 0; overflow: hidden; background: #f1f5f9; border: none; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);">
                                         <?php if (!empty($order['artwork_path'])): ?>
                                             <img src="/printflow/<?php echo htmlspecialchars($order['artwork_path']); ?>" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease-in-out;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
                                         <?php else: ?>
-                                            <span style="font-size: 2.2rem; color: rgba(255,255,255,0.15);">🛠️</span>
+                                            <span style="font-size: 2.2rem; color: #cbd5e1;">🛠️</span>
                                         <?php endif; ?>
                                     </div>
                                     <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
-                                        <h3 style="font-size: 0.95rem; line-height: 1.3rem; font-weight: 600; color: #ffffff !important; margin: 0 0 0.3rem 0;"><?php echo htmlspecialchars($order['job_title']); ?></h3>
-                                        <div style="display: inline-flex; font-size: 0.72rem; font-weight: 700; color: #53c5e0; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 0; background: rgba(83, 197, 224, 0.12); border: none; margin-bottom: 1.25rem; align-self: flex-start;">
+                                        <h3 style="font-size: 0.95rem; line-height: 1.3rem; font-weight: 600; color: #0f172a !important; margin: 0 0 0.3rem 0;"><?php echo htmlspecialchars($order['job_title']); ?></h3>
+                                        <div style="display: inline-flex; font-size: 0.72rem; font-weight: 700; color: #0369a1; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 0; background: rgba(3, 105, 161, 0.05); border: none; margin-bottom: 1.25rem; align-self: flex-start;">
                                             <?php echo htmlspecialchars($order['service_type']); ?>
                                         </div>
                                         <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: auto;">
                                             <div style="flex: 1; min-width: 80px;">
-                                                <div style="font-size: 0.68rem; color: #9fc4d4; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Quantity</div>
-                                                <div style="font-size: 1rem; color: #eaf6fb; font-weight: 700;"><?php echo $order['quantity']; ?></div>
+                                                <div style="font-size: 0.68rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Quantity</div>
+                                                <div style="font-size: 1rem; color: #1e293b; font-weight: 700;"><?php echo $order['quantity']; ?></div>
                                             </div>
                                             <div style="flex: 1; min-width: 100px;">
-                                                <div style="font-size: 0.68rem; color: #53c5e0; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Estimated Total</div>
-                                                <div style="font-size: 1rem; color: #53c5e0; font-weight: 800;"><?php echo format_currency($total_amount); ?></div>
+                                                <div style="font-size: 0.68rem; color: #0369a1; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Estimated Total</div>
+                                                <div style="font-size: 1rem; color: #0369a1; font-weight: 800;"><?php echo format_currency($total_amount); ?></div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div style="padding: 1.25rem; background: transparent;">
-                                    <h4 style="font-size: 0.85rem; font-weight: 800; color: #eaf6fb; margin-bottom: 1rem; border-bottom: 1px solid rgba(83, 197, 224, 0.12); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 8px;">Order Specifications</h4>
+                                <div style="padding: 1.25rem; background: #ffffff;">
+                                    <h4 style="font-size: 0.85rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem; display: flex; align-items: center; gap: 8px;">Order Specifications</h4>
                                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.85rem;">
-                                        <div style="background: rgba(255, 255, 255, 0.04); border: none; padding: 0.75rem 0.85rem; border-radius: 0;">
-                                            <div style="font-size: 0.65rem; color: #9fc4d4; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Size</div>
-                                            <div style="font-size: 0.95rem; font-weight: 700; color: #eaf6fb;"><?php echo htmlspecialchars($order['width_ft'] . ' x ' . $order['height_ft']); ?> ft</div>
+                                        <div style="background: #f8fafc; border: none; padding: 0.75rem 0.85rem; border-radius: 0;">
+                                            <div style="font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">Size</div>
+                                            <div style="font-size: 0.95rem; font-weight: 700; color: #1e293b;"><?php echo htmlspecialchars($order['width_ft'] . ' x ' . $order['height_ft']); ?> ft</div>
                                         </div>
                                         <?php if (!empty($order['notes'])): ?>
-                                            <div style="grid-column: 1 / -1; margin-top: 0.75rem; padding: 1.15rem; background: rgba(83, 197, 224, 0.08); border: none; border-radius: 0;">
-                                                <div style="font-size: 0.75rem; font-weight: 800; color: #53c5e0; text-transform: uppercase; margin-bottom: 6px;">📝 Special Instructions & Notes</div>
-                                                <div style="font-size: 0.95rem; color: #eaf6fb; line-height: 1.6; font-weight: 600;"><?php echo nl2br(htmlspecialchars($order['notes'])); ?></div>
+                                            <div style="grid-column: 1 / -1; margin-top: 0.75rem; padding: 1.15rem; background: rgba(3, 105, 161, 0.05); border: none; border-radius: 0;">
+                                                <div style="font-size: 0.75rem; font-weight: 800; color: #0369a1; text-transform: uppercase; margin-bottom: 6px;">📝 Special Instructions & Notes</div>
+                                                <div style="font-size: 0.95rem; color: #1e293b; line-height: 1.6; font-weight: 600;"><?php echo nl2br(htmlspecialchars($order['notes'])); ?></div>
                                             </div>
                                         <?php endif; ?>
                                     </div>
@@ -395,35 +421,36 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                         <h3 style="font-weight: 800; color: #059669; margin-bottom: 0.5rem;">Payment Completed</h3>
                         <p style="color: #64748b; font-size: 0.875rem;">This order has already been fully paid.</p>
-                        <a href="<?php echo !$is_job_order ? 'order_details.php?id=' . $order_id : 'services.php'; ?>" class="btn-primary w-full mt-6 text-center block" style="text-decoration: none;">View Order Details</a>
+                        <a href="<?php echo $orders_redirect_url; ?>" class="btn-primary w-full mt-6 text-center block" style="text-decoration: none;">View Order Status</a>
                     </div>
                 <?php elseif (!$show_payment_form): ?>
                     <div style="text-align: center; padding: 2rem;">
-                        <div style="width: 80px; height: 80px; margin: 0 auto 1.5rem; background: linear-gradient(135deg, #0f3340, #0a2530); border: 2px solid #53c5e0; display: flex; align-items: center; justify-content: center; position: relative;">
-                            <svg style="width: 48px; height: 48px; color: #53c5e0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div style="width: 80px; height: 80px; margin: 0 auto 1.5rem; background: rgba(83,197,224,0.12); border: 2px solid #53c5e0; display: flex; align-items: center; justify-content: center; position: relative;">
+                            <svg style="width: 48px; height: 48px; color: #0369a1;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                         </div>
-                        <h3 style="font-weight: 800; color: #eaf6fb; margin-bottom: 0.5rem;">Payment Verifying</h3>
-                        <p style="color: #9fc4d4; font-size: 0.875rem;">Your payment proof is currently under review by our staff.</p>
-                        <a href="<?php echo !$is_job_order ? 'order_details.php?id=' . $order_id : 'services.php'; ?>" class="btn-primary w-full mt-6 text-center block" style="text-decoration: none;">Track Order Status</a>
+                        <h3 style="font-weight: 800; color: #1e293b; margin-bottom: 0.5rem;">Payment Verifying</h3>
+                        <p style="color: #64748b; font-size: 0.875rem;">Your payment proof is currently under review by our staff.</p>
+                        <a href="<?php echo $orders_redirect_url; ?>" class="btn-primary w-full mt-6 text-center block" style="text-decoration: none;">Track Order Status</a>
                     </div>
                 <?php else: ?>
                     <form id="paymentForm" enctype="multipart/form-data">
                         <input type="hidden" name="order_id" value="<?php echo $order_id; ?>">
                         <input type="hidden" name="is_job" value="<?php echo $is_job_order ? '1' : '0'; ?>">
+                        <input type="hidden" name="payment_method" id="selected_payment_method" value="">
                         <?php echo csrf_field(); ?>
 
                         <h2 class="payment-section-title" style="margin-bottom: 1rem; font-size: 1rem;">1. Choose Method</h2>
                         
                         <!-- Important Note - Moved above QR code -->
-                        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.08)); border-left: 4px solid #fbbf24; padding: 1rem 1.25rem; margin-bottom: 1.5rem; border-radius: 0;">
+                        <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.08)); border-left: 4px solid #ef4444; padding: 1rem 1.25rem; margin-bottom: 1.5rem; border-radius: 0;">
                             <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
                                 <div style="font-size: 1.5rem; line-height: 1; flex-shrink: 0;">⚠️</div>
                                 <div>
-                                    <div style="font-weight: 800; color: #fbbf24; font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Important Reminder</div>
-                                    <div style="color: #eaf6fb; font-size: 0.875rem; line-height: 1.6; font-weight: 600;">
-                                        <strong style="color: #fbbf24;">Take a screenshot</strong> of your payment transaction <strong style="color: #fbbf24;">before closing</strong> the payment app. You'll need to upload it here as proof of payment.
+                                    <div style="font-weight: 800; color: #dc2626; font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Important Reminder</div>
+                                    <div style="color: #991b1b; font-size: 0.875rem; line-height: 1.6; font-weight: 600;">
+                                        <strong style="color: #dc2626;">Take a screenshot</strong> of your payment transaction <strong style="color: #dc2626;">before closing</strong> the payment app. You'll need to upload it here as proof of payment.
                                     </div>
                                 </div>
                             </div>
@@ -457,20 +484,20 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php else: ?>
                             <div style="display: flex; gap: 8px; margin-bottom: 1.5rem;">
                                 <?php $first = true; foreach ($enabled_methods as $index => $pm): ?>
-                                    <button type="button" onclick="selectPM(<?php echo $index; ?>)" id="btn-pm-<?php echo $index; ?>" class="pm-tab-btn <?php echo $first ? 'active' : ''; ?>">
+                                    <button type="button" onclick="selectPM(<?php echo $index; ?>, '<?php echo addslashes($pm['provider']); ?>')" id="btn-pm-<?php echo $index; ?>" class="pm-tab-btn <?php echo $first ? 'active' : ''; ?>">
                                         <?php echo htmlspecialchars($pm['provider']); ?>
                                     </button>
                                 <?php $first = false; endforeach; ?>
                             </div>
 
-                            <div id="pm-details-container" style="background: rgba(0,28,36,0.7); border: none; border-radius: 0; padding: 1.75rem; margin-bottom: 2.25rem; text-align: center; backdrop-filter: blur(8px);">
+                            <div id="pm-details-container" style="background: #ffffff; border: none; border-radius: 0; padding: 1.75rem; margin-bottom: 2.25rem; text-align: center; backdrop-filter: blur(8px);">
                                 <?php $first = true; foreach ($enabled_methods as $index => $pm): ?>
                                     <div id="pm-info-<?php echo $index; ?>" style="display: <?php echo $first ? 'block' : 'none'; ?>;">
                                         <?php if (!empty($pm['file'])): ?>
                                             <img src="/printflow/public/assets/uploads/qr/<?php echo htmlspecialchars($pm['file']); ?>" style="width: 170px; height: 170px; object-fit: contain; margin: 0 auto 1.25rem; display: block; border-radius: 0; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
                                         <?php endif; ?>
-                                        <div style="font-weight: 800; color: #eaf6fb; font-size: 1.05rem; letter-spacing: 0.01em;"><?php echo htmlspecialchars($pm['provider']); ?></div>
-                                        <div style="color: #9fc4d4; font-size: 0.875rem; font-weight: 600; margin-top: 6px;"><?php echo htmlspecialchars($pm['label']); ?></div>
+                                        <div style="font-weight: 800; color: #1e293b; font-size: 1.05rem; letter-spacing: 0.01em;"><?php echo htmlspecialchars($pm['provider']); ?></div>
+                                        <div style="color: #64748b; font-size: 0.875rem; font-weight: 600; margin-top: 6px;"><?php echo htmlspecialchars($pm['label']); ?></div>
                                     </div>
                                 <?php $first = false; endforeach; ?>
                             </div>
@@ -480,10 +507,10 @@ require_once __DIR__ . '/../includes/header.php';
                         <input type="hidden" name="amount" value="<?php echo number_format($order['total_amount'], 2, '.', ''); ?>">
                         <input type="hidden" name="payment_choice" value="full">
 
-                        <h2 class="payment-section-title" style="margin-bottom: 1rem; font-size: 1rem; color: #eaf6fb;">2. Upload Reference Receipt</h2>
+                        <h2 class="payment-section-title" style="margin-bottom: 1rem; font-size: 1rem; color: #ffffff;">2. Upload Reference Receipt</h2>
                         
                         <div class="input-group">
-                            <label class="input-label" style="color: #9fc4d4;">Upload Reference Receipt</label>
+                            <label class="input-label" style="color: #ffffff;">Upload Reference Receipt</label>
                             <input type="file" name="payment_proof" id="proofInput" style="display: none;" accept="image/*" required>
                             <div id="dropzone" class="dropzone" onclick="document.getElementById('proofInput').click()">
                                 <div id="placeholder" style="display: block;">
@@ -493,12 +520,27 @@ require_once __DIR__ . '/../includes/header.php';
                                 </div>
                                 <div id="preview" style="display: none; align-items: center; justify-content: center; flex-direction: column; width: 100%; overflow: hidden;">
                                     <img id="previewImg" src="" style="max-height: 120px; border-radius: 8px; margin-bottom: 10px; max-width: 100%; object-fit: contain;">
-                                    <p id="fileName" style="font-size: 0.8125rem; font-weight: 700; color: #eaf6fb; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px;"></p>
+                                    <p id="fileName" style="font-size: 0.8125rem; font-weight: 700; color: #1e293b; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px;"></p>
+                                </div>
+                            </div>
+                            <!-- Real-time OCR Result Container -->
+                            <div id="ocrInfo" style="display: none; margin-top: 12px;"></div>
+
+                            <!-- Manual Fallback Fields (Hidden by default) -->
+                            <div id="manualFields" style="display: none; margin-top: 1rem; padding: 1rem; background: #f8fafc; border: 1px solid rgba(83,197,224,0.15);">
+                                <h4 style="font-size: 0.75rem; font-weight: 800; color: #0369a1; margin-bottom: 0.75rem; text-transform: uppercase;">Manual Correction</h4>
+                                <div class="input-group" style="margin-bottom: 0.75rem;">
+                                    <label class="input-label" style="font-size: 0.7rem; color: #64748b !important;">Enter Reference Number</label>
+                                    <input type="text" name="manual_ref" id="manual_ref" class="custom-input" placeholder="Refer to your receipt">
+                                </div>
+                                <div class="input-group" style="margin-bottom: 0;">
+                                    <label class="input-label" style="font-size: 0.7rem; color: #64748b !important;">Enter Exact Amount Paid</label>
+                                    <input type="number" step="0.01" name="manual_amount" id="manual_amount" class="custom-input" placeholder="0.00">
                                 </div>
                             </div>
                         </div>
 
-                        <button type="submit" id="submitBtn" class="shopee-btn-primary" style="width: 100%; padding: 0.75rem; white-space: nowrap; text-decoration: none; text-align: center; display: block; font-weight: 700; font-size: 0.9rem; border-radius: 0; border: none; background: #53c5e0 !important; color: #001820 !important; text-transform: uppercase; letter-spacing: 0.02em; cursor: pointer; box-shadow: 0 4px 12px rgba(83, 197, 224, 0.3); transition: all 0.2s;" <?php echo empty($enabled_methods) ? 'disabled style="opacity:0.5;"' : ''; ?> onmouseover="this.style.background='#32a1c4'" onmouseout="this.style.background='#53c5e0'">
+                        <button type="submit" id="submitBtn" class="shopee-btn-primary" style="width: 100%; padding: 0.75rem; white-space: nowrap; text-decoration: none; text-align: center; display: block; font-weight: 700; font-size: 0.9rem; border-radius: 0; border: none; background: #0d9488 !important; color: #ffffff !important; text-transform: uppercase; letter-spacing: 0.02em; cursor: pointer; box-shadow: 0 10px 22px rgba(13, 148, 136, 0.3); transition: all 0.2s;" <?php echo empty($enabled_methods) ? 'disabled style="opacity:0.5;"' : ''; ?> onmouseover="this.style.background='#32a1c4'" onmouseout="this.style.background='#53c5e0'">
                             Submit Payment Proof
                         </button>
                     </form>
@@ -512,96 +554,218 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <script>
-    function toggleItems(btn) {
-        const hiddenItems = document.querySelectorAll('.items-hidden');
-        const isExpanded = btn.classList.contains('expanded');
-        const textSpan = btn.querySelector('.show-more-text');
-        const totalItems = <?php echo count($items); ?>;
-        
-        if (isExpanded) {
-            // Collapse
-            hiddenItems.forEach(item => item.style.display = 'none');
-            btn.classList.remove('expanded');
-            textSpan.textContent = 'Show All ' + totalItems + ' Items';
-        } else {
-            // Expand
-            hiddenItems.forEach(item => item.style.display = 'block');
-            btn.classList.add('expanded');
-            textSpan.textContent = 'Show Less';
-        }
-    }
+    {
+        const toggleItems = function(btn) {
+            const hiddenItems = document.querySelectorAll('.items-hidden');
+            const isExpanded = btn.classList.contains('expanded');
+            const textSpan = btn.querySelector('.show-more-text');
+            const totalItems = <?php echo count($items); ?>;
+            
+            if (isExpanded) {
+                // Collapse
+                hiddenItems.forEach(item => item.style.display = 'none');
+                btn.classList.remove('expanded');
+                textSpan.textContent = 'Show All ' + totalItems + ' Items';
+            } else {
+                // Expand
+                hiddenItems.forEach(item => item.style.display = 'block');
+                btn.classList.add('expanded');
+                textSpan.textContent = 'Show Less';
+            }
+        };
+        window.toggleItems = toggleItems;
 
-    function selectPM(idx) {
-        document.querySelectorAll('.pm-tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('btn-pm-' + idx).classList.add('active');
-        
-        document.querySelectorAll('[id^="pm-info-"]').forEach(i => i.style.display = 'none');
-        document.getElementById('pm-info-' + idx).style.display = 'block';
-    }
+        const selectPM = function(idx, provider) {
+            document.querySelectorAll('.pm-tab-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('btn-pm-' + idx);
+            if (btn) btn.classList.add('active');
+            
+            document.querySelectorAll('[id^="pm-info-"]').forEach(i => i.style.display = 'none');
+            const info = document.getElementById('pm-info-' + idx);
+            if (info) info.style.display = 'block';
 
-    const proofInput = document.getElementById('proofInput');
-    const placeholder = document.getElementById('placeholder');
-    const preview = document.getElementById('preview');
-    const previewImg = document.getElementById('previewImg');
-    const fileName = document.getElementById('fileName');
+            const methodInput = document.getElementById('selected_payment_method');
+            if (methodInput) methodInput.value = provider;
+        };
+        window.selectPM = selectPM;
 
-    if (proofInput) {
-        proofInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                fileName.textContent = file.name;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    previewImg.src = e.target.result;
-                    previewImg.style.borderRadius = '0';
-                    placeholder.style.display = 'none';
-                    preview.style.display = 'flex';
-                };
-                reader.readAsDataURL(file);
+        // Initialize default selection
+        document.addEventListener('DOMContentLoaded', () => {
+            const activeBtn = document.querySelector('.pm-tab-btn.active');
+            if (activeBtn) {
+                activeBtn.click();
             }
         });
-    }
 
-    const paymentForm = document.getElementById('paymentForm');
-    if (paymentForm) {
-        paymentForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const btn = document.getElementById('submitBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<span style="display:flex; align-items:center; justify-content:center; gap:8px;">Uploading...</span>';
+        const proofInput = document.getElementById('proofInput');
+        const placeholder = document.getElementById('placeholder');
+        const preview = document.getElementById('preview');
+        const previewImg = document.getElementById('previewImg');
+        const fileName = document.getElementById('fileName');
 
-            const formData = new FormData(this);
-            
-            fetch('api_submit_payment.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showSuccessModal(
-                        'Payment Success',
-                        'Your payment proof has been submitted and is now under review. We\'ll notify you once verified!',
-                        'order_details.php?id=<?php echo $order_id; ?>',
-                        'services.php',
-                        'View Order',
-                        'Back to Services',
-                        'services.php',
-                        4000
-                    );
-                } else {
-                    showToast('Error: ' + data.message);
-                    btn.disabled = false;
-                    btn.textContent = 'Submit Payment Proof';
+        if (proofInput) {
+            proofInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    // UI Preview
+                    fileName.textContent = file.name;
+                    const reader = new FileReader();
+                    reader.onload = (re) => {
+                        previewImg.src = re.target.result;
+                        previewImg.style.borderRadius = '0';
+                        placeholder.style.display = 'none';
+                        preview.style.display = 'flex';
+                    };
+                    reader.readAsDataURL(file);
+
+                    // Start OCR Real-time extraction
+                    const ocrInfo = document.getElementById('ocrInfo');
+                    if (ocrInfo) {
+                        ocrInfo.style.display = 'block';
+                        ocrInfo.innerHTML = `
+                            <div style="background: rgba(83, 197, 224, 0.05); border: 1px dashed rgba(83, 197, 224, 0.2); padding: 12px; border-radius: 4px; text-align: center;">
+                                <div class="spinner-sm" style="margin: 0 auto 8px;"></div>
+                                <div style="color: #64748b; font-size: 0.75rem; font-weight: 600;">EXTRACTING RECEIPT DATA...</div>
+                            </div>`;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('payment_proof', file);
+                    
+                    try {
+                        const res = await fetch('api_ocr_preview.php', { 
+                            method: 'POST', 
+                            body: formData,
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+                        const result = await res.json();
+                        
+                        if (result.success && ocrInfo) {
+                            const d = result.details;
+                            const hasAmt = d.amount && parseFloat(d.amount) > 0;
+                            const hasRef = d.reference_id && d.reference_id.length >= 8;
+                            const hasData = hasAmt && hasRef;
+                            
+                            let html = `<div style="background: ${hasData ? 'rgba(83, 197, 224, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; border: 1px solid ${hasData ? 'rgba(83, 197, 224, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; padding: 12px; border-radius: 4px; position: relative;">
+                                <div style="font-size: 0.65rem; color: ${hasData ? '#53c5e0' : '#ef4444'}; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.08em; display: flex; align-items: center; gap: 6px;">
+                                    ${hasData ? '<span>✨ AI EXTRACTION SUCCESS</span>' : '<span>⚠️ PARTIAL DETECTION</span>'}
+                                </div>`;
+                            
+                            // Amount detected
+                            if (hasAmt) {
+                                html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <span style="color: #64748b; font-size: 0.78rem; font-weight: 600;">TOTAL AMOUNT:</span>
+                                    <span style="color: #1e293b; font-weight: 800; font-size: 1.1rem;">₱${parseFloat(d.amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</span>
+                                </div>`;
+                                document.getElementById('manual_amount').value = d.amount;
+                            } else {
+                                html += `<div style="color: #fca5a5; font-size: 0.75rem; margin-bottom: 6px; font-weight: 600;">• Could not read amount automatically</div>`;
+                            }
+                            
+                            // Reference detected
+                            if (hasRef) {
+                                html += `<div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: #64748b; font-size: 0.78rem; font-weight: 600;">REFERENCE NO:</span>
+                                    <span style="color: #1e293b; font-weight: 800; font-family: monospace;">${d.reference_id}</span>
+                                </div>`;
+                                document.getElementById('manual_ref').value = d.reference_id;
+                            } else {
+                                html += `<div style="color: #fca5a5; font-size: 0.75rem; font-weight: 600;">• Could not find reference number</div>`;
+                            }
+                            
+                            html += `</div>`;
+                            ocrInfo.innerHTML = html;
+
+                            // Show manual fields if anything is missing
+                            if (!hasAmt || !hasRef) {
+                                document.getElementById('manualFields').style.display = 'block';
+                            } else {
+                                document.getElementById('manualFields').style.display = 'none';
+                            }
+                        } else if (ocrInfo) {
+                            ocrInfo.innerHTML = `<div style="color: #ef4444; font-size: 0.75rem; font-weight: 600; text-align: center;">Unable to process image for preview.</div>`;
+                        }
+                    } catch (err) {
+                        console.error('OCR Preview error:', err);
+                        if (ocrInfo) ocrInfo.style.display = 'none';
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('An unexpected error occurred. Please try again.');
-                btn.disabled = false;
-                btn.textContent = 'Submit Payment Proof';
             });
-        });
+        }
+
+        // Reliable Form Submission (Vanilla JS)
+        const paymentForm = document.getElementById('paymentForm');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (paymentForm) {
+            paymentForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Prevent double submission
+                if (submitBtn.disabled) return;
+                
+                // Final validation: check if file is present
+                const fileInput = document.getElementById('proofInput');
+                if (!fileInput || !fileInput.files[0]) {
+                    alert('Please select a proof of payment image first.');
+                    return;
+                }
+                
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.7';
+                submitBtn.innerHTML = '<span style="display:flex; align-items:center; justify-content:center; gap:8px;"><div class="spinner-sm"></div> Processing...</span>';
+
+                const formData = new FormData(this);
+                // Explicitly set the file to ensure it's included correctly
+                formData.set('payment_proof', fileInput.files[0]);
+                
+                fetch('api_submit_payment.php', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(async response => {
+                    const text = await response.text();
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.error('Invalid JSON response:', text);
+                        throw new Error('Server returned an invalid response. Please check the logs.');
+                    }
+                })
+                .then(data => {
+                    if (data.success) {
+                        if (typeof window.showSuccessModal === 'function') {
+                            window.showSuccessModal(
+                                'Payment Success',
+                                'Your payment proof has been submitted and is now under review. We\'ll notify you once verified!',
+                                'orders.php?tab=toverify&highlight=<?php echo $order_id; ?>',
+                                'services.php',
+                                'View Order',
+                                'Back to Services',
+                                'services.php',
+                                4000
+                            );
+                        } else {
+                            alert('Payment submitted successfully! Redirecting...');
+                            window.location.href = 'orders.php?tab=toverify&highlight=<?php echo $order_id; ?>';
+                        }
+                    } else {
+                        alert('Error: ' + (data.message || 'Unknown error'));
+                        submitBtn.disabled = false;
+                        submitBtn.style.opacity = '1';
+                        submitBtn.innerHTML = 'Submit Payment Proof';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error: ' + error.message);
+                    submitBtn.disabled = false;
+                    submitBtn.style.opacity = '1';
+                    submitBtn.innerHTML = 'Submit Payment Proof';
+                });
+            });
+        }
     }
 </script>
 

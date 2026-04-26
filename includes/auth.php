@@ -176,6 +176,7 @@ function login_user($email, $password, $remember_me = false) {
     $_SESSION['user_name'] = $user['first_name'] . ' ' . $user['last_name'];
     $_SESSION['user_email']  = $user['email'];
     $_SESSION['user_status'] = $user['status'];
+    $_SESSION['profile_picture'] = $user['profile_picture'] ?? null;
     $_SESSION['branch_id']   = $user['branch_id'] ?? null;
 
     // Force Manager (and Staff) to their assigned branch immediately so the
@@ -260,6 +261,8 @@ function login_customer($email, $password, $remember_me = false) {
     $_SESSION['user_type'] = 'Customer';
     $_SESSION['user_name'] = $customer['first_name'] . ' ' . $customer['last_name'];
     $_SESSION['user_email'] = $customer['email'];
+    $_SESSION['user_avatar'] = $customer['profile_picture'] ?? null;
+    $_SESSION['profile_picture'] = $customer['profile_picture'] ?? null;
 
     SessionManager::regenerate();
     if ($remember_me) {
@@ -297,6 +300,8 @@ function login_customer_by_google($email, $first_name, $last_name) {
         $_SESSION['user_type'] = 'Customer';
         $_SESSION['user_name'] = ($customer['first_name'] ?? '') . ' ' . ($customer['last_name'] ?? '');
         $_SESSION['user_email'] = $customer['email'];
+        $_SESSION['user_avatar'] = $customer['profile_picture'] ?? null;
+        $_SESSION['profile_picture'] = $customer['profile_picture'] ?? null;
         SessionManager::regenerate();
         if (function_exists('load_customer_cart_into_session')) {
             load_customer_cart_into_session($customer['customer_id']);

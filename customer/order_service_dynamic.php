@@ -354,10 +354,10 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
 
 <div class="min-h-screen py-8">
     <div class="shopee-layout-container">
-        <div class="text-sm text-gray-300 mb-6 flex items-center gap-2">
+        <div class="text-sm text-slate-600 mb-6 flex items-center gap-2">
             <a href="services.php" class="hover:text-blue-400">Services</a>
             <span>/</span>
-            <span class="font-semibold text-white"><?php echo htmlspecialchars($service['name']); ?></span>
+            <span class="font-semibold text-teal-600"><?php echo htmlspecialchars($service['name']); ?></span>
         </div>
 
         <?php if ($error): ?>
@@ -429,28 +429,28 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
                             <div style="display:none;gap:8px;margin-top:12px;overflow-x:auto;padding:4px;">
                                 <?php foreach ($display_images as $index => $media): ?>
                                     <?php if ($media['type'] === 'video'): ?>
-                                        <div onclick="goToImage(<?php echo $index; ?>)"
-                                             class="carousel-thumbnail"
-                                             data-index="<?php echo $index; ?>"
-                                             style="width:70px;height:70px;border-radius:10px;cursor:pointer;border:2px solid <?php echo $index === 0 ? '#53c5e0' : 'rgba(83,197,224,0.15)'; ?>;transition:all 0.2s;flex-shrink:0;background:#111;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">
+                                         <div onclick="goToImage(<?php echo $index; ?>)"
+                                              class="carousel-thumbnail"
+                                              data-index="<?php echo $index; ?>"
+                                              style="width:70px;height:70px;border-radius:10px;cursor:pointer;border:2px solid <?php echo $index === 0 ? '#0d9488' : '#e2e8f0'; ?>;transition:all 0.2s;flex-shrink:0;background:#f8fafc;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">
                                             <video src="<?php echo htmlspecialchars($media['src']); ?>" style="width:100%;height:100%;object-fit:cover;pointer-events:none;"></video>
                                             <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);">
                                                 <svg width="20" height="20" fill="white" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                                             </div>
                                         </div>
                                     <?php else: ?>
-                                        <img src="<?php echo htmlspecialchars($media['src']); ?>"
-                                             alt="Thumbnail <?php echo $index + 1; ?>"
-                                             onclick="goToImage(<?php echo $index; ?>)"
-                                             class="carousel-thumbnail"
-                                             data-index="<?php echo $index; ?>"
-                                             style="width:70px;height:70px;object-fit:cover;border-radius:10px;cursor:pointer;border:2px solid <?php echo $index === 0 ? '#53c5e0' : 'rgba(83,197,224,0.15)'; ?>;transition:all 0.2s;flex-shrink:0;box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+                                         <img src="<?php echo htmlspecialchars($media['src']); ?>"
+                                              alt="Thumbnail <?php echo $index + 1; ?>"
+                                              onclick="goToImage(<?php echo $index; ?>)"
+                                              class="carousel-thumbnail"
+                                              data-index="<?php echo $index; ?>"
+                                              style="width:70px;height:70px;object-fit:cover;border-radius:10px;cursor:pointer;border:2px solid <?php echo $index === 0 ? '#0d9488' : '#e2e8f0'; ?>;transition:all 0.2s;flex-shrink:0;box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                                     <?php endif; ?>
                                 <?php endforeach; ?>
                             </div>
                         <?php else: ?>
                             <!-- Single Media -->
-                            <div style="width:100%;height:500px;border-radius:0;background:rgba(0,21,27,0.4);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(83,197,224,0.12);position:relative;">
+                             <div style="width:100%;height:500px;border-radius:12px;background:#f8fafc;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #e2e8f0;position:relative;">
                                 <?php if ($display_img_type === 'video'): ?>
                                     <video id="single-video" src="<?php echo htmlspecialchars($display_img); ?>"
                                            style="width:100%;height:100%;object-fit:cover;display:block;"
@@ -474,16 +474,16 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
                     
                     <!-- Service Description -->
                     <?php if (!empty($service['description'])): ?>
-                        <div style="margin-top:20px;padding:16px;background:rgba(0,49,61,0.4);border-radius:0;border:1px solid rgba(83,197,224,0.15);">
-                            <h3 style="font-size:14px;font-weight:700;color:#9fc4d4;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Description</h3>
-                            <p style="font-size:14px;line-height:1.6;color:#eaf6fb;white-space:pre-wrap;text-align:justify;"><?php echo nl2br(htmlspecialchars($service['description'])); ?></p>
+                        <div style="margin-top:20px;padding:16px;background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                            <h3 style="font-size:12px;font-weight:800;color:#64748b;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Description</h3>
+                            <p style="font-size:14px;line-height:1.6;color:#0f172a;white-space:pre-wrap;text-align:justify;"><?php echo nl2br(htmlspecialchars($service['description'])); ?></p>
                         </div>
                     <?php endif; ?>
                 </div>
             </div>
 
             <div class="shopee-form-section">
-                <h1 class="text-2xl font-bold text-white mb-2"><?php echo htmlspecialchars($service['name']); ?></h1>
+                <h1 class="text-2xl font-bold text-slate-800 mb-2"><?php echo htmlspecialchars($service['name']); ?></h1>
                 
                 <div class="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
                     <div class="flex items-center gap-1">
@@ -493,25 +493,25 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
                             </svg>
                         <?php endfor; ?>
                         <?php if ($review_count > 0): ?>
-                            <a href="reviews.php?service_id=<?php echo $service_id; ?>" class="text-sm text-gray-300 hover:text-blue-400 hover:underline ml-1">
+                            <a href="reviews.php?service_id=<?php echo $service_id; ?>" class="text-sm text-slate-600 hover:text-blue-400 hover:underline ml-1">
                                 (<?php echo number_format($review_count); ?> Reviews)
                             </a>
                         <?php endif; ?>
                     </div>
-                    <div class="h-4 w-px bg-gray-700"></div>
-                    <div class="text-sm text-gray-300"><?php echo $sold_display; ?> Sold</div>
+                    <div class="h-4 w-px bg-slate-200"></div>
+                    <div class="text-sm text-slate-600"><?php echo $sold_display; ?> Sold</div>
                 </div>
 
                 <form action="" method="POST" enctype="multipart/form-data" id="serviceForm" data-pf-skip-validation="true" novalidate>
                     <?php echo csrf_field(); ?>
                     
                     <!-- Estimated Price Display -->
-                    <div id="estimated-price-display" style="position:sticky;top:80px;background:rgba(0,49,61,0.95);border:1px solid rgba(83,197,224,0.3);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;z-index:10;">
-                        <div style="border-top:1px solid rgba(83,197,224,0.2);padding-top:1rem;display:flex;justify-content:space-between;align-items:center;">
-                            <span style="font-size:1.125rem;color:#53c5e0;font-weight:800;">Estimated Total:</span>
-                            <span id="estimated-total" style="font-size:1.5rem;color:#53c5e0;font-weight:900;">₱0</span>
+                    <div id="estimated-price-display" style="position:sticky;top:80px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;z-index:10;box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);">
+                        <div style="border-top:1px solid #f1f5f9;padding-top:1rem;display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:1.125rem;color:#1e293b;font-weight:800;">Estimated Total:</span>
+                            <span id="estimated-total" style="font-size:1.5rem;color:#0d9488;font-weight:900;">₱0</span>
                         </div>
-                        <div style="margin-top:0.5rem;font-size:0.875rem;color:#ffffff;text-align:right;font-weight:500;">
+                        <div style="margin-top:0.5rem;font-size:0.875rem;color:#1e293b;text-align:right;font-weight:500;">
                             Quantity: <span id="qty-display">1</span> | Final price will be confirmed by staff
                         </div>
                     </div>
@@ -521,18 +521,18 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
                     <div class="shopee-form-row pt-8">
                         <div style="width: 130px;"></div>
                         <div class="flex gap-4 flex-1 flex-wrap">
-                            <a href="<?php echo BASE_URL; ?>/customer/services.php" class="shopee-btn-outline" style="flex: 1; min-width: 100px; height: 42px; border-radius: 0;">Back</a>
-                            <button type="submit" name="action" value="add_to_cart" class="shopee-btn-secondary" style="flex: 1.5; min-width: 150px; height: 42px; border-radius: 0; background: rgba(83,197,224,0.1); border: 1px solid #53c5e0; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                            <a href="<?php echo BASE_URL; ?>/customer/services.php" class="shopee-btn-outline" style="flex: 1; height: 44px; border-radius: 8px; font-weight: 700; font-size: 0.875rem;">Back</a>
+                            <button type="submit" name="action" value="add_to_cart" class="shopee-btn-secondary" style="flex: 1.2; height: 44px; border-radius: 8px; background: #f0fdfa; border: 1px solid rgba(13, 148, 136, 0.4); color: #0f766e; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0 8px;">
                                 <svg style="width: 1.125rem; height: 1.125rem; flex-shrink: 0; margin-right: 0.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                 </svg>
-                                <span>Add to Cart</span>
+                                <span style="white-space: nowrap;">Add to Cart</span>
                             </button>
-                            <button type="submit" name="action" value="inquire_now" class="shopee-btn-primary" style="flex: 2; min-width: 200px; height: 42px; border-radius: 0;">
+                            <button type="submit" name="action" value="inquire_now" class="shopee-btn-primary" style="flex: 1.5; height: 44px; border-radius: 8px; background: #0d9488; border: none; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">
                                 <svg style="width: 1.125rem; height: 1.125rem; flex-shrink: 0; margin-right: 0.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
                                 </svg>
-                                <span>Inquire Now</span>
+                                <span style="white-space: nowrap;">Inquire Now</span>
                             </button>
                         </div>
                     </div>
@@ -587,11 +587,11 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
         $poc_offset = ($poc_page - 1) * $reviews_per_page;
         $reviews_paged = array_slice($reviews, $poc_offset, $reviews_per_page);
         ?>
-        <div style="margin-top:24px;padding:1.5rem 2rem;background:rgba(0,28,36,0.95);border:1px solid rgba(83,197,224,0.16);border-radius:8px;">
+        <div style="margin-top:24px;padding:1.5rem 2rem;background:#ffffff;border:1px solid rgba(83,197,224,0.16);border-radius:8px;">
             <h2 class="poc-section-title">Product Ratings</h2>
 
             <?php if ($total_reviews > 0): ?>
-            <div style="background:rgba(83,197,224,0.05);border:1px solid rgba(83,197,224,0.18);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;">
+            <div style="background:#f8fafc;border:1px solid rgba(83,197,224,0.18);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;">
                 <div style="display:flex;gap:2rem;align-items:center;flex-wrap:wrap;">
                     <div style="text-align:center;">
                         <div style="font-size:3rem;font-weight:700;color:#f97316;line-height:1;"><?php echo number_format($avg_rating,1); ?></div>
@@ -604,14 +604,14 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
                     </div>
                     <div style="flex:1;min-width:300px;">
                         <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
-                            <button class="poc-filter-btn active" data-filter="all" style="padding:0.5rem 1rem;border:1px solid rgba(83,197,224,0.2);border-radius:6px;background:rgba(0,49,61,0.6);color:#eaf6fb;cursor:pointer;font-size:0.875rem;transition:all 0.2s;">All</button>
+                            <button class="poc-filter-btn active" data-filter="all" style="padding:0.5rem 1rem;border:1px solid rgba(83,197,224,0.2);border-radius:6px;background:#f8fafc;color:#0f172a;cursor:pointer;font-size:0.875rem;transition:all 0.2s;">All</button>
                             <?php for($i=5;$i>=1;$i--): ?>
-                                <button class="poc-filter-btn" data-filter="<?php echo $i; ?>" style="padding:0.5rem 1rem;border:1px solid rgba(83,197,224,0.2);border-radius:6px;background:rgba(0,49,61,0.6);color:#eaf6fb;cursor:pointer;font-size:0.875rem;transition:all 0.2s;"><?php echo $i; ?> Star (<?php echo $rating_counts[$i]; ?>)</button>
+                                <button class="poc-filter-btn" data-filter="<?php echo $i; ?>" style="padding:0.5rem 1rem;border:1px solid rgba(83,197,224,0.2);border-radius:6px;background:#f8fafc;color:#0f172a;cursor:pointer;font-size:0.875rem;transition:all 0.2s;"><?php echo $i; ?> Star (<?php echo $rating_counts[$i]; ?>)</button>
                             <?php endfor; ?>
                         </div>
                         <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
-                            <button class="poc-filter-btn" data-filter="comments" style="padding:0.5rem 1rem;border:1px solid rgba(83,197,224,0.2);border-radius:6px;background:rgba(0,49,61,0.6);color:#eaf6fb;cursor:pointer;font-size:0.875rem;transition:all 0.2s;">With Comments (<?php echo $with_comments; ?>)</button>
-                            <button class="poc-filter-btn" data-filter="media" style="padding:0.5rem 1rem;border:1px solid rgba(83,197,224,0.2);border-radius:6px;background:rgba(0,49,61,0.6);color:#eaf6fb;cursor:pointer;font-size:0.875rem;transition:all 0.2s;">With Media (<?php echo $with_media; ?>)</button>
+                            <button class="poc-filter-btn" data-filter="comments" style="padding:0.5rem 1rem;border:1px solid rgba(83,197,224,0.2);border-radius:6px;background:#f8fafc;color:#0f172a;cursor:pointer;font-size:0.875rem;transition:all 0.2s;">With Comments (<?php echo $with_comments; ?>)</button>
+                            <button class="poc-filter-btn" data-filter="media" style="padding:0.5rem 1rem;border:1px solid rgba(83,197,224,0.2);border-radius:6px;background:#f8fafc;color:#0f172a;cursor:pointer;font-size:0.875rem;transition:all 0.2s;">With Media (<?php echo $with_media; ?>)</button>
                         </div>
                     </div>
                 </div>
@@ -637,14 +637,14 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
                             <?php endif; ?>
                         </div>
                         <div style="flex:1;">
-                            <div style="font-weight:600;color:#eaf6fb;margin-bottom:0.25rem;"><?php echo $reviewer_name; ?></div>
+                            <div style="font-weight:600;color:#0f172a;margin-bottom:0.25rem;"><?php echo $reviewer_name; ?></div>
                             <div style="display:flex;gap:2px;margin-bottom:0.5rem;">
                                 <?php for($i=1;$i<=5;$i++): ?>
                                     <svg width="16" height="16" fill="<?php echo ($i<=$rating)?'#f97316':'#d1d5db'; ?>" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                                 <?php endfor; ?>
                             </div>
                             <div style="font-size:0.875rem;color:#6b7280;margin-bottom:0.5rem;"><?php echo date('Y-m-d H:i',strtotime($review['created_at'])); ?></div>
-                            <?php if($has_comment): ?><div style="color:#eaf6fb;line-height:1.6;margin-bottom:1rem;font-size:0.95rem;overflow-wrap:anywhere;word-break:break-word;"><?php echo nl2br($comment); ?></div><?php endif; ?>
+                            <?php if($has_comment): ?><div style="color:#0f172a;line-height:1.6;margin-bottom:1rem;font-size:0.95rem;overflow-wrap:anywhere;word-break:break-word;"><?php echo nl2br($comment); ?></div><?php endif; ?>
                             
                              <?php if(!empty($rev_imgs)): ?>
                                 <div style="display:flex; overflow-x:auto; gap:12px; margin-bottom:1rem; padding-bottom:10px; scrollbar-width: thin; scrollbar-color: #53c5e0 transparent;">
@@ -675,7 +675,7 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
                                     <div style="font-size: 0.75rem; font-weight: 700; color: #53c5e0; text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Staff Response</div>
                                     <?php foreach ($review['replies'] as $reply): ?>
                                         <div style="margin-bottom: 0.75rem; last-child: margin-bottom: 0;">
-                                            <div style="color: #eaf6fb; font-size: 0.9rem; line-height: 1.5; overflow-wrap: anywhere; word-break: break-word;"><?php echo nl2br(htmlspecialchars($reply['reply_message'])); ?></div>
+                                            <div style="color: #1e293b; font-size: 0.9rem; line-height: 1.5; overflow-wrap: anywhere; word-break: break-word;"><?php echo nl2br(htmlspecialchars($reply['reply_message'])); ?></div>
                                             <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
                                                 <?php echo htmlspecialchars($reply['first_name'] . ' ' . $reply['last_name']); ?> &bull; <?php echo date('Y-m-d', strtotime($reply['created_at'])); ?>
                                             </div>
@@ -708,9 +708,9 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
 </div>
 
 <style>
-.poc-section-title { font-size:1.1rem;font-weight:700;color:#eaf6fb;margin:0 0 0.75rem; }
-.poc-filter-btn.active { background:#53c5e0 !important;color:#00151b !important;border-color:#53c5e0 !important; }
-.poc-filter-btn:hover { border-color:#53c5e0;background:rgba(83,197,224,0.1); }
+.poc-section-title { font-size:1.1rem;font-weight:700;color:#0f172a;margin:0 0 0.75rem; }
+.poc-filter-btn.active { background:#0d9488 !important;color:#ffffff !important;border-color:#0d9488 !important; }
+.poc-filter-btn:hover { border-color:#0d9488;background:rgba(13,148,136,0.1); }
 .poc-review-item { border-bottom:1px solid rgba(83,197,224,0.1);padding:1.25rem 0; }
 .poc-review-item:last-child { border-bottom:none; }
 .poc-empty { text-align:center;padding:3rem 1rem;color:#6b7280; }
@@ -725,32 +725,33 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
 .shopee-opt-group .field-error { flex-basis: 100%; width: 100%; }
 .field-price-display { animation: slideIn 0.3s ease-out; }
 @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-.shopee-opt-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.5rem 1rem; border: 1px solid #53c5e0 !important; border-radius: 0 !important; background: rgba(0,49,61,0.6); cursor: pointer; transition: all 0.2s; font-size: 0.875rem; font-weight: 500; color: #eaf6fb; height: 42px; min-height: 42px; }
-.shopee-opt-btn:hover { border-color: #53c5e0; background: rgba(83,197,224,0.15); }
-.shopee-opt-btn.active { border-color: #53c5e0; background: rgba(83,197,224,0.2) !important; color: #53c5e0 !important; }
-.quantity-container { height: 42px; border-radius: 0 !important; overflow: hidden; }
-.quantity-container:hover { border-color: #53c5e0 !important; background: rgba(83,197,224,0.06) !important; }
+.shopee-opt-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.5rem 1rem; border: 1px solid #e2e8f0 !important; border-radius: 8px !important; background: #ffffff; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; font-weight: 500; color: #1e293b; height: 42px; min-height: 42px; }
+.shopee-opt-btn:hover { border-color: #0d9488; background: rgba(13,148,136,0.05); }
+.shopee-opt-btn.active { border-color: #0d9488; background: #f0fdfa !important; color: #0d9488 !important; border-width: 1.5px !important; }
+.quantity-container { height: 42px; border-radius: 8px !important; overflow: hidden; }
+.quantity-container:hover { border-color: #0d9488 !important; background: rgba(13,148,136,0.04) !important; }
 textarea.shopee-opt-btn { height: auto; min-height: 100px; }
-textarea.shopee-opt-btn:hover, textarea.shopee-opt-btn:focus, select.shopee-opt-btn:focus { border-color: #53c5e0 !important; background: rgba(0,49,61,0.8) !important; outline: none; }
-select.shopee-opt-btn option { background: #0a2530; color: #eaf6fb; }
-.notes-textarea { font-size: 0.875rem; font-weight: 500; color: #e0f2fe; resize: none !important; overflow-y: auto !important; min-height: 100px !important; max-height: 100px !important; scrollbar-width: thin; scrollbar-color: #53c5e0 rgba(0,49,61,0.4); }
-.notes-textarea::placeholder { font-size: 0.875rem; font-weight: 500; color: #9fc4d4; }
+textarea.shopee-opt-btn:hover, textarea.shopee-opt-btn:focus, select.shopee-opt-btn:focus { border-color: #0d9488 !important; background: #ffffff !important; outline: none; }
+select.shopee-opt-btn option { background: #ffffff; color: #1e293b; }
+.notes-textarea { font-size: 0.875rem; font-weight: 500; color: #1e293b; resize: none !important; overflow-y: auto !important; min-height: 100px !important; max-height: 100px !important; scrollbar-width: thin; scrollbar-color: #0d9488 #ffffff; }
+.notes-textarea::placeholder { font-size: 0.875rem; font-weight: 500; color: #94a3b8; }
 textarea.notes-textarea { resize: none !important; }
 textarea.notes-textarea::-webkit-resizer { display: none !important; }
 .notes-textarea::-webkit-scrollbar { width: 8px; }
-.notes-textarea::-webkit-scrollbar-track { background: rgba(0,49,61,0.4); border-radius: 4px; }
-.notes-textarea::-webkit-scrollbar-thumb { background: #32a1c4; border-radius: 4px; }
-.notes-textarea::-webkit-scrollbar-thumb:hover { background: #53c5e0; }
+.notes-textarea::-webkit-scrollbar-track { background: #ffffff; border-radius: 4px; }
+.notes-textarea::-webkit-scrollbar-thumb { background: #14b8a6; border-radius: 4px; }
+.notes-textarea::-webkit-scrollbar-thumb:hover { background: #0d9488; }
 .qty-input-field::-webkit-outer-spin-button, .qty-input-field::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .qty-input-field[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .dim-label { font-size:0.7rem;color:#94a3b8;font-weight:600;margin-bottom:4px;display:block;text-transform:uppercase; }
 .shopee-form-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: flex-start; position: relative; flex-wrap: wrap; }
-.shopee-form-label { min-width: 130px; padding-top: 0.5rem; font-size: 0.875rem; font-weight: 600; color: #ffffff; flex-shrink: 0; }
+.shopee-form-label { min-width: 130px; padding-top: 0.5rem; font-size: 0.875rem; font-weight: 600; color: #1e293b; flex-shrink: 0; }
 .shopee-form-field { flex: 1; position: relative; display: flex !important; flex-direction: column !important; min-width: 0; gap: 4px; }
 .field-error { display: flex !important; align-items: center; gap: 0.375rem; color: #ef4444; font-size: 0.875rem; margin-top: 0.5rem; padding-left: 0; width: 100% !important; min-width: 100% !important; flex-basis: 100% !important; order: 999; clear: both; }
 .field-error::before { content: '⚠'; font-size: 1rem; flex-shrink: 0; }
 .input-field, .shopee-opt-group, .shopee-qty-control { margin-top: 0; }
-select, input:not([type="radio"]), textarea, .shopee-opt-btn, .shopee-qty-control, .notes-textarea, .input-field { border-radius: 0 !important; border: 1px solid #53c5e0 !important; outline: none !important; box-shadow: none !important; height: 42px; }
+select, input:not([type="radio"]), textarea, .shopee-opt-btn, .shopee-qty-control, .notes-textarea, .input-field { border-radius: 8px !important; border: 1px solid #e2e8f0 !important; outline: none !important; box-shadow: none !important; height: 42px; transition: border-color 0.2s; }
+select:focus, input:not([type="radio"]):focus, textarea:focus, .shopee-opt-btn:focus, .input-field:focus { border-color: #0d9488 !important; }
 textarea, .notes-textarea { height: auto !important; min-height: 100px !important; }
 </style>
 

@@ -42,17 +42,17 @@ $sql = "SELECT m.*,
         m.is_pinned,
         CASE 
             WHEN m.sender = 'Customer' THEN (SELECT CONCAT(first_name, ' ', last_name) FROM customers WHERE customer_id = m.sender_id)
-            WHEN m.sender = 'Staff' THEN (SELECT CONCAT(first_name, ' ', last_name) FROM users WHERE user_id = m.sender_id)
+            WHEN m.sender = 'Staff' OR (m.sender = 'System' AND m.sender_id > 0) THEN (SELECT CONCAT(first_name, ' ', last_name) FROM users WHERE user_id = m.sender_id)
             ELSE 'System' 
         END as sender_name,
         CASE 
             WHEN m.sender = 'Customer' THEN 'Customer'
-            WHEN m.sender = 'Staff' THEN (SELECT role FROM users WHERE user_id = m.sender_id)
+            WHEN m.sender = 'Staff' OR (m.sender = 'System' AND m.sender_id > 0) THEN (SELECT role FROM users WHERE user_id = m.sender_id)
             ELSE 'System' 
         END as sender_role,
         CASE 
             WHEN m.sender = 'Customer' THEN (SELECT profile_picture FROM customers WHERE customer_id = m.sender_id)
-            WHEN m.sender = 'Staff' THEN (SELECT profile_picture FROM users WHERE user_id = m.sender_id)
+            WHEN m.sender = 'Staff' OR (m.sender = 'System' AND m.sender_id > 0) THEN (SELECT profile_picture FROM users WHERE user_id = m.sender_id)
             ELSE NULL 
         END as sender_avatar
         FROM order_messages m 
@@ -138,25 +138,66 @@ if ($is_active) {
 
 // 3. Fetch partner online/typing status
 $partner_type = ($user_type === 'Customer') ? 'Staff' : 'Customer';
-$partner_sql = "SELECT last_activity, is_typing FROM user_status 
+$partner_sql = "SELECT last_activity, is_typing,
+                CASE 
+                    WHEN ? = 'Staff' THEN (SELECT online_status FROM users WHERE user_id = (SELECT user_id FROM user_status WHERE order_id = ? AND user_type = 'Staff' ORDER BY last_activity DESC LIMIT 1))
+                    ELSE (SELECT online_status FROM customers WHERE customer_id = (SELECT customer_id FROM orders WHERE order_id = ?))
+                END as online_status
+                FROM user_status 
                 WHERE order_id = ? AND user_type = ? 
                 ORDER BY last_activity DESC LIMIT 1";
-$partner_raw = db_query($partner_sql, 'is', [$order_id, $partner_type]);
+$partner_raw = db_query($partner_sql, 'siiis', [$partner_type, $order_id, $order_id, $order_id, $partner_type]);
 
-$partner = [ 'is_online' => false, 'is_typing' => false, 'avatar' => null ];
+$partner = [ 'id' => null, 'name' => null, 'is_online' => false, 'is_typing' => false, 'avatar' => null ];
 if (!empty($partner_raw)) {
     $last_active = strtotime($partner_raw[0]['last_activity']);
     $partner['is_online'] = (time() - $last_active) < 90; 
     $partner['is_typing'] = (bool)$partner_raw[0]['is_typing'] && $partner['is_online'];
+    $partner['online_status'] = $partner_raw[0]['online_status'] ?? ($partner['is_online'] ? 'online' : 'offline');
 }
 
-// Get partner avatar for seen indicator
+// Get partner avatar and ID for seen indicator and call system
 if ($partner_type === 'Staff') {
-    $av_res = db_query("SELECT profile_picture FROM users WHERE user_id = (SELECT sender_id FROM order_messages WHERE order_id = ? AND sender = 'Staff' ORDER BY message_id DESC LIMIT 1)", 'i', [$order_id]);
-    if ($av_res) $partner['avatar'] = $av_res[0]['profile_picture'];
+    $av_res = db_query(
+        "SELECT user_id, profile_picture, first_name, last_name FROM users WHERE user_id = COALESCE(
+            (SELECT sender_id FROM order_messages
+             WHERE order_id = ?
+               AND sender_id > 0
+               AND (sender = 'Staff' OR sender = 'System')
+             ORDER BY message_id DESC
+             LIMIT 1),
+            (SELECT us.user_id
+             FROM user_status us
+             WHERE us.order_id = ? AND us.user_type = 'Staff'
+             ORDER BY us.last_activity DESC
+             LIMIT 1),
+            (SELECT al.user_id
+             FROM activity_logs al
+             WHERE al.details LIKE CONCAT('%Order #', ?, '%')
+             ORDER BY al.created_at DESC
+             LIMIT 1),
+            (SELECT COALESCE(NULLIF(jo.assigned_to, 0), NULLIF(jo.payment_verified_by, 0), NULLIF(jo.created_by, 0))
+             FROM job_orders jo
+             WHERE jo.order_id = ?
+             ORDER BY jo.updated_at DESC, jo.id DESC
+             LIMIT 1),
+            (SELECT user_id FROM users WHERE role = 'Admin' ORDER BY user_id ASC LIMIT 1)
+        )",
+        'iiii',
+        [$order_id, $order_id, $order_id, $order_id]
+    );
+    if ($av_res) {
+        $partner['avatar'] = $av_res[0]['profile_picture'];
+        $partner['id'] = (int)$av_res[0]['user_id'];
+        $partner['name'] = trim(($av_res[0]['first_name'] ?? '') . ' ' . ($av_res[0]['last_name'] ?? '')) ?: 'Customer Support';
+    }
 } else {
-    $av_res = db_query("SELECT profile_picture FROM customers WHERE customer_id = (SELECT customer_id FROM orders WHERE order_id = ?)", 'i', [$order_id]);
-    if ($av_res) $partner['avatar'] = $av_res[0]['profile_picture'];
+    $av_res = db_query("SELECT c.customer_id, c.profile_picture, c.first_name, c.last_name FROM customers c WHERE c.customer_id = (SELECT customer_id FROM orders WHERE order_id = ?)", 'i', [$order_id]);
+    if ($av_res) {
+        $partner['avatar'] = $av_res[0]['profile_picture'];
+        $partner['id'] = (int)$av_res[0]['customer_id'];
+        $partner['name'] = trim(($av_res[0]['first_name'] ?? '') . ' ' . ($av_res[0]['last_name'] ?? ''));
+    }
 }
 
 $partner['avatar'] = get_profile_image($partner['avatar'] ?? null);

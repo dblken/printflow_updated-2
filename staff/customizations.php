@@ -90,7 +90,6 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="turbo-visit-control" content="reload">
     <title><?php echo $page_title; ?></title>
     <link rel="stylesheet" href="/printflow/public/assets/css/output.css">
     <?php include __DIR__ . '/../includes/admin_style.php'; ?>
@@ -118,10 +117,16 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
         .pf-custom-tabs {
             display: flex;
-            flex-wrap: wrap; /* Allow wrapping so all categories are visible */
+            flex-wrap: nowrap;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             flex: 1;
+            overflow-x: auto;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .pf-custom-tabs::-webkit-scrollbar {
+            display: none;
         }
 
         .pf-custom-filters-row {
@@ -158,9 +163,9 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
         .pill-tab { 
             position: relative;
-            padding: 8px 14px; 
+            padding: 6px 12px; 
             font-weight: 600; 
-            font-size: 11px; 
+            font-size: 10px; 
             font-family: inherit;
             text-transform: uppercase;
             letter-spacing: 0.05em;
@@ -504,20 +509,20 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     </table>
                 </div>
 
-                <div x-show="totalPages > 1" style="display:block; width:100%; text-align:center; margin-top:20px; padding-top:16px; border-top:1px solid #f3f4f6;">
-                    <div style="display:inline-flex; align-items:center; justify-content:center; gap:4px;">
-                        <button x-show="currentPage > 1" @click="currentPage--" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;color:#374151;font-size:13px;font-weight:500;transition:all 0.2s;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background='white'">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                    </button>
-                    <template x-for="(p, i) in pageNumbers" :key="i">
-                        <span style="display:inline-flex;">
-                            <span x-show="p === '...'" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;font-size:13px;color:#9ca3af;letter-spacing:1px;">···</span>
-                            <button x-show="p !== '...'" @click="currentPage = p" :style="currentPage === p ? 'display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:6px;border:1px solid #0d9488;background:#0d9488;color:white;text-decoration:none;font-size:13px;font-weight:600;' : 'display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;color:#374151;text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s;'" x-text="p"></button>
-                        </span>
-                    </template>
-                    <button x-show="currentPage < totalPages" @click="currentPage++" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:6px;border:1px solid #e5e7eb;background:white;color:#374151;font-size:13px;font-weight:500;transition:all 0.2s;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background='white'">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    </button>
+                <div x-show="totalPages > 1" style="margin-top:20px;">
+                    <div class="pagination-container" style="display:flex; align-items:center; justify-content:center; gap:6px; margin-top:24px; padding:16px 0; border-top:1px solid #f1f5f9; width:100%;">
+                        <button x-show="currentPage > 1" @click="currentPage--; $nextTick(() => { document.querySelector('table')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); });" style="all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:8px;border:1px solid #e5e7eb;background:#ffffff;color:#374151 !important;text-decoration:none !important;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='#06A1A1';this.style.color='#06A1A1'" onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#374151'">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        </button>
+                        <template x-for="(p, i) in pageNumbers" :key="i">
+                            <span style="display:inline-flex;">
+                                <span x-show="p === '...'" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;font-size:13px;color:#9ca3af;letter-spacing:1px;">···</span>
+                                <button x-show="p !== '...'" @click="currentPage = p; $nextTick(() => { document.querySelector('table')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); });" :style="currentPage === p ? 'all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:8px;border:1px solid #06A1A1;background:#06A1A1;color:#ffffff !important;text-decoration:none !important;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 4px rgba(6,161,161,0.2);' : 'all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:8px;border:1px solid #e5e7eb;background:#ffffff;color:#374151 !important;text-decoration:none !important;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;'" :onmouseover="currentPage !== p ? 'this.style.borderColor=\'#06A1A1\';this.style.color=\'#06A1A1\'' : ''" :onmouseout="currentPage !== p ? 'this.style.borderColor=\'#e5e7eb\';this.style.color=\'#374151\'' : ''" x-text="p"></button>
+                            </span>
+                        </template>
+                        <button x-show="currentPage < totalPages" @click="currentPage++; $nextTick(() => { document.querySelector('table')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); });" style="all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;border-radius:8px;border:1px solid #e5e7eb;background:#ffffff;color:#374151 !important;text-decoration:none !important;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='#06A1A1';this.style.color='#06A1A1'" onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#374151'">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -681,7 +686,10 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                         <div style="font-size:22px; font-weight:800; color:#1f2937;" x-text="'₱' + Number(currentJo.payment_submitted_amount || 0).toLocaleString()"></div>
                                     </div>
                                     <div style="display:flex; gap:10px;">
-                                        <button @click="verifyPayment()" class="btn-staff-action btn-staff-action-emerald" style="flex:1;">Approve Payment</button>
+                                        <button @click="verifyPayment()" :disabled="actionBusy"
+                                                class="btn-staff-action btn-staff-action-emerald"
+                                                :style="actionBusy ? 'flex:1; opacity:0.65; cursor:not-allowed;' : 'flex:1;'"
+                                                x-text="actionBusy ? 'Processing…' : 'Approve Payment'"></button>
                                         <button @click="openRejectPaymentModal()" class="btn-staff-action btn-staff-action-red" style="flex:1;">Reject</button>
                                     </div>
                                 </div>
@@ -868,12 +876,23 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                                          <span style="font-size:11px; color:#059669; font-weight:600;">This is the total amount the customer will pay</span>
                                      </div>
                                  </div>
-                                 <button @click="submitToPay()" class="btn-action" style="width:100%; padding:16px; height:auto; font-size:16px; background:#06A1A1; color:#fff; border:none; font-weight:800; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:12px; box-shadow:0 10px 20px rgba(6, 161, 161, 0.3); transition:all 0.2s; cursor:pointer;"
-                                         onmouseover="this.style.background='#0d9488'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 24px rgba(6, 161, 161, 0.4)'"
-                                         onmouseout="this.style.background='#06A1A1'; this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 20px rgba(6, 161, 161, 0.3)'">
-                                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                     <span x-text="'Confirm Approval & Send to Payment'"></span>
-                                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                 <button @click="submitToPay()" :disabled="actionBusy"
+                                         class="btn-action"
+                                         :style="actionBusy
+                                             ? 'width:100%; padding:16px; height:auto; font-size:16px; background:#94d5d5; color:#fff; border:none; font-weight:800; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:12px; cursor:not-allowed; opacity:0.75;'
+                                             : 'width:100%; padding:16px; height:auto; font-size:16px; background:#06A1A1; color:#fff; border:none; font-weight:800; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:12px; box-shadow:0 10px 20px rgba(6, 161, 161, 0.3); transition:all 0.2s; cursor:pointer;'"
+                                         @mouseover="if(!actionBusy){ $el.style.background='#0d9488'; $el.style.transform='translateY(-2px)'; $el.style.boxShadow='0 12px 24px rgba(6,161,161,0.4)'; }"
+                                         @mouseout="if(!actionBusy){ $el.style.background='#06A1A1'; $el.style.transform='translateY(0)'; $el.style.boxShadow='0 10px 20px rgba(6,161,161,0.3)'; }">
+                                     <template x-if="!actionBusy">
+                                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                     </template>
+                                     <template x-if="actionBusy">
+                                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                     </template>
+                                     <span x-text="actionBusy ? 'Processing…' : 'Confirm Approval & Send to Payment'"></span>
+                                     <template x-if="!actionBusy">
+                                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                     </template>
                                  </button>
                                  <p style="font-size:11px; color:#0d9488; font-weight:500; margin-top:12px; display:flex; align-items:flex-start; gap:6px; line-height:1.5;">
                                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0; margin-top:2px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -902,7 +921,10 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                             <label style="font-size:11px;font-weight:700;color:#0f766e;text-transform:uppercase;display:block;margin-bottom:12px;">Step 5: Production In Progress</label>
                             <div style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
                                 <div style="font-size:14px; color:#0f766e; font-weight:500;" x-text="materialsDeductedSummary"></div>
-                                <button @click="markReadyForPickup()" class="btn-action" style="background:#06A1A1; color:#fff; border:none; font-weight:600; padding:6px 16px; border-radius:8px; white-space:nowrap;">Mark as Ready for Pickup</button>
+                                <button @click="markReadyForPickup()" :disabled="actionBusy"
+                                        class="btn-action"
+                                        :style="actionBusy ? 'background:#94d5d5; color:#fff; border:none; font-weight:600; padding:6px 16px; border-radius:8px; white-space:nowrap; opacity:0.75; cursor:not-allowed;' : 'background:#06A1A1; color:#fff; border:none; font-weight:600; padding:6px 16px; border-radius:8px; white-space:nowrap;'"
+                                        x-text="actionBusy ? 'Processing…' : 'Mark as Ready for Pickup'"></button>
                             </div>
                         </div>
                     </template>
@@ -913,9 +935,10 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                             <label style="font-size:11px;font-weight:700;color:#0f766e;text-transform:uppercase;display:block;margin-bottom:12px;">Step 6: Ready for Pickup</label>
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <div style="font-size:14px; color:#0f766e; font-weight:500;">Customer has been notified to pick up the order.</div>
-                                 <button @click="completeOrder()" class="btn-action" 
-                                        :style="!validationState.valid ? 'background:#cbd5e1; color:#64748b; cursor:not-allowed; opacity:0.8;' : 'background:#06A1A1; color:#fff; border:none; font-weight:600; padding:6px 16px; border-radius:8px;'">
-                                    Mark Final Completed
+                                 <button @click="completeOrder()" :disabled="actionBusy"
+                                         class="btn-action"
+                                         :style="actionBusy ? 'background:#94d5d5; color:#fff; border:none; font-weight:600; padding:6px 16px; border-radius:8px; opacity:0.75; cursor:not-allowed;' : (!validationState.valid ? 'background:#cbd5e1; color:#64748b; cursor:not-allowed; opacity:0.8;' : 'background:#06A1A1; color:#fff; border:none; font-weight:600; padding:6px 16px; border-radius:8px;')"
+                                         x-text="actionBusy ? 'Processing…' : 'Mark Final Completed'">
                                 </button>
                             </div>
                         </div>
@@ -1029,7 +1052,12 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     <!-- Left: Status actions -->
                     <div style="display:flex;gap:8px; flex-wrap:wrap; align-items:center;">
                         <div x-show="isPendingReviewStatus(currentJo) && !isVerifyStageRow(currentJo)" style="display:flex; gap:8px;">
-                            <button type="button" @click="jobAction('APPROVED')" class="btn-action" style="padding:8px 16px; font-weight:600; background:#86efac; color:#166534; border:1px solid #86efac; border-radius:8px; transition:all 0.2s;" onmouseover="this.style.background='#22c55e'; this.style.borderColor='#22c55e'; this.style.color='#ffffff';" onmouseout="this.style.background='#86efac'; this.style.borderColor='#86efac'; this.style.color='#166534';">Approve to Set Price</button>
+                            <button type="button" @click="jobAction('APPROVED')" :disabled="actionBusy"
+                                    class="btn-action"
+                                    :style="actionBusy ? 'padding:8px 16px; font-weight:600; background:#86efac; color:#166534; border:1px solid #86efac; border-radius:8px; opacity:0.65; cursor:not-allowed;' : 'padding:8px 16px; font-weight:600; background:#86efac; color:#166534; border:1px solid #86efac; border-radius:8px; transition:all 0.2s;'"
+                                    @mouseover="if(!actionBusy){ $el.style.background='#22c55e'; $el.style.borderColor='#22c55e'; $el.style.color='#ffffff'; }"
+                                    @mouseout="if(!actionBusy){ $el.style.background='#86efac'; $el.style.borderColor='#86efac'; $el.style.color='#166534'; }"
+                                    x-text="actionBusy ? 'Processing…' : 'Approve to Set Price'"></button>
                             <button type="button" @click="openRevisionModal()" class="btn-action" style="padding:8px 16px; font-weight:600; background:#fca5a5; color:#991b1b; border:1px solid #fca5a5; border-radius:8px; transition:all 0.2s;" onmouseover="this.style.background='#ef4444'; this.style.borderColor='#ef4444'; this.style.color='#ffffff';" onmouseout="this.style.background='#fca5a5'; this.style.borderColor='#fca5a5'; this.style.color='#991b1b';">Request Revision</button>
                         </div>
                     </div>
@@ -1180,10 +1208,11 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             ...printflowStaffServiceOrderModalMixin({
                 async afterSvcMutation() { await this.loadOrders(); }
             }),
+            actionBusy: false,
             statuses: ['ALL', 'PENDING', 'APPROVED', 'TO_PAY', 'TO_VERIFY', 'IN_PRODUCTION', 'TO_RECEIVE', 'COMPLETED', 'CANCELLED'],
             activeStatus: defaultStatus || 'ALL',
             currentPage: 1,
-            itemsPerPage: 15,
+            itemsPerPage: 10,
             orders: [],
             sortOrder: 'newest',
             sortOpen: false,
@@ -1747,8 +1776,13 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             async resolveEffectiveJobId() {
                 let jid = this.effectiveJobId();
                 if (jid != null && !Number.isNaN(jid) && jid > 0) return jid;
+                
                 const j = this.currentJo;
-                if (!j || j.order_type !== 'ORDER') return null;
+                if (!j) return null;
+                
+                // If it's a customization but has a linked job_order_id (newly added to API response)
+                if (j.job_order_id) return Number(j.job_order_id);
+
                 const oid = j.order_id ?? j.id;
                 if (oid == null || oid === '') return null;
                 try {
@@ -2049,24 +2083,49 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             },
 
             async jobAction(status, machineId = null) {
-                if (this.currentJo.order_type === 'CUSTOMIZATION') {
-                    const fd = new FormData();
-                    fd.append('action', 'update_customization');
-                    fd.append('id', this.currentJo.id);
-                    fd.append('status', status === 'APPROVED' ? 'Approved' : status);
-                    const base = document.body.getAttribute('data-base-url') || '/printflow';
-                    const res = await (await fetch(base + '/admin/job_orders_api.php', { method: 'POST', body: fd })).json();
-                    if (res.success) { await this.loadOrders(); this.showDetailsModal = false; }
-                    else this.showStaffAlert('Error', res.error || 'Update failed.');
-                    return;
+                if (this.actionBusy) return;
+                this.actionBusy = true;
+                const toastMessages = {
+                    'APPROVED':    'Successfully approved for pricing.',
+                    'TO_RECEIVE':  'Marked as ready for pickup.',
+                    'COMPLETED':   'Order marked as completed.',
+                    'CANCELLED':   'Order has been cancelled.',
+                };
+                try {
+                    if (this.currentJo.order_type === 'CUSTOMIZATION') {
+                        const fd = new FormData();
+                        fd.append('action', 'update_customization');
+                        fd.append('id', this.currentJo.id);
+                        fd.append('status', status === 'APPROVED' ? 'Approved' : status);
+                        const base = document.body.getAttribute('data-base-url') || '/printflow';
+                        const res = await (await fetch(base + '/admin/job_orders_api.php', { method: 'POST', body: fd })).json();
+                        if (res.success) {
+                            pfToast('success', toastMessages[status] || 'Action completed successfully.');
+                            await this.loadOrders();
+                            this.showDetailsModal = false;
+                        } else {
+                            pfToast('error', res.error || 'Something went wrong. Please try again.');
+                        }
+                        return;
+                    }
+                    const jid = await this.resolveEffectiveJobId();
+                    if (!jid) {
+                        pfToast('error', 'Could not find a production job for this order.');
+                        return;
+                    }
+                    const ok = await this.updateStatus(jid, status, machineId);
+                    if (ok) {
+                        pfToast('success', toastMessages[status] || 'Action completed successfully.');
+                        this.showDetailsModal = false;
+                    } else {
+                        pfToast('error', 'Something went wrong. Please try again.');
+                    }
+                } catch(e) {
+                    console.error('jobAction error', e);
+                    pfToast('error', 'Something went wrong. Please try again.');
+                } finally {
+                    this.actionBusy = false;
                 }
-                const jid = await this.resolveEffectiveJobId();
-                if (!jid) {
-                    this.showStaffAlert('Production Job Error', 'Could not create or find a production job for this store order. Confirm the order has line items in Orders.');
-                    return;
-                }
-                const ok = await this.updateStatus(jid, status, machineId);
-                if (ok) this.showDetailsModal = false;
             },
 
             async updateStatus(id, status, machineId = null, reason = '') {
@@ -2117,38 +2176,47 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     'Verify Payment & Start Production',
                     `Verify payment of ₱${this.currentJo.payment_submitted_amount}?\n\nThis will deduct materials from inventory and start production.`,
                     async () => {
-                        const base = document.body.getAttribute('data-base-url') || '/printflow';
-                        const ot = this.currentJo.order_type || 'JOB';
-                        let res;
+                        if (this.actionBusy) return;
+                        this.actionBusy = true;
+                        try {
+                            const base = document.body.getAttribute('data-base-url') || '/printflow';
+                            const ot = this.currentJo.order_type || 'JOB';
+                            let res;
 
-                        if (ot === 'ORDER') {
-                            const oid = this.currentJo.order_id || this.currentJo.id;
-                            const fd = new FormData();
-                            fd.append('order_id', oid);
-                            fd.append('action', 'Approve');
-                            const r = await fetch(base + '/staff/api_verify_payment.php', { method: 'POST', body: fd });
-                            res = await this.parseJsonResponse(r);
-                        } else {
-                            const jid = await this.resolveEffectiveJobId();
-                            if (!jid) {
-                                this.showStaffAlert('Error', 'No linked production job for payment verification.');
-                                return;
+                            if (ot === 'ORDER') {
+                                const oid = this.currentJo.order_id || this.currentJo.id;
+                                const fd = new FormData();
+                                fd.append('order_id', oid);
+                                fd.append('action', 'Approve');
+                                const r = await fetch(base + '/staff/api_verify_payment.php', { method: 'POST', body: fd });
+                                res = await this.parseJsonResponse(r);
+                            } else {
+                                const jid = await this.resolveEffectiveJobId();
+                                if (!jid) {
+                                    pfToast('error', 'No linked production job for payment verification.');
+                                    return;
+                                }
+                                const fd = new FormData();
+                                fd.append('action', 'verify_payment');
+                                fd.append('id', jid);
+                                const r = await fetch(base + '/admin/api_verify_job_payment.php', { method: 'POST', body: fd });
+                                res = await this.parseJsonResponse(r);
                             }
-                            const fd = new FormData();
-                            fd.append('action', 'verify_payment');
-                            fd.append('id', jid);
-                            const r = await fetch(base + '/admin/api_verify_job_payment.php', { method: 'POST', body: fd });
-                            res = await this.parseJsonResponse(r);
-                        }
 
-                        if(res.success) {
-                            this.activeStatus = 'IN_PRODUCTION';
-                            await this.loadOrders();
-                            await this.loadAllInventoryItems();
-                            await this.viewDetails(this.currentJo.id, this.currentJo.order_type || 'JOB');
-                            this.showStaffAlert('Success', 'Payment verified. Materials deducted and production started.');
-                        } else {
-                            this.showStaffAlert('Verification Failed', res.error || 'Verification failed.');
+                            if (res.success) {
+                                pfToast('success', 'Payment successfully approved. Production started.');
+                                this.activeStatus = 'IN_PRODUCTION';
+                                await this.loadOrders();
+                                await this.loadAllInventoryItems();
+                                await this.viewDetails(this.currentJo.id, this.currentJo.order_type || 'JOB');
+                            } else {
+                                pfToast('error', res.error || 'Something went wrong. Please try again.');
+                            }
+                        } catch(e) {
+                            console.error('verifyPayment error', e);
+                            pfToast('error', 'Something went wrong. Please try again.');
+                        } finally {
+                            this.actionBusy = false;
                         }
                     }
                 );
@@ -2276,17 +2344,14 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
             },
 
             async submitToPay() {
-                console.log('submitToPay called');
-                console.log('jobPriceInput value:', this.jobPriceInput);
-                console.log('jobPriceInput type:', typeof this.jobPriceInput);
-                
+                if (this.actionBusy) return;
+                this.actionBusy = true;
+                try {
                 if (this.currentJo.order_type === 'CUSTOMIZATION') {
                     const priceValue = parseFloat(this.jobPriceInput);
-                    console.log('Parsed price value:', priceValue);
-                    console.log('Is NaN?', isNaN(priceValue));
-                    
                     if (!priceValue || priceValue <= 0 || isNaN(priceValue)) {
-                        this.showStaffAlert('Price Required', 'Please enter a valid price before approving.');
+                        pfToast('error', 'Please enter a valid price before approving.');
+                        this.actionBusy = false;
                         return;
                     }
                     const fd = new FormData();
@@ -2301,8 +2366,9 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                         const paymentAmount = parseFloat(this.currentJo.payment_submitted_amount || 0);
                         const targetTab = (hasPaymentProof && paymentAmount > 0) ? 'TO_VERIFY' : 'TO_PAY';
                         const successMessage = targetTab === 'TO_VERIFY'
-                            ? 'Price set! Payment proof detected — order moved to verification.'
-                            : 'Price set and order moved to payment stage.';
+                            ? 'Price set! Order moved to verification.'
+                            : 'Successfully sent to payment.';
+                        pfToast('success', successMessage);
 
                         this.showStaffAlert('Success', successMessage, async () => {
                             const details = this.currentJo.customization_details || {};
@@ -2339,7 +2405,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                             }
                         });
                     } else {
-                        this.showStaffAlert('Error', res.error || 'Failed.');
+                        pfToast('error', res.error || 'Something went wrong. Please try again.');
                     }
                     return;
                 }
@@ -2411,7 +2477,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
 
                 // REQUISITE CHECK: Materials and Price
                 if (!this.validationState.valid) {
-                    this.showStaffAlert('Incomplete Setup', 'Cannot set to pay. Please ensure you have:\n1. Assigned production materials\n2. Set a final valid price.');
+                    pfToast('error', 'Cannot proceed. Please assign production materials and set a valid price.');
                     return;
                 }
                 
@@ -2471,7 +2537,13 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                 }
                 
                 // Show success message (only if not redirecting to POS)
-                this.showStaffAlert('Success', 'Order approved and moved to payment stage!');
+                pfToast('success', 'Successfully sent to payment.');
+                } catch(e) {
+                    console.error('submitToPay error', e);
+                    pfToast('error', 'Something went wrong. Please try again.');
+                } finally {
+                    this.actionBusy = false;
+                }
             },
 
             async saveProductionDetails() {
@@ -2840,11 +2912,7 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     'Mark this order as ready for customer pickup?',
                     async () => {
                         if (!this.validationState.valid) {
-                            this.showStaffAlert('Validation Error', '❗ Cannot mark as ready. Please set required ' + this.validationState.errors.join(' and ') + ' before proceeding.', () => {
-                                if (!this.validationState.hasMaterials) {
-                                    document.querySelector('[style*="groupedMaterials"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }
-                            });
+                            pfToast('error', 'Cannot mark as ready. Please set required ' + this.validationState.errors.join(' and ') + ' first.');
                             return;
                         }
                         await this.jobAction('TO_RECEIVE');
@@ -2858,23 +2926,29 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
                     'Mark this order as completed and fulfilled?',
                     async () => {
                         if (!this.validationState.valid) {
-                            this.showStaffAlert('Validation Error', '❗ Cannot complete order. Please set required ' + this.validationState.errors.join(' and ') + ' before proceeding.', () => {
-                                // Scroll materials section into view if missing materials
-                                if (!this.validationState.hasMaterials) {
-                                    document.querySelector('[style*="groupedMaterials"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }
-                            });
+                            pfToast('error', 'Cannot complete order. Please set required ' + this.validationState.errors.join(' and ') + ' first.');
                             return;
                         }
-
-                        const jid = await this.resolveEffectiveJobId();
-                        if (!jid) {
-                            this.showStaffAlert('Error', 'No linked production job for this entry.');
-                            return;
-                        }
-                        const ok = await this.updateStatus(jid, 'COMPLETED', machineId);
-                        if (ok) {
-                            this.showDetailsModal = false;
+                        if (this.actionBusy) return;
+                        this.actionBusy = true;
+                        try {
+                            const jid = await this.resolveEffectiveJobId();
+                            if (!jid) {
+                                pfToast('error', 'No linked production job for this entry.');
+                                return;
+                            }
+                            const ok = await this.updateStatus(jid, 'COMPLETED', machineId);
+                            if (ok) {
+                                pfToast('success', 'Order marked as completed.');
+                                this.showDetailsModal = false;
+                            } else {
+                                pfToast('error', 'Something went wrong. Please try again.');
+                            }
+                        } catch(e) {
+                            console.error('completeOrder error', e);
+                            pfToast('error', 'Something went wrong. Please try again.');
+                        } finally {
+                            this.actionBusy = false;
                         }
                     }
                 );
@@ -2888,5 +2962,98 @@ $completed_jobs = $completed_jobs_jobs + $completed_orders;
      * Full load: Alpine.start() (defer) inits the page. Turbo: public/assets/js/turbo-init.js initTree(.main-content) runs after swap.
      */
 </script>
+
+<!-- ═══════════════════════════════════════════════════════
+     PF TOAST NOTIFICATION SYSTEM
+     Global: pfToast(type, message, duration)
+     type = 'success' | 'error' | 'info'
+═══════════════════════════════════════════════════════ -->
+<style>
+#pf-toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+.pf-toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 280px;
+    max-width: 420px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    pointer-events: all;
+    opacity: 0;
+    transform: translateX(30px);
+    transition: opacity 0.28s ease, transform 0.28s ease;
+    will-change: opacity, transform;
+}
+.pf-toast.pf-toast--in {
+    opacity: 1;
+    transform: translateX(0);
+}
+.pf-toast.pf-toast--out {
+    opacity: 0;
+    transform: translateX(30px);
+}
+.pf-toast--success { background: linear-gradient(135deg, #059669 0%, #047857 100%); }
+.pf-toast--error   { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); }
+.pf-toast--info    { background: linear-gradient(135deg, #0369a1 0%, #075985 100%); }
+.pf-toast__icon { flex-shrink: 0; width: 20px; height: 20px; }
+.pf-toast__msg  { flex: 1; }
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+</style>
+
+<div id="pf-toast-container"></div>
+
+<script>
+(function() {
+    const ICONS = {
+        success: '<svg class="pf-toast__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+        error:   '<svg class="pf-toast__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+        info:    '<svg class="pf-toast__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+    };
+
+    window.pfToast = function(type, message, duration) {
+        type     = type     || 'info';
+        duration = duration || 3000;
+        const container = document.getElementById('pf-toast-container');
+        if (!container) return;
+
+        const el = document.createElement('div');
+        el.className = 'pf-toast pf-toast--' + type;
+        el.innerHTML = (ICONS[type] || ICONS.info) +
+                       '<span class="pf-toast__msg">' + message + '</span>';
+        container.appendChild(el);
+
+        // Trigger enter animation
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => el.classList.add('pf-toast--in'));
+        });
+
+        // Auto-remove
+        setTimeout(() => {
+            el.classList.remove('pf-toast--in');
+            el.classList.add('pf-toast--out');
+            setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 350);
+        }, duration);
+    };
+})();
+</script>
+
 </body>
 </html>

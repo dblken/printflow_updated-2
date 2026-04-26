@@ -125,14 +125,12 @@ require_once __DIR__ . '/../includes/header.php';
         <div style="display:flex; flex-direction:column; gap:1.25rem;">
             
             <!-- 1. Order Status & Date Alert -->
-            <div style="padding:1rem; background:#000; color:#fff; border-radius:12px; font-weight:700; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+            <div style="padding:1rem; background:#0d9488; color:#fff; border-radius:12px; font-weight:700; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
                 <span>Placed on: <?php echo format_datetime($order['order_date']); ?></span>
-                <a href="<?php echo BASE_URL; ?>/customer/chat.php?order_id=<?php echo $order_id; ?>" style="background:#fff; color:#000; border:none; padding:5px 12px; border-radius:6px; font-weight:800; font-size:0.75rem; text-decoration:none; display:inline-block;">
+                <a href="<?php echo BASE_URL; ?>/customer/chat.php?order_id=<?php echo $order_id; ?>" style="background:#fff; color:#0d9488; border:none; padding:5px 12px; border-radius:6px; font-weight:800; font-size:0.75rem; text-decoration:none; display:inline-block;">
                     💬 Chat Support
                 </a>
             </div>
-
-
 
             <!-- Revision Required Alert -->
             <?php if ($order['status'] === 'For Revision'): ?>
@@ -167,14 +165,14 @@ require_once __DIR__ . '/../includes/header.php';
 
             <!-- Downpayment Required Alert (Only show if status is 'To Pay') -->
             <?php if ($order['status'] === 'To Pay' && $order['payment_status'] === 'Unpaid'): ?>
-                <div style="background-color: #fff7ed; border: 1px solid #ffedd5; border-radius: 12px; padding: 1.25rem; display: flex; gap: 1rem; align-items: flex-start;">
-                    <div style="background: #f97316; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1rem;">💳</div>
+                <div style="background-color: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 12px; padding: 1.25rem; display: flex; gap: 1rem; align-items: flex-start;">
+                    <div style="background: #0d9488; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1rem;">💳</div>
                     <div style="flex: 1;">
-                        <h3 style="color: #9a3412; font-weight: 700; font-size: 0.9rem; margin-bottom: 0.25rem;">Downpayment Required</h3>
-                        <p style="color: #c2410c; font-size: 0.8rem; line-height: 1.5; margin-bottom: 0.75rem;">
+                        <h3 style="color: #0f766e; font-weight: 700; font-size: 0.9rem; margin-bottom: 0.25rem;">Downpayment Required</h3>
+                        <p style="color: #115e59; font-size: 0.8rem; line-height: 1.5; margin-bottom: 0.75rem;">
                             Your order requires a 50% downpayment (<?php echo format_currency($order['total_amount'] * 0.5); ?>) to begin production.
                         </p>
-                        <button onclick="openPaymentModal()" class="btn-primary" style="background:#f97316; padding:6px 14px; font-size:0.75rem;">
+                        <button onclick="openPaymentModal()" class="btn-primary" style="background:#0d9488; padding:6px 14px; font-size:0.75rem;">
                             Submit Payment Proof
                         </button>
                     </div>
@@ -212,7 +210,7 @@ require_once __DIR__ . '/../includes/header.php';
                 background: #94a3b8; 
             }
         </style>
-        <div id="paymentModal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100; align-items:center; justify-content:center; padding:20px;">
+        <div id="paymentModal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(248, 250, 252, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index:100; align-items:center; justify-content:center; padding:20px;">
             <div class="card" style="max-width:500px; width:100%; position:relative; border-radius: 20px; padding: 2rem; max-height: 90vh; overflow-y: auto;">
                 <h2 style="font-size:1.5rem; font-weight:800; margin-bottom:0.5rem; color:#111827; display: flex; align-items: center; gap: 10px;">
                     Submit Payment
@@ -265,7 +263,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <!-- Payment Methods Tabs/Selector -->
                             <div style="display: flex; gap: 8px; margin-bottom: 1rem; overflow-x: auto; padding-bottom: 4px;">
                                 <?php $first = true; foreach ($enabled_methods as $index => $pm): ?>
-                                    <button type="button" onclick="selectPaymentMethod(<?php echo $index; ?>, '<?php echo addslashes($pm['provider']); ?>')" id="btn-pm-<?php echo $index; ?>" class="pm-tab-btn" style="flex: 1; padding: 10px; border-radius: 10px; border: 2px solid <?php echo $first ? '#4F46E5' : '#e5e7eb'; ?>; background: <?php echo $first ? '#e0e7ff' : '#f9fafb'; ?>; color: <?php echo $first ? '#4F46E5' : '#4b5563'; ?>; font-weight: 700; font-family: inherit; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; white-space: nowrap;">
+                                    <button type="button" onclick="selectPaymentMethod(<?php echo $index; ?>, '<?php echo addslashes($pm['provider']); ?>')" id="btn-pm-<?php echo $index; ?>" class="pm-tab-btn" style="flex: 1; padding: 10px; border-radius: 10px; border: 2px solid <?php echo $first ? '#0d9488' : '#e5e7eb'; ?>; background: <?php echo $first ? '#f0fdfa' : '#f9fafb'; ?>; color: <?php echo $first ? '#0d9488' : '#4b5563'; ?>; font-weight: 700; font-family: inherit; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; white-space: nowrap;">
                                         <?php echo htmlspecialchars($pm['provider']); ?>
                                     </button>
                                 <?php $first = false; endforeach; ?>
@@ -295,13 +293,13 @@ require_once __DIR__ . '/../includes/header.php';
                                 <input type="number" name="amount" id="paymentAmountInput" step="0.01" class="input-field" 
                                        value="<?php echo number_format($order['total_amount'], 2, '.', ''); ?>" 
                                        min="<?php echo number_format($order['total_amount'], 2, '.', ''); ?>" 
-                                       style="width:100%; font-size: 1.1rem; font-weight: 700; color: #4F46E5;" required>
+                                       style="width:100%; font-size: 1.1rem; font-weight: 700; color: #0d9488;" required>
                                 <p id="minPaymentText" style="font-size: 0.75rem; color: #6b7280; margin-top: 8px;">Total: <?php echo format_currency($order['total_amount']); ?></p>
                             </div>
                             
                             <div style="margin-bottom:1.5rem;">
                                 <label style="display:block; font-size:0.875rem; font-weight:700; color: #374151; margin-bottom:0.5rem;">Upload Proof of Payment</label>
-                                <div id="dropzone" style="border: 2px dashed #e2e8f0; border-radius: 12px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#4F46E5'; this.style.background='#f5f3ff'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='transparent'">
+                                <div id="dropzone" style="border: 2px dashed #e2e8f0; border-radius: 12px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#0d9488'; this.style.background='#f0fdfa'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='transparent'">
                                     <input type="file" name="payment_proof" id="proofInput" style="display: none;" accept="image/*">
                                     <div id="uploadPlaceholder">
                                         <span style="font-size: 2rem;">📸</span>
@@ -318,14 +316,14 @@ require_once __DIR__ . '/../includes/header.php';
 
                     <div style="display:flex; justify-content:flex-end; gap:12px;">
                         <button type="button" onclick="closePaymentModal()" class="btn-secondary" style="border-radius: 10px; font-weight: 500; font-family: inherit; font-size: 0.9375rem;">Cancel</button>
-                        <button type="submit" id="submitPaymentBtn" class="btn-primary" <?php echo empty($enabled_methods) ? 'disabled' : ''; ?> style="background:#4F46E5; color:white; border-radius: 10px; padding: 10px 24px; font-weight: 800; font-family: inherit; font-size: 0.9375rem; text-transform:uppercase; letter-spacing:0.02em; <?php echo empty($enabled_methods) ? 'opacity:0.6; cursor:not-allowed;' : ''; ?>">Submit & Confirm</button>
+                        <button type="submit" id="submitPaymentBtn" class="btn-primary" <?php echo empty($enabled_methods) ? 'disabled' : ''; ?> style="background:#0d9488; color:white; border-radius: 10px; padding: 10px 24px; font-weight: 800; font-family: inherit; font-size: 0.9375rem; text-transform:uppercase; letter-spacing:0.02em; <?php echo empty($enabled_methods) ? 'opacity:0.6; cursor:not-allowed;' : ''; ?>">Submit & Confirm</button>
                     </div>
                 </form>
             </div>
         </div>
 
         <!-- Cancellation Modal -->
-        <div id="cancelModal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100; align-items:center; justify-content:center; padding:20px;">
+        <div id="cancelModal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(248, 250, 252, 0.7); backdrop-filter: blur(10px); z-index:100; align-items:center; justify-content:center; padding:20px;">
             <div class="card" style="max-width:500px; width:100%; position:relative;">
                 <h2 style="font-size:1.25rem; font-weight:700; margin-bottom:1rem; color:#111827;">Cancel Order #<?php echo $order_id; ?></h2>
                 <p style="color:#6b7280; font-size:0.875rem; margin-bottom:1.5rem;">Please tell us why you want to cancel this order. This cannot be undone.</p>
@@ -366,50 +364,57 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
 
         <script>
-            function openCancelModal() {
-                document.getElementById('cancelModal').style.display = 'flex';
+    {
+        const openCancelModal = function() {
+            document.getElementById('cancelModal').style.display = 'flex';
+        };
+        window.openCancelModal = openCancelModal;
+
+        const closeCancelModal = function() {
+            document.getElementById('cancelModal').style.display = 'none';
+        };
+        window.closeCancelModal = closeCancelModal;
+
+        const openPaymentModal = function() {
+            document.getElementById('paymentModal').style.display = 'flex';
+        };
+        window.openPaymentModal = openPaymentModal;
+
+        const closePaymentModal = function() {
+            document.getElementById('paymentModal').style.display = 'none';
+        };
+        window.closePaymentModal = closePaymentModal;
+
+        const updatePaymentUI = function(choice) {
+            // Update active state of containers
+            document.querySelectorAll('.payment-policy-option').forEach(el => {
+                el.style.borderColor = '#e5e7eb';
+                el.style.background = '#fff';
+                el.querySelector('div div').style.color = '#111827';
+            });
+            
+            const selected = document.querySelector(`input[name="payment_choice"][value="${choice}"]`);
+            if (selected) {
+                const parent = selected.closest('.payment-policy-option');
+                parent.style.borderColor = '#0d9488';
+                parent.style.background = '#f0fdfa';
+                parent.querySelector('div div').style.color = '#0d9488';
             }
-            function closeCancelModal() {
-                document.getElementById('cancelModal').style.display = 'none';
-            }
 
-            function openPaymentModal() {
-                document.getElementById('paymentModal').style.display = 'flex';
-            }
-            function closePaymentModal() {
-                document.getElementById('paymentModal').style.display = 'none';
-            }
+            const detailsSection = document.getElementById('paymentDetailsSection');
+            const proofSection = document.getElementById('proofUploadSection');
+            const amountInput = document.getElementById('paymentAmountInput');
+            const minText = document.getElementById('minPaymentText');
+            const proofInput = document.getElementById('proofInput');
 
-            function updatePaymentUI(choice) {
-                // Update active state of containers
-                document.querySelectorAll('.payment-policy-option').forEach(el => {
-                    el.style.borderColor = '#e5e7eb';
-                    el.style.background = '#fff';
-                    el.querySelector('div div').style.color = '#111827';
-                });
-                
-                const selected = document.querySelector(`input[name="payment_choice"][value="${choice}"]`);
-                if (selected) {
-                    const parent = selected.closest('.payment-policy-option');
-                    parent.style.borderColor = '#4F46E5';
-                    parent.style.background = '#f5f3ff';
-                    parent.querySelector('div div').style.color = '#4F46E5';
-                }
+            const total = <?php echo (float)$order['total_amount']; ?>;
+            const half = total * 0.5;
 
-                const detailsSection = document.getElementById('paymentDetailsSection');
-                const proofSection = document.getElementById('proofUploadSection');
-                const amountInput = document.getElementById('paymentAmountInput');
-                const minText = document.getElementById('minPaymentText');
-                const proofInput = document.getElementById('proofInput');
-
-                const total = <?php echo (float)$order['total_amount']; ?>;
-                const half = total * 0.5;
-
-                detailsSection.style.display = 'block';
-                proofSection.style.display = 'block';
-                proofInput.required = true;
+            if (detailsSection) detailsSection.style.display = 'block';
+            if (proofSection) proofSection.style.display = 'block';
+            if (proofInput) proofInput.required = true;
+            if (amountInput) {
                 amountInput.required = true;
-
                 if (choice === 'half') {
                     amountInput.value = half.toFixed(2);
                     amountInput.min = half.toFixed(2);
@@ -420,119 +425,57 @@ require_once __DIR__ . '/../includes/header.php';
                     minText.textContent = 'Total: PHP ' + total.toLocaleString(undefined, {minimumFractionDigits: 2});
                 }
             }
+        };
+        window.updatePaymentUI = updatePaymentUI;
 
-            function selectPaymentMethod(selectedIndex, providerName) {
-                // Update hidden input
-                document.getElementById('paymentMethodHidden').value = providerName;
+        const selectPaymentMethod = function(selectedIndex, providerName) {
+            // Update hidden input
+            const methodHidden = document.getElementById('paymentMethodHidden');
+            if (methodHidden) methodHidden.value = providerName;
 
-                // Reset all tabs
-                document.querySelectorAll('.pm-tab-btn').forEach(btn => {
-                    btn.style.borderColor = '#e5e7eb';
-                    btn.style.backgroundColor = '#f9fafb';
-                    btn.style.color = '#4b5563';
-                });
-                
-                // Set active tab
-                const activeBtn = document.getElementById('btn-pm-' + selectedIndex);
-                if (activeBtn) {
-                    activeBtn.style.borderColor = '#4F46E5';
-                    activeBtn.style.backgroundColor = '#e0e7ff';
-                    activeBtn.style.color = '#4F46E5';
-                }
-
-                // Hide all details
-                document.querySelectorAll('[id^="pm-details-"]').forEach(el => {
-                    el.style.display = 'none';
-                });
-                
-                // Show active details
-                const activeDetails = document.getElementById('pm-details-' + selectedIndex);
-                if (activeDetails) {
-                    activeDetails.style.display = 'block';
-                }
-            }
-
-            // File upload UI handling
-            const dropzone = document.getElementById('dropzone');
-            const proofInput = document.getElementById('proofInput');
-
-            // Auto-open payment modal if ?pay=1 is in URL
-            window.addEventListener('DOMContentLoaded', () => {
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('pay') === '1') {
-                    openPaymentModal();
-                }
+            // Reset all tabs
+            document.querySelectorAll('.pm-tab-btn').forEach(btn => {
+                btn.style.borderColor = '#e5e7eb';
+                btn.style.backgroundColor = '#f9fafb';
+                btn.style.color = '#4b5563';
             });
-            const uploadPlaceholder = document.getElementById('uploadPlaceholder');
-            const filePreview = document.getElementById('filePreview');
-            const previewImg = document.getElementById('previewImg');
-            const fileName = document.getElementById('fileName');
-
-            if (dropzone) {
-                dropzone.addEventListener('click', () => proofInput.click());
-                proofInput.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        fileName.textContent = file.name;
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            previewImg.src = e.target.result;
-                            uploadPlaceholder.style.display = 'none';
-                            filePreview.style.display = 'flex';
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
+            
+            // Set active tab
+            const activeBtn = document.getElementById('btn-pm-' + selectedIndex);
+            if (activeBtn) {
+                activeBtn.style.borderColor = '#0d9488';
+                activeBtn.style.backgroundColor = '#f0fdfa';
+                activeBtn.style.color = '#0d9488';
             }
 
-            // AJAX Submission
-            const paymentForm = document.getElementById('paymentForm');
-            if (paymentForm) {
-                paymentForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    const btn = document.getElementById('submitPaymentBtn');
-                    btn.disabled = true;
-                    btn.textContent = 'Submitting...';
-
-                    const formData = new FormData(this);
-                    
-                    fetch('api_submit_payment.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            showSuccessModal(
-                                'Payment Submitted',
-                                data.message,
-                                'order_details.php?id=<?php echo $order_id; ?>',
-                                'orders.php',
-                                'View Order',
-                                'Back to Orders'
-                            );
-                            closePaymentModal();
-                        } else {
-                            showToast('Error: ' + data.message);
-                            btn.disabled = false;
-                            btn.textContent = 'Submit Payment';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        showToast('An unexpected error occurred. Please try again.');
-                        btn.disabled = false;
-                        btn.textContent = 'Submit Payment';
-                    });
-                });
+            // Hide all details
+            document.querySelectorAll('[id^="pm-details-"]').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            // Show active details
+            const activeDetails = document.getElementById('pm-details-' + selectedIndex);
+            if (activeDetails) {
+                activeDetails.style.display = 'block';
             }
+        };
+        window.selectPaymentMethod = selectPaymentMethod;
 
-            // Trigger success modal if success message exists
-            window.addEventListener('DOMContentLoaded', () => {
-                <?php if (isset($_SESSION['success'])): 
-                    $msg = $_SESSION['success'];
-                    unset($_SESSION['success']);
-                ?>
+        // Auto-open payment modal if ?pay=1 is in URL
+        document.addEventListener('turbo:load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('pay') === '1') {
+                openPaymentModal();
+            }
+        }, { once: true });
+
+        // Trigger success modal if success message exists
+        document.addEventListener('turbo:load', () => {
+            <?php if (isset($_SESSION['success'])): 
+                $msg = $_SESSION['success'];
+                unset($_SESSION['success']);
+            ?>
+            if (typeof showSuccessModal === 'function') {
                 showSuccessModal(
                     'Order Placed!',
                     '<?php echo addslashes($msg); ?>',
@@ -543,9 +486,89 @@ require_once __DIR__ . '/../includes/header.php';
                     'services.php',
                     3500
                 );
-                <?php endif; ?>
-            });
-        </script>
+            }
+            <?php endif; ?>
+        }, { once: true });
+
+        // File upload UI handling
+        const dropzone = document.getElementById('dropzone');
+        const proofInput = document.getElementById('proofInput');
+
+        if (dropzone && proofInput) {
+            dropzone.onclick = () => proofInput.click();
+            proofInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const fileNameEl = document.getElementById('fileName');
+                    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+                    const filePreview = document.getElementById('filePreview');
+                    const previewImg = document.getElementById('previewImg');
+
+                    if (fileNameEl) fileNameEl.textContent = file.name;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        if (previewImg) previewImg.src = e.target.result;
+                        if (uploadPlaceholder) uploadPlaceholder.style.display = 'none';
+                        if (filePreview) filePreview.style.display = 'flex';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+        }
+
+        // AJAX Submission
+        const paymentForm = document.getElementById('paymentForm');
+        if (paymentForm) {
+            paymentForm.onsubmit = function(e) {
+                e.preventDefault();
+                const btn = document.getElementById('submitPaymentBtn');
+                if (!btn) return;
+
+                btn.disabled = true;
+                const originalText = btn.textContent;
+                btn.textContent = 'Submitting...';
+
+                const formData = new FormData(this);
+                
+                fetch('api_submit_payment.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (typeof showSuccessModal === 'function') {
+                            showSuccessModal(
+                                'Payment Submitted',
+                                data.message,
+                                'order_details.php?id=<?php echo $order_id; ?>',
+                                'orders.php',
+                                'View Order',
+                                'Back to Orders'
+                            );
+                        } else {
+                            alert('Payment submitted! ' + data.message);
+                            window.location.reload();
+                        }
+                        closePaymentModal();
+                    } else {
+                        if (typeof showToast === 'function') showToast('Error: ' + data.message);
+                        else alert('Error: ' + data.message);
+                        btn.disabled = false;
+                        btn.textContent = originalText;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    if (typeof showToast === 'function') showToast('An unexpected error occurred. Please try again.');
+                    else alert('An unexpected error occurred.');
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                });
+            };
+        }
+    }
+</script>
 
             <!-- 2. Order Summary (Items & Total) -->
             <div class="card compact-card">
@@ -574,7 +597,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div style="border-top:1px solid #e5e7eb; padding-top:1rem; margin-top:0.5rem; display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-weight:700; color:#111827; font-size:0.95rem;">Grand Total</span>
                         <?php if ($show_price): ?>
-                            <span style="font-size:1.5rem; font-weight:800; color:#4F46E5;"><?php echo format_currency($order['total_amount']); ?></span>
+                            <span style="font-size:1.5rem; font-weight:800; color:#0d9488;"><?php echo format_currency($order['total_amount']); ?></span>
                         <?php else: ?>
                             <span style="font-size:0.85rem; font-weight:700; color:#6b7280; font-style:italic;">Price will be confirmed by the shop</span>
                         <?php endif; ?>
@@ -582,13 +605,13 @@ require_once __DIR__ . '/../includes/header.php';
 
                     <div style="margin-top:1rem; display:flex; flex-direction:column; gap:0.75rem;">
                         <?php if ($show_price && $order['payment_status'] === 'Unpaid' && !in_array($order['status'], ['Downpayment Submitted', 'Cancelled'], true)): ?>
-                            <button type="button" onclick="openPaymentModal()" class="btn-primary" style="width:100%; padding:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em;">
+                            <button type="button" onclick="openPaymentModal()" class="btn-primary" style="width:100%; padding:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; background: #0d9488;">
                                 Pay now
                             </button>
                         <?php elseif (!$show_price): ?>
-                            <div style="background:#f0f9ff; border:1px solid #bae6fd; border-left:4px solid #0ea5e9; border-radius:10px; padding:12px 14px; display:flex; gap:10px; align-items:center;">
+                            <div style="background:#f0fdfa; border:1px solid #ccfbf1; border-left:4px solid #0d9488; border-radius:10px; padding:12px 14px; display:flex; gap:10px; align-items:center;">
                                 <span style="font-size:1.1rem;">⏳</span>
-                                <div style="font-size:0.75rem; color:#0369a1; font-weight:600; line-height:1.4;">Order is under review. Pricing and payment options will be available soon.</div>
+                                <div style="font-size:0.75rem; color:#0f766e; font-weight:600; line-height:1.4;">Order is under review. Pricing and payment options will be available soon.</div>
                             </div>
                         <?php endif; ?>
 
@@ -634,11 +657,11 @@ require_once __DIR__ . '/../includes/header.php';
 
             <!-- 4. Order Notes -->
             <?php if (!empty($order['notes'])): ?>
-                <div class="card compact-card" style="background:#fffbeb; border:1px solid #fde68a;">
-                    <h2 class="section-header" style="color:#92400e; margin-bottom:0.75rem;">
+                <div class="card compact-card" style="background:#f0fdfa; border:1px solid #ccfbf1;">
+                    <h2 class="section-header" style="color:#0f766e; margin-bottom:0.75rem;">
                         <span>📝</span> Order Notes
                     </h2>
-                    <div style="font-size:0.85rem; color:#b45309; line-height:1.5; font-weight:600; max-height: 120px; overflow-y: auto; word-break: break-word;">
+                    <div style="font-size:0.85rem; color:#115e59; line-height:1.5; font-weight:600; max-height: 120px; overflow-y: auto; word-break: break-word;">
                         <?php echo nl2br(htmlspecialchars($order['notes'] ?? '')); ?>
                     </div>
                 </div>
@@ -659,4 +682,3 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
-

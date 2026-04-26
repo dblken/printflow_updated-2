@@ -443,7 +443,7 @@ if ($display_img !== '' && strpos($display_img, 'http') === false && $display_im
                             <button type="submit" name="action" value="save_changes" class="shopee-btn-primary" style="flex: 1.5;">Save Changes</button>
                         <?php else: ?>
                             <a href="<?php echo BASE_URL; ?>/customer/services.php" class="shopee-btn-outline" style="flex: 1;">Back</a>
-                            <button type="submit" name="action" value="add_to_cart" class="shopee-btn-outline" style="width:2.75rem;height:2.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;" title="Add to Cart"><svg style="width:1.25rem;height:1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></button>
+                            <button type="submit" name="action" value="add_to_cart" class="shopee-btn-outline" style="flex: 1;" title="Add to Cart">Add to Cart</button>
                             <button type="submit" name="action" value="buy_now" id="buyNowBtn" class="shopee-btn-primary" style="flex: 1.5;">Buy Now</button>
                         <?php endif; ?>
                     </div>
@@ -462,8 +462,8 @@ select, input, textarea, .input-field { border: 1px solid #53c5e0 !important; ou
 
 .placement-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
 .placement-card { display: flex; flex-direction: column; align-items: center; cursor: pointer; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem; background: #fff; transition: all 0.2s ease; }
-.placement-card:hover { border-color: #0a2530; background: #f8fafc; }
-.placement-card:has(input:checked) { border-color: #0a2530; background: #f0f9ff; box-shadow: 0 0 0 1px #0a2530; }
+.placement-card:hover { border-color: #0369a1; background: #f8fafc; }
+.placement-card:has(input:checked) { border-color: #0369a1; background: #f0f9ff; box-shadow: 0 0 0 1px #0a2530; }
 .placement-img-wrap { width: 100%; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: #f3f4f6; position: relative; }
 .placement-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
 .placement-label { font-size: 0.65rem; font-weight: 600; text-align: center; margin-top: 0.4rem; line-height: 1.2; color: #475569; text-transform: uppercase; }

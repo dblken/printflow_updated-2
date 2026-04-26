@@ -4,6 +4,9 @@
  * PrintFlow - Printing Shop PWA
  */
 
+// Prevent PCRE JIT memory allocation issues on Windows/XAMPP
+@ini_set('pcre.jit', '0');
+
 /**
  * Read env from getenv / $_ENV / $_SERVER (Apache on Windows often omits getenv).
  */

@@ -146,10 +146,10 @@ require_once __DIR__ . '/../includes/header.php';
 
 <div class="min-h-screen py-8">
     <div class="shopee-layout-container">
-        <div class="text-sm mb-6 flex items-center gap-2" style="color: #94a3b8;">
-            <a href="products.php" style="color: #53c5e0;" class="hover:underline">Products</a>
+        <div class="text-sm mb-6 flex items-center gap-2" style="color: #475569;">
+            <a href="products.php" style="color: #0d9488;" class="hover:underline">Products</a>
             <span>/</span>
-            <span class="font-semibold" style="color: #eaf6fb;"><?php echo htmlspecialchars($product['name']); ?></span>
+            <span class="font-semibold" style="color: #1e293b;"><?php echo htmlspecialchars($product['name']); ?></span>
         </div>
 
         <?php if ($error): ?>
@@ -166,32 +166,32 @@ require_once __DIR__ . '/../includes/header.php';
                              onerror="this.src='https://placehold.co/600x600/f8fafc/0f172a?text=Product'">
                     </div>
                     <?php if (!empty($product['description'])): ?>
-                        <div style="margin-top:20px;padding:16px;background:rgba(0,49,61,0.4);border-radius:0;border:1px solid rgba(83,197,224,0.15);">
-                            <h3 style="font-size:14px;font-weight:700;color:#9fc4d4;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Description</h3>
-                            <p style="font-size:14px;line-height:1.6;color:#eaf6fb;white-space:pre-wrap;"><?php echo nl2br(htmlspecialchars($product['description'])); ?></p>
+                        <div style="margin-top:20px;padding:16px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+                            <h3 style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Description</h3>
+                            <p style="font-size:14px;line-height:1.6;color:#1e293b;white-space:pre-wrap;"><?php echo nl2br(htmlspecialchars($product['description'])); ?></p>
                         </div>
                     <?php endif; ?>
                 </div>
             </div>
 
             <div class="shopee-form-section">
-                <h1 style="font-size: 1.8rem; font-weight: 800; color: #eaf6fb; margin-bottom: 0.5rem;"><?php echo htmlspecialchars($product['name']); ?></h1>
+                <h1 style="font-size: 1.8rem; font-weight: 800; color: #1e293b; margin-bottom: 0.5rem;"><?php echo htmlspecialchars($product['name']); ?></h1>
 
-                <div class="flex items-center gap-4 mb-6 pb-6" style="border-bottom: 1px solid rgba(83, 197, 224, 0.15);">
+                <div class="flex items-center gap-4 mb-6 pb-6" style="border-bottom: 1px solid #e2e8f0;">
                     <div class="flex items-center gap-1">
                         <?php for ($i = 1; $i <= 5; $i++): ?>
-                            <svg class="w-4 h-4" style="fill:<?php echo ($i <= round($avg_rating)) ? '#f97316' : 'rgba(255,255,255,0.1)'; ?>;" viewBox="0 0 20 20">
+                            <svg class="w-4 h-4" style="fill:<?php echo ($i <= round($avg_rating)) ? '#f97316' : '#e2e8f0'; ?>;" viewBox="0 0 20 20">
                                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                             </svg>
                         <?php endfor; ?>
                         <?php if ($total_reviews > 0): ?>
-                            <span style="font-size: 0.85rem; color: #94a3b8; margin-left: 0.25rem;">(<?php echo number_format($total_reviews); ?> Reviews)</span>
+                            <span style="font-size: 0.85rem; color: #475569; margin-left: 0.25rem;">(<?php echo number_format($total_reviews); ?> Reviews)</span>
                         <?php endif; ?>
                     </div>
                     <div style="height: 1rem; width: 1px; background: rgba(83, 197, 224, 0.15);"></div>
-                    <div style="font-size: 0.85rem; color: #94a3b8;"><?php echo $sold_display; ?> Sold</div>
+                    <div style="font-size: 0.85rem; color: #475569;"><?php echo $sold_display; ?> Sold</div>
                     <div style="height: 1rem; width: 1px; background: rgba(83, 197, 224, 0.15);"></div>
-                    <div style="font-size: 1.25rem; font-weight: 800; color: #53c5e0;"><?php echo format_currency($product['price']); ?></div>
+                    <div style="font-size: 1.25rem; font-weight: 800; color: #0d9488;"><?php echo format_currency($product['price']); ?></div>
                 </div>
 
                 <form action="" method="POST" enctype="multipart/form-data" id="productOrderForm" data-pf-skip-validation="true" novalidate>
@@ -214,7 +214,7 @@ require_once __DIR__ . '/../includes/header.php';
                     </div>
 
                     <div class="shopee-form-row">
-                        <div class="shopee-form-label" style="color: #eaf6fb;">Quantity *</div>
+                        <div class="shopee-form-label" style="color: #1e293b;">Quantity *</div>
                         <div class="shopee-form-field">
                             <div class="quantity-container" style="width: 175px;">
                                 <button type="button" class="qty-btn" onmouseover="this.style.background='rgba(83, 197, 224, 0.15)'" onmouseout="this.style.background='transparent'" onclick="const i=document.getElementById('poc-qty');if(parseInt(i.value)>1){i.value=parseInt(i.value)-1;hideStockWarning();}">−</button>
@@ -227,11 +227,11 @@ require_once __DIR__ . '/../includes/header.php';
 
                     <div class="shopee-form-row pt-8">
                         <div style="width: 140px;"></div>
-                        <div class="flex gap-4 flex-1">
+                        <div class="flex gap-3 flex-1">
                             <a href="products.php" class="shopee-btn-outline" style="flex: 1; min-width: 0;">BACK</a>
                             <?php if ((int)$product['stock_quantity'] > 0): ?>
-                                <button type="submit" name="action" value="add_to_cart" class="shopee-btn-outline" style="flex: 1.5; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0.6rem;" title="Add to Cart">
-                                    <svg style="width: 1.125rem; height: 1.125rem; flex-shrink: 0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <button type="submit" name="action" value="add_to_cart" class="shopee-btn-outline" style="flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;" title="Add to Cart">
+                                    <svg style="width: 1rem; height: 1rem; flex-shrink: 0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                     </svg>
                                     <span>ADD TO CART</span>
@@ -240,7 +240,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     <span>BUY NOW</span>
                                 </button>
                             <?php else: ?>
-                                <button type="button" disabled class="shopee-btn-outline" style="flex: 2.5; opacity: 0.5; cursor: not-allowed;">OUT OF STOCK</button>
+                                <button type="button" disabled class="shopee-btn-outline" style="flex: 2; opacity: 0.5; cursor: not-allowed;">OUT OF STOCK</button>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -257,19 +257,19 @@ require_once __DIR__ . '/../includes/header.php';
         $poc_offset = ($poc_page - 1) * $reviews_per_page;
         $reviews_paged = array_slice($reviews, $poc_offset, $reviews_per_page);
         ?>
-        <div style="margin-top:24px;padding:2rem;background:rgba(0,49,61,0.8);border:1px solid rgba(83,197,224,0.18);border-radius:12px;backdrop-filter:blur(10px);">
-            <h2 class="poc-section-title" style="color:#eaf6fb; font-size: 1.35rem; margin-bottom: 1.5rem;">Product Ratings</h2>
+        <div style="margin-top:24px;padding:2rem;background:#ffffff;border:1px solid rgba(83,197,224,0.18);border-radius:12px;backdrop-filter:blur(10px);">
+            <h2 class="poc-section-title" style="color:#1e293b; font-size: 1.35rem; margin-bottom: 1.5rem;">Product Ratings</h2>
 
             <?php if ($total_reviews > 0): ?>
             <!-- Rating summary box -->
-            <div style="background: rgba(0,28,36,0.95); border: 1px solid rgba(83,197,224,0.16); border-radius: 12px; padding: 2rem; margin-bottom: 2rem;">
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 2rem; margin-bottom: 2rem;">
                 <div style="display: flex; gap: 3rem; align-items: center; flex-wrap: wrap;">
                     <div style="text-align: center; border-right: 1px solid rgba(83, 197, 224, 0.1); padding-right: 3rem;">
                         <div style="font-size: 3.5rem; font-weight: 800; color: #f97316; line-height: 1;"><?php echo number_format($avg_rating, 1); ?></div>
-                        <div style="font-size: 1rem; color: #94a3b8; margin-top: 0.5rem;">out of 5</div>
+                        <div style="font-size: 1rem; color: #475569; margin-top: 0.5rem;">out of 5</div>
                         <div style="display: flex; gap: 4px; margin-top: 1rem; justify-content: center;">
                             <?php for ($i = 1; $i <= 5; $i++): ?>
-                                <svg width="24" height="24" fill="<?php echo ($i <= round($avg_rating)) ? '#f97316' : 'rgba(255,255,255,0.1)'; ?>" viewBox="0 0 20 20">
+                                <svg width="24" height="24" fill="<?php echo ($i <= round($avg_rating)) ? '#f97316' : '#e2e8f0'; ?>" viewBox="0 0 20 20">
                                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                                 </svg>
                             <?php endfor; ?>
@@ -310,13 +310,13 @@ require_once __DIR__ . '/../includes/header.php';
                             <?php if ($profile_pic): ?>
                                 <img src="<?php echo $profile_pic; ?>" alt="<?php echo $reviewer_name; ?>" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">
                             <?php else: ?>
-                                    <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(83,197,224,0.1); display: flex; align-items: center; justify-content: center; font-weight: 600; color: #53c5e0;">
+                                    <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(83,197,224,0.1); display: flex; align-items: center; justify-content: center; font-weight: 600; color: #0d9488;">
                                         <?php echo strtoupper(substr($reviewer_name, 0, 1) ?: '?'); ?>
                                     </div>
                                 <?php endif; ?>
                             </div>
                             <div style="flex: 1;">
-                                <div style="font-weight: 700; color: #eaf6fb; margin-bottom: 0.25rem; font-size: 1rem;"><?php echo $reviewer_name; ?></div>
+                                <div style="font-weight: 700; color: #1e293b; margin-bottom: 0.25rem; font-size: 1rem;"><?php echo $reviewer_name; ?></div>
                                 <div style="display: flex; gap: 3px; margin-bottom: 0.5rem;">
                                     <?php for ($i = 1; $i <= 5; $i++): ?>
                                         <svg width="14" height="14" fill="<?php echo ($i <= $rating) ? '#f97316' : 'rgba(255,255,255,0.1)'; ?>" viewBox="0 0 20 20">
@@ -324,12 +324,12 @@ require_once __DIR__ . '/../includes/header.php';
                                     </svg>
                                 <?php endfor; ?>
                             </div>
-                                <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.75rem;">
+                                <div style="font-size: 0.8rem; color: #475569; margin-bottom: 0.75rem;">
                                     <?php echo date('Y-m-d H:i', strtotime($review['created_at'])); ?> 
                                     <?php if ($variation): ?> <span style="margin: 0 8px; opacity: 0.5;">|</span> Variation: <?php echo $variation; ?><?php endif; ?>
                                 </div>
                                 <?php if ($has_comment): ?>
-                                    <div style="color: #b9d4df; line-height: 1.62; margin-bottom: 1rem; font-size: 0.95rem;"><?php echo nl2br($comment); ?></div>
+                                    <div style="color: #475569; line-height: 1.62; margin-bottom: 1rem; font-size: 0.95rem;"><?php echo nl2br($comment); ?></div>
                                 <?php endif; ?>
                             
                             <?php if(!empty($rev_imgs)): ?>
@@ -357,16 +357,16 @@ require_once __DIR__ . '/../includes/header.php';
                             <?php endif; ?>
 
                             <?php if (!empty($review['replies'])): ?>
-                                <div style="margin-top: 1.25rem; padding: 1.25rem; background: rgba(83, 197, 224, 0.04); border-left: 4px solid #53c5e0; border-radius: 8px;">
-                                    <div style="font-size: 0.75rem; font-weight: 800; color: #53c5e0; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.1em; display: flex; align-items: center; gap: 8px;">
+                                <div style="margin-top: 1.25rem; padding: 1.25rem; background: rgba(83, 197, 224, 0.04); border-left: 4px solid #0d9488; border-radius: 8px;">
+                                    <div style="font-size: 0.75rem; font-weight: 800; color: #0d9488; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.1em; display: flex; align-items: center; gap: 8px;">
                                         <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 10h10a8 8 0 018 8v2M3 10l5 5m-5-5l5-5"/></svg>
                                         Staff Response
                                     </div>
                                     <?php foreach ($review['replies'] as $reply): ?>
                                         <div style="margin-bottom: 0.75rem; last-child: margin-bottom: 0;">
-                                            <div style="color: #eaf6fb; font-size: 0.95rem; line-height: 1.62;"><?php echo nl2br(htmlspecialchars($reply['reply_message'])); ?></div>
-                                            <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem; display: flex; align-items: center; gap: 8px;">
-                                                <span style="color: #eaf6fb; font-weight: 700;"><?php echo htmlspecialchars($reply['first_name'] . ' ' . $reply['last_name']); ?></span>
+                                            <div style="color: #1e293b; font-size: 0.95rem; line-height: 1.62;"><?php echo nl2br(htmlspecialchars($reply['reply_message'])); ?></div>
+                                            <div style="font-size: 0.75rem; color: #475569; margin-top: 0.5rem; display: flex; align-items: center; gap: 8px;">
+                                                <span style="color: #1e293b; font-weight: 700;"><?php echo htmlspecialchars($reply['first_name'] . ' ' . $reply['last_name']); ?></span>
                                                 <span style="opacity: 0.4;">&bull;</span>
                                                 <span><?php echo date('Y-m-d', strtotime($reply['created_at'])); ?></span>
                                             </div>
@@ -394,7 +394,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="poc-empty">
                 <svg width="56" height="56" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
                 <p style="font-size:1rem;font-weight:600;margin:0.75rem 0 0.25rem;">No Reviews Yet</p>
-                <p style="font-size:0.875rem;color:#9ca3af;">Be the first to review this product!</p>
+                <p style="font-size:0.875rem;color:#475569;">Be the first to review this product!</p>
             </div>
             <?php endif; ?>
         </div>
@@ -403,19 +403,18 @@ require_once __DIR__ . '/../includes/header.php';
 
 <style>
 .shopee-card {
-    background: rgba(0, 49, 61, 0.82);
-    border: 1.5px solid rgba(83, 197, 224, 0.18);
-    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
     display: flex;
     overflow: hidden;
-    backdrop-filter: blur(12px);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .shopee-image-section {
     flex: 0 0 450px;
-    background: rgba(0, 21, 27, 0.4);
-    border-right: 1px solid rgba(83, 197, 224, 0.12);
+    background: #f8fafc;
+    border-right: 1px solid #e2e8f0;
     padding: 30px;
 }
 
@@ -449,12 +448,12 @@ require_once __DIR__ . '/../includes/header.php';
     width: 140px;
     font-size: 0.85rem;
     font-weight: 700;
-    color: #94a3b8;
+    color: #475569;
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
 
-.dim-label { font-size: 0.75rem; color: #94a3b8; font-weight: 700; margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 0.05em; }
+.dim-label { font-size: 0.75rem; color: #475569; font-weight: 700; margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 0.05em; }
 .need-qty-row { display: flex; gap: 24px; width: 100%; }
 @media (max-width: 640px) { .need-qty-row { flex-direction: column; } }
 
@@ -462,33 +461,33 @@ require_once __DIR__ . '/../includes/header.php';
     display: inline-flex; 
     align-items: center; 
     padding: 0 1rem; 
-    border: 1.5px solid rgba(83, 197, 224, 0.25); 
+    border: 1.5px solid #cbd5e1; 
     border-radius: 0; 
-    background: rgba(12, 43, 56, 0.95); 
+    background: #ffffff; 
     cursor: pointer; 
     transition: all 0.2s; 
     font-size: 0.9rem; 
     font-weight: 600; 
-    color: #eaf6fb; 
+    color: #1e293b; 
     height: 42px; 
     width: 100%;
     outline: none; 
 }
-.shopee-opt-btn:hover, .shopee-opt-btn:focus { border-color: #53c5e0 !important; box-shadow: 0 0 15px rgba(83, 197, 224, 0.15); }
-.shopee-opt-btn option { background: #001c24; color: #eaf6fb; }
+.shopee-opt-btn:hover, .shopee-opt-btn:focus { border-color: #0d9488 !important; box-shadow: 0 0 15px rgba(83, 197, 224, 0.15); }
+.shopee-opt-btn option { background: #ffffff; color: #1e293b; }
 
 .quantity-container {
     display: flex;
     align-items: center;
-    border: 1.5px solid rgba(83, 197, 224, 0.25);
+    border: 1.5px solid #cbd5e1;
     border-radius: 0;
-    background: rgba(12, 43, 56, 0.95);
+    background: #ffffff;
     height: 42px;
     width: 100%;
     overflow: hidden;
     transition: all 0.2s;
 }
-.quantity-container:hover { border-color: #53c5e0; }
+.quantity-container:hover { border-color: #0d9488; }
 
 .qty-btn {
     flex: 0 0 48px;
@@ -498,7 +497,7 @@ require_once __DIR__ . '/../includes/header.php';
     justify-content: center;
     background: transparent;
     border: none;
-    color: #53c5e0;
+    color: #0d9488;
     font-size: 1.25rem;
     cursor: pointer;
     transition: all 0.2s;
@@ -508,10 +507,10 @@ require_once __DIR__ . '/../includes/header.php';
     flex: 1;
     min-width: 0;
     height: 100%;
-    background: rgba(0,0,0,0.1);
+    background: #ffffff;
     border: none;
     text-align: center;
-    color: #eaf6fb;
+    color: #1e293b;
     font-weight: 700;
     font-size: 1.1rem;
     outline: none;
@@ -534,63 +533,60 @@ require_once __DIR__ . '/../includes/header.php';
 .field-error::before { content: '⚠'; font-size: 1rem; }
 
 .shopee-btn-outline {
-    height: 42px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0 1.5rem;
-    border: 1.5px solid #53c5e0;
-    border-radius: 0; 
-    background: transparent;
-    color: #eaf6fb;
-    font-weight: 800;
-    font-size: 0.85rem;
-    letter-spacing: 0.08em;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    text-decoration: none;
-    cursor: pointer;
+    border: 1.5px solid #0d9488;
+    background: #ffffff;
+    color: #0d9488;
+    font-weight: 700;
+    font-size: 0.875rem;
+    border-radius: 8px !important;
+    transition: all 0.2s;
     text-transform: uppercase;
+    cursor: pointer;
+    text-decoration: none;
 }
 
 .shopee-btn-outline:hover {
-    background: rgba(83, 197, 224, 0.1);
-    box-shadow: 0 0 15px rgba(83, 197, 224, 0.2);
+    background: #f0f9ff;
+    box-shadow: 0 4px 12px rgba(3, 105, 161, 0.1);
 }
 
 .shopee-btn-primary {
-    height: 42px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0 1.5rem;
-    border: none;
-    border-radius: 0; 
-    background: #53c5e0;
-    color: #001c24;
-    font-weight: 900;
-    font-size: 0.95rem;
-    letter-spacing: 0.05em;
+    background: #0d9488;
+    color: #ffffff;
+    border: 1.5px solid #0d9488;
+    font-weight: 700;
+    font-size: 0.875rem;
+    border-radius: 8px !important;
+    transition: all 0.2s;
     text-transform: uppercase;
-    box-shadow: 0 0 15px rgba(83, 197, 224, 0.25);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
 }
 
 .shopee-btn-primary:hover {
-    background: #7adcf5;
-    box-shadow: 0 0 25px rgba(83, 197, 224, 0.5);
-    transform: translateY(-2px);
+    background: #025a87;
+    border-color: #025a87;
+    box-shadow: 0 4px 12px rgba(3, 105, 161, 0.25);
 }
 
 /* Ratings section */
-.poc-section-title { font-size:1.1rem;font-weight:700;color:#111827;margin:0 0 0.75rem; }
+.poc-section-title { font-size:1.1rem;font-weight:700;color:#1e293b;margin:0 0 0.75rem; }
 
 .poc-filter-btn {
     padding: 0.65rem 1.25rem;
-    border: 1.5px solid rgba(83, 197, 224, 0.18);
+    border: 1px solid #e2e8f0;
     border-radius: 10px;
-    background: rgba(12, 43, 56, 0.8);
-    color: #b9d4df;
+    background: #f8fafc;
+    color: #475569;
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
@@ -598,14 +594,13 @@ require_once __DIR__ . '/../includes/header.php';
 }
 
 .poc-filter-btn.active {
-    background: #53c5e0 !important;
-    color: #001c24 !important;
-    border-color: #53c5e0 !important;
-    box-shadow: 0 0 15px rgba(83, 197, 224, 0.2);
+    background: #0d9488 !important;
+    color: #ffffff !important;
+    border-color: #0d9488 !important;
 }
 
 .poc-filter-btn:hover:not(.active) {
-    border-color: #53c5e0;
+    border-color: #0d9488;
     background: rgba(83, 197, 224, 0.1);
 }
 
@@ -613,9 +608,9 @@ require_once __DIR__ . '/../includes/header.php';
 .poc-review-item { border-bottom:1px solid rgba(83,197,224,0.1);padding:1.5rem 0; }
 .poc-review-item:last-child { border-bottom:none; }
 
-.poc-empty { text-align:center;padding:4rem 1rem;color:#94a3b8; }
-.helpful-btn { display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1.5px solid rgba(83,197,224,0.18);border-radius:8px;background:rgba(83,197,224,0.05);color:#94a3b8;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.2s; }
-.helpful-btn:hover { color:#53c5e0; border-color: #53c5e0; }
+.poc-empty { text-align:center;padding:4rem 1rem;color:#475569; }
+.helpful-btn { display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1.5px solid rgba(83,197,224,0.18);border-radius:8px;background:rgba(83,197,224,0.05);color:#475569;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.2s; }
+.helpful-btn:hover { color:#0d9488; border-color: #0d9488; }
 .helpful-btn.voted { color:#f97316; border-color: #f97316; background: rgba(249, 115, 22, 0.1); }
 .helpful-btn.voted svg { fill:#f97316; }
 </style>
