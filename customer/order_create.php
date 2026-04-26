@@ -139,6 +139,15 @@ $sold_display = $sold_count >= 1000 ? number_format($sold_count / 1000, 1) . 'k'
 
 $branches = db_query("SELECT id, branch_name FROM branches WHERE status = 'Active'") ?: [];
 
+// Fetch branch stocks for this product
+$branch_stocks = db_query(
+    "SELECT pbs.branch_id, pbs.stock_quantity, b.branch_name 
+     FROM product_branch_stock pbs
+     JOIN branches b ON pbs.branch_id = b.id
+     WHERE pbs.product_id = ?",
+    'i', [$product_id]
+) ?: [];
+
 $page_title = 'Order ' . $product['name'] . ' - PrintFlow';
 $use_customer_css = true;
 require_once __DIR__ . '/../includes/header.php';
@@ -180,12 +189,12 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="flex items-center gap-4 mb-6 pb-6" style="border-bottom: 1px solid #e2e8f0;">
                     <div class="flex items-center gap-1">
                         <?php for ($i = 1; $i <= 5; $i++): ?>
-                            <svg class="w-4 h-4" style="fill:<?php echo ($i <= round($avg_rating)) ? '#f97316' : '#e2e8f0'; ?>;" viewBox="0 0 20 20">
+                            <svg class="w-4 h-4" style="fill:<?php echo ($i <= round($avg_rating)) ? '#fbbf24' : '#e2e8f0'; ?>;" viewBox="0 0 20 20">
                                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                             </svg>
                         <?php endfor; ?>
                         <?php if ($total_reviews > 0): ?>
-                            <span style="font-size: 0.85rem; color: #475569; margin-left: 0.25rem;">(<?php echo number_format($total_reviews); ?> Reviews)</span>
+                            <span style="font-size: 0.85rem; color: #4b5563; margin-left: 0.25rem;">(<?php echo number_format($total_reviews); ?> Reviews)</span>
                         <?php endif; ?>
                     </div>
                     <div style="height: 1rem; width: 1px; background: rgba(83, 197, 224, 0.15);"></div>
@@ -200,7 +209,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="shopee-form-row">
                         <div class="shopee-form-label">Branch *</div>
                         <div class="shopee-form-field">
-                            <select name="branch_id" class="shopee-opt-btn" required style="width: 175px; cursor: pointer;">
+                            <select name="branch_id" id="branch-select" class="shopee-opt-btn" required style="width: 175px; cursor: pointer;" onchange="updateBranchStockDisplay(this.value)">
                                 <option value="">Select Branch</option>
                                 <?php 
                                 $saved_branch = $existing_data['branch_id'] ?? '';
@@ -210,6 +219,9 @@ require_once __DIR__ . '/../includes/header.php';
                                     <option value="<?php echo $b['id']; ?>"<?php echo $selected; ?>><?php echo htmlspecialchars($b['branch_name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
+                            <div id="branch-stock-info" style="display: none; font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; font-weight: 500;">
+                                Available stock: <span id="branch-stock-count" style="font-weight: 700; color: #1e293b;">0</span> (<span id="branch-name-display"></span>)
+                            </div>
                         </div>
                     </div>
 
@@ -228,16 +240,16 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="shopee-form-row pt-8">
                         <div style="width: 140px;"></div>
                         <div class="flex gap-3 flex-1">
-                            <a href="products.php" class="shopee-btn-outline" style="flex: 1; min-width: 0;">BACK</a>
+                            <a href="products.php" class="shopee-btn-outline" style="flex: 1; min-width: 0;">Back</a>
                             <?php if ((int)$product['stock_quantity'] > 0): ?>
                                 <button type="submit" name="action" value="add_to_cart" class="shopee-btn-outline" style="flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem;" title="Add to Cart">
                                     <svg style="width: 1rem; height: 1rem; flex-shrink: 0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                     </svg>
-                                    <span>ADD TO CART</span>
+                                    <span>Add to Cart</span>
                                 </button>
                                 <button type="submit" name="action" value="buy_now" class="shopee-btn-primary" style="flex: 1; min-width: 0;">
-                                    <span>BUY NOW</span>
+                                    <span>Pay Now</span>
                                 </button>
                             <?php else: ?>
                                 <button type="button" disabled class="shopee-btn-outline" style="flex: 2; opacity: 0.5; cursor: not-allowed;">OUT OF STOCK</button>
@@ -269,7 +281,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <div style="font-size: 1rem; color: #475569; margin-top: 0.5rem;">out of 5</div>
                         <div style="display: flex; gap: 4px; margin-top: 1rem; justify-content: center;">
                             <?php for ($i = 1; $i <= 5; $i++): ?>
-                                <svg width="24" height="24" fill="<?php echo ($i <= round($avg_rating)) ? '#f97316' : '#e2e8f0'; ?>" viewBox="0 0 20 20">
+                                <svg width="24" height="24" fill="<?php echo ($i <= round($avg_rating)) ? '#fbbf24' : '#e2e8f0'; ?>" viewBox="0 0 20 20">
                                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                                 </svg>
                             <?php endfor; ?>
@@ -319,7 +331,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <div style="font-weight: 700; color: #1e293b; margin-bottom: 0.25rem; font-size: 1rem;"><?php echo $reviewer_name; ?></div>
                                 <div style="display: flex; gap: 3px; margin-bottom: 0.5rem;">
                                     <?php for ($i = 1; $i <= 5; $i++): ?>
-                                        <svg width="14" height="14" fill="<?php echo ($i <= $rating) ? '#f97316' : 'rgba(255,255,255,0.1)'; ?>" viewBox="0 0 20 20">
+                                        <svg width="14" height="14" fill="<?php echo ($i <= $rating) ? '#fbbf24' : 'rgba(255,255,255,0.1)'; ?>" viewBox="0 0 20 20">
                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.176 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                                     </svg>
                                 <?php endfor; ?>
@@ -538,21 +550,22 @@ require_once __DIR__ . '/../includes/header.php';
     align-items: center;
     justify-content: center;
     padding: 0 1.5rem;
-    border: 1.5px solid #0d9488;
+    border: 1px solid #cbd5e1;
     background: #ffffff;
-    color: #0d9488;
-    font-weight: 700;
+    color: #475569;
+    font-weight: 600;
     font-size: 0.875rem;
-    border-radius: 8px !important;
+    border-radius: 4px !important;
     transition: all 0.2s;
-    text-transform: uppercase;
+    text-transform: capitalize;
     cursor: pointer;
     text-decoration: none;
 }
 
 .shopee-btn-outline:hover {
-    background: #f0f9ff;
-    box-shadow: 0 4px 12px rgba(3, 105, 161, 0.1);
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #1e293b;
 }
 
 .shopee-btn-primary {
@@ -561,21 +574,20 @@ require_once __DIR__ . '/../includes/header.php';
     align-items: center;
     justify-content: center;
     padding: 0 1.5rem;
-    background: #0d9488;
+    background: #0f172a;
     color: #ffffff;
-    border: 1.5px solid #0d9488;
-    font-weight: 700;
+    border: 1px solid #0f172a;
+    font-weight: 600;
     font-size: 0.875rem;
-    border-radius: 8px !important;
+    border-radius: 4px !important;
     transition: all 0.2s;
-    text-transform: uppercase;
+    text-transform: capitalize;
     cursor: pointer;
 }
 
 .shopee-btn-primary:hover {
-    background: #025a87;
-    border-color: #025a87;
-    box-shadow: 0 4px 12px rgba(3, 105, 161, 0.25);
+    background: #1e293b;
+    border-color: #1e293b;
 }
 
 /* Ratings section */
@@ -696,6 +708,40 @@ async function markHelpful(reviewId, btn) {
         }
     } catch(e) {}
 }
+function updateBranchStockDisplay(branchId) {
+    const branchStocks = <?php echo json_encode($branch_stocks); ?>;
+    const infoDiv = document.getElementById('branch-stock-info');
+    const countSpan = document.getElementById('branch-stock-count');
+    const nameSpan = document.getElementById('branch-name-display');
+    const qtyInput = document.getElementById('poc-qty');
+
+    if (!branchId) {
+        infoDiv.style.display = 'none';
+        return;
+    }
+
+    const stock = branchStocks.find(s => s.branch_id == branchId);
+    if (stock) {
+        infoDiv.style.display = 'block';
+        countSpan.textContent = stock.stock_quantity;
+        nameSpan.textContent = stock.branch_name;
+        
+        // Update qty input constraints based on branch stock
+        qtyInput.max = stock.stock_quantity;
+        if (parseInt(qtyInput.value) > parseInt(stock.stock_quantity)) {
+            qtyInput.value = stock.stock_quantity;
+        }
+    } else {
+        infoDiv.style.display = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const branchSelect = document.getElementById('branch-select');
+    if (branchSelect && branchSelect.value) {
+        updateBranchStockDisplay(branchSelect.value);
+    }
+});
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

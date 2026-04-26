@@ -5,6 +5,7 @@
  */
 
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/db.php';
 
 // Must be logged in
 if (empty($_SESSION['user_id'])) {
@@ -12,87 +13,108 @@ if (empty($_SESSION['user_id'])) {
     die('Unauthorized');
 }
 
-$file = rawurldecode((string)($_GET['file'] ?? ''));
-$normalized_file = str_replace('\\', '/', $file);
-$basename = basename($normalized_file);
+// 1. Properly decode and sanitize parameters
+$file_param = (string)($_GET['file'] ?? '');
+$order_item_id = (int)($_GET['order_item_id'] ?? 0);
 
-if (empty($basename)) {
-    http_response_code(400);
-    die('Bad Request');
+if ($order_item_id > 0) {
+    // Handle database-stored design images (BLOBs)
+    $item = db_query(
+        "SELECT design_image, design_image_mime FROM order_items WHERE order_item_id = ?",
+        'i', [$order_item_id]
+    );
+    
+    if (empty($item) || empty($item[0]['design_image'])) {
+        http_response_code(404);
+        die('Image not found');
+    }
+    
+    $mime = $item[0]['design_image_mime'] ?: 'image/jpeg';
+    header('Content-Type: ' . $mime);
+    header('Content-Length: ' . strlen($item[0]['design_image']));
+    echo $item[0]['design_image'];
+    exit;
 }
 
-// Resolve candidate locations safely.
+$file = rawurldecode($file_param);
+
+// 2. Remove incorrect prefixes like "/printflow/" or "printflow/"
+// This handles cases where the path was stored with or without the root folder
+$clean_path = str_replace('\\', '/', $file);
+$clean_path = preg_replace('/^\/?printflow\//i', '', $clean_path);
+$clean_path = ltrim($clean_path, '/');
+
+// Security: Prevent directory traversal
+if (strpos($clean_path, '..') !== false) {
+    http_response_code(403);
+    die('Forbidden: Invalid path');
+}
+
+// 3. Resolve candidate locations safely.
+// We check multiple possible locations to ensure backward compatibility.
 $candidates = [
-    __DIR__ . '/uploads/secure_payments/' . $basename,
-    __DIR__ . '/uploads/payments/' . $basename,
+    __DIR__ . '/' . $clean_path, // If $clean_path already includes "uploads/payments/..."
+    __DIR__ . '/uploads/payments/' . basename($clean_path),
+    __DIR__ . '/uploads/secure_payments/' . basename($clean_path),
 ];
 
-if (strpos($normalized_file, '/printflow/') === 0) {
-    $candidates[] = __DIR__ . substr($normalized_file, strlen('/printflow'));
-}
-if (strpos($normalized_file, 'uploads/') === 0) {
-    $candidates[] = __DIR__ . '/' . $normalized_file;
-}
-$uploads_pos = stripos($normalized_file, '/uploads/');
-if ($uploads_pos !== false) {
-    $candidates[] = __DIR__ . substr($normalized_file, $uploads_pos);
-}
-
 $filepath = '';
-$uploads_root = realpath(__DIR__ . '/uploads');
-$uploads_root_n = $uploads_root !== false ? str_replace('\\', '/', strtolower($uploads_root)) : false;
 foreach ($candidates as $candidate) {
-    if (!is_string($candidate) || $candidate === '' || !file_exists($candidate)) {
-        continue;
+    if (file_exists($candidate) && is_file($candidate)) {
+        $filepath = $candidate;
+        break;
     }
-    $real = realpath($candidate);
-    if ($real === false || $uploads_root_n === false) {
-        continue;
-    }
-    $real_n = str_replace('\\', '/', strtolower($real));
-    if (strpos($real_n, $uploads_root_n) !== 0) {
-        continue;
-    }
-    $filepath = $real;
-    break;
 }
 
+// Debug Support (Internal logging if needed)
+// error_log("[DEBUG] api_view_proof: Param=$file_param | Clean=$clean_path | Resolved=$filepath");
+
+// Validate file existence
 if ($filepath === '') {
     http_response_code(404);
     die('File not found');
 }
 
-// Check authorization
-// 1. Staff-facing roles (customizations / orders)
-$is_staff = isset($_SESSION['user_type']) && in_array($_SESSION['user_type'], ['Admin', 'Staff', 'Manager'], true);
+// Security: Final check to ensure we are still inside the project uploads/ directory
+$real_filepath = realpath($filepath);
+$real_uploads = realpath(__DIR__ . '/uploads');
+if (!$real_filepath || !$real_uploads || strpos($real_filepath, $real_uploads) !== 0) {
+    http_response_code(403);
+    die('Forbidden: Access denied');
+}
 
-// 2. Customer: job_orders or store orders payment_proof
+// 4. Check authorization
+$is_staff = isset($_SESSION['user_type']) && in_array($_SESSION['user_type'], ['Admin', 'Staff', 'Manager'], true);
 $is_owner = false;
+
 if (!$is_staff && isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'Customer') {
     $customer_id = (int)$_SESSION['user_id'];
+    $basename = basename($real_filepath);
+    
+    // Check both orders and job_orders tables for ownership
     $check = db_query(
-        "SELECT id FROM job_orders 
-         WHERE customer_id = ? 
-           AND (payment_proof_path = ? OR payment_proof_path LIKE CONCAT('%', ?, '%'))
-         LIMIT 1",
-        'iss',
-        [$customer_id, $normalized_file, $basename]
+        "SELECT id FROM job_orders WHERE customer_id = ? AND (payment_proof_path LIKE ? OR payment_proof_path = ?) LIMIT 1",
+        'iss', [$customer_id, "%$basename%", $clean_path]
     );
-    if (!empty($check)) {
-        $is_owner = true;
-    }
+    if (!empty($check)) $is_owner = true;
+    
     if (!$is_owner) {
         $check_o = db_query(
-            "SELECT order_id FROM orders 
-             WHERE customer_id = ? 
-               AND (payment_proof = ? OR payment_proof LIKE CONCAT('%', ?, '%'))
-             LIMIT 1",
-            'iss',
-            [$customer_id, $normalized_file, $basename]
+            "SELECT order_id FROM orders WHERE customer_id = ? AND (payment_proof LIKE ? OR payment_proof = ?) LIMIT 1",
+            'iss', [$customer_id, "%$basename%", $clean_path]
         );
-        if (!empty($check_o)) {
-            $is_owner = true;
-        }
+        if (!empty($check_o)) $is_owner = true;
+    }
+    
+    if (!$is_owner) {
+        // Also check payments table
+        $check_p = db_query(
+            "SELECT id FROM payments p 
+             INNER JOIN orders o ON p.order_id = o.order_id
+             WHERE o.customer_id = ? AND (p.proof_image LIKE ? OR p.proof_image = ?) LIMIT 1",
+            'iss', [$customer_id, "%$basename%", $clean_path]
+        );
+        if (!empty($check_p)) $is_owner = true;
     }
 }
 
@@ -101,14 +123,15 @@ if (!$is_staff && !$is_owner) {
     die('Forbidden');
 }
 
-// Serve the file
-$mime = mime_content_type($filepath);
+// 5. Serve the file with correct Content-Type and Cache-Control
+$mime = mime_content_type($real_filepath);
 header('Content-Type: ' . $mime);
-header('Content-Length: ' . filesize($filepath));
-// Force cache disable for dynamic checks
+header('Content-Length: ' . filesize($real_filepath));
+
+// Security/Privacy: Force cache disable for dynamic authorization checks
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
 
-readfile($filepath);
+readfile($real_filepath);
 exit;

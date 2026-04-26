@@ -719,7 +719,7 @@ function upload_file($file, $allowed_extensions = [], $destination = 'uploads', 
     }
     
     $target_path = $upload_dir . '/' . $new_name;
-    $relative_path = '/printflow/uploads/' . $destination . '/' . $new_name;
+    $relative_path = 'uploads/' . $destination . '/' . $new_name;
     
     if (move_uploaded_file($file['tmp_name'], $target_path)) {
         return [
