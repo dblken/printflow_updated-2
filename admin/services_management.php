@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
         $name = preg_replace('/\s+/', ' ', trim($_POST['name'] ?? ''));
         $category = sanitize($_POST['category'] ?? '');
         $description = sanitize($_POST['description'] ?? '');
-        $price = 1.0;
+        $price = 0.0;
         $statusRaw = trim((string) ($_POST['status'] ?? ''));
         $status = ($statusRaw === 'Deactivated') ? 'Deactivated' : 'Activated';
         $hero_image = sanitize(trim((string) ($_POST['hero_image'] ?? '')));
@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf_token($_POST['csrf_toke
         $name = preg_replace('/\s+/', ' ', trim($_POST['name'] ?? ''));
         $category = sanitize($_POST['category'] ?? '');
         $description = sanitize($_POST['description'] ?? '');
-        $price = 1.0;
+        $price = 0.0;
         $statusRaw = trim((string) ($_POST['status'] ?? ''));
         $status = ($statusRaw === 'Deactivated') ? 'Deactivated' : 'Activated';
         $hero_image = sanitize(trim((string) ($_POST['hero_image'] ?? '')));

@@ -92,6 +92,7 @@ function get_service_field_config($service_id) {
             'label' => $config['field_label'],
             'type' => $config['field_type'],
             'options' => $config['field_options'] ? json_decode($config['field_options'], true) : null,
+            'fee_amount' => isset($config['fee_amount']) ? (float)$config['fee_amount'] : 0.00,
             'visible' => (bool)$config['is_visible'],
             'required' => (bool)$config['is_required'],
             'default' => $config['default_value'],
@@ -119,7 +120,7 @@ function save_service_field_config($service_id, $field_key, $config) {
     // Format the label
     $formatted_label = formatToTitleCase($config['label']);
     
-    // Format options if they exist
+    // Format options if they exist - now includes fee field
     $formatted_options = null;
     if (isset($config['options']) && is_array($config['options'])) {
         $formatted_options = array_map(function($opt) {
@@ -127,6 +128,10 @@ function save_service_field_config($service_id, $field_key, $config) {
                 // Handle nested field options
                 if (isset($opt['value'])) {
                     $opt['value'] = formatToTitleCase($opt['value']);
+                }
+                // Ensure fee field exists
+                if (!isset($opt['fee'])) {
+                    $opt['fee'] = 0;
                 }
                 if (isset($opt['nested_fields']) && is_array($opt['nested_fields'])) {
                     foreach ($opt['nested_fields'] as &$nf) {
@@ -147,13 +152,39 @@ function save_service_field_config($service_id, $field_key, $config) {
     $options_json = $formatted_options ? json_encode($formatted_options) : null;
     $unit = $config['unit'] ?? 'ft';
     $allow_others = isset($config['allow_others']) ? ($config['allow_others'] ? 1 : 0) : 1;
+    $fee_amount = isset($config['fee_amount']) ? (float)$config['fee_amount'] : 0.00;
     
     if (!empty($existing)) {
+        $update_params = [
+            $formatted_label,
+            $config['type'],
+            $options_json,
+            $fee_amount,
+            $config['visible'] ? 1 : 0,
+            $config['required'] ? 1 : 0,
+            $config['default'] ?? null,
+            $unit,
+            $allow_others,
+            $config['order'] ?? 0,
+            $config['parent_field_key'] ?? null,
+            $config['parent_value'] ?? null,
+            $service_id,
+            $field_key
+        ];
+        
+        $update_types = '';
+        foreach ($update_params as $p) {
+            if (is_int($p)) $update_types .= 'i';
+            elseif (is_float($p)) $update_types .= 'd';
+            else $update_types .= 's';
+        }
+
         db_execute(
             "UPDATE service_field_configs SET 
                 field_label = ?, 
                 field_type = ?, 
-                field_options = ?, 
+                field_options = ?,
+                fee_amount = ?, 
                 is_visible = ?, 
                 is_required = ?, 
                 default_value = ?, 
@@ -164,44 +195,40 @@ function save_service_field_config($service_id, $field_key, $config) {
                 parent_value = ?,
                 updated_at = NOW()
             WHERE service_id = ? AND field_key = ?",
-            'sssiissiissis',
-            [
-                $formatted_label,
-                $config['type'],
-                $options_json,
-                $config['visible'] ? 1 : 0,
-                $config['required'] ? 1 : 0,
-                $config['default'] ?? null,
-                $unit,
-                $allow_others,
-                $config['order'] ?? 0,
-                $config['parent_field_key'] ?? null,
-                $config['parent_value'] ?? null,
-                $service_id,
-                $field_key
-            ]
+            $update_types,
+            $update_params
         );
     } else {
+        $insert_params = [
+            $service_id,
+            $field_key,
+            $formatted_label,
+            $config['type'],
+            $options_json,
+            $fee_amount,
+            $config['visible'] ? 1 : 0,
+            $config['required'] ? 1 : 0,
+            $config['default'] ?? null,
+            $unit,
+            $allow_others,
+            $config['order'] ?? 0,
+            $config['parent_field_key'] ?? null,
+            $config['parent_value'] ?? null
+        ];
+        
+        $insert_types = '';
+        foreach ($insert_params as $p) {
+            if (is_int($p)) $insert_types .= 'i';
+            elseif (is_float($p)) $insert_types .= 'd';
+            else $insert_types .= 's';
+        }
+
         db_execute(
             "INSERT INTO service_field_configs 
-                (service_id, field_key, field_label, field_type, field_options, is_visible, is_required, default_value, unit, allow_others, display_order, parent_field_key, parent_value) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            'issssiissiiss',
-            [
-                $service_id,
-                $field_key,
-                $formatted_label,
-                $config['type'],
-                $options_json,
-                $config['visible'] ? 1 : 0,
-                $config['required'] ? 1 : 0,
-                $config['default'] ?? null,
-                $unit,
-                $allow_others,
-                $config['order'] ?? 0,
-                $config['parent_field_key'] ?? null,
-                $config['parent_value'] ?? null
-            ]
+                (service_id, field_key, field_label, field_type, field_options, fee_amount, is_visible, is_required, default_value, unit, allow_others, display_order, parent_field_key, parent_value) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            $insert_types,
+            $insert_params
         );
     }
 }

@@ -233,6 +233,7 @@ window.collectNestedFieldConfigurations = function() {
                     const optionInput = optionItem.querySelector('.option-input');
                     const optionValue = optionInput ? optionInput.value.trim() : '';
                     const optionPrice = optionItem.querySelector('.option-price-input') ? parseFloat(optionItem.querySelector('.option-price-input').value) || 0 : 0;
+                    const optionFee = optionItem.querySelector('.option-fee-input') ? parseFloat(optionItem.querySelector('.option-fee-input').value) || 0 : 0;
                     if (!optionValue) return;
                     
                     // Check if this option has a nested field panel
@@ -274,24 +275,30 @@ window.collectNestedFieldConfigurations = function() {
                             options.push({
                                 value: optionValue,
                                 price: optionPrice,
+                                fee: optionFee,
                                 nested_fields: nestedFields
                             });
                         } else {
                             options.push({
                                 value: optionValue,
-                                price: optionPrice
+                                price: optionPrice,
+                                fee: optionFee
                             });
                         }
                     } else {
                         // No nested field panel
                         options.push({
                             value: optionValue,
-                            price: optionPrice
+                            price: optionPrice,
+                            fee: optionFee
                         });
                     }
                 });
                 
                 if (options.length > 0) config.options = options;
+
+                const allowOthersToggle = card.querySelector('.allow-others-toggle');
+                if (allowOthersToggle) config.allow_others = allowOthersToggle.checked;
             }
         }
         // Handle select fields (no nested support)
@@ -303,14 +310,19 @@ window.collectNestedFieldConfigurations = function() {
                     const input = item.querySelector('.option-input');
                     const val = input ? input.value.trim() : '';
                     const price = item.querySelector('.option-price-input') ? parseFloat(item.querySelector('.option-price-input').value) || 0 : 0;
+                    const fee = item.querySelector('.option-fee-input') ? parseFloat(item.querySelector('.option-fee-input').value) || 0 : 0;
                     if (val) {
                         options.push({
                             value: val,
-                            price: price
+                            price: price,
+                            fee: fee
                         });
                     }
                 });
                 if (options.length > 0) config.options = options;
+
+                const allowOthersToggle = card.querySelector('.allow-others-toggle');
+                if (allowOthersToggle) config.allow_others = allowOthersToggle.checked;
             }
         }
         // Handle dimension fields

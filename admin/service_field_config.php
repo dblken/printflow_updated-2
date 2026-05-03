@@ -187,14 +187,17 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
         .toggle-switch input:checked + .toggle-slider { background:#0d9488; }
         .toggle-switch input:checked + .toggle-slider:before { transform:translateX(22px); }
         .toggle-label { display:inline-flex; align-items:center; gap:10px; font-size:13px; color:#374151; font-weight:500; }
-        .option-list { display:flex; flex-direction:column; gap:8px; }
-        .option-item { display:flex; gap:8px; align-items:center; }
-        .option-input { flex:1; padding:9px 12px; border:1px solid #e5e7eb; border-radius:6px; font-size:13px; transition:all 0.2s; }
+        .option-list { display:flex; flex-direction:column; gap:12px; }
+        .option-item { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:10px; background:#f8fafb; border:1px solid #e5e7eb; border-radius:8px; }
+        .option-input { flex:1.5; min-width:140px; padding:9px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; transition:all 0.2s; }
         .option-input:focus { outline:none; border-color:#0d9488; box-shadow:0 0 0 2px rgba(13,148,136,0.1); }
-        .btn-remove { padding:8px 12px; background:#fee2e2; color:#dc2626; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s; }
-        .btn-remove:hover { background:#fecaca; }
-        .btn-add { padding:9px 16px; background:#f0fdfa; color:#0d9488; border:1px solid #0d9488; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; transition:all 0.2s; }
+        .option-price-input, .option-fee-input { width:75px; padding:9px 8px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; }
+        .btn-remove { padding:9px 12px; background:#fff1f2; color:#e11d48; border:1px solid #fda4af; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s; }
+        .btn-remove:hover { background:#ffe4e6; color:#be123c; }
+        .btn-add { padding:9px 12px; background:#f0fdfa; color:#0d9488; border:1px solid #5eead4; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600; transition:all 0.2s; }
         .btn-add:hover { background:#ccfbf1; }
+        .fee-toggle-btn { min-width:60px !important; }
+        .nested-field-panel { width:100%; margin-top:8px; padding:16px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:inset 0 2px 4px rgba(0,0,0,0.02); }
         .btn-save { padding:8px 16px; background:#0d9488; color:#fff; border:none; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; }
         .btn-save:hover { background:#0f766e; }
         .btn-cancel { padding:8px 16px; background:#f3f4f6; color:#374151; border:none; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; }
@@ -205,13 +208,13 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
         .info-box p { margin:0; font-size:13px; color:#1e40af; line-height:1.5; }
         
         /* Modal Styles */
-        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:16px; }
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center; padding:16px; }
         .modal-overlay.active { display:flex; }
-        .modal-content { background:#fff; border-radius:12px; max-width:500px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 25px 50px rgba(0,0,0,0.25); }
+        .modal-content { background:#fff; border-radius:16px; max-width:650px; width:100%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); overflow:hidden; }
         .modal-header { padding:18px 20px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; }
         .modal-header h3 { margin:0; font-size:18px; font-weight:700; color:#1f2937; }
-        .modal-body { padding:20px; }
-        .modal-footer { padding:16px 20px; border-top:1px solid #e5e7eb; display:flex; gap:12px; justify-content:flex-end; }
+        .modal-body { padding:20px; max-height:calc(90vh - 130px); overflow-y:auto; }
+        .modal-footer { padding:16px 20px; border-top:1px solid #e5e7eb; display:flex; gap:12px; justify-content:flex-end; background:#fff; border-bottom-left-radius:12px; border-bottom-right-radius:12px; }
         .btn-modal-cancel { padding:10px 20px; background:#f3f4f6; color:#374151; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; }
         .btn-modal-cancel:hover { background:#e5e7eb; }
         .btn-modal-save { padding:10px 20px; background:#0d9488; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; }
@@ -362,21 +365,73 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                                                     <?php foreach ($config['options'] ?? [] as $optIdx => $option): 
                                                         $optValue = is_array($option) ? ($option['value'] ?? '') : $option;
                                                         $optPrice = is_array($option) ? ($option['price'] ?? 0) : 0;
+                                                        $optFee = is_array($option) ? ($option['fee'] ?? 0) : 0;
                                                         $nestedFields = is_array($option) ? ($option['nested_fields'] ?? []) : [];
                                                     ?>
-                                                        <div class="option-item radio-option-item" data-option-index="<?php echo $optIdx; ?>" style="flex-direction:column;align-items:stretch;">
-                            <div style="display:flex;gap:8px;align-items:center;">
-                                <input type="text" class="option-input" value="<?php echo htmlspecialchars($optValue); ?>" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;">
-                                <input type="number" class="option-price-input" value="<?php echo $optPrice; ?>" placeholder="Price" min="0" step="0.01" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option">
-                                <button type="button" class="btn-add" onclick="toggleNestedFieldPanel(this, '<?php echo htmlspecialchars($key); ?>', <?php echo $optIdx; ?>)" style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:6px;font-size:14px;font-weight:600;min-width:40px;" title="Add Nested Field">
-                                    +
-                                </button>
-                                <button type="button" class="btn-remove" onclick="removeOption(this)">Remove</button>
-                            </div>
+                                                        <div class="option-item radio-option-item" data-option-index="<?php echo $optIdx; ?>">
+                                                            <div style="display:flex;gap:8px;align-items:center;width:100%;">
+                                                                <input type="text" class="option-input" value="<?php echo htmlspecialchars($optValue); ?>" maxlength="32" placeholder="Option" oninput="formatTextToTitleCase(this)">
+                                                                <input type="number" class="option-price-input" value="<?php echo $optPrice; ?>" placeholder="Price" min="0" step="0.01" title="Price">
+                                                                <button type="button" class="fee-toggle-btn btn-add" onclick="toggleRowFee(this)" style="background:<?php echo $optFee > 0 ? '#fff7ed' : '#f0fdfa'; ?>;color:<?php echo $optFee > 0 ? '#ea580c' : '#0d9488'; ?>;border-color:<?php echo $optFee > 0 ? '#fdba74' : '#5eead4'; ?>;min-width:65px;" title="Add Optional Fee">
+                                                                    <?php echo $optFee > 0 ? '- Fee' : '+ Fee'; ?>
+                                                                </button>
+                                                                <input type="number" class="option-fee-input" value="<?php echo $optFee; ?>" placeholder="Fee" min="0" step="0.01" style="<?php echo $optFee > 0 ? '' : 'display:none;'; ?>" title="Fixed fee">
+                                                                <button type="button" class="btn-add" onclick="toggleNestedFieldPanel(this, '<?php echo htmlspecialchars($key); ?>', <?php echo $optIdx; ?>)" style="background:#f0f9ff;color:#0284c7;border-color:#7dd3fc;min-width:40px;" title="Add Nested Field">
+                                                                    <?php echo !empty($nestedFields) ? '−' : '+'; ?>
+                                                                </button>
+                                                                <button type="button" class="btn-remove" onclick="removeOption(this)">Remove</button>
+                                                            </div>
+                                                            <?php if (!empty($nestedFields)): ?>
+                                                                <div class="nested-field-panel" style="display:block;">
+                                                                    <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;">Nested Fields for "<?php echo htmlspecialchars($optValue); ?>"</label>
+                                                                    <div class="nested-fields-config" id="nested-config-<?php echo htmlspecialchars($key); ?>-<?php echo $optIdx; ?>">
+                                                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f1f5f9;">
+                                                                            <span style="font-size:12px;font-weight:600;color:#4b5563;">Configuration</span>
+                                                                            <button type="button" class="btn-add" onclick="addNestedFieldItem(this)" style="padding:4px 10px;font-size:11px;">+ Add Field</button>
+                                                                        </div>
+                                                                        <div class="nested-fields-list">
+                                                                            <?php foreach ($nestedFields as $nIdx => $nField): ?>
+                                                                                <div class="nested-field-item card" style="padding:15px;margin-bottom:10px;border-color:#e2e8f0;">
+                                                                                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+                                                                                        <h4 style="margin:0;font-size:13px;font-weight:700;color:#1f2937;">Nested Field #<?php echo $nIdx + 1; ?></h4>
+                                                                                        <button type="button" class="btn-remove" onclick="removeNestedFieldItem(this)" style="padding:4px 8px;">&times;</button>
+                                                                                    </div>
+                                                                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                                                                                        <div>
+                                                                                            <label class="field-label">Label</label>
+                                                                                            <input type="text" class="field-input nested-label" value="<?php echo htmlspecialchars($nField['label']); ?>" placeholder="e.g., Color">
+                                                                                        </div>
+                                                                                        <div>
+                                                                                            <label class="field-label">Type</label>
+                                                                                            <select class="field-input nested-type-select" onchange="handleNestedTypeChange(this)">
+                                                                                                <option value="select" <?php echo $nField['type'] === 'select' ? 'selected' : ''; ?>>Dropdown</option>
+                                                                                                <option value="radio" <?php echo $nField['type'] === 'radio' ? 'selected' : ''; ?>>Radio</option>
+                                                                                                <option value="dimension" <?php echo $nField['type'] === 'dimension' ? 'selected' : ''; ?>>Dimension</option>
+                                                                                                <option value="textarea" <?php echo $nField['type'] === 'textarea' ? 'selected' : ''; ?>>Textarea</option>
+                                                                                            </select>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <!-- Additional nested field options would go here if needed -->
+                                                                                </div>
+                                                                            <?php endforeach; ?>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            <?php endif; ?>
                                                         </div>
                                                     <?php endforeach; ?>
                                                 </div>
                                                 <button type="button" class="btn-add" onclick="addOption(this)">+ Add Option</button>
+                                                <div style="margin-top:16px;">
+                                                    <label class="toggle-label">
+                                                        <label class="toggle-switch">
+                                                            <input type="checkbox" class="allow-others-toggle" <?php echo ($config['allow_others'] ?? false) ? 'checked' : ''; ?>>
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                        <span>Allow "Others" (Custom Input)</span>
+                                                    </label>
+                                                </div>
+                                                <p style="font-size:0.75rem;color:#92400e;margin-top:8px;padding:8px;background:#fffbeb;border-radius:6px;"><strong>Note:</strong> Price is multiplied by quantity. Fee is added once (not multiplied).</p>
                                             </div>
                                         <?php elseif ($config['type'] === 'select'): ?>
                                             <div class="field-group">
@@ -385,15 +440,30 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                                                     <?php foreach ($config['options'] ?? [] as $option): 
                                                         $optValue = is_array($option) ? ($option['value'] ?? '') : $option;
                                                         $optPrice = is_array($option) ? ($option['price'] ?? 0) : 0;
+                                                        $optFee = is_array($option) ? ($option['fee'] ?? 0) : 0;
                                                     ?>
                                                         <div class="option-item" style="display:flex;gap:8px;align-items:center;">
                                                             <input type="text" class="option-input" value="<?php echo htmlspecialchars($optValue); ?>" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;">
                                                             <input type="number" class="option-price-input" value="<?php echo $optPrice; ?>" placeholder="Price" min="0" step="0.01" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option">
+                                                            <button type="button" class="fee-toggle-btn btn-add" onclick="toggleRowFee(this)" style="background:<?php echo $optFee > 0 ? '#ef4444' : '#f59e0b'; ?>;color:white;border:none;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:600;min-width:70px;" title="Add Optional Fee">
+                                                                <?php echo $optFee > 0 ? '- Fee' : '+ Fee'; ?>
+                                                            </button>
+                                                            <input type="number" class="option-fee-input" value="<?php echo $optFee; ?>" placeholder="Fee" min="0" step="0.01" style="width:80px;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;<?php echo $optFee > 0 ? '' : 'display:none;'; ?>" title="Fixed fee (not multiplied)">
                                                             <button type="button" class="btn-remove" onclick="removeOption(this)">Remove</button>
                                                         </div>
                                                     <?php endforeach; ?>
                                                 </div>
                                                 <button type="button" class="btn-add" onclick="addOption(this)">+ Add Option</button>
+                                                <div style="margin-top:16px;">
+                                                    <label class="toggle-label">
+                                                        <label class="toggle-switch">
+                                                            <input type="checkbox" class="allow-others-toggle" <?php echo ($config['allow_others'] ?? false) ? 'checked' : ''; ?>>
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                        <span>Allow "Others" (Custom Input)</span>
+                                                    </label>
+                                                </div>
+                                                <p style="font-size:0.75rem;color:#92400e;margin-top:8px;padding:8px;background:#fffbeb;border-radius:6px;"><strong>Note:</strong> Price is multiplied by quantity. Fee is added once (not multiplied).</p>
                                             </div>
                                         <?php endif; ?>
                                         
@@ -596,6 +666,7 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                     <button type="button" class="btn-add" onclick="addEditFieldOption()" style="margin-top:12px;">+ Add Option</button>
                 </div>
             </div>
+
             
             <div id="edit-field-dimension-section" style="display:none;">
                 <div class="field-group">
@@ -660,7 +731,16 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
                     <option value="radio">Radio Buttons</option>
                     <option value="file">File Upload</option>
                     <option value="textarea">Textarea (Multi-line)</option>
+                    <option value="fee">Fixed Fee (Not Multiplied)</option>
                 </select>
+            </div>
+            
+            <div id="new-field-fee-section" style="display:none;">
+                <div class="field-group">
+                    <label class="field-label">Fee Amount (₱)</label>
+                    <input type="number" id="new-field-fee-amount" class="field-input" placeholder="0.00" min="0" step="0.01" value="0">
+                    <p style="font-size:0.75rem;color:#6b7280;margin-top:4px;">This fee will be added once per order, not multiplied by quantity.</p>
+                </div>
             </div>
             
             <div id="new-field-options-section" style="display:none;">
@@ -769,14 +849,11 @@ $page_title = 'Configure Input Fields - ' . $service['name'];
 </div>
 
 
-<?php include __DIR__ . '/../includes/footer.php'; ?>
-<script src="nested_field_functions.js"></script>
-</body>
-</html>
+<?php // footer.php will be included at the very bottom ?>
 
 
 <script>
-window.fieldConfigurations = <?php echo json_encode($field_configs, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?> || {};
+window.fieldConfigurations = <?php echo json_encode($field_configs ?? (object)[], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
 window.showAddFieldModal = function() {
     document.getElementById('addFieldModal').classList.add('active');
@@ -807,13 +884,21 @@ window.showEditFieldModal = function(key) {
         document.getElementById('edit-field-options-allow-others').checked = !!config.allow_others;
         const list = document.getElementById('edit-field-options-list');
         list.innerHTML = '';
-        (config.options || []).forEach(option => {
+        (config.options || []).forEach((option, optIdx) => {
             const optValue = (typeof option === 'object' && option.value) ? option.value : option;
             const optPrice = (typeof option === 'object' && option.price) ? option.price : 0;
+            const optFee = (typeof option === 'object' && option.fee) ? option.fee : 0;
             const item = document.createElement('div');
-            item.className = 'option-item';
-            item.style.cssText = 'display:flex;gap:8px;align-items:center;';
-            item.innerHTML = '<input type="text" class="option-input" value="' + optValue + '" maxlength="32" placeholder="Enter option (32 MAX CHARACTERS)" oninput="formatTextToTitleCase(this)" style="flex:2;"><input type="number" class="option-price-input" value="' + optPrice + '" placeholder="Price" min="0" step="0.01" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option"><button type="button" class="btn-remove" onclick="removeEditFieldOption(this)">Remove</button>';
+            item.className = 'option-item radio-option-item';
+            item.innerHTML = `
+                <div style="display:flex;gap:8px;align-items:center;width:100%;">
+                    <input type="text" class="option-input" value="${optValue}" maxlength="32" placeholder="Option" oninput="formatTextToTitleCase(this)">
+                    <input type="number" class="option-price-input" value="${optPrice}" placeholder="Price" min="0" step="0.01" title="Price">
+                    <button type="button" class="fee-toggle-btn btn-add" onclick="toggleRowFee(this)" style="background:${optFee > 0 ? '#fff7ed' : '#f0fdfa'};color:${optFee > 0 ? '#ea580c' : '#0d9488'};border-color:${optFee > 0 ? '#fdba74' : '#5eead4'};" title="Add Optional Fee">${optFee > 0 ? '- Fee' : '+ Fee'}</button>
+                    <input type="number" class="option-fee-input" value="${optFee}" placeholder="Fee" min="0" step="0.01" style="${optFee > 0 ? '' : 'display:none;'}" title="Fixed fee">
+                    <button type="button" class="btn-add" onclick="toggleNestedFieldPanel(this, '${key}', ${optIdx})" style="background:#f0f9ff;color:#0284c7;border-color:#7dd3fc;min-width:40px;" title="Add Nested Field">+</button>
+                    <button type="button" class="btn-remove" onclick="removeEditFieldOption(this)">Remove</button>
+                </div>`;
             list.appendChild(item);
         });
     } else if (config.type === 'dimension') {
@@ -897,8 +982,10 @@ window.toggleNewFieldOptions = function() {
     const type = document.getElementById('new-field-type').value;
     const optionsSection = document.getElementById('new-field-options-section');
     const dimensionSection = document.getElementById('new-field-dimension-section');
+    const feeSection = document.getElementById('new-field-fee-section');
     if (optionsSection) optionsSection.style.display = (type === 'select' || type === 'radio') ? 'block' : 'none';
     if (dimensionSection) dimensionSection.style.display = (type === 'dimension') ? 'block' : 'none';
+    if (feeSection) feeSection.style.display = (type === 'fee') ? 'block' : 'none';
 };
 
 window.addOption = function(btn) {
@@ -906,8 +993,34 @@ window.addOption = function(btn) {
     const item = document.createElement('div');
     item.className = 'option-item';
     item.style.cssText = 'display:flex;gap:8px;align-items:center;';
-    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;"><input type="number" class="option-price-input" placeholder="Price" min="0" step="0.01" value="0" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option"><button type="button" class="btn-remove" onclick="removeOption(this)">Remove</button>';
+    item.innerHTML = '<input type="text" class="option-input" placeholder="Option" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:1.5;min-width:0;"><input type="number" class="option-price-input" placeholder="Price" min="0" step="0.01" value="0" style="width:70px;padding:9px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price"><button type="button" class="fee-toggle-btn btn-add" onclick="toggleRowFee(this)" style="background:#f59e0b;color:white;border:none;padding:8px 8px;border-radius:6px;font-size:11px;font-weight:600;min-width:55px;" title="Add Optional Fee">+ Fee</button><input type="number" class="option-fee-input" value="0" placeholder="Fee" min="0" step="0.01" style="width:65px;padding:9px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;display:none;" title="Fixed fee"><button type="button" class="btn-remove" onclick="removeOption(this)" style="padding:8px 8px;font-size:11px;">Remove</button>';
     list.appendChild(item);
+};
+
+window.toggleRowFee = function(btn) {
+    const optionItem = btn.closest('.option-item');
+    const feeInput = optionItem.querySelector('.option-fee-input');
+    
+    if (!feeInput) return;
+    
+    // Check computed style
+    const style = window.getComputedStyle(feeInput);
+    const isHidden = style.display === 'none';
+    
+    if (isHidden) {
+        feeInput.style.display = 'inline-block';
+        btn.textContent = '- Fee';
+        btn.style.background = '#fff7ed';
+        btn.style.color = '#ea580c';
+        btn.style.borderColor = '#fdba74';
+    } else {
+        feeInput.style.display = 'none';
+        btn.textContent = '+ Fee';
+        btn.style.background = '#f0fdfa';
+        btn.style.color = '#0d9488';
+        btn.style.borderColor = '#5eead4';
+        feeInput.value = '0';
+    }
 };
 
 window.removeOption = function(btn) {
@@ -933,9 +1046,9 @@ window.updateUnitDisplay = function(select) {};
 window.addNewFieldOption = function() {
     const list = document.getElementById('new-field-options-list');
     const item = document.createElement('div');
-    item.className = 'option-item';
-    item.style.cssText = 'display:flex;gap:8px;align-items:center;';
-    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;"><input type="number" class="option-price-input" placeholder="Price" min="0" step="0.01" value="0" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option"><button type="button" class="btn-remove" onclick="removeNewFieldOption(this)">Remove</button>';
+    item.className = 'option-item radio-option-item';
+    item.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:8px;';
+    item.innerHTML = '<input type="text" class="option-input" placeholder="Option" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:1.5;min-width:0;"><input type="number" class="option-price-input" placeholder="Price" min="0" step="0.01" value="0" style="width:70px;padding:9px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price"><button type="button" class="fee-toggle-btn btn-add" onclick="toggleRowFee(this)" style="background:#f59e0b;color:white;border:none;padding:8px 8px;border-radius:6px;font-size:11px;font-weight:600;min-width:55px;" title="Add Optional Fee">+ Fee</button><input type="number" class="option-fee-input" value="0" placeholder="Fee" min="0" step="0.01" style="width:65px;padding:9px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;display:none;" title="Fixed fee"><button type="button" class="btn-remove" onclick="removeNewFieldOption(this)" style="padding:8px 8px;font-size:11px;">Remove</button>';
     list.appendChild(item);
 };
 
@@ -1008,8 +1121,10 @@ window.addNewField = function() {
         optionItems.forEach((optionItem) => {
             const input = optionItem.querySelector('.option-input');
             const priceInput = optionItem.querySelector('.option-price-input');
-            const optionValue = input.value.trim();
+            const feeInput = optionItem.querySelector('.option-fee-input');
+            const optionValue = input ? input.value.trim() : '';
             const optionPrice = priceInput ? parseFloat(priceInput.value) || 0 : 0;
+            const optionFee = feeInput ? parseFloat(feeInput.value) || 0 : 0;
             if (!optionValue) return;
             
             // Check for nested fields (they are in the NEXT sibling div if it's radio)
@@ -1057,12 +1172,12 @@ window.addNewField = function() {
                 });
                 
                 if (nestedFields.length > 0) {
-                    options.push({ value: optionValue, price: optionPrice, nested_fields: nestedFields });
+                    options.push({ value: optionValue, price: optionPrice, fee: optionFee, nested_fields: nestedFields });
                 } else {
-                    options.push({ value: optionValue, price: optionPrice });
+                    options.push({ value: optionValue, price: optionPrice, fee: optionFee });
                 }
             } else {
-                options.push({ value: optionValue, price: optionPrice });
+                options.push({ value: optionValue, price: optionPrice, fee: optionFee });
             }
         });
         
@@ -1097,6 +1212,15 @@ window.addNewField = function() {
         config.allow_others = allowOthers;
     }
     
+    if (type === 'fee') {
+        const feeAmount = parseFloat(document.getElementById('new-field-fee-amount').value) || 0;
+        if (feeAmount <= 0) {
+            alert('Please enter a valid fee amount');
+            return;
+        }
+        config.fee_amount = feeAmount;
+    }
+    
     window.fieldConfigurations[key] = config;
     document.getElementById('fieldConfigsInput').value = JSON.stringify(window.fieldConfigurations);
     
@@ -1113,9 +1237,16 @@ window.addNewField = function() {
 window.addEditFieldOption = function() {
     const list = document.getElementById('edit-field-options-list');
     const item = document.createElement('div');
-    item.className = 'option-item';
-    item.style.cssText = 'display:flex;gap:8px;align-items:center;';
-    item.innerHTML = '<input type="text" class="option-input" placeholder="Enter option (32 MAX CHARACTERS)" maxlength="32" oninput="formatTextToTitleCase(this)" style="flex:2;"><input type="number" class="option-price-input" placeholder="Price" min="0" step="0.01" value="0" style="flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;" title="Price for this option"><button type="button" class="btn-remove" onclick="removeEditFieldOption(this)">Remove</button>';
+    item.className = 'option-item radio-option-item';
+    item.innerHTML = `
+        <div style="display:flex;gap:8px;align-items:center;width:100%;">
+            <input type="text" class="option-input" placeholder="Option" maxlength="32" oninput="formatTextToTitleCase(this)">
+            <input type="number" class="option-price-input" value="0" placeholder="Price" min="0" step="0.01" title="Price">
+            <button type="button" class="fee-toggle-btn btn-add" onclick="toggleRowFee(this)" style="background:#f0fdfa;color:#0d9488;border-color:#5eead4;" title="Add Optional Fee">+ Fee</button>
+            <input type="number" class="option-fee-input" value="0" placeholder="Fee" min="0" step="0.01" style="display:none;" title="Fixed fee">
+            <button type="button" class="btn-add" onclick="toggleNestedFieldPanel(this, 'edit', Date.now())" style="background:#f0f9ff;color:#0284c7;border-color:#7dd3fc;min-width:40px;" title="Add Nested Field">+</button>
+            <button type="button" class="btn-remove" onclick="removeEditFieldOption(this)">Remove</button>
+        </div>`;
     list.appendChild(item);
 };
 
@@ -1183,7 +1314,8 @@ window.saveEditField = function() {
         document.querySelectorAll('#edit-field-options-list .option-item').forEach(item => {
             const val = item.querySelector('.option-input')?.value.trim();
             const price = item.querySelector('.option-price-input') ? parseFloat(item.querySelector('.option-price-input').value) || 0 : 0;
-            if (val) options.push({ value: val, price: price });
+            const fee = item.querySelector('.option-fee-input') ? parseFloat(item.querySelector('.option-fee-input').value) || 0 : 0;
+            if (val) options.push({ value: val, price: price, fee: fee });
         });
         if (options.length === 0) {
             alert('Please add at least one option');
@@ -1218,6 +1350,24 @@ window.saveEditField = function() {
 
     window.fieldConfigurations[key] = config;
     document.getElementById('fieldConfigsInput').value = JSON.stringify(window.fieldConfigurations);
+    
+    // Sync to main card so the collector can pick it up
+    const card = document.querySelector(`.section-card[data-field-key="${key}"]`);
+    if (card) {
+        // Update label
+        const labelInput = card.querySelector('.label-input');
+        if (labelInput) labelInput.value = label;
+        
+        // Update required status
+        const requiredToggle = card.querySelector('.required-toggle');
+        if (requiredToggle) requiredToggle.checked = required;
+        
+        // Update allow_others toggle
+        const allowOthersToggle = card.querySelector('.allow-others-toggle');
+        if (allowOthersToggle) {
+            allowOthersToggle.checked = config.allow_others;
+        }
+    }
     
     // Trigger save
     const form = document.getElementById('configForm');
@@ -1307,6 +1457,13 @@ window.formatTextToTitleCase = function(input) {
         }).join(' ');
     }
 };
+
+window.toggleFeeInput = function(btn) {
+    // Deprecated - use toggleRowFee instead
+    toggleRowFee(btn);
+};
+
+window.toggleEditFeeSection = function() {};
 </script>
-</body>
-</html>
+<script src="nested_field_functions.js"></script>
+<?php include __DIR__ . '/../includes/footer.php'; ?>

@@ -924,12 +924,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     calculateEstimatedPrice = function() {
         let optionsTotal = 0;
+        let fixedFees = 0;
         
         // Calculate price from radio buttons
         const checkedRadios = form.querySelectorAll('input[type="radio"].pricing-field:checked');
         checkedRadios.forEach(radio => {
             const price = parseFloat(radio.getAttribute('data-price') || 0);
+            const fee = parseFloat(radio.getAttribute('data-fee') || 0);
             optionsTotal += price;
+            fixedFees += fee;
         });
         
         // Calculate price from select dropdowns
@@ -938,7 +941,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedOption = select.options[select.selectedIndex];
             if (selectedOption && selectedOption.value) {
                 const price = parseFloat(selectedOption.getAttribute('data-price') || 0);
+                const fee = parseFloat(selectedOption.getAttribute('data-fee') || 0);
                 optionsTotal += price;
+                fixedFees += fee;
             }
         });
         
@@ -949,13 +954,19 @@ document.addEventListener('DOMContentLoaded', function() {
             optionsTotal += price;
         }
         
+        // Calculate fixed fees (NOT multiplied by quantity)
+        const feeFields = form.querySelectorAll('.fixed-fee-field');
+        feeFields.forEach(feeInput => {
+            fixedFees += parseFloat(feeInput.getAttribute('data-fee') || 0);
+        });
+        
         // Get quantity
         const qtyInput = form.querySelector('input[name="quantity"]');
         const quantity = parseInt(qtyInput?.value || 1);
         
-        // Calculate totals
+        // Calculate totals: (base + options) * quantity + fixed fees
         const unitPrice = basePrice + optionsTotal;
-        const estimatedTotal = unitPrice * quantity;
+        const estimatedTotal = (unitPrice * quantity) + fixedFees;
         
         // Update display
         const estimatedTotalEl = document.getElementById('estimated-total');

@@ -48,7 +48,7 @@ function seed_default_customer_services_if_empty(): void {
         return;
     }
     $desc = 'Order flow for this service.';
-    $price = 1.0;
+    $price = 0.0;
     $status = 'Activated';
     foreach ($defaults as $d) {
         $name = $d['name'];
@@ -80,7 +80,7 @@ function sync_default_catalog_services_missing_rows(): void {
         return;
     }
     $desc = 'Order flow for this service.';
-    $price = 1.0;
+    $price = 0.0;
     $status = 'Activated';
     foreach ($defaults as $d) {
         $name = trim($d['name']);

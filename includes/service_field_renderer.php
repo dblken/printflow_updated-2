@@ -108,13 +108,14 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
                 foreach ($config['options'] ?? [] as $option) {
                     $optionValue = is_array($option) ? ($option['value'] ?? '') : $option;
                     $optionPrice = is_array($option) ? (float)($option['price'] ?? 0) : 0;
+                    $optionFee = is_array($option) ? (float)($option['fee'] ?? 0) : 0;
                     if ($optionValue === '') continue;
                     
                     // Skip if this option is already defined in a nested field
                     if (isset($nestedValuesSet[strtolower(trim($optionValue))])) continue;
                     
                     $value = htmlspecialchars(formatToTitleCase($optionValue));
-                    $html .= '<option value="' . $value . '" data-price="' . $optionPrice . '">' . $value . '</option>';
+                    $html .= '<option value="' . $value . '" data-price="' . $optionPrice . '" data-fee="' . $optionFee . '">' . $value . '</option>';
                 }
                 if ($config['allow_others'] ?? false) {
                     $html .= '<option value="Others" data-price="0"' . (($saved_value === 'Others') ? ' selected' : '') . '>Others</option>';
@@ -145,6 +146,7 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
             foreach ($config['options'] ?? [] as $idx => $option) {
                 $optionValue = is_array($option) ? ($option['value'] ?? '') : $option;
                 $optionPrice = is_array($option) ? (float)($option['price'] ?? 0) : 0;
+                $optionFee = is_array($option) ? (float)($option['fee'] ?? 0) : 0;
                 $nestedFields = is_array($option) ? ($option['nested_fields'] ?? []) : [];
                 
                 if ($optionValue === '') continue;
@@ -153,7 +155,7 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
                 $value = htmlspecialchars(formatToTitleCase($optionValue));
                 $is_checked = ($saved_value == $optionValue) ? ' checked' : '';
                 $html .= '<label class="shopee-opt-btn' . ($is_checked ? ' active' : '') . '">';
-                $html .= '<input type="radio" name="' . htmlspecialchars($field_key) . '" value="' . $value . '" data-price="' . $optionPrice . '" class="pricing-field" data-field-key="' . htmlspecialchars($field_key) . '"' . $is_checked . ' style="display:none;" ' . $required_attr . ' onchange="updateOptVisual(this); handleNestedFields(this, \'' . htmlspecialchars($field_key) . '\', ' . $idx . '); updateFieldPrice(this)">';
+                $html .= '<input type="radio" name="' . htmlspecialchars($field_key) . '" value="' . $value . '" data-price="' . $optionPrice . '" data-fee="' . $optionFee . '" class="pricing-field" data-field-key="' . htmlspecialchars($field_key) . '"' . $is_checked . ' style="display:none;" ' . $required_attr . ' onchange="updateOptVisual(this); handleNestedFields(this, \'' . htmlspecialchars($field_key) . '\', ' . $idx . '); updateFieldPrice(this)">';
                 $html .= '<span>' . $value . '</span>';
                 $html .= '</label>';
             }
@@ -401,6 +403,15 @@ function render_service_field($field_key, $config, $branches = [], $existing_dat
             
         case 'textarea':
             $html .= '<textarea name="' . htmlspecialchars($field_key) . '" rows="4" class="shopee-opt-btn notes-textarea" placeholder="Any special instructions..." maxlength="500" ' . $required_attr . ' style="max-width: 600px; height: 100px; resize: none; align-items: flex-start; justify-content: flex-start; text-align: left; padding: 0.75rem;">' . htmlspecialchars($saved_value) . '</textarea>';
+            break;
+            
+        case 'fee':
+            $fee_amount = (float)($config['fee_amount'] ?? 0);
+            $html .= '<div style="padding:12px 16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:8px;width:fit-content;">';
+            $html .= '<span style="font-size:0.95rem;font-weight:700;color:#0d9488;">Fixed Fee: <span class="fee-amount" data-fee="' . $fee_amount . '">₱' . number_format($fee_amount, 2) . '</span></span>';
+            $html .= '<p style="font-size:0.75rem;color:#6b7280;margin:4px 0 0;">This fee is added once per order (not multiplied by quantity)</p>';
+            $html .= '</div>';
+            $html .= '<input type="hidden" name="' . htmlspecialchars($field_key) . '_fee" value="' . $fee_amount . '" class="fixed-fee-field" data-fee="' . $fee_amount . '">';
             break;
             
         case 'text':
@@ -895,6 +906,7 @@ function updateFieldPriceDisplay(fieldKey, price) {
 // Global Service Price Calculator
 function calculateEstimatedPrice() {
     let total = 0;
+    let fixedFees = 0;
     
     // 1. Sum up prices from selected Radios
     document.querySelectorAll('.shopee-form-row:not([style*="display: none"]) input[type="radio"]:checked.pricing-field').forEach(input => {
@@ -914,11 +926,16 @@ function calculateEstimatedPrice() {
         total += parseFloat(btn.getAttribute('data-price') || 0);
     });
 
-    // 4. Quantity Multiper
+    // 4. Sum up fixed fees (NOT multiplied by quantity)
+    document.querySelectorAll('.shopee-form-row:not([style*="display: none"]) .fixed-fee-field').forEach(feeInput => {
+        fixedFees += parseFloat(feeInput.getAttribute('data-fee') || 0);
+    });
+
+    // 5. Quantity Multiplier (only for regular prices, NOT fees)
     const qtyInput = document.getElementById('quantity-input');
     const qty = parseInt(qtyInput ? qtyInput.value : 1) || 1;
     
-    const finalTotal = total * qty;
+    const finalTotal = (total * qty) + fixedFees;
     
     // Update POS display if it exists
     const totalDisplay = document.getElementById('sm-total-amount');
